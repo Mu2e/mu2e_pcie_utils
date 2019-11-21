@@ -26,8 +26,8 @@ messagefacility v2_04_03        s83
 messagefacility v2_04_03        s82
 messagefacility v2_02_04        s73
 messagefacility v2_02_01        s67
-TRACE            v3_14_00
-cetbuildtools    v7_13_02        -       only_for_build
+TRACE            v3_15_05
+cetbuildtools    v7_14_00        -       only_for_build
 end_product_list
 
 # e6  - with gcc 4.9.1 and -std=c++1y
