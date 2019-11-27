@@ -4,6 +4,7 @@
 #include <bitset>
 #include <cstdint>  // uint8_t, uint16_t
 #include <vector>
+#include <cassert>
 
 #include "DTC_Types.h"
 
@@ -302,15 +303,16 @@ class DTC_DMAPacket
 protected:
 	uint16_t byteCount_;         ///< Byte count of current block
 	bool valid_;                 ///< Whether the DTC believes the packet to be valid
+	uint8_t subsystemID_;		///< Subsystem ID (Data Header packet only)
 	DTC_Link_ID linkID_;         ///< Link identifier of packet
 	DTC_PacketType packetType_;  ///< Packet type
-
+	uint8_t hopCount_;           ///< Hop count
 public:
 	/// <summary>
 	/// DTC_DMAPacket default constructor. Fills in header fields with default (invalid) values.
 	/// </summary>
 	DTC_DMAPacket()
-		: byteCount_(0), valid_(false), linkID_(DTC_Link_Unused), packetType_(DTC_PacketType_Invalid) {}
+		: byteCount_(0), valid_(false), subsystemID_(0), linkID_(DTC_Link_Unused), packetType_(DTC_PacketType_Invalid), hopCount_(0) {}
 
 	/// <summary>
 	/// Create a DTC_DMAPacket with the given parameters
@@ -319,7 +321,8 @@ public:
 	/// <param name="link">Link ID</param>
 	/// <param name="byteCount">Block byte count. Default is one packet, 16 bytes</param>
 	/// <param name="valid">Valid flag for packet, default true</param>
-	DTC_DMAPacket(DTC_PacketType type, DTC_Link_ID link, uint16_t byteCount = 16, bool valid = true);
+	/// <param name="hopCount">Hop count (Subsystem ID) for packet, default 0</param>
+	DTC_DMAPacket(DTC_PacketType type, DTC_Link_ID link, uint16_t byteCount = 16, bool valid = true, uint8_t subsystemID = 0, uint8_t hopCount = 0);
 
 	/// <summary>
 	/// Construct a DTC_DMAPacket using the data in the given DataPacket
@@ -386,6 +389,25 @@ public:
 	/// </summary>
 	/// <returns>The Link ID of the packet</returns>
 	DTC_Link_ID GetRingID() const { return linkID_; }
+
+	/// <summary>
+	/// Gets the Hop Count of the packet
+	///
+	/// </summary>
+	/// <returns>The Hop count of the packet</returns>
+	uint8_t GetHopCount() const
+	{
+		return hopCount_;
+	}
+	/// <summary>
+	/// Gets the Subsystem ID of the packet
+	///
+	/// This method should only be used if the packet is a DataHeader packet
+	/// </summary>
+	/// <returns>Subsystem ID stored in the packet</returns>
+	uint8_t GetSubsystemID() const
+	{	return subsystemID_;
+	}
 
 	/// <summary>
 	/// Converts the DMA Packet to "packet format" representation (See DTC_DataPacket::toPacketFormat())
@@ -850,10 +872,11 @@ public:
 	/// <param name="packetCount">Number of DTC_DataPackets in Data Block</param>
 	/// <param name="status">Status of Data Block</param>
 	/// <param name="dtcid">DTC ID from which packet came</param>
+	/// <param name="subsystemid">Subsystem ID from which packet came</param>
 	/// <param name="packetVersion">Version of data format</param>
 	/// <param name="timestamp">Timestamp of Data Packet (Default: DTC_Timetstamp())</param>
 	/// <param name="evbMode">EVB Mode byte (Default: 0)</param>
-	DTC_DataHeaderPacket(DTC_Link_ID link, uint16_t packetCount, DTC_DataStatus status, uint8_t dtcid,
+	DTC_DataHeaderPacket(DTC_Link_ID link, uint16_t packetCount, DTC_DataStatus status, uint8_t dtcid, DTC_Subsystem subsystemid,
 						 uint8_t packetVersion, DTC_Timestamp timestamp = DTC_Timestamp(), uint8_t evbMode = 0);
 	/// <summary>
 	/// Default Copy Constructor
@@ -887,13 +910,13 @@ public:
 	/// Get the Subsystem ID of the Data Block
 	/// </summary>
 	/// <returns>DTC_Subsystem enumeration value</returns>
-	DTC_Subsystem GetSubsystem() const { return dtcId_.GetSubsystem(); }
+	DTC_Subsystem GetSubsystem() const { return static_cast<DTC_Subsystem>(GetSubsystemID()); }
 
 	/// <summary>
 	/// Get the DTC ID of the Data Block
 	/// </summary>
 	/// <returns>DTC ID of Data Block</returns>
-	uint8_t GetID() const { return dtcId_.GetID(); }
+	uint8_t GetID() const { return dtcId_; }
 
 	/// <summary>
 	/// Get the number of Data Packets in the Data block
@@ -956,7 +979,7 @@ private:
 	DTC_Timestamp timestamp_;
 	DTC_DataStatus status_;
 	uint8_t dataPacketVersion_;
-	DTC_ID dtcId_;
+	uint8_t dtcId_;
 	uint8_t evbMode_;
 };
 }  // namespace DTCLib

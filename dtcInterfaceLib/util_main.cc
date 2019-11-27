@@ -247,7 +247,7 @@ void WriteGeneratedData(DTC* thisDTC)
 			{
 				auto index = kk % DTC_Links.size();
 				DTC_DataHeaderPacket header(DTC_Links[index], static_cast<uint16_t>(packetCount), DTC_DataStatus_Valid,
-											static_cast<uint8_t>(kk / DTC_Links.size()), 0, DTC_Timestamp(ts));
+											static_cast<uint8_t>(kk / DTC_Links.size()), DTC_Subsystem_Other, 0, DTC_Timestamp(ts));
 				auto packet = header.ConvertToDataPacket();
 				memcpy(reinterpret_cast<uint8_t*>(buf) + currentOffset, packet.GetData(), sizeof(uint8_t) * 16);
 				if (rawOutput) outputStream << packet;
@@ -561,7 +561,7 @@ int main(int argc, char* argv[])
 
 				if (!reallyQuiet)
 				{
-					DTCLib::Utilities::PrintBuffer(buffer, bufSize,quietCount);
+					DTCLib::Utilities::PrintBuffer(buffer, bufSize, quietCount);
 				}
 			}
 			device->read_release(DTC_DMA_Engine_DAQ, 1);
@@ -676,7 +676,7 @@ int main(int argc, char* argv[])
 		else if (thisDTC->ReadSimMode() == DTC_SimMode_Loopback)
 		{
 			uint64_t ts = timestampOffset;
-			DTC_DataHeaderPacket header(DTC_Link_0, static_cast<uint16_t>(0), DTC_DataStatus_Valid, 0, 0, DTC_Timestamp(ts));
+			DTC_DataHeaderPacket header(DTC_Link_0, static_cast<uint16_t>(0), DTC_DataStatus_Valid, 0, DTC_Subsystem_Other, 0, DTC_Timestamp(ts));
 			TLOG(TLVL_INFO) << "Request: " << header.toJSON() << std::endl;
 			thisDTC->WriteDMAPacket(header);
 		}
@@ -696,9 +696,9 @@ int main(int argc, char* argv[])
 					std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(endRequest - startRequest).count();
 			}
 			TLOG((reallyQuiet ? 9 : TLVL_INFO)) << "Buffer Read " << std::dec << ii << std::endl;
-			
+
 			__COUT__ << "Buffer read " << ii << __E__;
-			
+
 			mu2e_databuff_t* buffer;
 			auto tmo_ms = 1500;
 			TLOG(TLVL_TRACE) << "util - before read for DAQ - ii=" << ii;
@@ -711,7 +711,7 @@ int main(int argc, char* argv[])
 				auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
 				readPtr = static_cast<uint8_t*>(readPtr) + 8;
 				TLOG((reallyQuiet ? 9 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
-												  << sts << " bytes," << std::endl;
+													<< sts << " bytes," << std::endl;
 
 				TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
 				if (rawOutput) outputStream.write(static_cast<char*>(readPtr), sts - 8);

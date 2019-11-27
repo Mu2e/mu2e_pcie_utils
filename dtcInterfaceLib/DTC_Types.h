@@ -17,45 +17,9 @@ enum DTC_Subsystem : uint8_t
 	DTC_Subsystem_Tracker = 0,
 	DTC_Subsystem_Calorimeter = 1,
 	DTC_Subsystem_CRV = 2,
-	DTC_Subsystem_Other = 3
-};
-
-/// <summary>
-/// The DTC_ID field is used to uniquely identify each DTC. The ID consists of 2 bits of Subsystem ID and 6 bits of DTC
-/// ID.
-/// </summary>
-class DTC_ID
-{
-	uint8_t idData_;
-
-public:
-	/// <summary>
-	/// DTC_ID default constructor
-	/// Initializes DTC_ID to 0
-	/// </summary>
-	DTC_ID()
-		: idData_(0) {}
-	/// <summary>
-	/// DTC_ID constructor
-	/// </summary>
-	/// <param name="id">DTC_ID byte from data packet</param>
-	explicit DTC_ID(uint8_t id)
-		: idData_(id) {}
-	/// <summary>
-	/// Get the DTC_Subsystem of the DTC_ID
-	/// </summary>
-	/// <returns>DTC_Subsystem of the DTC_ID instance</returns>
-	DTC_Subsystem GetSubsystem() const { return static_cast<DTC_Subsystem>(idData_ >> 6); }
-	/// <summary>
-	/// Return the DTC ID within the subsystem
-	/// </summary>
-	/// <returns>DTC ID</returns>
-	uint8_t GetID() const { return idData_ & 0x3F; }
-	/// <summary>
-	/// Return the whole DTC_ID word
-	/// </summary>
-	/// <returns>DTC_ID byte as seen in packet</returns>
-	uint8_t GetWord() const { return idData_; }
+	DTC_Subsystem_Other = 3,
+	DTC_Subsystem_STM = 4,
+	DTC_Subsystem_ExtMon =5,
 };
 
 enum DTC_Link_ID : uint8_t

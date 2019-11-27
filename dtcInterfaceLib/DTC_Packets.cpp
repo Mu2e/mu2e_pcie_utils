@@ -1,6 +1,5 @@
 #include "DTC_Packets.h"
 
-#include <cassert>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
@@ -111,8 +110,8 @@ bool DTCLib::DTC_DataPacket::Equals(const DTC_DataPacket& other) const
 	return equal;
 }
 
-DTCLib::DTC_DMAPacket::DTC_DMAPacket(DTC_PacketType type, DTC_Link_ID link, uint16_t byteCount, bool valid)
-	: byteCount_(byteCount), valid_(valid), linkID_(link), packetType_(type) {}
+DTCLib::DTC_DMAPacket::DTC_DMAPacket(DTC_PacketType type, DTC_Link_ID link, uint16_t byteCount, bool valid, uint8_t subsystemID, uint8_t hopCount)
+	: byteCount_(byteCount), valid_(valid), subsystemID_(subsystemID), linkID_(link), packetType_(type), hopCount_(hopCount) {}
 
 DTCLib::DTC_DataPacket DTCLib::DTC_DMAPacket::ConvertToDataPacket() const
 {
@@ -122,7 +121,7 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DMAPacket::ConvertToDataPacket() const
 	auto word0B = static_cast<uint8_t>(byteCount_ >> 8);
 	output.SetWord(0, word0A);
 	output.SetWord(1, word0B);
-	auto word1A = static_cast<uint8_t>(0);
+	auto word1A = static_cast<uint8_t>(hopCount_ & 0xF);
 	word1A += static_cast<uint8_t>(packetType_) << 4;
 	uint8_t word1B = static_cast<uint8_t>(linkID_) + (valid_ ? 0x80 : 0x0);
 	output.SetWord(2, word1A);
@@ -141,12 +140,15 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DMAPacket::ConvertToDataPacket() const
 DTCLib::DTC_DMAPacket::DTC_DMAPacket(const DTC_DataPacket in)
 {
 	auto word2 = in.GetData()[2];
+	uint8_t hopCount = word2 & 0xF;
 	uint8_t packetType = word2 >> 4;
 	auto word3 = in.GetData()[3];
 	uint8_t linkID = word3 & 0xF;
 	valid_ = (word3 & 0x80) == 0x80;
+	subsystemID_ = (word3 >> 4) & 0x7;
 
 	byteCount_ = in.GetData()[0] + (in.GetData()[1] << 8);
+	hopCount_ = hopCount;
 	linkID_ = static_cast<DTC_Link_ID>(linkID);
 	packetType_ = static_cast<DTC_PacketType>(packetType);
 	TLOG_ARB(20, "DTC_DMAPacket") << headerJSON();
@@ -155,10 +157,14 @@ DTCLib::DTC_DMAPacket::DTC_DMAPacket(const DTC_DataPacket in)
 std::string DTCLib::DTC_DMAPacket::headerJSON() const
 {
 	std::stringstream ss;
-	ss << "\"isValid\": " << valid_ << ",";
 	ss << "\"byteCount\": " << std::hex << "0x" << byteCount_ << ",";
+	ss << "\"isValid\": " << valid_ << ",";
+	ss << "\"subsystemID\": " << std::hex << "0x" << subsystemID_ << ",";
 	ss << "\"linkID\": " << std::dec << linkID_ << ",";
 	ss << "\"packetType\": " << packetType_ << ",";
+
+	ss << "\"hopCount\": " << std::hex << "0x" << hopCount_;
+
 	return ss.str();
 }
 
@@ -168,7 +174,8 @@ std::string DTCLib::DTC_DMAPacket::headerPacketFormat() const
 	ss << std::setfill('0') << std::hex;
 	ss << "0x" << std::setw(6) << ((byteCount_ & 0xFF00) >> 8) << "\t"
 	   << "0x" << std::setw(6) << (byteCount_ & 0xFF) << std::endl;
-	ss << std::setw(1) << static_cast<int>(valid_) << "   "
+	ss << std::setw(1) << static_cast<int>(valid_) << " "
+	   << std::setw(2) << std::dec << static_cast<int>(subsystemID_) << std::hex << " "
 	   << "0x" << std::setw(2) << linkID_ << "\t";
 	ss << "0x" << std::setw(2) << packetType_ << "0x" << std::setw(2) << 0 << std::endl;
 	return ss.str();
@@ -720,9 +727,9 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DCSReplyPacket::ConvertToDataPacket() const
 }
 
 DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_Link_ID link, uint16_t packetCount, DTC_DataStatus status,
-												   uint8_t dtcid, uint8_t packetVersion, DTC_Timestamp timestamp,
+												   uint8_t dtcid, DTC_Subsystem subsystemid, uint8_t packetVersion, DTC_Timestamp timestamp,
 												   uint8_t evbMode)
-	: DTC_DMAPacket(DTC_PacketType_DataHeader, link, (1 + packetCount) * 16), packetCount_(packetCount), timestamp_(timestamp), status_(status), dataPacketVersion_(packetVersion), dtcId_(dtcid), evbMode_(evbMode) {}
+	: DTC_DMAPacket(DTC_PacketType_DataHeader, link, (1 + packetCount) * 16, true, subsystemid), packetCount_(packetCount), timestamp_(timestamp), status_(status), dataPacketVersion_(packetVersion), dtcId_(dtcid), evbMode_(evbMode) {}
 
 DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_DataPacket in)
 	: DTC_DMAPacket(in)
@@ -739,7 +746,7 @@ DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_DataPacket in)
 	timestamp_ = DTC_Timestamp(arr, 6);
 	status_ = DTC_DataStatus(arr[12]);
 	dataPacketVersion_ = arr[13];
-	dtcId_ = DTC_ID(arr[14]);
+	dtcId_ = arr[14];
 	evbMode_ = arr[15];
 }
 
@@ -752,8 +759,7 @@ std::string DTCLib::DTC_DataHeaderPacket::toJSON()
 	ss << timestamp_.toJSON() << ",";
 	ss << "\"status\": " << std::dec << static_cast<int>(status_) << ",";
 	ss << "\"packetVersion\": " << std::hex << static_cast<int>(dataPacketVersion_) << ",";
-	ss << "\"DTC ID\": " << std::dec << static_cast<int>(dtcId_.GetID()) << ",";
-	ss << "\"Subsystem\": " << std::dec << static_cast<int>(dtcId_.GetSubsystem()) << ",";
+	ss << "\"DTC ID\": " << std::dec << static_cast<int>(dtcId_) << ",";
 	ss << "\"evbMode\": " << std::hex << "0x" << static_cast<int>(evbMode_) << "}";
 	return ss.str();
 }
@@ -767,8 +773,7 @@ std::string DTCLib::DTC_DataHeaderPacket::toPacketFormat()
 	ss << timestamp_.toPacketFormat();
 	ss << "0x" << std::setw(6) << static_cast<int>(dataPacketVersion_) << "\t"
 	   << "0x" << std::setw(6) << static_cast<int>(status_) << "\n";
-	ss << "0x" << std::setw(6) << static_cast<int>(evbMode_) << "\t" << std::dec << std::setw(2)
-	   << static_cast<int>(dtcId_.GetSubsystem()) << std::setw(6) << static_cast<int>(dtcId_.GetID()) << "\n";
+	ss << "0x" << std::setw(6) << static_cast<int>(evbMode_) << "\t" << std::dec << std::setw(8) << static_cast<int>(dtcId_) << "\n";
 	return ss.str();
 }
 
@@ -780,7 +785,7 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DataHeaderPacket::ConvertToDataPacket() const
 	timestamp_.GetTimestamp(output.GetData(), 6);
 	output.SetWord(12, static_cast<uint8_t>(status_));
 	output.SetWord(13, static_cast<uint8_t>(dataPacketVersion_));
-	output.SetWord(14, static_cast<uint8_t>(dtcId_.GetWord()));
+	output.SetWord(14, static_cast<uint8_t>(dtcId_));
 	output.SetWord(15, evbMode_);
 	return output;
 }
