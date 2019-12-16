@@ -84,7 +84,9 @@ int main(int argc, char* argv[])
 
 		mu2e_databuff_t buf;
 
-		while (is) {
+		bool continueFile = true;
+		while (is && continueFile) {
+
 			uint64_t dmaWriteSize; // DMA Write buffer size
 			is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
 			total_size_read += sizeof(dmaWriteSize);
@@ -115,11 +117,15 @@ int main(int argc, char* argv[])
 				if ((dataHeaderTest & dataHeaderMask) != 0x8050) {
 					TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << (total_size_read - dmaSize + offset) << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<uint64_t*>(buf + offset);
 					TLOG(TLVL_ERROR) << "This most likely means that the declared DMA size is incorrect, it was declared as 0x" << std::hex << dmaSize << ", but we ran out of DataHeaders at 0x" << std::hex << offset;
-					exit(1);
+					// go to next file
+					continueFile = false;
+					break;
 				}
 				if (offset + blockByteSize > dmaSize) {
 					TLOG(TLVL_ERROR) << "Block goes past end of DMA! Blocks should always end at DMA boundary! Error at 0x" << std::hex << (total_size_read - dmaSize + offset);
-					exit(1);
+					// go to next file
+					continueFile = false;
+					break;
 				}
 				offset += blockByteSize;
 			}
