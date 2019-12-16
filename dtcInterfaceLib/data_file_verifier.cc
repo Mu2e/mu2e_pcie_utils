@@ -114,6 +114,7 @@ int main(int argc, char* argv[])
 				TLOG(TLVL_TRACE) << "Block size: 0x" <<std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
 				if ((dataHeaderTest & dataHeaderMask) != 0x8050) {
 					TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << (total_size_read - dmaSize + offset) << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<uint64_t*>(buf + offset);
+					TLOG(TLVL_ERROR) << "This most likely means that the declared DMA size is incorrect, it was declared as 0x" << std::hex << dmaSize << ", but we ran out of DataHeaders at 0x" << std::hex << offset;
 					exit(1);
 				}
 				if (offset + blockByteSize > dmaSize) {
