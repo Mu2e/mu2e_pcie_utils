@@ -27,7 +27,7 @@ if [ $ROOT_MODE -eq 1 ]; then
 
   lsmod | grep TRACE -q || insmod $TRACE_KO_PATH trace_allow_printk=1
   lsmod | grep mu2e -q || insmod $PCIE_KO_PATH
-  source $TRACE_DIR/script/trace.sh.functions  || source $TRACE_FQ_DIR/bin/trace.sh.functions
+  source $TRACE_DIR/script/trace.sh.functions  || source $TRACE_FQ_DIR/bin/trace.sh.functions || $TRACE_FQ_DIR/bin/trace_functions.sh
   chmod 666 /dev/mu2e*
 fi
 
