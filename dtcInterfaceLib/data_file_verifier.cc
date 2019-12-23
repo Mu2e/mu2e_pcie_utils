@@ -130,5 +130,7 @@ int main(int argc, char* argv[])
 				offset += blockByteSize;
 			}
 		}
+
+		TLOG(TLVL_INFO) << "File " << file << " verified successfully!";
 	}
 }
