@@ -11,7 +11,7 @@
 // typedef unsigned u64;
 #include "mu2e_driver/xdma_hw.h"
 
-int main(int , char *[])
+int main(int, char *[])
 {
 	printf("sizeof(mu2e_buffdesc_S2C_t)=%lu (u32)=%lu (u64)=%lu\n", sizeof(mu2e_buffdesc_S2C_t), sizeof(u32),
 		   sizeof(u64));

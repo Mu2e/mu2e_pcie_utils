@@ -18,27 +18,33 @@ int main(int argc, char* argv[])
 	auto classTest = false, registerTest = false, dcsTest = false, daqTest = false;
 	auto testsSpecified = false;
 
-	if (argc == 1) {
+	if (argc == 1)
+	{
 		std::cout << "Running all DTC Tests." << std::endl
 				  << std::endl;
 	}
 	else
 	{
-		for (auto i = 1; i < argc; ++i) {
+		for (auto i = 1; i < argc; ++i)
+		{
 			auto firstChar = 0;
-			if (argv[i][0] == '-') {
+			if (argv[i][0] == '-')
+			{
 				firstChar = 1;
-				if (argv[i][1] == 'n' && argc >= i + 1) {
+				if (argv[i][1] == 'n' && argc >= i + 1)
+				{
 					++i;
 					testCount = atoi(argv[i]);
 					continue;
 				}
-				if (argv[i][1] == 'h' || argc == i + 1) {
+				if (argv[i][1] == 'h' || argc == i + 1)
+				{
 					usage();
 					exit(0);
 				}
 			}
-			if (isdigit(static_cast<unsigned char>(argv[i][firstChar]))) {
+			if (isdigit(static_cast<unsigned char>(argv[i][firstChar])))
+			{
 				testsSpecified = true;
 				switch (argv[i][firstChar] - '0')
 				{
@@ -62,7 +68,8 @@ int main(int argc, char* argv[])
 			{
 				std::string arg(argv[i]);
 				arg = arg.substr(firstChar);
-				if (arg.find("class") != std::string::npos) {
+				if (arg.find("class") != std::string::npos)
+				{
 					testsSpecified = true;
 					classTest = true;
 				}
@@ -89,7 +96,8 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
-	if (!testsSpecified) {
+	if (!testsSpecified)
+	{
 		classTest = true;
 		registerTest = true;
 		dcsTest = true;
@@ -104,7 +112,8 @@ int main(int argc, char* argv[])
 
 	tester->startTest(classTest, registerTest, daqTest, dcsTest, testCount, true);
 
-	while (tester->isRunning()) {
+	while (tester->isRunning())
+	{
 		usleep(500000);
 	}
 	delete tester;

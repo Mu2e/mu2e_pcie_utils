@@ -24,7 +24,8 @@ public:
 	/// <returns>Size of the data, in bytes</returns>
 	size_t dataSize()
 	{
-		if (block_count == 0) {
+		if (block_count == 0)
+		{
 			return 0;
 		}
 		return blocks[block_count - 1];
@@ -54,7 +55,8 @@ public:
 	/// <param name="bytes">Bytes in this block</param>
 	void endSubEvt(size_t bytes)
 	{
-		if (block_count > 0) {
+		if (block_count > 0)
+		{
 			blocks[block_count] = blocks[block_count - 1] + bytes;
 		}
 		else

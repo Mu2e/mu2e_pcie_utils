@@ -11,12 +11,14 @@
 unsigned getOptionValue(int* index, char** argv[])
 {
 	auto arg = (*argv)[*index];
-	if (arg[2] == '\0') {
+	if (arg[2] == '\0')
+	{
 		(*index)++;
 		return strtoul((*argv)[*index], nullptr, 0);
 	}
 	auto offset = 2;
-	if (arg[2] == '=') {
+	if (arg[2] == '=')
+	{
 		offset = 3;
 	}
 
@@ -49,8 +51,10 @@ int main(int argc, char* argv[])
 	unsigned timestampOffset = 1;
 	unsigned packetCount = 0;
 
-	for (auto optind = 1; optind < argc; ++optind) {
-		if (argv[optind][0] == '-') {
+	for (auto optind = 1; optind < argc; ++optind)
+	{
+		if (argv[optind][0] == '-')
+		{
 			switch (argv[optind][1])
 			{
 				case 'i':
@@ -92,7 +96,8 @@ int main(int argc, char* argv[])
 	theEmulator.setQuiet(quiet);
 	theEmulator.setDebugPacketCount(packetCount);
 
-	if (number > 1) {
+	if (number > 1)
+	{
 		theEmulator.SendRequestsForRange(number, DTCLib::DTC_Timestamp(timestampOffset), incrementTimestamp, delay);
 	}
 	else

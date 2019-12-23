@@ -46,18 +46,21 @@ static int ReadDMAEngineConfiguration(struct pci_dev *pdev
 
 	Hardware_design_version = XIo_In32(base + 0x9000);
 	printk(KERN_INFO "Hardware design version %x from %lx\n", Hardware_design_version, base);
-	if (Hardware_design_version == 0xffffffff) {
+	if (Hardware_design_version == 0xffffffff)
+	{
 		printk(KERN_ERR "ReadDMAEngineConfiguration: Invalid Hardware_design_version 0x%x\n", Hardware_design_version);
 		return (1);
 	}
 
 	/* Walk through the capability register of all DMA engines */
-	for (reg_offset = DMA_OFFSET, ii = 0; reg_offset < DMA_SIZE; reg_offset += DMA_ENGINE_PER_SIZE, ++ii) {
+	for (reg_offset = DMA_OFFSET, ii = 0; reg_offset < DMA_SIZE; reg_offset += DMA_ENGINE_PER_SIZE, ++ii)
+	{
 		val = Dma_mReadReg((base + reg_offset), REG_DMA_ENG_CTRL_STATUS);
 		val = Dma_mReadReg((base + reg_offset), REG_DMA_ENG_CAP);
 		TRACE(21, "REG_DMA_ENG_CAP (capability, reg_offset=0x%04lx) returned 0x%x\n", reg_offset + REG_DMA_ENG_CAP, val);
 
-		if (val & DMA_ENG_PRESENT_MASK) {
+		if (val & DMA_ENG_PRESENT_MASK)
+		{
 			printk("DMA Engine present at reg_offset %lx: ", reg_offset);
 
 			dirn = (val & DMA_ENG_DIRECTION_MASK);
@@ -80,7 +83,8 @@ static int ReadDMAEngineConfiguration(struct pci_dev *pdev
 			bc = (val & DMA_ENG_BD_MAX_BC) >> DMA_ENG_BD_MAX_BC_SHIFT;
 			printk("Max Byte Count 2^%d\n", bc);
 
-			if (type != DMA_ENG_PACKET) {
+			if (type != DMA_ENG_PACKET)
+			{
 				printk(KERN_ERR "This driver is capable of only Packet DMA\n");
 				continue;
 			}
@@ -95,11 +99,13 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int bar = 0;
 	u32 size;
 	int dtc;
-	for (dtc = 0; dtc < MU2E_MAX_NUM_DTCS;) {
+	for (dtc = 0; dtc < MU2E_MAX_NUM_DTCS;)
+	{
 		if (!mu2e_pci_dev[dtc]) break;
 		++dtc;
 	}
-	if (dtc == MU2E_MAX_NUM_DTCS) {
+	if (dtc == MU2E_MAX_NUM_DTCS)
+	{
 		TRACE(0, "mu2e_pci_probe: TOO MANY DTCS!!!");
 		return -2;
 	}
@@ -111,7 +117,8 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
    * suspended. Beware, this function can fail.
    */
 	pciRet = pci_enable_device(pdev);
-	if (pciRet < 0) {
+	if (pciRet < 0)
+	{
 		printk(KERN_ERR "PCI device enable failed.\n");
 		return (pciRet);
 	}
@@ -123,19 +130,22 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	pciRet = pci_request_regions(pdev, DRIVER_NAME);
-	if (pciRet < 0) {
+	if (pciRet < 0)
+	{
 		printk(KERN_ERR "Could not request PCI regions.\n");
 		pci_disable_device(pdev);
 		return (pciRet);
 	}
 
 	pciRet = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-	if (pciRet < 0) {
+	if (pciRet < 0)
+	{
 		printk(KERN_ERR "pci_set_dma_mask failed\n");
 		goto out2;
 	}
 
-	if ((size = pci_resource_len(pdev, bar)) == 0) {
+	if ((size = pci_resource_len(pdev, bar)) == 0)
+	{
 		printk(KERN_ERR "BAR %d not valid, aborting.\n", bar);
 		goto out2;
 	}
@@ -143,7 +153,8 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Check all BARs for memory-mapped or I/O-mapped. The driver is
    * intended to be memory-mapped.
    */
-	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
+	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM))
+	{
 		printk(KERN_ERR "BAR %d is of wrong type, aborting.\n", bar);
 		goto out2;
 	}
@@ -152,7 +163,8 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mu2e_pcie_bar_info[dtc].baseLen = size;
 
 	mu2e_pcie_bar_info[dtc].baseVAddr = ioremap(mu2e_pcie_bar_info[dtc].basePAddr, size);
-	if (mu2e_pcie_bar_info[dtc].baseVAddr == 0UL) {
+	if (mu2e_pcie_bar_info[dtc].baseVAddr == 0UL)
+	{
 		printk(KERN_ERR "Cannot map BAR %d space, invalidating.\n", bar);
 		goto out2;
 	}
@@ -181,13 +193,15 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #if MU2E_RECV_INTER_ENABLED
 	/* Now enable interrupts using MSI mode */
-	if (!pci_enable_msi(mu2e_pci_dev[dtc])) {
+	if (!pci_enable_msi(mu2e_pci_dev[dtc]))
+	{
 		TRACE(1, "MSI enabled");
 		MSIEnabled[dtc] = 1;
 	}
 
 	pciRet = request_irq(mu2e_pci_dev[dtc]->irq, DmaInterrupt, IRQF_SHARED, "mu2e", mu2e_pci_dev[dtc]);
-	if (pciRet) {
+	if (pciRet)
+	{
 		TRACE(0, "xdma could not allocate interrupt %d", mu2e_pci_dev[dtc]->irq);
 		TRACE(0, "Unload driver and try running with polled mode instead");
 		goto out2;

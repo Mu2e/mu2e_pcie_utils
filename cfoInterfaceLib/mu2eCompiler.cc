@@ -54,7 +54,8 @@ void newIOFiles()
 	std::cout << "What's the FPGA Clock Speed Being Used (Hz)? \n(Used to calculate time units in instructions) ";
 	std::cin >> clockSpeed;
 	setupFile << "clockSpeed=";
-	for (size_t i = 0; i < clockSpeed.size(); i++) {
+	for (size_t i = 0; i < clockSpeed.size(); i++)
+	{
 		setupFile << clockSpeed[i];
 	}
 	setupFile << "\n";
@@ -62,7 +63,8 @@ void newIOFiles()
 	std::cout << "What's the name of DEFAULT input source? ";
 	std::cin >> inputFile;
 	setupFile << "InputFile=";
-	for (size_t i = 0; i < inputFile.size(); i++) {
+	for (size_t i = 0; i < inputFile.size(); i++)
+	{
 		setupFile << inputFile[i];
 	}
 	setupFile << "\n";
@@ -70,7 +72,8 @@ void newIOFiles()
 	std::cout << "What's the name of DEFAULT output source? ";
 	std::cin >> outputFile;
 	setupFile << "OutputFile=";
-	for (size_t i = 0; i < outputFile.size(); i++) {
+	for (size_t i = 0; i < outputFile.size(); i++)
+	{
 		setupFile << outputFile[i];
 	}
 	setupFile.close();
@@ -92,7 +95,8 @@ void setIOFiles(int argc, char** argv)
 	std::string clockSpeed;
 	setupFile.open("setup.in");
 
-	if (argc <= 1) {
+	if (argc <= 1)
+	{
 		getline(setupFile, clockSpeed, '=');
 		getline(setupFile, clockSpeed);
 		getline(setupFile, inFileName, '=');  // ignore string before '='
@@ -103,7 +107,8 @@ void setIOFiles(int argc, char** argv)
 
 	else if (argc == 2)
 	{
-		if (strcmp(argv[1], "--help") == 0) {
+		if (strcmp(argv[1], "--help") == 0)
+		{
 			setupFile.close();
 			help();
 			exit(EXIT_SUCCESS);
@@ -141,14 +146,17 @@ void setIOFiles(int argc, char** argv)
 
 	inFile.open(inFileName.c_str(), std::ios::in);
 	outFile.open(outFileName.c_str(), std::ios::out | std::ios::binary);
-	if (!(setupFile.is_open())) {
+	if (!(setupFile.is_open()))
+	{
 		throw std::runtime_error(
 			"Setup File (setup.in) didn't open. \nDoes it exist? \nIf not: run \"./CFO_Compiler --new\"");
 	}
-	if (!(inFile.is_open())) {
+	if (!(inFile.is_open()))
+	{
 		throw std::runtime_error("Input File (" + inFileName + ") didn't open. Does it exist?");
 	}
-	if (!(outFile.is_open())) {
+	if (!(outFile.is_open()))
+	{
 		throw std::runtime_error("Output File (" + outFileName + ") didn't open. Does it exist?");
 	}
 
@@ -170,7 +178,8 @@ int main(int argc, char* argv[])
 	CFOLib::CFO_Compiler c(FPGAClock);
 
 	std::vector<std::string> lines;
-	while (!inFile.eof()) {
+	while (!inFile.eof())
+	{
 		std::string line;
 		getline(inFile, line);
 		lines.push_back(line);
@@ -178,7 +187,8 @@ int main(int argc, char* argv[])
 
 	auto output = c.processFile(lines);
 
-	for (auto ch : output) {
+	for (auto ch : output)
+	{
 		outFile << ch;
 	}
 }

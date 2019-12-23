@@ -43,9 +43,10 @@ int main(int argc, char* argv[])
 	int opt_v = 0;
 	int opt;
 	//int opt_packets = 8;
-	unsigned opt_loops=1;   // saying -l10 will cause the thing to happen 10 times (i.e "loop back around 9 times")
-	unsigned opt_test_check=0;
-	while (1) {
+	unsigned opt_loops = 1;  // saying -l10 will cause the thing to happen 10 times (i.e "loop back around 9 times")
+	unsigned opt_test_check = 0;
+	while (1)
+	{
 		int option_index = 0;
 		static struct option long_options[] = {
 			/* name,   has_arg, int* flag, val_for_flag */
@@ -78,22 +79,24 @@ int main(int argc, char* argv[])
 				opt_loops = strtol(optarg, NULL, 0);
 				break;
 			case 't':
-				opt_test_check=1;
+				opt_test_check = 1;
 				break;
 			default:
 				printf("?? getopt returned character code 0%o ??\n", opt);
 		}
 	}
-	if (argc - optind < 1) {
+	if (argc - optind < 1)
+	{
 		printf("Need cmd\n");
 		printf(USAGE);
 		exit(0);
 	}
 	cmd = argv[optind++];
-	TRACE(TLVL_TRACE,"cmd=%s", cmd);
+	TRACE(TLVL_TRACE, "cmd=%s", cmd);
 	//	TRACE(2,"opt_packets=%i", opt_packets);
 
-	if (dtc == -1) {
+	if (dtc == -1)
+	{
 		char* dtcE = getenv("DTCLIB_DTC");
 		if (dtcE != NULL)
 			dtc = strtol(dtcE, NULL, 0);
@@ -104,12 +107,14 @@ int main(int argc, char* argv[])
 	snprintf(devfile, 11, "/dev/" MU2E_DEV_FILE, dtc);
 
 	fd = open(devfile, O_RDONLY);
-	if (fd == -1) {
+	if (fd == -1)
+	{
 		perror("open");
 		return (1);
 	}
 
-	if (strcmp(cmd, "start") == 0) {
+	if (strcmp(cmd, "start") == 0)
+	{
 		sts = ioctl(fd, M_IOC_TEST_START, &ioc_cmd);
 	}
 	else if (strcmp(cmd, "stop") == 0)
@@ -118,42 +123,51 @@ int main(int argc, char* argv[])
 	}
 	else if (strcmp(cmd, "read") == 0)
 	{
-		if (argc < 3) {
+		if (argc < 3)
+		{
 			printf(USAGE);
 			return (1);
 		}
 		reg_access.reg_offset = strtoul(argv[optind], NULL, 0);
 		reg_access.access_type = 0;
-		int need_initial=1;
+		int need_initial = 1;
 		unsigned prv_val;
-		int val_changed=0;
-		for (unsigned ll=0; ll < opt_loops; ++ll) {
+		int val_changed = 0;
+		for (unsigned ll = 0; ll < opt_loops; ++ll)
+		{
 			sts = ioctl(fd, M_IOC_REG_ACCESS, &reg_access);
-			if (sts) {
+			if (sts)
+			{
 				perror("ioctl M_IOC_REG_ACCESS read");
 				return (1);
 			}
-			if (opt_test_check) {
-				if (need_initial) {
-					need_initial=0;
+			if (opt_test_check)
+			{
+				if (need_initial)
+				{
+					need_initial = 0;
 					prv_val = reg_access.val;
 					printf("initial val: 0x%08x\n", reg_access.val);
-				} else if (reg_access.val != prv_val) {
-						printf("val changed from 0x%08x - new val: 0x%08x\n",prv_val,reg_access.val);
-						prv_val = reg_access.val;
-						val_changed++;
 				}
-			} else
+				else if (reg_access.val != prv_val)
+				{
+					printf("val changed from 0x%08x - new val: 0x%08x\n", prv_val, reg_access.val);
+					prv_val = reg_access.val;
+					val_changed++;
+				}
+			}
+			else
 				printf("0x%08x\n", reg_access.val);
 		}
 		if (val_changed)
-			printf("value changed %d times\n", val_changed );
+			printf("value changed %d times\n", val_changed);
 		else if (opt_test_check)
-			printf("value did not change during %u loops\n", opt_loops );
+			printf("value did not change during %u loops\n", opt_loops);
 	}
 	else if (strcmp(cmd, "write") == 0)
 	{
-		if (argc < 4) {
+		if (argc < 4)
+		{
 			printf(USAGE);
 			return (1);
 		}
@@ -161,7 +175,8 @@ int main(int argc, char* argv[])
 		reg_access.access_type = 1;
 		reg_access.val = strtoul(argv[optind++], NULL, 0);
 		sts = ioctl(fd, M_IOC_REG_ACCESS, &reg_access);
-		if (sts) {
+		if (sts)
+		{
 			perror("ioctl M_IOC_REG_ACCESS write");
 			return (1);
 		}
@@ -169,7 +184,8 @@ int main(int argc, char* argv[])
 	else if (strcmp(cmd, "dump") == 0)
 	{
 		sts = ioctl(fd, M_IOC_DUMP);
-		if (sts) {
+		if (sts)
+		{
 			perror("ioctl M_IOC_REG_ACCESS write");
 			return (1);
 		}

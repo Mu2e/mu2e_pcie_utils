@@ -117,8 +117,8 @@ private:
 	std::deque<char> output_;
 
 	//https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
-// trim from start (in place)
-	static inline void ltrim(std::string &s)
+	// trim from start (in place)
+	static inline void ltrim(std::string& s)
 	{
 		s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
 					return !std::isspace(ch);
@@ -126,7 +126,7 @@ private:
 	}
 
 	// trim from end (in place)
-	static inline void rtrim(std::string &s)
+	static inline void rtrim(std::string& s)
 	{
 		s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
 					return !std::isspace(ch);
@@ -142,7 +142,6 @@ private:
 		rtrim(s);
 		return s;
 	}
-
 };
 
 }  // namespace CFOLib

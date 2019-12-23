@@ -95,8 +95,8 @@ public:
 	/// <param name="address2">Second address to read</param>
 	/// <param name="retries">Numberof times to retry when packet address or link does not match request</param>
 	/// <returns>Pair of register values, first is from the first address, second from the second</returns>
-	std::pair< roc_data_t, roc_data_t > ReadROCRegisters(const DTC_Link_ID& link, const roc_address_t address1,
-												   const roc_address_t address2, int retries = 10);
+	std::pair<roc_data_t, roc_data_t> ReadROCRegisters(const DTC_Link_ID& link, const roc_address_t address1,
+													   const roc_address_t address2, int retries = 10);
 	/// <summary>
 	/// Perform a "double operation" write to ROC registers
 	/// </summary>
@@ -117,7 +117,7 @@ public:
 	/// <param name="wordCount">Number of words to read</param>
 	/// <returns>Vector of words returned by block read</returns>
 	/// <param name="incrementAddress">Whether to increment the address pointer for block reads/writes</param>
-	void ReadROCBlock(std::vector< roc_data_t >& data, const DTC_Link_ID& link, const roc_address_t address, const uint16_t wordCount, bool incrementAddress);
+	void ReadROCBlock(std::vector<roc_data_t>& data, const DTC_Link_ID& link, const roc_address_t address, const uint16_t wordCount, bool incrementAddress);
 	/// <summary>
 	/// Perform a ROC block write
 	/// </summary>
@@ -126,7 +126,7 @@ public:
 	/// <param name="blockData">Vector of words to write</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="incrementAddress">Whether to increment the address pointer for block reads/writes</param>
-	void WriteROCBlock(const DTC_Link_ID& link, const roc_address_t address, const std::vector< roc_data_t >& blockData, bool requestAck, bool incrementAddress);
+	void WriteROCBlock(const DTC_Link_ID& link, const roc_address_t address, const std::vector<roc_data_t>& blockData, bool requestAck, bool incrementAddress);
 
 	/// <summary>
 	/// Sends a DCS Request Packet with fields filled in such that the given ROC firmware block register will be read out.

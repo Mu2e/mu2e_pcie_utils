@@ -299,7 +299,8 @@ int main(int argc, char* argv[])
 		auto tmo_ms = 1500;
 		TLOG(TLVL_TRACE) << "rocUtil - before read for DCS";
 		auto sts = device->read_data(DTC_DMA_Engine_DCS, reinterpret_cast<void**>(&buffer), tmo_ms);
-		TLOG(TLVL_TRACE) << "rocUtil - after read for DCS - " << " sts=" << sts << ", buffer=" << (void*)buffer;
+		TLOG(TLVL_TRACE) << "rocUtil - after read for DCS - "
+						 << " sts=" << sts << ", buffer=" << (void*)buffer;
 
 		if (sts > 0)
 		{
@@ -307,7 +308,7 @@ int main(int argc, char* argv[])
 			auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
 			readPtr = static_cast<uint8_t*>(readPtr) + 8;
 			TLOG((reallyQuiet ? 9 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
-											  << sts << " bytes," << std::endl;
+												<< sts << " bytes," << std::endl;
 
 			TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
 

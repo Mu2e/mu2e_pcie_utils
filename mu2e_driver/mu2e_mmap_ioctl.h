@@ -171,13 +171,13 @@ NOTE: for _IOR, _IOW: the size is only for the data at the address used in the
 /// <summary>
 /// Register Access information
 /// </summary>
-typedef uint16_t  dtc_address_t;
-typedef uint32_t  dtc_data_t;
+typedef uint16_t dtc_address_t;
+typedef uint32_t dtc_data_t;
 typedef struct
 {
-	dtc_address_t 	reg_offset;   ///< Offset of register from BAR0
-	int 			access_type;  ///< 0=read, 1=write
-	dtc_data_t 		val;     ///< Value of register
+	dtc_address_t reg_offset;  ///< Offset of register from BAR0
+	int access_type;           ///< 0=read, 1=write
+	dtc_data_t val;            ///< Value of register
 } m_ioc_reg_access_t;
 
 /** Structure used in IOCTL to start/stop a test & to get current test state */
@@ -279,13 +279,15 @@ typedef struct
 
 typedef unsigned char mu2e_databuff_t[0x10000];
 
-typedef enum {
+typedef enum
+{
 	DTC_DMA_Engine_DAQ = 0,
 	DTC_DMA_Engine_DCS = 1,
 	DTC_DMA_Engine_Invalid,
 } DTC_DMA_Engine;
 
-typedef enum {
+typedef enum
+{
 	DTC_DMA_Direction_C2S = 0,
 	DTC_DMA_Direction_S2C = 1,
 	DTC_DMA_Direction_Invalid,

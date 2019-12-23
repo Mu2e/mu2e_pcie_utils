@@ -60,7 +60,8 @@ int main(int argc, char *argv[])
 	extern int optind; /* for getopt */
 	char devfile[13];  /* /dev/pcidevX */
 
-	while (1) {
+	while (1)
+	{
 		int opt, option_index = 0;
 		static struct option long_options[] = {
 			/* name,   has_arg, int* flag, val_for_flag */
@@ -93,7 +94,8 @@ int main(int argc, char *argv[])
 				printf("?? getopt returned character code 0%o ??\n", opt);
 		}
 	}
-	if (argc - optind < 2) {
+	if (argc - optind < 2)
+	{
 		printf("Need mcs_file and device number\n");
 		printf(USAGE);
 		return (-1);
@@ -107,7 +109,8 @@ int main(int argc, char *argv[])
 	snprintf(devfile, 13, "/dev/" PCIDEVL_DEV_FILE, atoi(argv[optind++]));
 
 	int fd = open(devfile, O_RDONLY);
-	if (fd == -1) {
+	if (fd == -1)
+	{
 		perror("open"); /*return (1);*/
 	}
 	g_fd = fd;
@@ -119,19 +122,24 @@ int main(int argc, char *argv[])
 	int bytecount;
 	unsigned address, RecType, data, checksum;
 	int sts;
-	while ((sts = fscanf(stream, ":%2x%4x%2x", (unsigned *)&bytecount, &address, &RecType)) == 3) {
-		if (RecType == 4) {
-			if (StartBlockSet != 1) {
+	while ((sts = fscanf(stream, ":%2x%4x%2x", (unsigned *)&bytecount, &address, &RecType)) == 3)
+	{
+		if (RecType == 4)
+		{
+			if (StartBlockSet != 1)
+			{
 				StartBlockSet = 1;
 				sts = fscanf(stream, "%4x", &StartBlock);
-				if (sts != 1) {
+				if (sts != 1)
+				{
 					TRACE(0, "Error getting StartBlock");
 					return -1;
 				}
 			}
 			else
 			{
-				if (fscanf(stream, "%4x", &EndBlock) != 1) {
+				if (fscanf(stream, "%4x", &EndBlock) != 1)
+				{
 					TRACE(0, "Error getting EndBlock");
 					return -1;
 				}
@@ -142,9 +150,11 @@ int main(int argc, char *argv[])
 		{
 			LastAddr = address;
 		}
-		while (bytecount--) {
+		while (bytecount--)
+		{
 			sts = fscanf(stream, "%2x", &data);
-			if (sts != 1) {
+			if (sts != 1)
+			{
 				printf("did not get data\n");
 				return -1;
 			}
@@ -164,7 +174,8 @@ int main(int argc, char *argv[])
 	uint32_t ReadData;
 	sts = get_prom_program_status_reg32(&ReadData);
 	if (sts) TRACE(0, "unexpected status");
-	if ((ReadData & ReadMask) != ReadMask) {
+	if ((ReadData & ReadMask) != ReadMask)
+	{
 		TRACE(0, "not ready");
 		return -1;
 	}
@@ -181,7 +192,8 @@ int main(int argc, char *argv[])
 
 	ReadData = 0;
 	uint32_t checks = 0;
-	while ((ReadData & ReadMask) != ReadMask) {
+	while ((ReadData & ReadMask) != ReadMask)
+	{
 		sts = get_prom_program_status_reg32(&ReadData);
 		if (sts) TRACE(0, "unexpected status");
 		checks++;
@@ -192,7 +204,8 @@ int main(int argc, char *argv[])
 	sts = set_prom_program_data_reg32(0x45726173);
 	if (sts) TRACE(0, "unexpected status");
 	ReadData = checks = 0;
-	while ((ReadData & ReadMask) != ReadMask) {
+	while ((ReadData & ReadMask) != ReadMask)
+	{
 		sts = get_prom_program_status_reg32(&ReadData);
 		if (sts) TRACE(0, "unexpected status");
 		checks++;
@@ -207,30 +220,36 @@ int main(int argc, char *argv[])
 
 	ReadMask = 0xff0000;
 
-	while ((sts = fscanf(stream, ":%2x%4x%2x", (unsigned *)&bytecount, &address, &RecType)) == 3) {
+	while ((sts = fscanf(stream, ":%2x%4x%2x", (unsigned *)&bytecount, &address, &RecType)) == 3)
+	{
 		switch (RecType)
 		{
 			case 0:
 				TRACE(4, "Data Record - bytecount=0x%02x, address0x%04x", bytecount, address);
 				ReadData = checks = 0;
 				if ((data_bytes % 64) == 0)
-					while ((ReadData & ReadMask) != 0x800000) {
+					while ((ReadData & ReadMask) != 0x800000)
+					{
 						sts = get_prom_program_status_reg32(&ReadData);
 						if (sts) TRACE(0, "unexpected status");
-						if ((ReadData & ReadMask) == 0x900000) {
+						if ((ReadData & ReadMask) == 0x900000)
+						{
 							TRACE(0, "program error ReadData=0x%x checks=%u data_bytes=%d", ReadData, checks, data_bytes);
 							return -1;
 						}
 						checks++;
-						if (checks == 10000000) {
+						if (checks == 10000000)
+						{
 							TRACE(0, "program timeout ReadData=0x%x", ReadData);
 							return -1;
 						}
 					}
 				TRACE(1, "before set_prom_program_data_reg32, checks=%u data_bytes=%d", checks, data_bytes);
-				while (bytecount > 0) {
+				while (bytecount > 0)
+				{
 					sts = fscanf(stream, "%8x", &data);
-					if (sts != 1) {
+					if (sts != 1)
+					{
 						printf("did not get data\n");
 						return -1;
 					}
@@ -244,52 +263,62 @@ int main(int argc, char *argv[])
 					data_bytes += 4;
 				}
 				sts = fscanf(stream, "%2x\n", &checksum);
-				if (sts != 1) {
+				if (sts != 1)
+				{
 					printf("did not get checksum\n");
 					return -1;
 				}
 				break;
 			case 1:
 				TRACE(3, "End of File - bytecount=0x%02x, address0x%04x", bytecount, address);
-				while (bytecount--) {
+				while (bytecount--)
+				{
 					sts = fscanf(stream, "%2x", &data);
-					if (sts != 1) {
+					if (sts != 1)
+					{
 						printf("did not get data\n");
 						return -1;
 					}
 				}
 				sts = fscanf(stream, "%2x\n", &checksum);
-				if (sts != 1) {
+				if (sts != 1)
+				{
 					printf("did not get checksum\n");
 					return -1;
 				}
 				break;
 			case 4:
 				TRACE(3, "Extended Linear Address - bytecount=0x%02x, address0x%04x", bytecount, address);
-				while (bytecount--) {
+				while (bytecount--)
+				{
 					sts = fscanf(stream, "%2x", &data);
-					if (sts != 1) {
+					if (sts != 1)
+					{
 						printf("did not get data\n");
 						return -1;
 					}
 				}
 				sts = fscanf(stream, "%2x\n", &checksum);
-				if (sts != 1) {
+				if (sts != 1)
+				{
 					printf("did not get checksum\n");
 					return -1;
 				}
 				break;
 			default:
 				TRACE(1, "Programming - ignoring record type %d\n", RecType);
-				while (bytecount--) {
+				while (bytecount--)
+				{
 					sts = fscanf(stream, "%2x", &data);
-					if (sts != 1) {
+					if (sts != 1)
+					{
 						printf("did not get data\n");
 						return -1;
 					}
 				}
 				sts = fscanf(stream, "%2x\n", &checksum);
-				if (sts != 1) {
+				if (sts != 1)
+				{
 					printf("did not get checksum\n");
 					return -1;
 				}

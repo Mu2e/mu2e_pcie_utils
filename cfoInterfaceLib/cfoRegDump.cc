@@ -25,7 +25,8 @@ void printHelpMsg()
 unsigned getOptionValue(int* index, char** argv[])
 {
 	auto arg = (*argv)[*index];
-	if (arg[2] == '\0') {
+	if (arg[2] == '\0')
+	{
 		(*index)++;
 		unsigned ret = strtoul((*argv)[*index], nullptr, 0);
 		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
@@ -35,7 +36,8 @@ unsigned getOptionValue(int* index, char** argv[])
 		return ret;
 	}
 	auto offset = 2;
-	if (arg[2] == '=') {
+	if (arg[2] == '=')
+	{
 		offset = 3;
 	}
 
@@ -48,8 +50,10 @@ int main(int argc, char* argv[])
 	auto printRegisterDump = true;
 	int CFO = -1;
 
-	for (auto optind = 1; optind < argc; ++optind) {
-		if (argv[optind][0] == '-') {
+	for (auto optind = 1; optind < argc; ++optind)
+	{
+		if (argv[optind][0] == '-')
+		{
 			switch (argv[optind][1])
 			{
 				case 's':
@@ -91,15 +95,18 @@ int main(int argc, char* argv[])
 
 	printf("Terminal is %dx%d\n", cols, lines);
 
-	if (cols > 400) {
+	if (cols > 400)
+	{
 		cols = 120;
 	}
 
-	if (printRegisterDump) {
+	if (printRegisterDump)
+	{
 		std::cout << thisCFO->FormattedRegDump(cols) << std::endl;
 	}
 
-	if (printSERDESCounters) {
+	if (printSERDESCounters)
+	{
 		std::cout << std::endl
 				  << std::endl;
 		std::cout << thisCFO->LinkCountersRegDump(cols);
