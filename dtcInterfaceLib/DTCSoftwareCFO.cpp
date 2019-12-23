@@ -84,7 +84,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_Timestamp ts)
 			}
 		}
 		theDTC_->SetCFOEmulationNumRequests(1);
-		theDTC_->SetCFOEmulationRequestInterval(1000);
+		//theDTC_->SetCFOEmulationRequestInterval(1000);
 		theDTC_->SetCFOEmulationDebugType(debugType_);
 		theDTC_->SetCFOEmulationModeByte(5, 1);
 		if (!forceNoDebug_)
