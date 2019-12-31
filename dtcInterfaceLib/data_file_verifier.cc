@@ -13,6 +13,8 @@
 #include "TRACE/tracemf.h"
 #define TRACE_NAME "data_file_verifier"
 
+#define MU2E_DATA_FORMAT_VERSION 6
+
 std::string getLongOptionOption(int* index, char** argv[])
 {
 	auto arg = std::string((*argv)[*index]);
@@ -38,6 +40,143 @@ void printHelpMsg()
 		<< "    -h, --help: This message." << std::endl
 		<< std::endl;
 	exit(0);
+}
+
+bool VerifyTrackerDataBlock(DataHeaderPacket* blockPtr)
+{
+	auto blockByteSize = blockPtr->s.TransferByteCount;
+	if (blockByteSize != 0x10 && blockByteSize != 0x30)
+	{
+		TLOG(TLVL_ERROR) << "VerifyTrackerDataBlock: Block has incorrect size 0x" << std::hex << blockByteSize << ". Valid sizes are 0x10 and 0x30";
+		return false;
+	}
+
+	if (blockByteSize == 0x30)
+	{
+		auto firstDataPacket = *reinterpret_cast<DataPacket*>(blockPtr + 1);
+		auto secondDataPacket = *reinterpret_cast<DataPacket*>(blockPtr + 2);
+
+		auto strawIndex = firstDataPacket.data10;
+		if (strawIndex > 23039)
+		{
+			TLOG(TLVL_ERROR) << "VerifyTrackerDataBlock: strawIndex " << strawIndex << " is out-of-range! (Max 23039)";
+			return false;
+		}
+		if ((secondDataPacket.dataFE & 0xF0) != 0)
+		{
+			TLOG(TLVL_ERROR) << "VerifyTrackerDataBlock: Data present in Reserved word: 0x" << std::hex << ((secondDataPacket.dataFE & 0xF0) >> 4);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool VerifyCalorimeterDataBlock(DataHeaderPacket* blockPtr)
+{
+	auto blockByteSize = blockPtr->s.TransferByteCount;
+
+	if (blockByteSize == 0x10)
+	{
+		//TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: Empty block encountered!";
+		return true;
+	}
+
+	auto dataPtr = reinterpret_cast<uint16_t*>(blockPtr + 1);
+	auto hitCount = *dataPtr;
+	auto currentOffset = 0;
+
+	std::vector<uint16_t> hitOffsets;
+	for (int ii = 0; ii < hitCount; ++ii)
+	{
+		hitOffsets.push_back(*(++dataPtr));
+		currentOffset += 2;
+		if (currentOffset > blockByteSize)
+		{
+			TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Calorimeter data extends past declared block size! (0x" << std::hex << currentOffset << " > 0x" << std::hex << blockByteSize << ")";
+			return false;
+		}
+	}
+
+	++dataPtr;
+	currentOffset += 2;
+
+	auto channelStatusA = (*dataPtr & 0xFC00) >> 10;
+
+	++dataPtr;
+	currentOffset += 2;
+
+	auto channelStatusB = (*dataPtr & 0x3FFF);
+	if ((*dataPtr & 0xC000) != 0)
+	{
+		TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Data present in BoardID Reserved field!";
+		return false;
+	}
+
+	if (channelStatusA != 0x3F || channelStatusB != 0x3FFF)
+	{
+		TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: Not all 20 channels are enabled! StsA: 0x" << std::hex << channelStatusA << ", stsB: 0x" << std::hex << channelStatusB;
+		// Not sure if this is a fatal error or not, leaving it for now
+		// return false;
+	}
+
+	for (int ii = 0; ii < hitCount; ++ii)
+	{
+		++dataPtr;
+		currentOffset += 2;
+		if (currentOffset != hitOffsets[ii])
+		{
+			TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Hit " << ii << " index value " << hitOffsets[ii] << " does not agree with current offset " << currentOffset;
+			return false;
+		}
+
+		dataPtr += 4;
+		currentOffset += 8;
+
+		auto numSamples = *dataPtr & 0xFF;
+		auto maxSample = (*dataPtr & 0xFF00) >> 8;
+		auto currentMaximumValue = 0;
+		auto currentMaximumIndex = 0;
+
+		for (int jj = 0; jj < numSamples; ++jj)
+		{
+			++dataPtr;
+			currentOffset += 2;
+
+			if (*dataPtr > currentMaximumValue)
+			{
+				currentMaximumValue = *dataPtr;
+				currentMaximumIndex = jj;
+			}
+		}
+
+		if (maxSample != currentMaximumIndex)
+		{
+			TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Hit " << ii << " has mismatched maximum sample; expected " << maxSample << ", actual maximum " << currentMaximumIndex;
+			return false;
+		}
+	}
+
+	++dataPtr;
+	currentOffset += 2;
+	while (currentOffset % 16 != 0)
+	{
+		if (*dataPtr != 0)
+		{
+			TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Data detected in end padding: 0x" << std::hex << *dataPtr;
+			return false;
+		}
+		++dataPtr;
+		currentOffset += 2;
+	}
+
+	return true;
+}
+
+bool VerifyCRVDataBlock(DataHeaderPacket* blockPtr)
+{
+	TLOG(TLVL_WARNING) << "VerifyCRVDataBlock: Not yet implemented!";
+	return true;
 }
 
 int main(int argc, char* argv[])
@@ -75,6 +214,7 @@ int main(int argc, char* argv[])
 
 	for (auto& file : binaryFiles)
 	{
+		bool success = true;
 		std::ifstream is(file);
 		if (is.bad() || !is)
 		{
@@ -111,11 +251,12 @@ int main(int argc, char* argv[])
 			size_t offset = 0;
 			while (offset < dmaSize)
 			{
-				auto blockByteSize = *reinterpret_cast<uint16_t*>(buf + offset);
+				auto header = *reinterpret_cast<DataHeaderPacket*>(buf + offset);
+				auto blockByteSize = header.s.TransferByteCount;
 
 				// Check that this is indeed a DataHeader packet
 				auto dataHeaderMask = 0x80F0;
-				auto dataHeaderTest = *(reinterpret_cast<uint16_t*>(buf + offset) + 1);
+				auto dataHeaderTest = header.w.w1;
 				TLOG(TLVL_TRACE) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
 				if ((dataHeaderTest & dataHeaderMask) != 0x8050)
 				{
@@ -132,10 +273,63 @@ int main(int argc, char* argv[])
 					continueFile = false;
 					break;
 				}
+
+				auto packetCountTest = header.s.PacketCount;
+				if ((packetCountTest + 1) * 16 != blockByteSize)
+				{
+					TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: " << std::hex << blockByteSize;
+					success = false;
+
+					// We don't have to skip to the next file, because we already know the data block integrity is fine.
+					offset += blockByteSize;
+					continue;
+				}
+
+				auto dataVersionTest = header.s.Version;
+				if (MU2E_DATA_FORMAT_VERSION != dataVersionTest)
+				{
+					TLOG(TLVL_INFO) << "Data format version for binary file " << dataVersionTest << " does not match expected version " << MU2E_DATA_FORMAT_VERSION << ". Not performing subsystem-level validation";
+					success = false;
+
+					// We don't have to skip to the next file, because we already know the data block integrity is fine.
+					offset += blockByteSize;
+					continue;
+				}
+
+				auto subsystemID = header.s.SubsystemID;
+				bool subsystemCheck = true;
+				switch (subsystemID)
+				{
+					case 0:  // Tracker
+						subsystemCheck = VerifyTrackerDataBlock(reinterpret_cast<DataHeaderPacket*>(buf + offset));
+						break;
+					case 1:  // Calorimeter
+						subsystemCheck = VerifyCalorimeterDataBlock(reinterpret_cast<DataHeaderPacket*>(buf + offset));
+						break;
+					case 2:  // CRV
+						subsystemCheck = VerifyCRVDataBlock(reinterpret_cast<DataHeaderPacket*>(buf + offset));
+						break;
+					default:
+						TLOG(TLVL_INFO) << "Data-level verification not implemented for subsystem ID " << subsystemID;
+						break;
+				}
+				if (!subsystemCheck)
+				{
+					TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read - dmaSize + offset) << " is not a valid data block for subsystem ID " << subsystemID;
+					success = false;
+					// We don't have to skip to the next file, because we already know the data block integrity is fine.
+				}
 				offset += blockByteSize;
 			}
 		}
 
-		TLOG(TLVL_INFO) << "File " << file << " verified successfully!";
+		if (success)
+		{
+			TLOG(TLVL_INFO) << "File " << file << " verified successfully!";
+		}
+		else
+		{
+			TLOG(TLVL_WARNING) << "File " << file << " had verification errors, see TRACE output for details";
+		}
 	}
 }
