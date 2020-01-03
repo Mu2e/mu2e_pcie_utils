@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_map>
 #include <map>
+#include <deque>
 #include <fstream>
 
 #include "mu2e_driver/mu2e_mmap_ioctl.h"
@@ -10,7 +11,7 @@
 #include "TRACE/tracemf.h"
 #define TRACE_NAME "binary_file_compare"
 
-typedef std::map<uint8_t, std::vector<uint8_t>> roc_map;
+typedef std::map<uint8_t, std::list<std::vector<uint8_t>>> roc_map;
 typedef std::map<uint8_t, roc_map> dtc_map;
 typedef std::map<uint8_t, dtc_map> subsystem_map;
 typedef std::map<uint64_t, subsystem_map> event_map;
@@ -56,10 +57,10 @@ size_t add_to_map(event_map& map, mu2e_databuff_t& buf, size_t offset)
 	auto bufSize = blockByteSize - 0x10;
 
 	//TLOG(TLVL_DEBUG) << "Adding TS " << timestamp << " SS " << header.s.SubsystemID << " DTC " << header.s.DTCID << " ROC " << header.s.LinkID << " to map with size " << bufSize;
-	map[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID] = std::vector<uint8_t>(bufSize);
+	map[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID].push_back(std::vector<uint8_t>(bufSize));
 	for (auto jj = 0; jj < bufSize; ++jj)
 	{
-		map[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID][jj] = get_byte(buf, offset, jj);
+		map[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID].back()[jj] = get_byte(buf, offset, jj);
 	}
 
 	return blockByteSize;
@@ -175,20 +176,34 @@ int main(int argc, char* argv[])
 
 			if (first_file_contents.count(timestamp) && first_file_contents[timestamp].count(header.s.SubsystemID) && first_file_contents[timestamp][header.s.SubsystemID].count(header.s.DTCID) && first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID].count(header.s.LinkID))
 			{
-				if (first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID].size() == bufSize)
+				auto agree_it = first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID].end();
+				auto ii = first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID].begin();
+				for (; ii != agree_it; ++ii)
 				{
-					bool agree = true;
+					if (ii->size() != bufSize) continue;
+					bool this_agree = true;
 					for (size_t jj = 0; jj < bufSize; ++jj)
 					{
-						if (first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID][jj] != get_byte(buf, offset, jj))
+						if (ii->at(jj) != get_byte(buf, offset, jj))
 						{
-							TLOG(TLVL_WARNING) << "Disagreement found! TS " << timestamp << " SS " << header.s.SubsystemID << " DTC " << header.s.DTCID << " ROC " << header.s.LinkID << " byte " << jj << ": " << first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID][jj] << " != " << get_byte(buf, offset, jj);
-							agree = false;
+							TLOG(TLVL_WARNING) << "Disagreement found! TS " << timestamp << " SS " << header.s.SubsystemID << " DTC " << header.s.DTCID << " ROC " << header.s.LinkID << " byte " << jj << ": " << ii->at(jj) << " != " << get_byte(buf, offset, jj);
+							this_agree = false;
+							break;
 						}
 					}
-					if (agree)
+					if (this_agree)
 					{
-						first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID].erase(header.s.LinkID);
+						agree_it = ii;
+						break;
+					}
+				}
+				if (agree_it != first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID].end())
+				{
+					first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID].erase(agree_it);
+					if (first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID].size() == 0)
+					{
+						first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID]
+							.erase(header.s.LinkID);
 						if (first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID].size() == 0)
 						{
 							first_file_contents[timestamp][header.s.SubsystemID].erase(header.s.DTCID);
@@ -202,14 +217,10 @@ int main(int argc, char* argv[])
 							}
 						}
 					}
-					else
-					{
-						add_to_map(second_file_disagreements, buf, offset);
-					}
 				}
 				else
 				{
-					TLOG(TLVL_WARNING) << "Disagreement found! TS " << timestamp << " SS " << header.s.SubsystemID << " DTC " << header.s.DTCID << " ROC " << header.s.LinkID << ": sz1 " << first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID].size() << " != sz2 " << bufSize;
+					TLOG(TLVL_WARNING) << "Disagreement found! TS " << timestamp << " SS " << header.s.SubsystemID << " DTC " << header.s.DTCID << " ROC " << header.s.LinkID << " no matching entries found";
 					add_to_map(second_file_disagreements, buf, offset);
 				}
 			}
@@ -234,6 +245,10 @@ int main(int argc, char* argv[])
 				for (auto& roc : dtc.second)
 				{
 					TLOG(TLVL_TRACE) << "\tTS " << ts.first << " SS " << subsys.first << " DTC " << dtc.first << " ROC " << roc.first << ": sz: " << roc.second.size();
+					for (auto& it : roc.second)
+					{
+						TLOG(TLVL_TRACE) << "\t\tByte vector sz=" << it.size();
+					}
 				}
 			}
 		}
@@ -248,6 +263,10 @@ int main(int argc, char* argv[])
 				for (auto& roc : dtc.second)
 				{
 					TLOG(TLVL_TRACE) << "\tTS " << ts.first << " SS " << subsys.first << " DTC " << dtc.first << " ROC " << roc.first << ": sz: " << roc.second.size();
+					for (auto& it : roc.second)
+					{
+						TLOG(TLVL_TRACE) << "\t\tByte vector sz=" << it.size();
+					}
 				}
 			}
 		}

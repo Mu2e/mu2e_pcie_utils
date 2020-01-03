@@ -17,10 +17,6 @@
 
 #define MU2E_DATA_FORMAT_VERSION 6
 
-typedef std::unordered_map<uint8_t, std::bitset<6>> dtc_map;
-typedef std::unordered_map<uint8_t, dtc_map> subsystem_map;
-typedef std::unordered_map<uint64_t, subsystem_map> event_map;
-
 std::string getLongOptionOption(int* index, char** argv[])
 {
 	auto arg = std::string((*argv)[*index]);
@@ -219,9 +215,7 @@ int main(int argc, char* argv[])
 	}
 
 	for (auto& file : binaryFiles)
-	{
-		event_map events;
-		bool success = true;
+	{		bool success = true;
 		std::ifstream is(file);
 		if (is.bad() || !is)
 		{
@@ -302,18 +296,7 @@ int main(int argc, char* argv[])
 					offset += blockByteSize;
 					continue;
 				}
-
-				uint64_t timestamp = header.s.ts10 + (static_cast<uint64_t>(header.s.ts32) << 16) + (static_cast<uint64_t>(header.s.ts54) << 32);
-				if (events.count(timestamp) && events[timestamp].count(header.s.SubsystemID) && events[timestamp][header.s.SubsystemID].count(header.s.DTCID) && events[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID])
-				{
-					TLOG(TLVL_ERROR) << "Duplicate DataBlock detected for TS " << timestamp << " SS " << header.s.SubsystemID << " DTC " << header.s.DTCID << " ROC " << header.s.LinkID << "!";
-					success = false;
-				}
-				else
-				{
-					events[timestamp][header.s.SubsystemID][header.s.DTCID][header.s.LinkID] = true;
-				}
-
+				
 				auto subsystemID = header.s.SubsystemID;
 				bool subsystemCheck = true;
 				switch (subsystemID)
