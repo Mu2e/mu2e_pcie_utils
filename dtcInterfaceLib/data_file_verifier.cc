@@ -175,7 +175,7 @@ bool VerifyCalorimeterDataBlock(DataHeaderPacket* blockPtr)
 	return true;
 }
 
-bool VerifyCRVDataBlock(DataHeaderPacket* blockPtr)
+bool VerifyCRVDataBlock(DataHeaderPacket* /*blockPtr*/)
 {
 	TLOG(TLVL_WARNING) << "VerifyCRVDataBlock: Not yet implemented!";
 	return true;
