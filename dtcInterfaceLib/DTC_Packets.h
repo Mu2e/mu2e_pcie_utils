@@ -303,7 +303,7 @@ class DTC_DMAPacket
 protected:
 	uint16_t byteCount_;         ///< Byte count of current block
 	bool valid_;                 ///< Whether the DTC believes the packet to be valid
-	uint8_t subsystemID_;		///< Subsystem ID (Data Header packet only)
+	uint8_t subsystemID_;        ///< Subsystem ID (Data Header packet only)
 	DTC_Link_ID linkID_;         ///< Link identifier of packet
 	DTC_PacketType packetType_;  ///< Packet type
 	uint8_t hopCount_;           ///< Hop count
@@ -406,7 +406,8 @@ public:
 	/// </summary>
 	/// <returns>Subsystem ID stored in the packet</returns>
 	uint8_t GetSubsystemID() const
-	{	return subsystemID_;
+	{
+		return subsystemID_;
 	}
 
 	/// <summary>

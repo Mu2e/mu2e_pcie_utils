@@ -32,7 +32,8 @@ void write(unsigned long addr, unsigned long val, int fd)
 	reg_access.access_type = 1;
 	reg_access.val = val;
 	int sts = ioctl(fd, M_IOC_REG_ACCESS, &reg_access);
-	if (sts) {
+	if (sts)
+	{
 		perror("ioctl M_IOC_REG_ACCESS write");
 		exit(1);
 	}
@@ -45,15 +46,18 @@ void write_and_check(unsigned long addr, int fd)
 	reg_access.access_type = 1;
 	reg_access.val = 1;
 	int sts = ioctl(fd, M_IOC_REG_ACCESS, &reg_access);
-	if (sts) {
+	if (sts)
+	{
 		perror("ioctl M_IOC_REG_ACCESS write");
 		exit(1);
 	}
 
-	while (reg_access.val == 1) {
+	while (reg_access.val == 1)
+	{
 		reg_access.access_type = 0;
 		sts = ioctl(fd, M_IOC_REG_ACCESS, &reg_access);
-		if (sts) {
+		if (sts)
+		{
 			perror("ioctl M_IOC_REG_ACCESS read");
 			exit(1);
 		}
@@ -71,7 +75,8 @@ int main(int argc, char* argv[])
 
 	int opt_v = 0;
 	int opt;
-	while (1) {
+	while (1)
+	{
 		int option_index = 0;
 		static struct option long_options[] = {
 			/* name,   has_arg, int* flag, val_for_flag */
@@ -102,7 +107,8 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	if (dtc == -1) {
+	if (dtc == -1)
+	{
 		char* dtcE = getenv("DTCLIB_DTC");
 		if (dtcE != NULL)
 			dtc = strtol(dtcE, NULL, 0);
@@ -113,7 +119,8 @@ int main(int argc, char* argv[])
 	snprintf(devfile, 11, "/dev/" MU2E_DEV_FILE, dtc);
 
 	fd = open(devfile, O_RDONLY);
-	if (fd == -1) {
+	if (fd == -1)
+	{
 		perror("open");
 		return (1);
 	}

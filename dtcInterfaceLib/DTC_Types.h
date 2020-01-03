@@ -8,7 +8,7 @@
 #include "TRACE/tracemf.h"
 
 namespace DTCLib {
-	
+
 typedef uint16_t roc_address_t;
 typedef uint16_t roc_data_t;
 
@@ -19,7 +19,7 @@ enum DTC_Subsystem : uint8_t
 	DTC_Subsystem_CRV = 2,
 	DTC_Subsystem_Other = 3,
 	DTC_Subsystem_STM = 4,
-	DTC_Subsystem_ExtMon =5,
+	DTC_Subsystem_ExtMon = 5,
 };
 
 enum DTC_Link_ID : uint8_t
@@ -608,7 +608,8 @@ public:
 	/// <returns>Timestamp as a 64-bit unsigned integer</returns>
 	uint64_t GetTimestamp(bool dummy) const
 	{
-		if (dummy) {
+		if (dummy)
+		{
 			return timestamp_;
 		}
 		return 0;
@@ -1052,8 +1053,10 @@ struct DTC_RegisterFormatter
 		stream << tmp << " | ";
 
 		auto first = true;
-		for (auto i : reg.vals) {
-			if (!first) {
+		for (auto i : reg.vals)
+		{
+			if (!first)
+			{
 				std::string placeholder = "";
 				placeholder.resize(reg.descWidth, ' ');
 				stream << "                           " << placeholder << " | ";

@@ -11,31 +11,40 @@ DTCLib::DTC_RXStatusConverter::DTC_RXStatusConverter(DTC_RXStatus status)
 
 DTCLib::DTC_SimMode DTCLib::DTC_SimModeConverter::ConvertToSimMode(std::string modeName)
 {
-	if (modeName.find("isabled") != std::string::npos) {
+	if (modeName.find("isabled") != std::string::npos)
+	{
 		return DTC_SimMode_Disabled;
 	}
-	if (modeName.find("racker") != std::string::npos) {
+	if (modeName.find("racker") != std::string::npos)
+	{
 		return DTC_SimMode_Tracker;
 	}
-	if (modeName.find("alorimeter") != std::string::npos) {
+	if (modeName.find("alorimeter") != std::string::npos)
+	{
 		return DTC_SimMode_Calorimeter;
 	}
-	if (modeName.find("osmic") != std::string::npos) {
+	if (modeName.find("osmic") != std::string::npos)
+	{
 		return DTC_SimMode_CosmicVeto;
 	}
-	if (modeName.find("oopback") != std::string::npos) {
+	if (modeName.find("oopback") != std::string::npos)
+	{
 		return DTC_SimMode_Loopback;
 	}
-	if (modeName.find("CFO") != std::string::npos || modeName.find("cfo") != std::string::npos) {
+	if (modeName.find("CFO") != std::string::npos || modeName.find("cfo") != std::string::npos)
+	{
 		return DTC_SimMode_NoCFO;
 	}
-	if (modeName.find("mulator") != std::string::npos) {
+	if (modeName.find("mulator") != std::string::npos)
+	{
 		return DTC_SimMode_ROCEmulator;
 	}
-	if (modeName.find("erformance") != std::string::npos) {
+	if (modeName.find("erformance") != std::string::npos)
+	{
 		return DTC_SimMode_Performance;
 	}
-	if (modeName.find("arge") != std::string::npos) {
+	if (modeName.find("arge") != std::string::npos)
+	{
 		return DTC_SimMode_LargeFile;
 	}
 
@@ -79,7 +88,8 @@ void DTCLib::DTC_Timestamp::SetTimestamp(const uint32_t timestampLow, const uint
 
 void DTCLib::DTC_Timestamp::GetTimestamp(const uint8_t* timeArr, int offset) const
 {
-	for (auto i = 0; i < 6; i++) {
+	for (auto i = 0; i < 6; i++)
+	{
 		const_cast<uint8_t*>(timeArr)[i + offset] = static_cast<uint8_t>(timestamp_ >> i * 8);
 	}
 }
@@ -87,7 +97,8 @@ void DTCLib::DTC_Timestamp::GetTimestamp(const uint8_t* timeArr, int offset) con
 std::string DTCLib::DTC_Timestamp::toJSON(bool arrayMode) const
 {
 	std::stringstream ss;
-	if (arrayMode) {
+	if (arrayMode)
+	{
 		uint8_t ts[6];
 		GetTimestamp(ts, 0);
 		ss << "\"timestamp\": [" << static_cast<int>(ts[0]) << ",";
@@ -162,13 +173,17 @@ std::pair<double, std::string> DTCLib::Utilities::FormatBytes(double bytes)
 	auto unit = "bytes";
 	auto kb = bytes / 1024.0;
 
-	if (kb > 1) {
+	if (kb > 1)
+	{
 		auto mb = kb / 1024.0;
-		if (mb > 1) {
+		if (mb > 1)
+		{
 			auto gb = mb / 1024.0;
-			if (gb > 1) {
+			if (gb > 1)
+			{
 				auto tb = gb / 1024.0;
-				if (tb > 1) {
+				if (tb > 1)
+				{
 					val = tb;
 					unit = "TB";
 				}
@@ -207,13 +222,17 @@ std::pair<double, std::string> DTCLib::Utilities::FormatTime(double seconds)
 	auto val = seconds;
 	auto unit = "s";
 
-	if (seconds > 1) {
+	if (seconds > 1)
+	{
 		auto min = seconds / 60.0;
-		if (min > 1) {
+		if (min > 1)
+		{
 			auto ho = min / 60.0;
-			if (ho > 1) {
+			if (ho > 1)
+			{
 				auto day = ho / 24.0;
-				if (day > 1) {
+				if (day > 1)
+				{
 					val = day;
 					unit = "days";
 				}
@@ -233,14 +252,16 @@ std::pair<double, std::string> DTCLib::Utilities::FormatTime(double seconds)
 	else
 	{
 		auto ms = seconds * 1000;
-		if (ms > 1) {
+		if (ms > 1)
+		{
 			val = ms;
 			unit = "ms";
 		}
 		else
 		{
 			auto us = ms * 1000;
-			if (us > 1) {
+			if (us > 1)
+			{
 				val = us;
 				unit = "us";
 			}

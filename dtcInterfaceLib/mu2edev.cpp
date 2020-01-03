@@ -147,7 +147,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 				((retsts = ioctl(devfd_, M_IOC_GET_INFO, &mu2e_channel_info_[activeDTC_][chn][C2S])) == 0 &&
 				 (has_recv_data = mu2e_chn_info_delta_(activeDTC_, chn, C2S, &mu2e_channel_info_)) >
 					 buffers_held_))
-			{   // have data
+			{  // have data
 				// get byte count from new/next
 				unsigned newNxtIdx =
 					idx_add(mu2e_channel_info_[activeDTC_][chn][C2S].swIdx, (int)buffers_held_ + 1, activeDTC_, chn, C2S);

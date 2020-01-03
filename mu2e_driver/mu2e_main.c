@@ -5,7 +5,7 @@
         $RCSfile: .emacs.gnu,v $
         rev="$Revision: 1.23 $$Date: 2012/01/23 15:32:40 $";
         */
-#include <linux/uaccess.h>   /* access_ok, copy_to_user */
+#include <linux/uaccess.h> /* access_ok, copy_to_user */
 #include <linux/delay.h>   /* msleep */
 #include <linux/fs.h>      /* struct inode */
 #include <linux/init.h>    // module_init,_exit
@@ -78,29 +78,34 @@ int checkDmaEngine(int dtc, unsigned chn, unsigned dir)
 	int lc = 5;
 
 	if (dir == C2S &&
-		(status & (DMA_ENG_INT_ALERR | DMA_ENG_INT_FETERR | DMA_ENG_INT_ABORTERR | DMA_ENG_INT_CHAINEND)) != 0) {
+		(status & (DMA_ENG_INT_ALERR | DMA_ENG_INT_FETERR | DMA_ENG_INT_ABORTERR | DMA_ENG_INT_CHAINEND)) != 0)
+	{
 		TRACE(20, "checkDmaEngine: One of the error bits set: dtc=%d chn=%d dir=%d sts=0x%llx", dtc, chn, dir,
 			  (unsigned long long)status);
 		printk("DTC DMA Interrupt Error Bits Set: dtc=%d chn=%d dir=%d, sts=0x%llx", dtc, chn, dir, (unsigned long long)status);
 		/* Perform soft reset of DMA engine */
 		Dma_mWriteChnReg(dtc, chn, dir, REG_DMA_ENG_CTRL_STATUS, DMA_ENG_USER_RESET);
 		status = Dma_mReadChnReg(dtc, chn, dir, REG_DMA_ENG_CTRL_STATUS);
-		while ((status & DMA_ENG_USER_RESET) != 0 && lc > 0) {
+		while ((status & DMA_ENG_USER_RESET) != 0 && lc > 0)
+		{
 			status = Dma_mReadChnReg(dtc, chn, dir, REG_DMA_ENG_CTRL_STATUS);
 			--lc;
 		}
 		lc = 5;
 		Dma_mWriteChnReg(dtc, chn, dir, REG_DMA_ENG_CTRL_STATUS, DMA_ENG_RESET);
-		while ((status & DMA_ENG_RESET) != 0 && lc > 0) {
+		while ((status & DMA_ENG_RESET) != 0 && lc > 0)
+		{
 			status = Dma_mReadChnReg(dtc, chn, dir, REG_DMA_ENG_CTRL_STATUS);
 			--lc;
 		}
 		sts = 1;
 	}
 
-	if ((status & DMA_ENG_ENABLE) == 0) {
+	if ((status & DMA_ENG_ENABLE) == 0)
+	{
 		TRACE(20, "checkDmaEngine: DMA ENGINE DISABLED! Re-enabling... dtc=%d chn=%d dir=%d", dtc, chn, dir);
-		if (dir == C2S) {
+		if (dir == C2S)
+		{
 			Dma_mWriteChnReg(dtc, chn, dir, REG_DMA_ENG_CTRL_STATUS, DMA_ENG_ENABLE | DMA_ENG_INT_ENABLE);
 		}
 		else
@@ -110,7 +115,8 @@ int checkDmaEngine(int dtc, unsigned chn, unsigned dir)
 		sts = 1;
 	}
 
-	if ((status & DMA_ENG_STATE_MASK) != 0) {
+	if ((status & DMA_ENG_STATE_MASK) != 0)
+	{
 		TRACE(20, "checkDmaEngine: DMA Engine Status: dtc=%d, chn=%d dir=%d r=%d, w=%d", dtc, chn, dir,
 			  ((status & DMA_ENG_RUNNING) != 0 ? 1 : 0), ((status & DMA_ENG_WAITING) != 0 ? 1 : 0));
 	}
@@ -138,7 +144,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 	unsigned tmo_jiffies;
 	int dtc = iminor(filp->f_path.dentry->d_inode);
 
-	TRACE(11, "mu2e_ioctl: start - dtc=%d cmd=0x%x",dtc, cmd);
+	TRACE(11, "mu2e_ioctl: start - dtc=%d cmd=0x%x", dtc, cmd);
 	if (_IOC_TYPE(cmd) != MU2E_IOC_MAGIC) return -ENOTTY;
 
 	/* Check read/write and corresponding argument */
@@ -173,7 +179,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 		case M_IOC_GET_PCI_STATE: /* m_ioc_pcistate_t; formerly IGET_PCI_STATE      _IOR(XPMON_MAGIC,4,PCIState) */
 			TRACE(15, "mu2e_ioctl: cmd=GET_PCI_STATE");
 			ReadPCIState(mu2e_pci_dev[dtc], &pcistate);
-			if (copy_to_user((m_ioc_pcistate_t *)arg, &pcistate, sizeof(m_ioc_pcistate_t))) {
+			if (copy_to_user((m_ioc_pcistate_t *)arg, &pcistate, sizeof(m_ioc_pcistate_t)))
+			{
 				printk("copy_to_user failed\n");
 				retval = -EFAULT;
 				break;
@@ -181,7 +188,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			break;
 		case M_IOC_GET_ENG_STATE: /* m_ioc_engstate_t; formerly IGET_ENG_STATE      _IOR(XPMON_MAGIC,5,EngState) */
 			TRACE(16, "mu2e_ioctl: cmd=GET_ENG_STATE");
-			if (copy_from_user(&eng, (m_ioc_engstate_t *)arg, sizeof(m_ioc_engstate_t))) {
+			if (copy_from_user(&eng, (m_ioc_engstate_t *)arg, sizeof(m_ioc_engstate_t)))
+			{
 				printk("\ncopy_from_user failed\n");
 				retval = -EFAULT;
 				break;
@@ -190,7 +198,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			which_engine = eng.Engine;  // printk("For engine %d\n", i);
 
 			/* First, check if requested engine is valid */
-			if ((which_engine >= MAX_DMA_ENGINES) /*|| (!((dmaData->engineMask) & (1LL << i)))*/) {
+			if ((which_engine >= MAX_DMA_ENGINES) /*|| (!((dmaData->engineMask) & (1LL << i)))*/)
+			{
 				printk("Invalid engine %d\n", which_engine);
 				retval = -EFAULT;
 				break;
@@ -211,7 +220,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 #else
 			eng.IntEnab = 0;
 #endif
-			if (copy_to_user((m_ioc_engstate_t *)arg, &eng, sizeof(m_ioc_engstate_t))) {
+			if (copy_to_user((m_ioc_engstate_t *)arg, &eng, sizeof(m_ioc_engstate_t)))
+			{
 				printk("copy_to_user failed\n");
 				retval = -EFAULT;
 				break;
@@ -219,7 +229,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			break;
 		case M_IOC_GET_DMA_STATS: /* m_ioc_engstats_t; formerly IGET_DMA_STATISTICS _IOR(XPMON_MAGIC,6,EngStatsArray) */
 			TRACE(17, "mu2e_ioctl: cmd=GET_DMA_STATS");
-			if (copy_from_user(&es, (m_ioc_engstats_t *)arg, sizeof(m_ioc_engstats_t))) {
+			if (copy_from_user(&es, (m_ioc_engstats_t *)arg, sizeof(m_ioc_engstats_t)))
+			{
 				printk("copy_from_user failed\n");
 				retval = -1;
 				break;
@@ -227,12 +238,14 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 
 			ds = es.engptr;
 			len = 0;
-			for (ii = 0; ii < es.Count; ++ii) {
+			for (ii = 0; ii < es.Count; ++ii)
+			{
 				DMAStatistics from;
 				int j;
 
 				/* Must copy in a round-robin manner so that reporting is fair */
-				for (j = 0; j < MAX_DMA_ENGINES; j++) {
+				for (j = 0; j < MAX_DMA_ENGINES; j++)
+				{
 					if (!dstatsNum[j]) continue;
 
 					spin_lock_bh(&DmaStatsLock);
@@ -243,7 +256,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 					if (dstatsRead[j] == MAX_STATS) dstatsRead[j] = 0;
 					spin_unlock_bh(&DmaStatsLock);
 
-					if (copy_to_user(ds, &from, sizeof(DMAStatistics))) {
+					if (copy_to_user(ds, &from, sizeof(DMAStatistics)))
+					{
 						printk("copy_to_user failed\n");
 						retval = -EFAULT;
 						break;
@@ -257,7 +271,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				if (retval < 0) break;
 			}
 			es.Count = len;
-			if (copy_to_user((m_ioc_engstats_t *)arg, &es, sizeof(m_ioc_engstats_t))) {
+			if (copy_to_user((m_ioc_engstats_t *)arg, &es, sizeof(m_ioc_engstats_t)))
+			{
 				printk("copy_to_user failed\n");
 				retval = -EFAULT;
 				break;
@@ -265,7 +280,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			break;
 		case M_IOC_GET_TRN_STATS: /* TRNStatsArray;    formerly IGET_TRN_STATISTICS _IOR(XPMON_MAGIC,7,TRNStatsArray) */
 			TRACE(18, "mu2e_ioctl: cmd=GET_TRN_STATS");
-			if (copy_from_user(&tsa, (TRNStatsArray *)arg, sizeof(TRNStatsArray))) {
+			if (copy_from_user(&tsa, (TRNStatsArray *)arg, sizeof(TRNStatsArray)))
+			{
 				printk("copy_from_user failed\n");
 				retval = -1;
 				break;
@@ -273,7 +289,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 
 			ts = tsa.trnptr;
 			len = 0;
-			for (ii = 0; ii < tsa.Count; ++ii) {
+			for (ii = 0; ii < tsa.Count; ++ii)
+			{
 				TRNStatistics from;
 
 				if (!tstatsNum) break;
@@ -285,7 +302,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				if (tstatsRead == MAX_STATS) tstatsRead = 0;
 				spin_unlock_bh(&DmaStatsLock);
 
-				if (copy_to_user(ts, &from, sizeof(TRNStatistics))) {
+				if (copy_to_user(ts, &from, sizeof(TRNStatistics)))
+				{
 					printk("copy_to_user failed\n");
 					retval = -EFAULT;
 					break;
@@ -295,7 +313,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				ts++;
 			}
 			tsa.Count = len;
-			if (copy_to_user((TRNStatsArray *)arg, &tsa, sizeof(TRNStatsArray))) {
+			if (copy_to_user((TRNStatsArray *)arg, &tsa, sizeof(TRNStatsArray)))
+			{
 				printk("copy_to_user failed\n");
 				retval = -EFAULT;
 				break;
@@ -305,39 +324,46 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			/* ------------------------------------------------------------------- */
 		case M_IOC_REG_ACCESS:
 
-			if (copy_from_user(&reg_access, (void *)arg, sizeof(reg_access))) {
+			if (copy_from_user(&reg_access, (void *)arg, sizeof(reg_access)))
+			{
 				printk("copy_from_user failed\n");
 				return (-EFAULT);
 			}
-			if (reg_access.access_type) {
-				TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - write dtc=%d offset=0x%x, val=0x%x",dtc, reg_access.reg_offset, reg_access.val);
+			if (reg_access.access_type)
+			{
+				TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - write dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
 				Dma_mWriteReg(base, reg_access.reg_offset, reg_access.val);
 			}
 			else
 			{
 				TRACE(18, "mu2e_ioctl: cmd=REG_ACCESS - read offset=0x%x", reg_access.reg_offset);
 				reg_access.val = Dma_mReadReg(base, reg_access.reg_offset);
-				TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - read dtc=%d offset=0x%x, val=0x%x",dtc, reg_access.reg_offset, reg_access.val);
-				if (copy_to_user((void *)arg, &reg_access, sizeof(reg_access))) {
+				TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - read dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
+				if (copy_to_user((void *)arg, &reg_access, sizeof(reg_access)))
+				{
 					printk("copy_to_user failed\n");
 					return (-EFAULT);
 				}
 			}
 			break;
 		case M_IOC_GET_INFO:
-			if (copy_from_user(&get_info, (void *)arg, sizeof(m_ioc_get_info_t))) {
+			if (copy_from_user(&get_info, (void *)arg, sizeof(m_ioc_get_info_t)))
+			{
 				TRACE(0, "copy_from_user failed\n");
 				return (-EFAULT);
 			}
 			tmo_jiffies = msecs_to_jiffies(get_info.tmo_ms);
 			dir = get_info.dir;
 			chn = get_info.chn;
-			if (get_info.dir == C2S) {
-				if (!mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_)) {
+			if (get_info.dir == C2S)
+			{
+				if (!mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_))
+				{
 					TRACE(20, "mu2e_ioctl: cmd=GET_INFO wait_event_interruptible_timeout jiffies=%u", tmo_jiffies);
 					if (wait_event_interruptible_timeout(get_info_wait_queue,
 														 mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_),
-														 tmo_jiffies) == 0) {
+														 tmo_jiffies) == 0)
+					{
 						TRACE(20, "mu2e_ioctl: cmd=GET_INFO tmo");
 					}
 				}
@@ -347,7 +373,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				jj = mu2e_channel_info_[dtc][chn][dir].num_buffs;
 				hwIdx = mu2e_channel_info_[dtc][chn][dir].hwIdx;
 				while (((mu2e_buffdesc_S2C_t *)idx2descVirtAdr(hwIdx, dtc, chn, dir))->Complete &&
-					   hwIdx != mu2e_channel_info_[dtc][chn][dir].swIdx && jj--) {
+					   hwIdx != mu2e_channel_info_[dtc][chn][dir].swIdx && jj--)
+				{
 					hwIdx = idx_add(hwIdx, 1, dtc, chn, dir);
 					TRACE(20, "ioctl GET_INFO mu2e_channel_info_[dtc][chn][dir].hwIdx=%u swIdx=%u lps=%u", hwIdx,
 						  mu2e_channel_info_[dtc][chn][dir].swIdx, jj);
@@ -357,7 +384,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			get_info = mu2e_channel_info_[dtc][get_info.chn][get_info.dir];
 			TRACE(20, "mu2e_ioctl: cmd=GET_INFO dir=%d get_info.dir=%u hwIdx=%u swIdx=%u", dir, get_info.dir, get_info.hwIdx,
 				  get_info.swIdx);
-			if (copy_to_user((void *)arg, &get_info, sizeof(m_ioc_get_info_t))) {
+			if (copy_to_user((void *)arg, &get_info, sizeof(m_ioc_get_info_t)))
+			{
 				TRACE(0, "copy_to_user failed\n");
 				return (-EFAULT);
 			}
@@ -387,7 +415,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			TRACE(10, "SERDES Reset done 0x%x", Dma_mReadReg(mu2e_pcie_bar_info[dtc].baseVAddr, 0x9138));
 
 			for (chn = 0; chn < 2; ++chn)
-				for (dir = 0; dir < 2; ++dir) {
+				for (dir = 0; dir < 2; ++dir)
+				{
 					u32 hw_next = Dma_mReadChnReg(dtc, chn, dir, REG_HW_NEXT_BD);
 					u32 sw_next = Dma_mReadChnReg(dtc, chn, dir, REG_SW_NEXT_BD);
 					u32 hw_cmplt = Dma_mReadChnReg(dtc, chn, dir, REG_HW_CMPLT_BD);
@@ -407,7 +436,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 					}
 				}
 			TRACE(10, "RECV[0] BUFFS:");
-			for (jj = 0; jj < MU2E_NUM_RECV_BUFFS; ++jj) {
+			for (jj = 0; jj < MU2E_NUM_RECV_BUFFS; ++jj)
+			{
 				TRACE(10, "%3u Addr=0x%p", jj, (void *)&mu2e_pci_recver[dtc][0].buffdesc_ring[jj]);
 				TRACE(10, "%3u %2x 0x%08x (cmplt=%u, short=%u, err=%u)", jj, 0,
 					  ((u32 *)&(mu2e_pci_recver[dtc][0].buffdesc_ring[jj]))[0],
@@ -430,7 +460,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 					  ((u32 *)&(mu2e_pci_recver[dtc][0].databuffs[jj]))[3]);
 			}
 			TRACE(10, "SEND[0] BUFFS:");
-			for (jj = 0; jj < MU2E_NUM_SEND_BUFFS; ++jj) {
+			for (jj = 0; jj < MU2E_NUM_SEND_BUFFS; ++jj)
+			{
 				TRACE(10, "%3u Addr=0x%p", jj, (void *)&mu2e_pci_sender[dtc][0].buffdesc_ring[jj]);
 				TRACE(10, "%3u %2x 0x%08x (cmplt=%u, short=%u, error=%u)", jj, 0,
 					  ((u32 *)&(mu2e_pci_sender[dtc][0].buffdesc_ring[jj]))[0],
@@ -461,7 +492,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			// FIX ME --- race condition
 			myIdx = mu2e_channel_info_[dtc][chn][dir].swIdx;
 			desc_S2C_p = idx2descVirtAdr(myIdx, dtc, chn, dir);
-			if (desc_S2C_p->Complete != 1) {
+			if (desc_S2C_p->Complete != 1)
+			{
 				TRACE(22, "ioctl BUF_XMIT -EAGAIN myIdx=%u err=%d desc_S2C_p=%p 0x%016llx counts(in,sts)=%u,%u", myIdx,
 					  desc_S2C_p->Error, desc_S2C_p, *(u64 *)desc_S2C_p, desc_S2C_p->ByteCount, desc_S2C_p->ByteCnt);
 				return -EAGAIN;
@@ -496,7 +528,8 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			// update hwIdx here - MUST CHECK Buffer Descriptor Complete bit!!! (not register!!!)
 			jj = mu2e_channel_info_[dtc][chn][dir].num_buffs;
 			hwIdx = mu2e_channel_info_[dtc][chn][dir].hwIdx;
-			while (((mu2e_buffdesc_S2C_t *)idx2descVirtAdr(hwIdx, dtc, chn, dir))->Complete && hwIdx != myIdx && jj--) {
+			while (((mu2e_buffdesc_S2C_t *)idx2descVirtAdr(hwIdx, dtc, chn, dir))->Complete && hwIdx != myIdx && jj--)
+			{
 				hwIdx = idx_add(hwIdx, 1, dtc, chn, dir);
 				TRACE(22, "ioctl BUF_XMIT mu2e_channel_info_[dtc][chn][dir].hwIdx=%u swIdx=%u lps=%u", hwIdx,
 					  mu2e_channel_info_[dtc][chn][dir].swIdx, jj);
@@ -541,7 +574,8 @@ static int ReadPCIState(struct pci_dev *pdev, m_ioc_pcistate_t *pcistate)
 
 	/* Read Interrupt setting - Legacy or MSI/MSI-X */
 	pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &valb);
-	if (!valb) {
+	if (!valb)
+	{
 		if (pci_find_capability(pdev, PCI_CAP_ID_MSIX))
 			pcistate->IntMode = INT_MSIX;
 		else if (pci_find_capability(pdev, PCI_CAP_ID_MSI))
@@ -554,7 +588,8 @@ static int ReadPCIState(struct pci_dev *pdev, m_ioc_pcistate_t *pcistate)
 	else
 		pcistate->IntMode = INT_NONE;
 
-	if ((pos = pci_find_capability(pdev, PCI_CAP_ID_EXP))) {
+	if ((pos = pci_find_capability(pdev, PCI_CAP_ID_EXP)))
+	{
 		/* Read Link Status */
 		pci_read_config_word(pdev, pos + PCI_EXP_LNKSTA, &valw);
 		pcistate->LinkSpeed = (valw & 0x0003);
@@ -599,12 +634,14 @@ static int __init init_mu2e(void)
 	// fs interface, pci
 
 	ret = mu2e_fs_up();
-	if (ret != 0) {
+	if (ret != 0)
+	{
 		ret = -2;
 		goto out_fs;
 	}
 	ret = mu2e_pci_up();
-	if (ret != 0) {
+	if (ret != 0)
+	{
 		ret = -5;
 		goto out_pci;
 	}

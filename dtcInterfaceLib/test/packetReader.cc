@@ -17,7 +17,8 @@ int main()
 	size_t numADCSamples = 12;
 
 	std::string inputFile = "TRK_packets.bin";
-	if (packetType == "CAL") {
+	if (packetType == "CAL")
+	{
 		inputFile = "CAL_packets.bin";
 	}
 
@@ -28,7 +29,8 @@ int main()
 
 	std::vector<adc_t> masterVector;
 	std::vector<std::vector<std::vector<adc_t>>> timeStampVector;
-	if (binFile.is_open()) {
+	if (binFile.is_open())
+	{
 		auto size = binFile.tellg();
 		auto memblock = new char[static_cast<unsigned>(size)];
 		binFile.seekg(0, std::ios::beg);
@@ -37,7 +39,8 @@ int main()
 
 		// Read input file into master adc_t vector
 		for (auto curPos = reinterpret_cast<adc_t *>(memblock);
-			 curPos != reinterpret_cast<adc_t *>(memblock + sizeof(char) * size); curPos++) {
+			 curPos != reinterpret_cast<adc_t *>(memblock + sizeof(char) * size); curPos++)
+		{
 			masterVector.push_back(static_cast<adc_t>(*curPos));
 		}
 		std::cout << "Number of adc_t entries in input dataset: " << masterVector.size() << std::endl;
@@ -46,13 +49,15 @@ int main()
 		size_t curPos = 0;
 
 		std::vector<std::vector<adc_t>> dataBlockVector;  // Vector of adc_t vectors containing DataBlocks
-		while (!exitLoop && curPos < masterVector.size()) {
+		while (!exitLoop && curPos < masterVector.size())
+		{
 			std::bitset<64> byteCount = 0;
 			std::bitset<16> byteCount0 = masterVector[curPos + 0];
 			std::bitset<16> byteCount1 = masterVector[curPos + 1];
 			std::bitset<16> byteCount2 = masterVector[curPos + 2];
 			std::bitset<16> byteCount3 = masterVector[curPos + 3];
-			for (auto i = 0; i < 16; i++) {
+			for (auto i = 0; i < 16; i++)
+			{
 				byteCount[i + 16 * 0] = byteCount0[i];
 				byteCount[i + 16 * 1] = byteCount1[i];
 				byteCount[i + 16 * 2] = byteCount2[i];
@@ -60,7 +65,8 @@ int main()
 			}
 			size_t theCount = byteCount.to_ulong();
 
-			if (verbose) {
+			if (verbose)
+			{
 				std::cout << "Number of bytes in DMABlock: " << theCount << std::endl;
 			}
 
@@ -69,9 +75,11 @@ int main()
 			size_t posInBlock = 4;
 
 			std::vector<adc_t> curDataBlock;
-			while (posInBlock < blockEndIdx - blockStartIdx) {
+			while (posInBlock < blockEndIdx - blockStartIdx)
+			{
 				size_t numDataPackets = masterVector[blockStartIdx + posInBlock + 2];
-				for (size_t i = 0; i < 8 + numDataPackets * 8; i++) {
+				for (size_t i = 0; i < 8 + numDataPackets * 8; i++)
+				{
 					curDataBlock.push_back(masterVector[blockStartIdx + posInBlock + i]);
 				}
 				dataBlockVector.push_back(curDataBlock);
@@ -84,8 +92,10 @@ int main()
 		}
 
 		std::cout << "DataBlock vector size: " << dataBlockVector.size() << std::endl;
-		if (verbose) {
-			for (size_t eventNum = 0; eventNum < dataBlockVector.size(); eventNum++) {
+		if (verbose)
+		{
+			for (size_t eventNum = 0; eventNum < dataBlockVector.size(); eventNum++)
+			{
 				auto packetVector = dataBlockVector[eventNum];
 				std::cout << "================================================" << std::endl;
 				std::cout << "Hit num: " << eventNum << std::endl;
@@ -95,7 +105,8 @@ int main()
 				std::bitset<16> timestamp0 = packetVector[3];
 				std::bitset<16> timestamp1 = packetVector[4];
 				std::bitset<16> timestamp2 = packetVector[5];
-				for (auto i = 0; i < 16; i++) {
+				for (auto i = 0; i < 16; i++)
+				{
 					timestamp[i + 16 * 0] = timestamp0[i];
 					timestamp[i + 16 * 1] = timestamp1[i];
 					timestamp[i + 16 * 2] = timestamp2[i];
@@ -106,7 +117,8 @@ int main()
 				std::bitset<16> roclink = packetVector[1];
 				std::bitset<4> link;
 				std::bitset<4> roc;
-				for (size_t i = 0; i < 4; i++) {
+				for (size_t i = 0; i < 4; i++)
+				{
 					roc[i] = roclink[i];
 					link[i] = roclink[i + 8];
 				}
@@ -119,12 +131,15 @@ int main()
 
 				// Print out payload packet info
 
-				if (packetType == "TRK") {
+				if (packetType == "TRK")
+				{
 					std::cout << "\tNumber of ADC samples: " << numADCSamples << std::endl;
 					std::cout << "\tscaledNoisyVector: {";
-					for (size_t i = 8 + 4; i < 8 + 4 + numADCSamples; i++) {
+					for (size_t i = 8 + 4; i < 8 + 4 + numADCSamples; i++)
+					{
 						double curVal = packetVector[i];
-						if (i > 8 + 4) {
+						if (i > 8 + 4)
+						{
 							std::cout << ",";
 						}
 						std::cout << curVal;
@@ -133,10 +148,12 @@ int main()
 				}
 				else if (packetType == "CAL")
 				{
-					if (packetVector.size() / 8 - 1 > 0) {  // At least 1 data packet following the header packet
+					if (packetVector.size() / 8 - 1 > 0)
+					{  // At least 1 data packet following the header packet
 						std::bitset<16> IDNum = packetVector[8];
 						std::bitset<12> crystalID;
-						for (auto i = 11; i >= 0; i--) {
+						for (auto i = 11; i >= 0; i--)
+						{
 							crystalID[i] = IDNum[i];
 						}
 						std::cout << "\tCrystalID: " << crystalID.to_ulong() << std::endl;
@@ -147,9 +164,11 @@ int main()
 						auto numSamples = packetVector[8 + 2];
 						std::cout << "\tNumber of waveform samples: " << numSamples << std::endl;
 						std::cout << "\tscaledNoisyVector: {";
-						for (auto i = 8U + 3U; i < 8U + 3U + packetVector[8 + 2]; i++) {
+						for (auto i = 8U + 3U; i < 8U + 3U + packetVector[8 + 2]; i++)
+						{
 							double curVal = packetVector[i];
-							if (i > 8 + 3) {
+							if (i > 8 + 3)
+							{
 								std::cout << ",";
 							}
 							std::cout << curVal;
@@ -162,10 +181,12 @@ int main()
 				std::bitset<16> curEntry;
 				std::cout << std::endl;
 				std::cout << "\tRaw Packets:" << std::endl;
-				for (size_t i = 0; i < packetVector.size(); i++) {
+				for (size_t i = 0; i < packetVector.size(); i++)
+				{
 					curEntry = packetVector[i];
 					std::cout << "\t\t" << curEntry.to_string() << " " << curEntry.to_ulong() << std::endl;
-					if (i > 0 && (i + 1) % 8 == 0) {
+					if (i > 0 && (i + 1) % 8 == 0)
+					{
 						std::cout << std::endl;
 					}
 				}

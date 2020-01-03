@@ -78,11 +78,11 @@ void mu2e_fs_down()
 int mu2e_open(struct inode *inode, struct file *filp)
 {
 	int dtc = iminor(inode);
-	
+
 	spin_lock(&mu2e_fs_spinlock);
 	if (mu2e_dtc_count[dtc] &&
-		(mu2e_dtc_owner[dtc].val != current_uid().val) && /* allow user */
-		(mu2e_dtc_owner[dtc].val != current_euid().val) &&     /* allow whoever did su */
+		(mu2e_dtc_owner[dtc].val != current_uid().val) &&  /* allow user */
+		(mu2e_dtc_owner[dtc].val != current_euid().val) && /* allow whoever did su */
 		!capable(CAP_DAC_OVERRIDE))
 	{ /* still allow root */
 		spin_unlock(&mu2e_fs_spinlock);

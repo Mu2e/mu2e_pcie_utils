@@ -52,16 +52,18 @@ union DataHeaderPacket
 		uint16_t Resv1 : 4;       ///< Reserved
 		uint16_t PacketType : 4;  ///< Type of packet
 		uint16_t LinkID : 4;      ///< Link ID of packet
-		uint16_t Resv0 : 3;       ///< Reserved
+		uint16_t SubsystemID : 3;       ///< Subsystem ID
 		uint16_t Valid : 1;       ///< Is the packet valid?
 
-		uint16_t PacketCount : 8;  ///< Packet count requested
-		uint16_t Resv2 : 8;        ///< Reserved
+		uint16_t PacketCount : 11;  ///< Packet count requested
+		uint16_t Resv2 : 5;        ///< Reserved
 		uint16_t ts10;             ///< Timestamp bytes 1 and 2 (Least significant)
 		uint16_t ts32;             ///< Timestamp bytes 3 and 4
 		uint16_t ts54;             ///< Timestamp bytes 5 and 6 (Most significant)
-		uint16_t data32;           ///< Data bytes 1 and 2
-		uint16_t data54;           ///< Data bytes 3 and 4
+		uint16_t Status : 8; ///< Status word
+		uint16_t Version : 8; ///< Data packet format version
+		uint16_t DTCID : 8; ///< ID of receiving DTC
+		uint16_t EventWindowMode : 8; ///< Window mode byte from CFO
 	} s;
 };
 /// <summary>
@@ -171,13 +173,13 @@ NOTE: for _IOR, _IOW: the size is only for the data at the address used in the
 /// <summary>
 /// Register Access information
 /// </summary>
-typedef uint16_t  dtc_address_t;
-typedef uint32_t  dtc_data_t;
+typedef uint16_t dtc_address_t;
+typedef uint32_t dtc_data_t;
 typedef struct
 {
-	dtc_address_t 	reg_offset;   ///< Offset of register from BAR0
-	int 			access_type;  ///< 0=read, 1=write
-	dtc_data_t 		val;     ///< Value of register
+	dtc_address_t reg_offset;  ///< Offset of register from BAR0
+	int access_type;           ///< 0=read, 1=write
+	dtc_data_t val;            ///< Value of register
 } m_ioc_reg_access_t;
 
 /** Structure used in IOCTL to start/stop a test & to get current test state */
@@ -279,13 +281,15 @@ typedef struct
 
 typedef unsigned char mu2e_databuff_t[0x10000];
 
-typedef enum {
+typedef enum
+{
 	DTC_DMA_Engine_DAQ = 0,
 	DTC_DMA_Engine_DCS = 1,
 	DTC_DMA_Engine_Invalid,
 } DTC_DMA_Engine;
 
-typedef enum {
+typedef enum
+{
 	DTC_DMA_Direction_C2S = 0,
 	DTC_DMA_Direction_S2C = 1,
 	DTC_DMA_Direction_Invalid,

@@ -23,21 +23,24 @@ int main(int argc, char* argv[])
 	auto modeint = 1;
 	std::string simFile = "";
 	auto badarg = false;
-	if (argc > 1) {
+	if (argc > 1)
+	{
 		auto tmp = atoi(argv[1]);
 		if (tmp > 0)
 			loops = tmp;
 		else
 			badarg = true;
 	}
-	if (argc > 2) {
+	if (argc > 2)
+	{
 		auto tmp = atoi(argv[2]);
 		if (tmp > 0)
 			modeint = tmp;
 		else
 			badarg = true;
 	}
-	if (argc > 3) {
+	if (argc > 3)
+	{
 		simFile = std::string(argv[3]);
 	}
 	if (argc > 4) badarg = true;
@@ -46,7 +49,8 @@ int main(int argc, char* argv[])
 	TRACE(1, "simFile is %s", simFile.c_str());
 	auto mode = DTC_SimModeConverter::ConvertToSimMode(std::to_string(modeint));
 	auto thisDTC = new DTC(mode, 0);
-	if (simFile.size() > 0) {
+	if (simFile.size() > 0)
+	{
 		thisDTC->WriteSimFileToDTC(simFile, true, true);
 	}
 	TRACE(1, "thisDTC->ReadSimMode: %i", thisDTC->ReadSimMode());
@@ -55,7 +59,8 @@ int main(int argc, char* argv[])
 	long count = 0;
 	typedef uint8_t packet_t[16];
 
-	while (loopCounter < loops) {
+	while (loopCounter < loops)
+	{
 		TRACE(1, "mu2eReceiver::getNext: Starting CFO thread");
 		uint64_t z = 0;
 		DTC_Timestamp zero(z);
@@ -69,11 +74,13 @@ int main(int argc, char* argv[])
 
 		// Get data from DTCReceiver
 		TRACE(1, "mu2eReceiver::getNext: Starting DTCFragment Loop");
-		while (newfrag.hdr_block_count() < BLOCK_COUNT_MAX) {
+		while (newfrag.hdr_block_count() < BLOCK_COUNT_MAX)
+		{
 			TRACE(1, "Getting DTC Data");
 			std::vector<DTC_DataBlock> data;
 			auto retryCount = 5;
-			while (data.size() == 0 && retryCount >= 0) {
+			while (data.size() == 0 && retryCount >= 0)
+			{
 				try
 				{
 					// TRACE(4, "Calling theInterface->GetData(zero)");
@@ -87,7 +94,8 @@ int main(int argc, char* argv[])
 				retryCount--;
 				// if (data.size() == 0) { usleep(10000); }
 			}
-			if (retryCount < 0 && data.size() == 0) {
+			if (retryCount < 0 && data.size() == 0)
+			{
 				TRACE(1, "Retry count exceeded. Something is very wrong indeed");
 				std::cout << "Had an error with block " << newfrag.hdr_block_count() << " of event " << loopCounter
 						  << std::endl;
@@ -96,11 +104,13 @@ int main(int argc, char* argv[])
 
 			auto first = DTC_DataHeaderPacket(DTC_DataPacket(data[0].blockPointer));
 			auto ts = first.GetTimestamp();
-			if (firstLoop) {
+			if (firstLoop)
+			{
 				expected_timestamp = ts;
 				firstLoop = false;
 			}
-			if (ts != expected_timestamp) {
+			if (ts != expected_timestamp)
+			{
 				std::cerr << "WRONG TIMESTAMP DETECTED: 0x" << std::hex << ts.GetTimestamp(true) << " (expected: 0x"
 						  << expected_timestamp.GetTimestamp(true) << ")" << std::endl;
 			}
@@ -111,14 +121,16 @@ int main(int argc, char* argv[])
 
 			size_t totalSize = 0;
 
-			for (size_t i = 0; i < data.size(); ++i) {
+			for (size_t i = 0; i < data.size(); ++i)
+			{
 				totalSize += data[i].byteSize;
 			}
 
 			auto diff = static_cast<int64_t>(totalSize + newfrag.dataSize()) - newfrag.fragSize();
 			TRACE(4, "diff=%lli, totalSize=%zu, dataSize=%zu, fragSize=%zu", (long long)diff, totalSize, newfrag.dataSize(),
 				  newfrag.fragSize());
-			if (diff > 0) {
+			if (diff > 0)
+			{
 				auto currSize = newfrag.fragSize();
 				auto remaining = 1 - newfrag.hdr_block_count() / static_cast<double>(BLOCK_COUNT_MAX);
 				auto newSize = static_cast<size_t>(currSize * remaining);
@@ -130,7 +142,8 @@ int main(int argc, char* argv[])
 			TRACE(3, "Copying DTC packets into Mu2eFragment");
 			auto offset = newfrag.dataBegin() + newfrag.dataSize();
 			size_t intraBlockOffset = 0;
-			for (size_t i = 0; i < data.size(); ++i) {
+			for (size_t i = 0; i < data.size(); ++i)
+			{
 				TRACE(4, "Copying data from %p to %p (sz=%zu)", reinterpret_cast<void*>(data[i].blockPointer),
 					  reinterpret_cast<void*>(offset + intraBlockOffset), data[i].byteSize);
 				memcpy(reinterpret_cast<void*>(offset + intraBlockOffset), data[i].blockPointer, data[i].byteSize);

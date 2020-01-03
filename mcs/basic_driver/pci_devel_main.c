@@ -5,7 +5,7 @@
         $RCSfile: .emacs.gnu,v $
         rev="$Revision: 1.23 $$Date: 2012/01/23 15:32:40 $";
         */
-#include <linux/uaccess.h>   /* access_ok, copy_to_user */
+#include <linux/uaccess.h> /* access_ok, copy_to_user */
 #include <linux/cdev.h>    /* cdev_add */
 #include <linux/delay.h>   /* msleep */
 #include <linux/device.h>  /* class_create */
@@ -66,13 +66,13 @@ static struct file_operations devl_file_ops = {
 	.IOCTL_FILE_OPS_MEMBER = devl_ioctl, /* ioctl  */
 	.mmap = NULL,                        /* mmap         */
 	0                                    /* open         */
-	                                     /* flush        */
-	                                     /* release (close?)*/
-	                                     /* fsync        */
-	                                     /* fasync       */
-	                                     /* check_media_change */
-	                                     /* revalidate   */
-	                                     /* lock         */
+										 /* flush        */
+										 /* release (close?)*/
+										 /* fsync        */
+										 /* fasync       */
+										 /* check_media_change */
+										 /* revalidate   */
+										 /* lock         */
 };
 
 dev_t devl_dev_number;
@@ -85,7 +85,8 @@ int devl_fs_up(void)
 	int sts;
 	sts = alloc_chrdev_region(&devl_dev_number, 0, 10, "devl_drv");
 
-	if (sts < 0) {
+	if (sts < 0)
+	{
 		TRACE(3, "dcm_init(): Failed to get device numbers");
 		return (sts);
 	}
@@ -120,7 +121,8 @@ static int devl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
    * suspended. Beware, this function can fail.
    */
 	pciRet = pci_enable_device(pdev);
-	if (pciRet < 0) {
+	if (pciRet < 0)
+	{
 		TRACE(0, KERN_ERR "PCI device enable failed.");
 		return (pciRet);
 	}
@@ -132,20 +134,23 @@ static int devl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 
 	pciRet = pci_request_regions(pdev, DRIVER_NAME);
-	if (pciRet < 0) {
+	if (pciRet < 0)
+	{
 		TRACE(0, KERN_ERR "Could not request PCI regions.");
 		pci_disable_device(pdev);
 		return (pciRet);
 	}
 
 	pciRet = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-	if (pciRet < 0) {
+	if (pciRet < 0)
+	{
 		TRACE(0, KERN_ERR "pci_set_dma_mask failed.");
 		goto out2;
 	}
 
 	TRACE(5, "devl_pci_probe MAJOR=%d MINOR=%d", MAJOR(devl_dev_number), next_minor_number);
-	if (next_minor_number < 10) {
+	if (next_minor_number < 10)
+	{
 		pdev->dev.devt = MKDEV(MAJOR(devl_dev_number), next_minor_number);
 		device_create(devl_dev_class, NULL, pdev->dev.devt, NULL, PCIDEVL_DEV_FILE, next_minor_number);
 		pci_dev_sp[next_minor_number] = pdev; /* GLOBAL */
@@ -166,14 +171,17 @@ static void devl_pci_remove(struct pci_dev *pdev)
 {
 	int ii;
 	int match = -1;
-	for (ii = 0; ii < next_minor_number; ++ii) {
-		if (pdev == pci_dev_sp[ii]) {
+	for (ii = 0; ii < next_minor_number; ++ii)
+	{
+		if (pdev == pci_dev_sp[ii])
+		{
 			pci_dev_sp[ii] = 0;
 			match = ii;
 		}
 	}
 
-	if (match < 0) {
+	if (match < 0)
+	{
 		TRACE(6, "devl_pci_remove device already removed");
 		return;
 	}
@@ -200,8 +208,10 @@ static struct pci_driver devl_driver = {
 void devl_pci_down(void)
 {
 	int ii;
-	for (ii = 0; ii < next_minor_number; ++ii) {
-		if (pcie_bar_info[ii].baseVAddr != 0) {
+	for (ii = 0; ii < next_minor_number; ++ii)
+	{
+		if (pcie_bar_info[ii].baseVAddr != 0)
+		{
 			TRACE(6, "devl_pci_down - iounmap( pcie_bar_info.baseVAddr )");
 			iounmap(pcie_bar_info[ii].baseVAddr);
 			pcie_bar_info[ii].baseVAddr = 0;
@@ -239,13 +249,16 @@ IOCTL_RET_TYPE devl_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			TRACE(6, "devl_ioctl - hello");
 			break;
 		case IOC_IOREMAP:
-			if (sts == 0) {
+			if (sts == 0)
+			{
 				u32 size;
-				if ((size = pci_resource_len(pci_dev_sp[devIdx], 0 /*bar*/)) == 0) {
+				if ((size = pci_resource_len(pci_dev_sp[devIdx], 0 /*bar*/)) == 0)
+				{
 					TRACE(1, KERN_ERR "BAR 0 not valid, aborting.");
 					return (-1);
 				}
-				if (!(pci_resource_flags(pci_dev_sp[devIdx], 0 /*bar*/) & IORESOURCE_MEM)) {
+				if (!(pci_resource_flags(pci_dev_sp[devIdx], 0 /*bar*/) & IORESOURCE_MEM))
+				{
 					TRACE(1, KERN_ERR "BAR 0 is of wrong type, aborting.");
 					return (-1);
 				}
@@ -253,7 +266,8 @@ IOCTL_RET_TYPE devl_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				pcie_bar_info[devIdx].baseLen = size;
 
 				pcie_bar_info[devIdx].baseVAddr = ioremap(pcie_bar_info[devIdx].basePAddr, size);
-				if (pcie_bar_info[devIdx].baseVAddr == 0UL) {
+				if (pcie_bar_info[devIdx].baseVAddr == 0UL)
+				{
 					TRACE(1, KERN_ERR "Cannot map BAR 0 space, invalidating.");
 					return (-1);
 				}
@@ -273,9 +287,11 @@ IOCTL_RET_TYPE devl_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			break;
 		case IOC_UINT32:
 			TRACE(6, "IOC_UINT32");
-			if (pcie_bar_info[devIdx].baseVAddr == 0) {
+			if (pcie_bar_info[devIdx].baseVAddr == 0)
+			{
 				sts = devl_ioctl(IOCTL_ARGS(inode, filp, IOC_IOREMAP, 0));
-				if (sts != 0) {
+				if (sts != 0)
+				{
 					return -1;
 				}
 			}
@@ -290,23 +306,27 @@ IOCTL_RET_TYPE devl_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			}
 			break;
 		case IOC_IOOP:
-			if (pcie_bar_info[devIdx].baseVAddr == 0) {
+			if (pcie_bar_info[devIdx].baseVAddr == 0)
+			{
 				sts = devl_ioctl(IOCTL_ARGS(inode, filp, IOC_IOREMAP, 0));
-				if (sts != 0) {
+				if (sts != 0)
+				{
 					return -1;
 				}
 			}
 			{
 				struct ioc_ioop ioop;
 				ulong addr = (ulong)pcie_bar_info[devIdx].baseVAddr;
-				if (copy_from_user(&ioop, (void *)arg, sizeof(struct ioc_ioop))) {
+				if (copy_from_user(&ioop, (void *)arg, sizeof(struct ioc_ioop)))
+				{
 					TRACE(0, "devl_ioctl IOC_IOOP: copy_from_user failed");
 					return -EFAULT;
 				}
 				addr += ioop.offset;
 				if (ioop.ops_mask & ioop_write) *(u32 *)addr = ioop.write_val;
 				if (ioop.ops_mask & ioop_read) ioop.read_val = *(u32 *)addr;
-				if (copy_to_user((void *)arg, &ioop, sizeof(struct ioc_ioop))) {
+				if (copy_to_user((void *)arg, &ioop, sizeof(struct ioc_ioop)))
+				{
 					TRACE(0, "devl_ioctl IOC_IOOP: copy_to_user failed");
 					return -EFAULT;
 				}

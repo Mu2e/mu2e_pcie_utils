@@ -36,7 +36,8 @@ int main(int argc, char *argv[])
 	const char *cmd;
 	char devfile[13]; /* /dev/pcidevX */
 
-	if (argc == 1) {
+	if (argc == 1)
+	{
 		printf(USAGE);
 		return (0);
 	}
@@ -48,7 +49,8 @@ int main(int argc, char *argv[])
 	snprintf(devfile, 13, "/dev/" PCIDEVL_DEV_FILE, atoi(argv[1]));
 
 	int fd = open(devfile, O_RDONLY);
-	if (fd == -1) {
+	if (fd == -1)
+	{
 		perror("open");
 		return (1);
 	}
@@ -56,10 +58,12 @@ int main(int argc, char *argv[])
 	optind = 2;
 	cmd = argv[optind++];
 
-	if (strcmp(cmd, "hello") == 0) {
+	if (strcmp(cmd, "hello") == 0)
+	{
 		TRACE(2, "hello");
 		sts = ioctl(fd, IOC_HELLO);
-		if (sts == -1) {
+		if (sts == -1)
+		{
 			perror("ioctl HELLO");
 			return (1);
 		}
@@ -68,7 +72,8 @@ int main(int argc, char *argv[])
 	{
 		TRACE(2, "ioremap");
 		sts = ioctl(fd, IOC_IOREMAP);
-		if (sts == -1) {
+		if (sts == -1)
+		{
 			perror("ioctl IOREMAP");
 			return (1);
 		}
@@ -77,21 +82,24 @@ int main(int argc, char *argv[])
 	{
 		TRACE(2, "iounmap");
 		sts = ioctl(fd, IOC_IOUNMAP);
-		if (sts == -1) {
+		if (sts == -1)
+		{
 			perror("ioctl IOUNMAP");
 			return (1);
 		}
 	}
 	else if (strcmp(cmd, "uint32") == 0)
 	{
-		if ((argc - optind) < 1) {
+		if ((argc - optind) < 1)
+		{
 			printf("cmd \"uint32\" needs an arg (offset)\n");
 			return (1);
 		}
 		TRACE(2, "uint32");
 		uint32_t in_out = strtoul(argv[optind], NULL, 0);
 		sts = ioctl(fd, IOC_UINT32, &in_out);
-		if (sts == -1) {
+		if (sts == -1)
+		{
 			perror("ioctl UINT32");
 			return (1);
 		}

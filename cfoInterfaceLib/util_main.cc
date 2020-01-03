@@ -283,7 +283,8 @@ int main(int argc, char* argv[])
 		else
 		{
 			std::ifstream file(inputFile, std::ios::binary | std::ios::ate);
-			if (file.eof()) {
+			if (file.eof())
+			{
 				std::cout << "Input file " << inputFile << " does not exist!" << std::endl;
 			}
 			auto inputSize = file.tellg();
