@@ -34,9 +34,10 @@ public:
 	/// <param name="quiet">When true, don't print debug information to screen</param>
 	/// <param name="asyncRR">Whether to send ReadoutRequests asynchronously</param>
 	/// <param name="forceNoDebugMode">Do NOT set the Debug flag in Data Request</param>
+	/// <param name="noAutogenDRP">Do NOT enable the Autogen DRP bit</param>
 	DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t debugPacketCount = 0,
 				   DTC_DebugType debugType = DTC_DebugType_ExternalSerialWithReset, bool stickyDebugType = false,
-				   bool quiet = false, bool asyncRR = false, bool forceNoDebugMode = false);
+				   bool quiet = false, bool asyncRR = false, bool forceNoDebugMode = false, bool noAutogenDRP = false);
 	/// <summary>
 	/// DTCSoftwareCFO Destructor
 	/// </summary>
