@@ -13,7 +13,7 @@
 
 DTCLib::DTCSoftwareCFO::DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t debugPacketCount,
 									   DTC_DebugType debugType, bool stickyDebugType, bool quiet, bool asyncRR,
-									   bool forceNoDebug, bool noAutogenDRP)
+									   bool forceNoDebug, bool useCFODRP)
 	: useCFOEmulator_(useCFOEmulator), debugPacketCount_(debugPacketCount), debugType_(debugType), stickyDebugType_(stickyDebugType), quiet_(quiet), asyncRR_(asyncRR), forceNoDebug_(forceNoDebug), theThread_(nullptr), requestsSent_(false), abort_(false)
 {
 	theDTC_ = dtc;
@@ -22,12 +22,17 @@ DTCLib::DTCSoftwareCFO::DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t d
 		linkMode_[link] = theDTC_->ReadLinkEnabled(link);
 	}
 
-	if (noAutogenDRP)
+	if (useCFODRP)
+	{
+		theDTC_->EnableCFOEmulatorDRP();
+	}
+	else
 	{
 		theDTC_->EnableAutogenDRP();
+	}
 		theDTC_->SetAllEventModeWords(1U);
 		theDTC_->SetEventModeWord(0, 0U);
-	}
+	
 }
 
 DTCLib::DTCSoftwareCFO::~DTCSoftwareCFO()
