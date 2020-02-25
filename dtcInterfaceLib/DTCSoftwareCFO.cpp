@@ -24,15 +24,16 @@ DTCLib::DTCSoftwareCFO::DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t d
 
 	if (useCFODRP)
 	{
+		theDTC_->DisableAutogenDRP();
 		theDTC_->EnableCFOEmulatorDRP();
 	}
 	else
 	{
+		theDTC_->DisableCFOEmulatorDRP();
 		theDTC_->EnableAutogenDRP();
 	}
-		theDTC_->SetAllEventModeWords(1U);
-		theDTC_->SetEventModeWord(0, 0U);
-	
+	theDTC_->SetAllEventModeWords(1U);
+	theDTC_->SetEventModeWord(0, 0U);
 }
 
 DTCLib::DTCSoftwareCFO::~DTCSoftwareCFO()
