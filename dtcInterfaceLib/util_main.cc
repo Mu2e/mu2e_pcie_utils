@@ -58,7 +58,7 @@ std::ofstream outputStream;
 unsigned rocMask = 0x1;
 unsigned targetFrequency = 166666667;
 int clockToProgram = 0;
-bool noAutogenDRP = false;
+bool useCFODRP = false;
 
 #define __SHORTFILE__ \
 	(strstr(&__FILE__[0], "/srcs/") ? strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
@@ -348,7 +348,7 @@ void printHelpMsg()
 		<< "    -V: Do NOT attempt to verify that the sim file landed in DTC memory correctly" << std::endl
 		<< "    --timestamp-list: Read <file> for timestamps to request (CFO will generate heartbeats for all timestamps in range spanned by file)" << std::endl
 		<< "    --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl
-		<< "    --noDRP: Do not enable the Autogen DRP bit when setting up the CFO Emulator (must manually send DataRequest Packets)" << std::endl;
+		<< "    --cfoDRP: Send DRPs from the DTC CFO Emulator instead of from the DTC itself" << std::endl;
 	exit(0);
 }
 
@@ -468,9 +468,9 @@ int main(int argc, char* argv[])
 					{
 						dtc = getLongOptionValue(&optind, &argv);
 					}
-					else if (option == "--noDRP")
+					else if (option == "--cfoDRP")
 					{
-						noAutogenDRP = true;
+						useCFODRP = true;
 					}
 					else if (option == "--help")
 					{
@@ -498,7 +498,7 @@ int main(int argc, char* argv[])
 					 << ", CFO Delay: " << cfodelay << ", TS Offset: " << timestampOffset << ", PacketCount: " << packetCount
 					 << ", Force NO Debug Flag: " << forceNoDebug << ", DataBlock Count: " << blockCount;
 	TLOG(TLVL_DEBUG) << std::boolalpha << ", Event Count: " << eventCount << ", Requests Ahead of Reads: " << requestsAhead
-					 << ", Synchronous Request Mode: " << syncRequests << ", Use DTC CFO Emulator: " << useCFOEmulator << (noAutogenDRP ? " (Do NOT Autogenerate DRPs)" : "")
+					 << ", Synchronous Request Mode: " << syncRequests << ", Use DTC CFO Emulator: " << useCFOEmulator << (useCFODRP ? " (CFO Emulator DRPs)" : " (DTC DRPs)")
 					 << ", Increment TS: " << incrementTimestamp << ", Quiet Mode: " << quiet << " (" << quietCount << ")"
 					 << ", Really Quiet Mode: " << reallyQuiet << ", Check SERDES Error Status: " << checkSERDES;
 	TLOG(TLVL_DEBUG) << std::boolalpha << ", Generate DMA Blocks: " << genDMABlocks << ", Read Data from DDR: " << readGenerated
@@ -635,7 +635,7 @@ int main(int argc, char* argv[])
 		device->ResetDeviceTime();
 		auto afterInit = std::chrono::steady_clock::now();
 
-		DTCSoftwareCFO cfo(thisDTC, useCFOEmulator, packetCount, debugType, stickyDebugType, quiet, false, forceNoDebug, noAutogenDRP);
+		DTCSoftwareCFO cfo(thisDTC, useCFOEmulator, packetCount, debugType, stickyDebugType, quiet, false, forceNoDebug, useCFODRP);
 
 		if (genDMABlocks > 0)
 		{
@@ -786,7 +786,7 @@ int main(int argc, char* argv[])
 		thisDTC->GetDevice()->ResetDeviceTime();
 		auto afterInit = std::chrono::steady_clock::now();
 
-		DTCSoftwareCFO theCFO(thisDTC, useCFOEmulator, packetCount, debugType, stickyDebugType, quiet, forceNoDebug, noAutogenDRP);
+		DTCSoftwareCFO theCFO(thisDTC, useCFOEmulator, packetCount, debugType, stickyDebugType, quiet, forceNoDebug, useCFODRP);
 
 		if (genDMABlocks > 0)
 		{
