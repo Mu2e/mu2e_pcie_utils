@@ -699,9 +699,7 @@ int main(int argc, char* argv[])
 					std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(endRequest - startRequest).count();
 			}
 			TLOG((reallyQuiet ? 9 : TLVL_INFO)) << "Buffer Read " << std::dec << ii << std::endl;
-
-			__COUT__ << "Buffer read " << ii << __E__;
-
+			
 			mu2e_databuff_t* buffer;
 			auto tmo_ms = 1500;
 			TLOG(TLVL_TRACE) << "util - before read for DAQ - ii=" << ii;
