@@ -699,7 +699,7 @@ int main(int argc, char* argv[])
 					std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(endRequest - startRequest).count();
 			}
 			TLOG((reallyQuiet ? 9 : TLVL_INFO)) << "Buffer Read " << std::dec << ii << std::endl;
-			
+
 			mu2e_databuff_t* buffer;
 			auto tmo_ms = 1500;
 			TLOG(TLVL_TRACE) << "util - before read for DAQ - ii=" << ii;
@@ -716,6 +716,13 @@ int main(int argc, char* argv[])
 
 				TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
 				if (rawOutput) outputStream.write(static_cast<char*>(readPtr), sts - 8);
+
+				// Check for dead or cafe in first word
+				auto wordPtr = static_cast<uint16_t*>(readPtr);
+				TLOG(5) << "First word of buffer: " << *wordPtr;
+				if (*wordPtr == 0xcafe || *wordPtr == 0xdead) {
+					TLOG(TLVL_WARNING) << "Buffer " << ii << ": Timeout detected! First word of buffer is 0x" << std::hex << *wordPtr;
+				}
 
 				if (!reallyQuiet)
 				{
@@ -756,9 +763,7 @@ int main(int argc, char* argv[])
 						<< Utilities::FormatByteString((totalBytesWritten + totalBytesRead) / totalTime, "/s") << std::endl
 						<< "Read Rate: " << Utilities::FormatByteString(totalBytesRead / totalReadTime, "/s") << std::endl
 						<< "Device Read Rate: " << Utilities::FormatByteString(totalBytesRead / readDevTime, "/s") << std::endl;
-
-		delete thisDTC;
-	}
+			}
 	else if (op == "read_release")
 	{
 		TLOG(TLVL_DEBUG) << "Operation \"read_release\"";
@@ -978,6 +983,10 @@ int main(int argc, char* argv[])
 		printHelpMsg();
 	}
 
-	if (rawOutput) outputStream.close();
+	if (rawOutput)
+	{
+		outputStream.flush();
+		outputStream.close();
+	}
 	return 0;
 }  // main
