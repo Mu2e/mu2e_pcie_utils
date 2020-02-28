@@ -68,6 +68,11 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, unsigned rocMask
 			case 'F':
 				simMode_ = DTC_SimMode_LargeFile;
 				break;
+			case '9':
+			case 'o':
+			case 'O':
+				simMode_ = DTC_SimMode_Timeout;
+				break;
 			case '0':
 			default:
 				simMode_ = DTC_SimMode_Disabled;
@@ -4808,7 +4813,7 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t data, const DTC_Register& ad
 	} while (retry > 0 && errorCode != 0);
 	if (errorCode != 0)
 	{
-		TLOG(TLVL_ERROR) << "Error writing register " << address << " " << errorCode;
+		TLOG(TLVL_ERROR) << "Error writing register 0x" << std::hex << address << " " << errorCode;
 		throw DTC_IOErrorException(errorCode);
 	}
 }
@@ -4825,7 +4830,7 @@ uint32_t DTCLib::DTC_Registers::ReadRegister_(const DTC_Register& address)
 	} while (retry > 0 && errorCode != 0);
 	if (errorCode != 0)
 	{
-		TLOG(TLVL_ERROR) << "Error reading register " << address << " " << errorCode;
+		TLOG(TLVL_ERROR) << "Error reading register 0x" << std::hex << address << " " << errorCode;
 		throw DTC_IOErrorException(errorCode);
 	}
 

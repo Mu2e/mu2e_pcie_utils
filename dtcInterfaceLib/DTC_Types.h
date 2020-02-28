@@ -320,6 +320,7 @@ enum DTC_SimMode
 	DTC_SimMode_Loopback = 6,
 	DTC_SimMode_Performance = 7,
 	DTC_SimMode_LargeFile = 8,
+	DTC_SimMode_Timeout,
 	DTC_SimMode_Invalid,
 };
 
