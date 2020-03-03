@@ -720,7 +720,7 @@ int main(int argc, char* argv[])
 				// Check for dead or cafe in first packet
 				for (size_t word = 1; word <= 8; ++word)
 				{
-					auto wordPtr = static_cast<uint16_t*>(readPtr + (word - 1));
+					auto wordPtr = static_cast<uint16_t*>(readPtr) + (word - 1);
 					TLOG(5) << word << (word == 1 ? "st" : word == 2 ? "nd" : word == 3 ? "rd" : "th") << " word of buffer: " << *wordPtr;
 					if (*wordPtr == 0xcafe || *wordPtr == 0xdead)
 					{
