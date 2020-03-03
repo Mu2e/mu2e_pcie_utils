@@ -725,6 +725,7 @@ int main(int argc, char* argv[])
 					if (*wordPtr == 0xcafe || *wordPtr == 0xdead)
 					{
 						TLOG(TLVL_WARNING) << "Buffer " << ii << ": Timeout detected! " << word << (word == 1 ? "st" : word == 2 ? "nd" : word == 3 ? "rd" : "th") << " word of buffer is 0x" << std::hex << *wordPtr;
+break;
 					}
 				}
 
