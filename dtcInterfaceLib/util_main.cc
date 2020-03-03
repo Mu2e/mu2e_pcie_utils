@@ -717,11 +717,15 @@ int main(int argc, char* argv[])
 				TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
 				if (rawOutput) outputStream.write(static_cast<char*>(readPtr), sts - 8);
 
-				// Check for dead or cafe in first word
-				auto wordPtr = static_cast<uint16_t*>(readPtr);
-				TLOG(5) << "First word of buffer: " << *wordPtr;
-				if (*wordPtr == 0xcafe || *wordPtr == 0xdead) {
-					TLOG(TLVL_WARNING) << "Buffer " << ii << ": Timeout detected! First word of buffer is 0x" << std::hex << *wordPtr;
+				// Check for dead or cafe in first packet
+				for (size_t word = 1; word <= 8; ++word)
+				{
+					auto wordPtr = static_cast<uint16_t*>(readPtr + (word - 1));
+					TLOG(5) << word << (word == 1 ? "st" : word == 2 ? "nd" : word == 3 ? "rd" : "th") << " word of buffer: " << *wordPtr;
+					if (*wordPtr == 0xcafe || *wordPtr == 0xdead)
+					{
+						TLOG(TLVL_WARNING) << "Buffer " << ii << ": Timeout detected! " << word << (word == 1 ? "st" : word == 2 ? "nd" : word == 3 ? "rd" : "th") << " word of buffer is 0x" << std::hex << *wordPtr;
+					}
 				}
 
 				if (!reallyQuiet)
@@ -763,7 +767,7 @@ int main(int argc, char* argv[])
 						<< Utilities::FormatByteString((totalBytesWritten + totalBytesRead) / totalTime, "/s") << std::endl
 						<< "Read Rate: " << Utilities::FormatByteString(totalBytesRead / totalReadTime, "/s") << std::endl
 						<< "Device Read Rate: " << Utilities::FormatByteString(totalBytesRead / readDevTime, "/s") << std::endl;
-			}
+	}
 	else if (op == "read_release")
 	{
 		TLOG(TLVL_DEBUG) << "Operation \"read_release\"";
