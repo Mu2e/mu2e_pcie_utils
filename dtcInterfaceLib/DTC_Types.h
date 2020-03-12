@@ -320,6 +320,7 @@ enum DTC_SimMode
 	DTC_SimMode_Loopback = 6,
 	DTC_SimMode_Performance = 7,
 	DTC_SimMode_LargeFile = 8,
+	DTC_SimMode_Timeout,
 	DTC_SimMode_Invalid,
 };
 
@@ -458,18 +459,18 @@ public:
 	/// </summary>
 	/// <param name="retcode">Return code from IO operation</param>
 	DTC_IOErrorException(int retcode)
-		: retCode_(retcode) {}
+		: what_((std::string("Unable to communicate with the DTC: Error Code: ") + std::to_string(retcode)).c_str()) {}
 	/// <summary>
 	/// Describe the exception
 	/// </summary>
 	/// <returns>String describing the exception</returns>
 	const char* what() const throw()
-	{
-		return (std::string("Unable to communicate with the DTC: Error Code: ") + std::to_string(retCode_)).c_str();
+	{	
+		return what_;
 	}
 
 private:
-	int retCode_;
+	const char* what_;
 };
 
 /// <summary>

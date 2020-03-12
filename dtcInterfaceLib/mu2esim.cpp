@@ -18,7 +18,7 @@
 #include <cmath>
 #include <vector>
 
-#define THREADED_CFO_EMULATOR 1
+#define THREADED_CFO_EMULATOR 0
 
 mu2esim::mu2esim()
 	: registers_(), swIdx_() /*, detSimLoopCount_(0)*/, dmaData_(), ddrFile_("mu2esim.bin", std::ios::binary | std::ios::in | std::ios::out), mode_(DTCLib::DTC_SimMode_Disabled), simIndex_(), cancelCFO_(true), readoutRequestReceived_(), currentTimestamp_(0xFFFFFFFFFFFF), currentEventSize_(0), eventBegin_(ddrFile_.tellp())
@@ -178,7 +178,7 @@ int mu2esim::read_data(int chn, void** buffer, int tmo_ms)
 	size_t bytesReturned = 0;
 	if (delta_(chn, C2S) == 0)
 	{
-		TLOG(12) << "mu2esim::read_data: Clealink output buffer";
+		TLOG(12) << "mu2esim::read_data: Clearing output buffer";
 		clearBuffer_(chn, false);
 
 		if (chn == 0)
@@ -499,7 +499,7 @@ void mu2esim::clearBuffer_(int chn, bool increment)
 {
 	// Clear the buffer:
 	/*
-  TLOG(17) << "mu2esim::clearBuffer_: Clealink output buffer";
+  TLOG(17) << "mu2esim::clearBuffer_: Clearing output buffer";
   if (increment)
   {
           hwIdx_[chn] = (hwIdx_[chn] + 1) " << << " SIM_BUFFCOUNT;
@@ -609,31 +609,56 @@ void mu2esim::packetSimulator_(DTCLib::DTC_Timestamp ts, DTCLib::DTC_Link_ID lin
 	{
 		nPackets = packetCount;
 	}
+	else if (mode_ == DTCLib::DTC_SimMode_Timeout)
+	{
+		nPackets = 0;
+	}
 
 	// Record the DataBlock size
 	uint16_t dataBlockByteCount = static_cast<uint16_t>((nPackets + 1) * 16);
 	currentEventSize_ += dataBlockByteCount;
 
-	// Add a Data Header packet to the reply
-	packet[0] = static_cast<uint8_t>(dataBlockByteCount);
-	packet[1] = static_cast<uint8_t>(dataBlockByteCount >> 8);
-	packet[2] = 0x50;
-	packet[3] = 0x80 + (link & 0x0F);
-	packet[4] = static_cast<uint8_t>(nPackets & 0xFF);
-	packet[5] = static_cast<uint8_t>(nPackets >> 8);
-	ts.GetTimestamp(packet, 6);
-	packet[12] = 0;
-	packet[13] = 0;
-	packet[14] = 0;
-	packet[15] = 0;
+	if (mode_ != DTCLib::DTC_SimMode_Timeout)
+	{
+		// Add a Data Header packet to the reply
+		packet[0] = static_cast<uint8_t>(dataBlockByteCount);
+		packet[1] = static_cast<uint8_t>(dataBlockByteCount >> 8);
+		packet[2] = 0x50;
+		packet[3] = 0x80 + (link & 0x0F);
+		packet[4] = static_cast<uint8_t>(nPackets & 0xFF);
+		packet[5] = static_cast<uint8_t>(nPackets >> 8);
+		ts.GetTimestamp(packet, 6);
+		packet[12] = 0;
+		packet[13] = 0;
+		packet[14] = 0;
+		packet[15] = 0;
+	}
+	else
+	{
+		packet[0] = 0xfe;
+		packet[1] = 0xca;
+		packet[2] = 0xfe;
+		packet[3] = 0xca;
+		packet[4] = 0xfe;
+		packet[5] = 0xca;
+		packet[6] = 0xfe;
+		packet[7] = 0xca;
+		packet[8] = 0xfe;
+		packet[9] = 0xca;
+		packet[10] = 0xfe;
+		packet[11] = 0xca;
+		packet[12] = 0xfe;
+		packet[13] = 0xca;
+		packet[14] = 0xfe;
+		packet[15] = 0xca;
+	}
 
 	TLOG(27) << "mu2esim::packetSimulator_ Writing Data Header packet to memory file, chn=0, packet=" << (void*)packet;
 	ddrFile_.write(reinterpret_cast<char*>(packet), packetSize);
 
 	switch (mode_)
 	{
-		case DTCLib::DTC_SimMode_CosmicVeto:
-		{
+		case DTCLib::DTC_SimMode_CosmicVeto: {
 			nSamples = 4;
 			packet[0] = static_cast<uint8_t>(simIndex_[link]);
 			packet[1] = static_cast<uint8_t>(simIndex_[link] >> 8);
@@ -656,8 +681,7 @@ void mu2esim::packetSimulator_(DTCLib::DTC_Timestamp ts, DTCLib::DTC_Link_ID lin
 			ddrFile_.write(reinterpret_cast<char*>(packet), packetSize);
 		}
 		break;
-		case DTCLib::DTC_SimMode_Calorimeter:
-		{
+		case DTCLib::DTC_SimMode_Calorimeter: {
 			packet[0] = static_cast<uint8_t>(simIndex_[link]);
 			packet[1] = static_cast<uint8_t>((simIndex_[link] >> 8) & 0xF) + ((simIndex_[link] & 0xF) << 4);
 			packet[2] = 0x0;  // No TDC value!
@@ -704,8 +728,7 @@ void mu2esim::packetSimulator_(DTCLib::DTC_Timestamp ts, DTCLib::DTC_Link_ID lin
 			}
 		}
 		break;
-		case DTCLib::DTC_SimMode_Tracker:
-		{
+		case DTCLib::DTC_SimMode_Tracker: {
 			packet[0] = static_cast<uint8_t>(simIndex_[link]);
 			packet[1] = static_cast<uint8_t>(simIndex_[link] >> 8);
 
@@ -762,9 +785,11 @@ void mu2esim::packetSimulator_(DTCLib::DTC_Timestamp ts, DTCLib::DTC_Link_ID lin
 				ddrFile_.write(reinterpret_cast<char*>(packet), packetSize);
 			}
 			break;
+		case DTCLib::DTC_SimMode_Timeout:
 		case DTCLib::DTC_SimMode_Disabled:
 		default:
 			break;
 	}
-	simIndex_[link] = (simIndex_[link] + 1) % 0x3FF;
+	ddrFile_.flush();
+		simIndex_[link] = (simIndex_[link] + 1) % 0x3FF;
 }

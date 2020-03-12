@@ -61,8 +61,8 @@ bool VerifyTrackerDataBlock(DataHeaderPacket* blockPtr)
 		auto strawIndex = firstDataPacket.data10;
 		if (strawIndex > 23039)
 		{
-			TLOG(TLVL_ERROR) << "VerifyTrackerDataBlock: strawIndex " << strawIndex << " is out-of-range! (Max 23039)";
-			return false;
+			TLOG(TLVL_WARNING) << "VerifyTrackerDataBlock: strawIndex " << strawIndex << " is out-of-range! (Max 23039)";
+			//return false;
 		}
 		if ((secondDataPacket.dataFE & 0xF0) != 0)
 		{
@@ -278,7 +278,7 @@ int main(int argc, char* argv[])
 				auto packetCountTest = header.s.PacketCount;
 				if ((packetCountTest + 1) * 16 != blockByteSize)
 				{
-					TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: " << std::hex << blockByteSize;
+					TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: 0x" << std::hex << blockByteSize;
 					success = false;
 
 					// We don't have to skip to the next file, because we already know the data block integrity is fine.

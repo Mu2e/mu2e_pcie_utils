@@ -227,9 +227,18 @@ int mu2edev::read_register(uint16_t address, int tmo_ms, uint32_t* output)
 	m_ioc_reg_access_t reg;
 	reg.reg_offset = address;
 	reg.access_type = 0;
-	int errorCode = ioctl(devfd_, M_IOC_REG_ACCESS, &reg);
+
+	int counter = 0;
+	int errorCode = -99;
+
+	while (counter < 5 && errorCode < 0)
+	{
+		errorCode = ioctl(devfd_, M_IOC_REG_ACCESS, &reg);
+		counter++;
+		if (errorCode < 0) usleep(10000);
+	}
 	*output = reg.val;
-	TRACE(24, "Read value 0x%x from register 0x%x", reg.val, address);
+	TRACE(24, "Read value 0x%x from register 0x%x errorcode %d", reg.val, address, errorCode);
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
 	return errorCode;
 }
