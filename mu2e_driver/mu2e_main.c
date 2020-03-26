@@ -13,6 +13,7 @@
 #include <linux/kernel.h>  // KERN_INFO, printk
 #include <linux/module.h>  // module_param, THIS_MODULE
 #include <linux/pci.h>     /* struct pci_dev *pci_get_device */
+#include <linux/version.h> /* LINUX_VERISON_CODE, KERNEL_VERSION */
 #include <linux/wait.h>    /* wait_event_interruptible_timeout */
 
 #include "xdma_hw.h" /* struct BuffDesc */
@@ -25,6 +26,14 @@
 #include "mu2e_mmap_ioctl.h"
 #include "mu2e_pci.h"           /* bar_info_t, extern mu2e_pci*  */
 #include "mu2e_proto_globals.h" /* MU2E_MAX_CHANNEL, etc. */
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4,0,0)
+#define ACCESS_OK_READ(addr, size) access_ok(VERIFY_READ, addr, size)
+#define ACCESS_OK_WRITE(addr, size) access_ok(VERIFY_WRITE, addr, size)
+#else
+#define ACCESS_OK_READ(addr, size) access_ok(addr, size)
+#define ACCESS_OK_WRITE(addr, size) access_ok(addr, size)
+#endif
 
 /* GLOBALS */
 
@@ -149,9 +158,9 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 
 	/* Check read/write and corresponding argument */
 	if (_IOC_DIR(cmd) & _IOC_READ)
-		if (!access_ok(VERIFY_WRITE, (void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
+		if (!ACCESS_OK_WRITE((void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
 	if (_IOC_DIR(cmd) & _IOC_WRITE)
-		if (!access_ok(VERIFY_READ, (void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
+		if (!ACCESS_OK_READ( (void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
 
 	/* DMA registers are offset from BAR0 */
 	base = (unsigned long)(mu2e_pcie_bar_info[dtc].baseVAddr);

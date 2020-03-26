@@ -30,7 +30,7 @@ static struct file_operations mu2e_file_ops = {
 	.open = mu2e_open,                   /* open         */
 	.flush = NULL,                       /* flush        */
 	.release = mu2e_release,             /* release (close?)*/
-	0                                    /* fsync        */
+	.fsync = 0                                    /* fsync        */
 										 /* fasync       */
 										 /* check_media_change */
 										 /* revalidate   */

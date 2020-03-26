@@ -36,6 +36,14 @@
 #define IOCTL_RET_TYPE long
 #endif
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4,0,0)
+#define ACCESS_OK_READ(addr, size) access_ok(VERIFY_READ, addr, size)
+#define ACCESS_OK_WRITE(addr, size) access_ok(VERIFY_WRITE, addr, size)
+#else
+#define ACCESS_OK_READ(addr, size) access_ok(addr, size)
+#define ACCESS_OK_WRITE(addr, size) access_ok(addr, size)
+#endif
+
 /* GLOBALS */
 
 struct pci_dev *pci_dev_sp[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -65,7 +73,7 @@ static struct file_operations devl_file_ops = {
 	.poll = NULL,                        /* poll         */
 	.IOCTL_FILE_OPS_MEMBER = devl_ioctl, /* ioctl  */
 	.mmap = NULL,                        /* mmap         */
-	0                                    /* open         */
+	.open = NULL                                    /* open         */
 										 /* flush        */
 										 /* release (close?)*/
 										 /* fsync        */
@@ -239,9 +247,9 @@ IOCTL_RET_TYPE devl_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 	TRACE(6, "Checking for correct access for command");
 	/* Check read/write and corresponding argument */
 	if (_IOC_DIR(cmd) & _IOC_READ)
-		if (!access_ok(VERIFY_WRITE, (void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
+	  if (!ACCESS_OK_WRITE( (void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
 	if (_IOC_DIR(cmd) & _IOC_WRITE)
-		if (!access_ok(VERIFY_READ, (void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
+	  if (!ACCESS_OK_READ( (void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
 
 	switch (cmd)
 	{
