@@ -25,13 +25,13 @@ mu2edev::mu2edev()
 
 mu2edev::~mu2edev() { delete simulator_; }
 
-int mu2edev::init(DTCLib::DTC_SimMode simMode, int dtc)
+int mu2edev::init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFileName)
 {
 	auto start = std::chrono::steady_clock::now();
 	if (simMode != DTCLib::DTC_SimMode_Disabled && simMode != DTCLib::DTC_SimMode_NoCFO &&
 		simMode != DTCLib::DTC_SimMode_ROCEmulator && simMode != DTCLib::DTC_SimMode_Loopback)
 	{
-		simulator_ = new mu2esim();
+		simulator_ = new mu2esim(simMemoryFileName);
 		simulator_->init(simMode);
 	}
 	else

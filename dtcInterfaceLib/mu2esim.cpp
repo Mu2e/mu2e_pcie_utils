@@ -20,8 +20,8 @@
 
 #define THREADED_CFO_EMULATOR 0
 
-mu2esim::mu2esim()
-	: registers_(), swIdx_() /*, detSimLoopCount_(0)*/, dmaData_(), ddrFile_("mu2esim.bin", std::ios::binary | std::ios::in | std::ios::out), mode_(DTCLib::DTC_SimMode_Disabled), simIndex_(), cancelCFO_(true), readoutRequestReceived_(), currentTimestamp_(0xFFFFFFFFFFFF), currentEventSize_(0), eventBegin_(ddrFile_.tellp())
+mu2esim::mu2esim(std::string ddrFileName)
+	: registers_(), swIdx_() /*, detSimLoopCount_(0)*/, dmaData_(), ddrFileName_(ddrFileName), ddrFile_(ddrFileName_, std::ios::binary | std::ios::in | std::ios::out), mode_(DTCLib::DTC_SimMode_Disabled), simIndex_(), cancelCFO_(true), readoutRequestReceived_(), currentTimestamp_(0xFFFFFFFFFFFF), currentEventSize_(0), eventBegin_(ddrFile_.tellp())
 {
 	TLOG(10) << "mu2esim::mu2esim BEGIN";
 	swIdx_[0] = 0;
@@ -40,10 +40,10 @@ mu2esim::mu2esim()
 
 	if (!ddrFile_)
 	{
-		ddrFile_.open("mu2esim.bin", std::fstream::binary | std::fstream::trunc | std::fstream::out);
+		ddrFile_.open(ddrFileName_, std::fstream::binary | std::fstream::trunc | std::fstream::out);
 		ddrFile_.close();
 		// re-open with original flags
-		ddrFile_.open("mu2esim.bin", std::fstream::binary | std::fstream::in | std::fstream::out);
+		ddrFile_.open(ddrFileName_, std::fstream::binary | std::fstream::in | std::fstream::out);
 	}
 
 	TLOG(10) << "mu2esim::mu2esim END";
@@ -384,7 +384,7 @@ int mu2esim::write_register(uint16_t address, int tmo_ms, uint32_t data)
 			TLOG(19) << "mu2esim::write_register: RESETTING DTC EMULATOR!";
 			init(mode_);
 			ddrFile_.close();
-			ddrFile_.open("mu2esim.bin", std::ios::trunc | std::ios::binary | std::ios::out | std::ios::in);
+			ddrFile_.open(ddrFileName_, std::ios::trunc | std::ios::binary | std::ios::out | std::ios::in);
 			eventBegin_ = ddrFile_.tellp();
 		}
 	}
@@ -393,7 +393,7 @@ int mu2esim::write_register(uint16_t address, int tmo_ms, uint32_t data)
 		if (dataBS[0] == 0)
 		{
 			ddrFile_.close();
-			ddrFile_.open("mu2esim.bin", std::ios::trunc | std::ios::binary | std::ios::out | std::ios::in);
+			ddrFile_.open(ddrFileName_, std::ios::trunc | std::ios::binary | std::ios::out | std::ios::in);
 			eventBegin_ = ddrFile_.tellp();
 		}
 	}

@@ -68,7 +68,7 @@ public:
 	/// <param name="simMode">Desired simulation mode</param>
 	/// <param name="dtc">Desired DTC card to use (/dev/mu2eX)</param>
 	/// <returns>0 on success</returns>
-	int init(DTCLib::DTC_SimMode simMode, int dtc);
+	int init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFileName = "mu2esim.bin");
 
 	/// <summary>
 	/// Reads data from the DTC.
