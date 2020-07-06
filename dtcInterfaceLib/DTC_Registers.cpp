@@ -29,6 +29,7 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 		auto simstr = std::string(sim);
 		simMode_ = DTC_SimModeConverter::ConvertToSimMode(simstr);
 	}
+	TLOG(TLVL_INFO) << "Sim Mode is " << DTC_SimModeConverter(simMode_).toString();
 
 	if (dtc == -1)
 	{
@@ -40,7 +41,9 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 		else
 			dtc = 0;
 	}
+	TLOG(TLVL_INFO) << "DTC ID is " << dtc;
 
+       SetSimMode(expectedDesignVersion, simMode_, dtc,simFileName, rocMask, skipInit);
 }
 
 DTCLib::DTC_Registers::~DTC_Registers()
@@ -56,6 +59,7 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 													  unsigned rocMask, bool skipInit)
 {
 	simMode_ = mode;
+	TLOG(TLVL_INFO) << "Initializing device, sim mode is " << DTC_SimModeConverter(simMode_).toString();
 	device_.init(simMode_, dtc, simMemoryFile);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
@@ -64,6 +68,7 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 
 	if (skipInit) return simMode_;
 
+	TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	bool useTiming = simMode_ == DTC_SimMode_Disabled;
 	for (auto link : DTC_Links)
 	{
@@ -111,6 +116,7 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 	}
 	ReadMinDMATransferLength();
 
+	TLOG(TLVL_DEBUG) << "Done setting device registers";
 	return simMode_;
 }
 
