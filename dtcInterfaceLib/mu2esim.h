@@ -101,7 +101,7 @@ private:
 	//uint32_t detSimLoopCount_;
 	mu2e_databuff_t* dmaData_[MU2E_MAX_CHANNELS][SIM_BUFFCOUNT];
 	std::string ddrFileName_;
-	std::fstream ddrFile_;
+	std::unique_ptr<std::fstream> ddrFile_;
 	DTCLib::DTC_SimMode mode_;
 	uint16_t simIndex_[6];
 	std::thread cfoEmulatorThread_;
