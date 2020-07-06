@@ -26,58 +26,8 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 	auto sim = getenv("DTCLIB_SIM_ENABLE");
 	if (sim != nullptr)
 	{
-		switch (sim[0])
-		{
-			case '1':
-			case 't':
-			case 'T':
-				simMode_ = DTC_SimMode_Tracker;
-				break;
-			case '2':
-			case 'c':
-			case 'C':
-				simMode_ = DTC_SimMode_Calorimeter;
-				break;
-			case '3':
-			case 'v':
-			case 'V':
-				simMode_ = DTC_SimMode_CosmicVeto;
-				break;
-			case '4':
-			case 'n':
-			case 'N':
-				simMode_ = DTC_SimMode_NoCFO;
-				break;
-			case '5':
-			case 'r':
-			case 'R':
-				simMode_ = DTC_SimMode_ROCEmulator;
-				break;
-			case '6':
-			case 'l':
-			case 'L':
-				simMode_ = DTC_SimMode_Loopback;
-				break;
-			case '7':
-			case 'p':
-			case 'P':
-				simMode_ = DTC_SimMode_Performance;
-				break;
-			case '8':
-			case 'f':
-			case 'F':
-				simMode_ = DTC_SimMode_LargeFile;
-				break;
-			case '9':
-			case 'o':
-			case 'O':
-				simMode_ = DTC_SimMode_Timeout;
-				break;
-			case '0':
-			default:
-				simMode_ = DTC_SimMode_Disabled;
-				break;
-		}
+		auto simstr = std::string(sim);
+		simMode_ = DTC_SimModeConverter::ConvertToSimMode(simstr);
 	}
 
 	if (dtc == -1)
