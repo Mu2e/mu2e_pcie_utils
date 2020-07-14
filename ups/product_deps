@@ -41,16 +41,10 @@ end_product_list
 qualifier     messagefacility   TRACE   notes
 e20:s98:debug e20:debug         -nq-    -std=c++17
 e20:s98:prof  e20:prof          -nq-    -std=c++17
-e20:s98:py2:debug e20:py2:debug         -nq-    -std=c++17
-e20:s98:py2:prof  e20:py2:prof          -nq-    -std=c++17
 e19:s98:debug e19:debug         -nq-    -std=c++17
 e19:s98:prof  e19:prof          -nq-    -std=c++17
-e19:s98:py2:debug e19:py2:debug         -nq-    -std=c++17
-e19:s98:py2:prof  e19:py2:prof          -nq-    -std=c++17
 c7:s98:debug  c7:debug          -nq-    -std=c++17
 c7:s98:prof   c7:prof           -nq-    -std=c++17
-c7:s98:py2:debug  c7:py2:debug          -nq-    -std=c++17
-c7:s98:py2:prof   c7:py2:prof           -nq-    -std=c++17
 
 c7:s97:debug  c7:debug          -nq-    -std=c++17
 c7:s97:prof   c7:prof           -nq-    -std=c++17
