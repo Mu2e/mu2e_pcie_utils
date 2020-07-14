@@ -19,66 +19,17 @@
 #define QUOTE(X) Q(X)
 #define __COUTV__(X) __COUT__ << QUOTE(X) << " = " << X << __E__
 
-DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, unsigned rocMask, std::string expectedDesignVersion,
+DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simFileName, unsigned rocMask, std::string expectedDesignVersion,
 									 bool skipInit)
 	: device_(), simMode_(mode), dmaSize_(64)
 {
 	auto sim = getenv("DTCLIB_SIM_ENABLE");
 	if (sim != nullptr)
 	{
-		switch (sim[0])
-		{
-			case '1':
-			case 't':
-			case 'T':
-				simMode_ = DTC_SimMode_Tracker;
-				break;
-			case '2':
-			case 'c':
-			case 'C':
-				simMode_ = DTC_SimMode_Calorimeter;
-				break;
-			case '3':
-			case 'v':
-			case 'V':
-				simMode_ = DTC_SimMode_CosmicVeto;
-				break;
-			case '4':
-			case 'n':
-			case 'N':
-				simMode_ = DTC_SimMode_NoCFO;
-				break;
-			case '5':
-			case 'r':
-			case 'R':
-				simMode_ = DTC_SimMode_ROCEmulator;
-				break;
-			case '6':
-			case 'l':
-			case 'L':
-				simMode_ = DTC_SimMode_Loopback;
-				break;
-			case '7':
-			case 'p':
-			case 'P':
-				simMode_ = DTC_SimMode_Performance;
-				break;
-			case '8':
-			case 'f':
-			case 'F':
-				simMode_ = DTC_SimMode_LargeFile;
-				break;
-			case '9':
-			case 'o':
-			case 'O':
-				simMode_ = DTC_SimMode_Timeout;
-				break;
-			case '0':
-			default:
-				simMode_ = DTC_SimMode_Disabled;
-				break;
-		}
+		auto simstr = std::string(sim);
+		simMode_ = DTC_SimModeConverter::ConvertToSimMode(simstr);
 	}
+	TLOG(TLVL_INFO) << "Sim Mode is " << DTC_SimModeConverter(simMode_).toString();
 
 	if (dtc == -1)
 	{
@@ -90,8 +41,9 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, unsigned rocMask
 		else
 			dtc = 0;
 	}
+	TLOG(TLVL_INFO) << "DTC ID is " << dtc;
 
-	SetSimMode(expectedDesignVersion, simMode_, dtc, rocMask, skipInit);
+       SetSimMode(expectedDesignVersion, simMode_, dtc,simFileName, rocMask, skipInit);
 }
 
 DTCLib::DTC_Registers::~DTC_Registers()
@@ -103,11 +55,12 @@ DTCLib::DTC_Registers::~DTC_Registers()
 	device_.close();
 }
 
-DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int dtc,
+DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int dtc, std::string simMemoryFile,
 													  unsigned rocMask, bool skipInit)
 {
 	simMode_ = mode;
-	device_.init(simMode_, dtc);
+	TLOG(TLVL_INFO) << "Initializing device, sim mode is " << DTC_SimModeConverter(simMode_).toString();
+	device_.init(simMode_, dtc, simMemoryFile);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
 		throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
@@ -115,6 +68,7 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 
 	if (skipInit) return simMode_;
 
+	TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	bool useTiming = simMode_ == DTC_SimMode_Disabled;
 	for (auto link : DTC_Links)
 	{
@@ -162,6 +116,7 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 	}
 	ReadMinDMATransferLength();
 
+	TLOG(TLVL_DEBUG) << "Done setting device registers";
 	return simMode_;
 }
 

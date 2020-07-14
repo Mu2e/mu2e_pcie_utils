@@ -27,7 +27,7 @@ public:
 	/// Firmware Design Version. If set, will throw an exception if the DTC firmware does not match (Default: "")</param>
 	/// <param name="skipInit">Whether to skip full initialization of the DTC</param>
 	explicit DTC(DTC_SimMode mode = DTC_SimMode_Disabled, int dtc = -1, unsigned rocMask = 0x1,
-				 std::string expectedDesignVersion = "", bool skipInit = false);
+				 std::string expectedDesignVersion = "", bool skipInit = false, std::string simMemoryFile = "mu2esim.bin");
 	virtual ~DTC();
 
 	//

@@ -11,41 +11,48 @@ DTCLib::DTC_RXStatusConverter::DTC_RXStatusConverter(DTC_RXStatus status)
 
 DTCLib::DTC_SimMode DTCLib::DTC_SimModeConverter::ConvertToSimMode(std::string modeName)
 {
-	if (modeName.find("isabled") != std::string::npos)
+	switch (modeName[0])
 	{
-		return DTC_SimMode_Disabled;
-	}
-	if (modeName.find("racker") != std::string::npos)
-	{
-		return DTC_SimMode_Tracker;
-	}
-	if (modeName.find("alorimeter") != std::string::npos)
-	{
-		return DTC_SimMode_Calorimeter;
-	}
-	if (modeName.find("osmic") != std::string::npos)
-	{
-		return DTC_SimMode_CosmicVeto;
-	}
-	if (modeName.find("oopback") != std::string::npos)
-	{
-		return DTC_SimMode_Loopback;
-	}
-	if (modeName.find("CFO") != std::string::npos || modeName.find("cfo") != std::string::npos)
-	{
-		return DTC_SimMode_NoCFO;
-	}
-	if (modeName.find("mulator") != std::string::npos)
-	{
-		return DTC_SimMode_ROCEmulator;
-	}
-	if (modeName.find("erformance") != std::string::npos)
-	{
-		return DTC_SimMode_Performance;
-	}
-	if (modeName.find("arge") != std::string::npos)
-	{
-		return DTC_SimMode_LargeFile;
+		case '1':
+		case 't':
+		case 'T':
+			return DTC_SimMode_Tracker;
+		case '2':
+		case 'c':
+		case 'C':
+			return DTC_SimMode_Calorimeter;
+		case '3':
+		case 'v':
+		case 'V':
+			return DTC_SimMode_CosmicVeto;
+		case '4':
+		case 'n':
+		case 'N':
+			return DTC_SimMode_NoCFO;
+		case '5':
+		case 'r':
+		case 'R':
+			return DTC_SimMode_ROCEmulator;
+		case '6':
+		case 'l':
+		case 'L':
+			return DTC_SimMode_Loopback;
+		case '7':
+		case 'p':
+		case 'P':
+			return DTC_SimMode_Performance;
+		case '8':
+		case 'f':
+		case 'F':
+			return DTC_SimMode_LargeFile;
+		case '9':
+		case 'o':
+		case 'O':
+			return DTC_SimMode_Timeout;
+		case '0':
+			return DTC_SimMode_Disabled;
+		default:
+			break;
 	}
 
 	try

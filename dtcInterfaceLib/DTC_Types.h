@@ -405,17 +405,18 @@ public:
 	/// <param name="expected">Expected firmware version string</param>
 	/// <param name="encountered">Encountered firmware version string</param>
 	DTC_WrongVersionException(std::string expected, std::string encountered)
-		: expected_(expected), encountered_(encountered) {}
+		: what_("DTCwrongVersionException: Unexpected firmware version encountered: " + encountered + " != " + expected + " (expected)") {}
 	/// <summary>
 	/// Describe the exception
 	/// </summary>
 	/// <returns>String describing the exception</returns>
 	const char* what() const throw()
 	{
-		return ("Unexpected firmware version encountered: " + encountered_ + " != " + expected_ + " (expected)").c_str();
+		return what_.c_str();
 	}
-	std::string expected_;     ///< Expected Firmware version string
-	std::string encountered_;  ///< Firmware version string of DTC
+
+private:
+	std::string what_;
 };
 
 /// <summary>
@@ -432,19 +433,18 @@ public:
 	/// <param name="expected">Expected packet type</param>
 	/// <param name="encountered">Encountered packet type</param>
 	DTC_WrongPacketTypeException(int expected, int encountered)
-		: expected_(expected), encountered_(encountered) {}
+		: what_("DTCWrongPacketTypeException: Unexpected packet type encountered: " + std::to_string(encountered) + " != " + std::to_string(expected) + " (expected)") {}
 	/// <summary>
 	/// Describe the exception
 	/// </summary>
 	/// <returns>String describing the exception</returns>
 	const char* what() const throw()
 	{
-		return ("Unexpected packet type encountered: " + std::to_string(encountered_) + " != " + std::to_string(expected_) +
-				" (expected)")
-			.c_str();
+		return what_.c_str();
 	}
-	int expected_;     ///< Packet type which was expected based on the type of DTC packet constructed
-	int encountered_;  ///< Packet type encountered in data
+
+private:
+	std::string what_;
 };
 
 /// <summary>
@@ -459,18 +459,18 @@ public:
 	/// </summary>
 	/// <param name="retcode">Return code from IO operation</param>
 	DTC_IOErrorException(int retcode)
-		: what_((std::string("Unable to communicate with the DTC: Error Code: ") + std::to_string(retcode)).c_str()) {}
+		: what_(std::string("DTCIOErrorException: Unable to communicate with the DTC: Error Code: ") + std::to_string(retcode)) {}
 	/// <summary>
 	/// Describe the exception
 	/// </summary>
 	/// <returns>String describing the exception</returns>
 	const char* what() const throw()
-	{	
-		return what_;
+	{
+		return what_.c_str();
 	}
 
 private:
-	const char* what_;
+	std::string what_;
 };
 
 /// <summary>
@@ -483,7 +483,7 @@ public:
 	/// Describe the exception
 	/// </summary>
 	/// <returns>String describing the exception</returns>
-	const char* what() const throw() { return "Corruption detected in data stream from DTC"; }
+	const char* what() const throw() { return "DTCDataCorruptionException: Corruption detected in data stream from DTC"; }
 };
 
 /// <summary>

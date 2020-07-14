@@ -189,7 +189,7 @@ public:
 	/// 0x111111</param> <param name="skipInit">Default: false; Whether to skip initializing the DTC using the SimMode.
 	/// Used to read state.</param> <param name="expectedDesignVersion">Expected DTC Firmware Design Version. If set, will
 	/// throw an exception if the DTC firmware does not match (Default: "")</param>
-	explicit DTC_Registers(DTC_SimMode mode, int dtc, unsigned linkMask = 0x1, std::string expectedDesignVersion = "",
+	explicit DTC_Registers(DTC_SimMode mode, int dtc, std::string simFileName, unsigned linkMask = 0x1, std::string expectedDesignVersion = "",
 						   bool skipInit = false);
 	/// <summary>
 	/// DTC_Registers destructor
@@ -219,7 +219,7 @@ public:
 	/// use</param> <param name="linkMask">Default 0x1; The initially-enabled links. Each digit corresponds to a link, so
 	/// all links = 0x111111</param> <param name="skipInit">Whether to skip initializing the DTC using the SimMode. Used
 	/// to read state.</param> <returns></returns>
-	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int dtc, unsigned linkMask,
+	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int dtc, std::string simMemoryFile, unsigned linkMask,
 						   bool skipInit = false);
 
 	//
