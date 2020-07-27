@@ -41,6 +41,13 @@ end_product_list
 # -nq- here means there is no qualifier
 # a "-" here means the dependent product is not required by the parent and will not be setup
 qualifier     messagefacility   TRACE   notes
+e20:s100:debug e20:debug         -nq-    -std=c++17
+e20:s100:prof  e20:prof          -nq-    -std=c++17
+e19:s100:debug e19:debug         -nq-    -std=c++17
+e19:s100:prof  e19:prof          -nq-    -std=c++17
+c7:s100:debug  c7:debug          -nq-    -std=c++17
+c7:s100:prof   c7:prof           -nq-    -std=c++17
+
 e20:s99:debug e20:debug         -nq-    -std=c++17
 e20:s99:prof  e20:prof          -nq-    -std=c++17
 e19:s99:debug e19:debug         -nq-    -std=c++17
