@@ -2,7 +2,7 @@
 
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent pcie_linux_kernel_module	v2_03_03
+parent pcie_linux_kernel_module	v2_03_04
 defaultqual	e17:s87
 
 # These optional lines define the installed directories where
@@ -20,6 +20,7 @@ fcldir      -
 
 #
 product		 version	optional
+messagefacility v2_07_01        s100
 messagefacility v2_07_00        s99
 messagefacility v2_07_00        s98
 messagefacility v2_06_01        s97
