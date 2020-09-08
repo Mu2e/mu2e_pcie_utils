@@ -18,7 +18,7 @@ fcldir      -
 
 #
 product		 version	optional
-messagefacility v2_07_01        s101
+messagefacility v2_07_02        s101
 messagefacility v2_07_00        s99
 messagefacility v2_07_00        s98
 messagefacility v2_06_01        s97
