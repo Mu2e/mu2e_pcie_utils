@@ -481,7 +481,7 @@ void DTCLib::DTCLibTest::doDAQTest()
 					for (auto jj = 0; jj < h2.GetPacketCount(); ++jj)
 					{
 						std::cout << "\t"
-								  << DTC_DataPacket(reinterpret_cast<uint8_t*>(data[i].blockPointer) + (jj + 1) * 16).toJSON()
+								  << DTC_DataPacket(reinterpret_cast<const uint8_t*>(data[i].blockPointer) + (jj + 1) * 16).toJSON()
 								  << std::endl;
 					}
 				}

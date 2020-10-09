@@ -1071,25 +1071,6 @@ struct DTC_RegisterFormatter
 };
 
 /// <summary>
-/// A Data Block object (DataHeader packet plus associated Data Packets)
-/// Constructed as a pointer to a region of memory
-/// </summary>
-struct DTC_DataBlock
-{
-	typedef uint64_t pointer_t;  ///< DataBlock pointers should be 64-bit aligned
-	pointer_t* blockPointer;     ///< Pointer to DataBlock in Memeory
-	size_t byteSize;             ///< Size of DataBlock
-
-	/// <summary>
-	/// Create a DTC_DataBlock pointing to the given location in memory with the given size
-	/// </summary>
-	/// <param name="ptr">Pointer to DataBlock in memory</param>
-	/// <param name="sz">Size of DataBlock</param>
-	DTC_DataBlock(pointer_t* ptr, size_t sz)
-		: blockPointer(ptr), byteSize(sz) {}
-};
-
-/// <summary>
 /// Several useful data manipulation utilities
 /// </summary>
 struct Utilities

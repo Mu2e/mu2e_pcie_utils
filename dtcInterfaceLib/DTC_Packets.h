@@ -983,6 +983,50 @@ private:
 	uint8_t dtcId_;
 	uint8_t evbMode_;
 };
+
+/// <summary>
+/// A Data Block object (DataHeader packet plus associated Data Packets)
+/// Constructed as a pointer to a region of memory
+/// </summary>
+struct DTC_DataBlock
+{
+	const void* blockPointer;  ///< Pointer to DataBlock in Memory
+	size_t byteSize;           ///< Size of DataBlock
+
+	/**
+	 * @brief Create a DTC_DataBlock using a pointer to a memory location containing a Data Block
+	 * @param ptr Pointer to Data Block
+	 * 
+	 * WARNING: This function assumes that the pointer is pointing to a valid DTC_DataHeaderPacket!
+	*/
+	DTC_DataBlock(const void* ptr)
+		: blockPointer(ptr)
+	{
+		DTC_DataPacket pkt(ptr);
+		DTC_DataHeaderPacket hdr(pkt);
+		byteSize = hdr.GetByteCount();
+	}
+
+	/// <summary>
+	/// Create a DTC_DataBlock pointing to the given location in memory with the given size
+	/// </summary>
+	/// <param name="ptr">Pointer to DataBlock in memory</param>
+	/// <param name="sz">Size of DataBlock</param>
+	DTC_DataBlock(const void* ptr, size_t sz)
+		: blockPointer(ptr), byteSize(sz) {}
+
+	inline DTC_DataHeaderPacket GetHeader() const
+	{
+		assert(byteSize > 16);
+		return DTC_DataHeaderPacket(DTC_DataPacket(blockPointer));
+	}
+
+	inline const void* GetData() const
+	{
+		assert(byteSize > 16);
+		return static_cast<const void*>(reinterpret_cast<const uint8_t*>(blockPointer) + 16);
+	}
+};
 }  // namespace DTCLib
 
 #endif  // DTC_PACKETS_H
