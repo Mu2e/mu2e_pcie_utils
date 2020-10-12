@@ -144,7 +144,7 @@ int main(int argc, char* argv[])
 			size_t intraBlockOffset = 0;
 			for (size_t i = 0; i < data.size(); ++i)
 			{
-				TRACE(4, "Copying data from %p to %p (sz=%zu)", reinterpret_cast<void*>(data[i].blockPointer),
+				TRACE(4, "Copying data from %p to %p (sz=%zu)", data[i].blockPointer,
 					  reinterpret_cast<void*>(offset + intraBlockOffset), data[i].byteSize);
 				memcpy(reinterpret_cast<void*>(offset + intraBlockOffset), data[i].blockPointer, data[i].byteSize);
 				intraBlockOffset += data[i].byteSize;

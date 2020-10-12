@@ -879,7 +879,7 @@ break;
 
 					for (auto jj = 0; jj < h2.GetPacketCount(); ++jj)
 					{
-						auto packet = DTC_DataPacket(reinterpret_cast<uint8_t*>(data[i].blockPointer) + (jj + 1) * 16);
+						auto packet = DTC_DataPacket(reinterpret_cast<const uint8_t*>(data[i].blockPointer) + (jj + 1) * 16);
 						TLOG((quiet ? 8 : TLVL_INFO)) << "\t" << packet.toJSON() << std::endl;
 						if (rawOutput)
 						{

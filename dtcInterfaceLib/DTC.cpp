@@ -88,7 +88,7 @@ std::vector<DTCLib::DTC_DataBlock> DTCLib::DTC::GetData(DTC_Timestamp when)
 		packet.reset(nullptr);
 
 		TLOG(TLVL_GetData) << "GetData: Adding pointer " << (void*)daqDMAInfo_.lastReadPtr << " to the list (first)";
-		output.push_back(DTC_DataBlock(reinterpret_cast<DTC_DataBlock::pointer_t*>(daqDMAInfo_.lastReadPtr), sz));
+		output.push_back(DTC_DataBlock(daqDMAInfo_.lastReadPtr, sz));
 
 		auto done = false;
 		while (!done)
@@ -121,7 +121,7 @@ std::vector<DTCLib::DTC_DataBlock> DTCLib::DTC::GetData(DTC_Timestamp when)
 			if (!done)
 			{
 				TLOG(TLVL_GetData) << "GetData: Adding pointer " << (void*)daqDMAInfo_.lastReadPtr << " to the list";
-				output.push_back(DTC_DataBlock(reinterpret_cast<DTC_DataBlock::pointer_t*>(daqDMAInfo_.lastReadPtr), sz2));
+				output.push_back(DTC_DataBlock(daqDMAInfo_.lastReadPtr, sz2));
 			}
 		}
 	}
@@ -166,7 +166,7 @@ std::string DTCLib::DTC::GetJSONData(DTC_Timestamp when)
 		ss << "DataPackets: [";
 		for (auto packet = 0; packet < theHeader.GetPacketCount(); ++packet)
 		{
-			auto packetPtr = static_cast<void*>(reinterpret_cast<char*>(data[i].blockPointer) + 16 * (1 + packet));
+			auto packetPtr = static_cast<const void*>(reinterpret_cast<const uint8_t*>(data[i].blockPointer) + 16 * (1 + packet));
 			ss << DTC_DataPacket(packetPtr).toJSON() << ",";
 		}
 		ss << "]";
