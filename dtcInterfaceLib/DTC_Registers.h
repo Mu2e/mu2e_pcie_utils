@@ -2798,7 +2798,7 @@ private:
 protected:
 	mu2edev device_;              ///< Device handle
 	DTC_SimMode simMode_;         ///< Simulation mode
-	bool usingDetectorEmulator_;  ///< Whether Detector Emulation mode is enabled
+	bool usingDetectorEmulator_{false};  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;            ///< Size of DMAs, in bytes (default 32k)
 	int formatterWidth_;          ///< Description field width, in characters
 
