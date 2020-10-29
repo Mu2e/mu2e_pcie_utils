@@ -21,7 +21,7 @@
 
 DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simFileName, unsigned rocMask, std::string expectedDesignVersion,
 									 bool skipInit)
-	: device_(), simMode_(mode), dmaSize_(64)
+	: device_(), simMode_(mode),usingDetectorEmulator_(false), dmaSize_(64)
 {
 	auto sim = getenv("DTCLIB_SIM_ENABLE");
 	if (sim != nullptr)
