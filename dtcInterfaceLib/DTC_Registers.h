@@ -1565,7 +1565,9 @@ public:
 	/// <summary>
 	/// Set the "Detector Emulator In Use" virtual register to true
 	/// </summary>
-	void SetDetectorEmulatorInUse() { usingDetectorEmulator_ = true; }
+	void SetDetectorEmulatorInUse() {
+		TLOG(TLVL_WARNING) << "DTC_Registers::SetDetectorEmulatorInUse: Enabling Detector Emulator!";
+		usingDetectorEmulator_ = true; }
 	/// <summary>
 	/// Clear the "Detector Emulator In Use" virtual register
 	/// </summary>
