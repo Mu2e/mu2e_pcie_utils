@@ -157,13 +157,13 @@ DTCLib::DTC_DMAPacket::DTC_DMAPacket(const DTC_DataPacket in)
 std::string DTCLib::DTC_DMAPacket::headerJSON() const
 {
 	std::stringstream ss;
-	ss << "\"byteCount\": " << std::hex << "0x" << byteCount_ << ",";
+	ss << "\"byteCount\": " << std::hex << "0x" << static_cast<int>(byteCount_) << ",";
 	ss << "\"isValid\": " << valid_ << ",";
-	ss << "\"subsystemID\": " << std::hex << "0x" << subsystemID_ << ",";
+	ss << "\"subsystemID\": " << std::hex << "0x" << static_cast<int>(subsystemID_) << ",";
 	ss << "\"linkID\": " << std::dec << linkID_ << ",";
 	ss << "\"packetType\": " << packetType_ << ",";
 
-	ss << "\"hopCount\": " << std::hex << "0x" << hopCount_;
+	ss << "\"hopCount\": " << std::hex << "0x" << static_cast<int>(hopCount_);
 
 	return ss.str();
 }
