@@ -556,20 +556,30 @@ public:
 	/// <returns>Whether the LED6 bit is set</returns>
 	bool ReadLED6State();
 	/// <summary>
-	/// Enable CFO Emulation mode. If CFO Emulation mode was not enabled, wait for links to become ready
+	/// Enable CFO Emulation mode.
 	/// </summary>
-	/// <param name="interval">Sleep interval while waiting for links</param>
-	void SetCFOEmulationMode(size_t interval = 1000);
+	void SetCFOEmulationMode();
 	/// <summary>
-	/// Disable CFO Emulation mode. If CFO Emulation mode was senabled, wait for links to become ready
+	/// Disable CFO Emulation mode.
 	/// </summary>
-	/// <param name="interval">Sleep interval while waiting for links</param>
-	void ClearCFOEmulationMode(size_t interval = 1000);
+	void ClearCFOEmulationMode();
 	/// <summary>
 	/// Read the state of the CFO Emulation Mode bit
 	/// </summary>
 	/// <returns>Whether CFO Emulation Mode is enabled</returns>
 	bool ReadCFOEmulationMode();
+	void SetDataFilterEnable();
+	void ClearDataFilterEnable();
+	bool ReadDataFilterEnable();
+	void SetDRPPrefetchEnable();
+	void ClearDRPPrefetchEnable();
+	bool ReadDRPPrefetchEnable();
+	void SetSequenceNumberEnable();
+	void ClearSequenceNumberEnable();
+	bool ReadSequenceNumberEnable();
+	void SetPunchEnable();
+	void ClearPunchEnable();
+	bool ReadPunchEnable();
 	/// <summary>
 	/// Set the SERDES Global Reset bit to true, and wait for the reset to complete
 	/// </summary>
@@ -579,6 +589,15 @@ public:
 	/// </summary>
 	/// <returns>Whether a SERDES global reset is in progress</returns>
 	bool ReadResetSERDES();
+	void SetRxPacketErrorFeedbackEnable();
+	void ClearRxPacketErrorFeedbackEnable();
+	bool ReadRxPacketErrorFeedbackEnable();
+	void SetCommaToleranceEnable();
+	void ClearCommaToleranceEnable();
+	bool ReadCommaToleranceEnable();
+	void SetExternalFanoutClockInput();
+	void SetInternalFanoutClockInput();
+	bool ReadFanoutClockInput();
 	/// <summary>
 	/// Enalbe receiving DCS packets.
 	/// </summary>
@@ -592,19 +611,6 @@ public:
 	/// </summary>
 	/// <returns>Whether DCS packet reception is enabled</returns>
 	bool ReadDCSReception();
-	/// <summary>
-	/// Set the DTC to External timing mode
-	/// </summary>
-	void SetExternalSystemClock();
-	/// <summary>
-	/// Set the DTC to Internal timing mode
-	/// </summary>
-	void SetInternalSystemClock();
-	/// <summary>
-	/// Read the status of the System timing bit
-	/// </summary>
-	/// <returns>True if the clock is in External mode, false for Internal mode</returns>
-	bool ReadSystemClock();
 	/// <summary>
 	/// Enable Timing Synchronization for the ROC control packets
 	/// </summary>

@@ -609,38 +609,17 @@ bool DTCLib::DTC_Registers::ReadLED6State()
 	return data[16];
 }
 
-void DTCLib::DTC_Registers::SetCFOEmulationMode(size_t interval)
+void DTCLib::DTC_Registers::SetCFOEmulationMode()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
-	bool changed = data[30] == 0;
-	data[30] = 1;
+	data[15] = 1;
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
-	if (changed)
-	{
-		for (auto& link : DTC_Links)
-		{
-			if (!ReadLinkEnabled(link).TransmitEnable) continue;
-
-			WaitForLinkReady_(link, interval);
-		}
-	}
 }
 
-void DTCLib::DTC_Registers::ClearCFOEmulationMode(size_t interval)
+void DTCLib::DTC_Registers::ClearCFOEmulationMode()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
-	bool changed = data[30] == 1;
-	data[30] = 0;
-	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
-	if (changed)
-	{
-		for (auto& link : DTC_Links)
-		{
-			if (!ReadLinkEnabled(link).TransmitEnable) continue;
-
-			WaitForLinkReady_(link, interval);
-		}
-	}
+	data[15] = 0;
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
 }
 
@@ -648,6 +627,86 @@ bool DTCLib::DTC_Registers::ReadCFOEmulationMode()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	return data[15];
+}
+
+void DTCLib::DTC_Registers::SetDataFilterEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[13] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+void DTCLib::DTC_Registers::ClearDataFilterEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[13] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+bool DTCLib::DTC_Registers::ReadDataFilterEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	return data[13];
+}
+
+void DTCLib::DTC_Registers::SetDRPPrefetchEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[12] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+void DTCLib::DTC_Registers::ClearDRPPrefetchEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[12] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+bool DTCLib::DTC_Registers::ReadDRPPrefetchEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	return data[12];
+}
+
+void DTCLib::DTC_Registers::SetSequenceNumberEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[10] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+void DTCLib::DTC_Registers::ClearSequenceNumberEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[10] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+bool DTCLib::DTC_Registers::ReadSequenceNumberEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	return data[10];
+}
+
+void DTCLib::DTC_Registers::SetPunchEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[9] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+void DTCLib::DTC_Registers::ClearPunchEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[9] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+bool DTCLib::DTC_Registers::ReadPunchEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	return data[9];
 }
 
 void DTCLib::DTC_Registers::ResetSERDES()
@@ -667,6 +726,66 @@ bool DTCLib::DTC_Registers::ReadResetSERDES()
 	return data[8];
 }
 
+void DTCLib::DTC_Registers::SetRxPacketErrorFeedbackEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[6] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+void DTCLib::DTC_Registers::ClearRxPacketErrorFeedbackEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[6] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+bool DTCLib::DTC_Registers::ReadRxPacketErrorFeedbackEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	return data[6];
+}
+
+void DTCLib::DTC_Registers::SetCommaToleranceEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[5] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+void DTCLib::DTC_Registers::ClearCommaToleranceEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[5] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+bool DTCLib::DTC_Registers::ReadCommaToleranceEnable()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	return data[5];
+}
+
+void DTCLib::DTC_Registers::SetExternalFanoutClockInput()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[4] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+void DTCLib::DTC_Registers::SetInternalFanoutClockInput()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[4] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+bool DTCLib::DTC_Registers::ReadFanoutClockInput()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	return data[4];
+}
+
 void DTCLib::DTC_Registers::EnableDCSReception()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
@@ -683,26 +802,6 @@ bool DTCLib::DTC_Registers::ReadDCSReception()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	return data[2];
-}
-
-void DTCLib::DTC_Registers::SetExternalSystemClock()
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
-	data[1] = 1;
-	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
-}
-
-void DTCLib::DTC_Registers::SetInternalSystemClock()
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
-	data[1] = 0;
-	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
-}
-
-bool DTCLib::DTC_Registers::ReadSystemClock()
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
-	return data[1];
 }
 
 void DTCLib::DTC_Registers::EnableTiming()
@@ -729,20 +828,27 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 {
 	auto form = CreateFormatter(DTC_Register_DTCControl);
 	form.description = "DTC Control";
-	form.vals.push_back(std::string("Reset:                   [") + (ReadResetDTC() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Emulation Enable:    [") + (ReadCFOEmulation() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Link Output Control: [") + (ReadCFOLoopback() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Reset DDR Write Address: [") + (ReadResetDDRWriteAddress() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Reset DDR Read Address:  [") + (ReadResetDDRReadAddress() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Reset DDR:               [") + (ReadResetDDR() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Emulator DRP Enable: [") + (ReadCFOEmulatorDRP() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Autogenerate DRP:    [") + (ReadAutogenDRP() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Software DRP Enable:     [") + (ReadSoftwareDRP() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("LED 6:                   [") + (ReadLED6State() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("SERDES Global Reset:     [") + (ReadResetSERDES() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("DCS Enable:              [") + (ReadDCSReception() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("System Clock Select:     [") + (ReadSystemClock() ? "Ext" : "Int") + "]");
-	form.vals.push_back(std::string("Timing Enable:           [") + (ReadTimingEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Reset:                           [") + (ReadResetDTC() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("CFO Emulation Enable:            [") + (ReadCFOEmulation() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("CFO Link Output Control:         [") + (ReadCFOLoopback() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Reset DDR Write Address:         [") + (ReadResetDDRWriteAddress() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Reset DDR Read Address:          [") + (ReadResetDDRReadAddress() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Reset DDR:                       [") + (ReadResetDDR() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("CFO Emulator DRP Enable:         [") + (ReadCFOEmulatorDRP() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("CFO Autogenerate DRP:            [") + (ReadAutogenDRP() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Software DRP Enable:             [") + (ReadSoftwareDRP() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("LED 6:                           [") + (ReadLED6State() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("CFO Emulation Mode:              [") + (ReadCFOEmulationMode() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Data Filter Enable:              [") + (ReadDataFilterEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("DRP Prefetch Enable:             [") + (ReadDRPPrefetchEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Sequence Number Enable:          [") + (ReadSequenceNumberEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Punch Enable:                    [") + (ReadPunchEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("SERDES Global Reset:             [") + (ReadResetSERDES() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("RX Packet Error Feedback Enable: [") + (ReadRxPacketErrorFeedbackEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Comma Tolerance Enable:          [") + (ReadCommaToleranceEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Fanout Input Select:             [") + (ReadFanoutClockInput() ? "E" : "I") + "]");
+	form.vals.push_back(std::string("DCS Enable:                      [") + (ReadDCSReception() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Timing Enable:                   [") + (ReadTimingEnable() ? "x" : " ") + "]");
 	return form;
 }
 
