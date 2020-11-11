@@ -73,23 +73,18 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_Timestamp ts)
 			{
 				TLOG(11) << "SendRequestForTimestamp before SendReadoutRequestPacket";
 				theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
-				int maxRoc;
-				if ((maxRoc = theDTC_->ReadLinkROCCount(link)) != 0)
+
+				TLOG(11) << "SendRequestForTimestamp before DTC_DataRequestPacket req";
+				DTC_DataRequestPacket req(link, ts, !forceNoDebug_, debugPacketCount_, debugType_);
+				if (debugType_ == DTC_DebugType_ExternalSerialWithReset && !stickyDebugType_)
 				{
-					for (uint8_t roc = 0; roc <= maxRoc; ++roc)
-					{
-						TLOG(11) << "SendRequestForTimestamp before DTC_DataRequestPacket req";
-						DTC_DataRequestPacket req(link, ts, !forceNoDebug_, debugPacketCount_, debugType_);
-						if (debugType_ == DTC_DebugType_ExternalSerialWithReset && !stickyDebugType_)
-						{
-							debugType_ = DTC_DebugType_ExternalSerial;
-						}
-						TLOG(11) << "SendRequestForTimestamp before WriteDMADAQPacket - DTC_DataRequestPacket";
-						if (!quiet_) std::cout << req.toJSON() << std::endl;
-						theDTC_->WriteDMAPacket(req);
-						TLOG(11) << "SendRequestForTimestamp after  WriteDMADAQPacket - DTC_DataRequestPacket";
-					}
+					debugType_ = DTC_DebugType_ExternalSerial;
 				}
+				TLOG(11) << "SendRequestForTimestamp before WriteDMADAQPacket - DTC_DataRequestPacket";
+				if (!quiet_) std::cout << req.toJSON() << std::endl;
+				theDTC_->WriteDMAPacket(req);
+				TLOG(11) << "SendRequestForTimestamp after  WriteDMADAQPacket - DTC_DataRequestPacket";
+
 				// usleep(2000);
 			}
 		}
