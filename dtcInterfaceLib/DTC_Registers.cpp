@@ -668,21 +668,21 @@ bool DTCLib::DTC_Registers::ReadDRPPrefetchEnable()
 	return data[12];
 }
 
-void DTCLib::DTC_Registers::SetSequenceNumberEnable()
+void DTCLib::DTC_Registers::SetSequenceNumberDisable()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	data[10] = 1;
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
 }
 
-void DTCLib::DTC_Registers::ClearSequenceNumberEnable()
+void DTCLib::DTC_Registers::ClearSequenceNumberDisable()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	data[10] = 0;
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
 }
 
-bool DTCLib::DTC_Registers::ReadSequenceNumberEnable()
+bool DTCLib::DTC_Registers::ReadSequenceNumberDisable()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	return data[10];
@@ -840,7 +840,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	form.vals.push_back(std::string("CFO Emulation Mode:              [") + (ReadCFOEmulationMode() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Data Filter Enable:              [") + (ReadDataFilterEnable() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("DRP Prefetch Enable:             [") + (ReadDRPPrefetchEnable() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Sequence Number Enable:          [") + (ReadSequenceNumberEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Sequence Number Disable:         [") + (ReadSequenceNumberDisable() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Punch Enable:                    [") + (ReadPunchEnable() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("SERDES Global Reset:             [") + (ReadResetSERDES() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("RX Packet Error Feedback Enable: [") + (ReadRxPacketErrorFeedbackEnable() ? "x" : " ") + "]");

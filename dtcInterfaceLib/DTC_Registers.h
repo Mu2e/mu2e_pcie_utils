@@ -574,9 +574,9 @@ public:
 	void SetDRPPrefetchEnable();
 	void ClearDRPPrefetchEnable();
 	bool ReadDRPPrefetchEnable();
-	void SetSequenceNumberEnable();
-	void ClearSequenceNumberEnable();
-	bool ReadSequenceNumberEnable();
+	void SetSequenceNumberDisable();
+	void ClearSequenceNumberDisable();
+	bool ReadSequenceNumberDisable();
 	void SetPunchEnable();
 	void ClearPunchEnable();
 	bool ReadPunchEnable();

@@ -638,6 +638,7 @@ int main(int argc, char* argv[])
 		auto startTime = std::chrono::steady_clock::now();
 		auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
 		auto device = thisDTC->GetDevice();
+		thisDTC->SetSequenceNumberDisable();  // For Tracker Testing
 
 		auto initTime = device->GetDeviceTime();
 		device->ResetDeviceTime();

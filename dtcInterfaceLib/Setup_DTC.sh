@@ -86,6 +86,7 @@ DTC_Reset()
   my_cntl write 0x9100 0x80000000  >/dev/null # reset DTC  reset serdes osc
   my_cntl write 0x9118 0x000000ff  >/dev/null  # SERDES resets
   my_cntl write 0x9100 0x00000000  >/dev/null  # clear reset
+  sleep 1
   my_cntl write 0x9118 0x00000000  >/dev/null  # clear SERDES reset on link 0
 }
 
