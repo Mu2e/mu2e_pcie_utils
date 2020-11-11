@@ -39,8 +39,8 @@ DTCLib::DTCSoftwareCFO::DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t d
 DTCLib::DTCSoftwareCFO::~DTCSoftwareCFO()
 {
 	TLOG(TLVL_TRACE) << "~DTCSoftwareCFO BEGIN";
-	theDTC_->DisableAutogenDRP();
-	theDTC_->DisableCFOEmulatorDRP();
+	//theDTC_->DisableAutogenDRP();
+	//theDTC_->DisableCFOEmulatorDRP();
 	abort_ = true;
 	if (theThread_ && theThread_->joinable()) theThread_->join();
 	TLOG(TLVL_TRACE) << "~DTCSoftwareCFO END";
@@ -88,6 +88,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_Timestamp ts, uint32_t 
 				for (uint32_t ii = 1; ii <= heartbeatsAfter; ++ii)
 				{
 					theDTC_->SendReadoutRequestPacket(link, ts + ii, quiet_);
+					usleep(1000);
 				}
 				// usleep(2000);
 			}
