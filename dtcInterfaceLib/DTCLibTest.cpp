@@ -459,7 +459,6 @@ void DTCLib::DTCLibTest::doDAQTest()
 	try
 	{
 		thisDTC_->EnableLink(DTC_Link_0, DTC_LinkEnableMode(true, true, false));
-		thisDTC_->SetInternalSystemClock();
 		thisDTC_->DisableTiming();
 		thisDTC_->SetMaxROCNumber(DTC_Link_0, 1);
 

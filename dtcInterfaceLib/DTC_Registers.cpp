@@ -106,7 +106,6 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 				// SetMaxROCNumber(DTC_Link_0, DTC_ROC_0);
 			}
 		}
-		SetInternalSystemClock();
 		DisableTiming();
 		SetCFOEmulationMode();
 	}
