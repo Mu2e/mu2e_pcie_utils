@@ -459,14 +459,14 @@ bool DTCLib::DTC_Registers::ReadCFOEmulation()
 void DTCLib::DTC_Registers::EnableCFOLoopback()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
-	data[28] = 0;
+	data[28] = 1;
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
 }
 
 void DTCLib::DTC_Registers::DisableCFOLoopback()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
-	data[28] = 1;
+	data[28] = 0;
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
 }
 
