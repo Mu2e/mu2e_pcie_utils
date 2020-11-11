@@ -83,12 +83,9 @@ DTC_Reset()
 #    my_cntl write 0x9118 0x0000003f >/dev/null;: Reset all links;\
 #    my_cntl write 0x9118 0x00000000 >/dev/null;: Clear Link Resets
 
-  my_cntl write 0x9100 0xa0000000  >/dev/null # reset DTC  reset serdes osc
-  my_cntl write 0x9118 0x0000003f  >/dev/null  # SERDES resets
+  my_cntl write 0x9100 0x80000000  >/dev/null # reset DTC  reset serdes osc
+  my_cntl write 0x9118 0x000000ff  >/dev/null  # SERDES resets
   my_cntl write 0x9100 0x00000000  >/dev/null  # clear reset
-  my_cntl write 0x9100 0x10000000  >/dev/null  # select 2.5Gb/select
-  my_cntl write 0x9100 0x30000000  >/dev/null # Reset SERDES Osc
-  my_cntl write 0x9100 0x10000000  >/dev/null
   my_cntl write 0x9118 0x00000000  >/dev/null  # clear SERDES reset on link 0
 }
 
