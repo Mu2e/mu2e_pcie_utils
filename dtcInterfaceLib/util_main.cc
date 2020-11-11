@@ -49,6 +49,7 @@ unsigned eventCount = 1;
 unsigned blockCount = 1;
 unsigned packetCount = 0;
 int requestsAhead = 0;
+unsigned heartbeatsAfter = 16;
 std::string op = "";
 DTC_DebugType debugType = DTC_DebugType_SpecialSequence;
 bool stickyDebugType = true;
@@ -348,7 +349,10 @@ void printHelpMsg()
 		<< "    -V: Do NOT attempt to verify that the sim file landed in DTC memory correctly" << std::endl
 		<< "    --timestamp-list: Read <file> for timestamps to request (CFO will generate heartbeats for all timestamps in range spanned by file)" << std::endl
 		<< "    --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl
-		<< "    --cfoDRP: Send DRPs from the DTC CFO Emulator instead of from the DTC itself" << std::endl;
+		<< "    --cfoDRP: Send DRPs from the DTC CFO Emulator instead of from the DTC itself" << std::endl
+		<< "    --heartbeats: Send <int> heartbeats after each DataRequestPacket" << std::endl
+		;
+
 	exit(0);
 }
 
@@ -472,6 +476,10 @@ int main(int argc, char* argv[])
 					{
 						useCFODRP = true;
 					}
+					else if (option == "--heartbeats")
+					{
+						heartbeatsAfter = getOptionValue(&optind, &argv);
+					}
 					else if (option == "--help")
 					{
 						printHelpMsg();
@@ -506,7 +514,7 @@ int main(int argc, char* argv[])
 					 << rocMask << ", Debug Type: " << DTC_DebugTypeConverter(debugType).toString()
 					 << ", Target Frequency: " << std::dec << targetFrequency;
 	TLOG(TLVL_DEBUG) << std::boolalpha << ", Clock To Program: " << (clockToProgram == 0 ? "SERDES" : (clockToProgram == 1 ? "DDR" : "Timing"))
-					 << ", Expected Design Version: " << expectedDesignVersion;
+					 << ", Expected Design Version: " << expectedDesignVersion << ", Heartbeats: " << heartbeatsAfter;
 	if (rawOutput)
 	{
 		TLOG(TLVL_DEBUG) << ", Raw output file: " << rawOutputFile;
@@ -670,11 +678,11 @@ int main(int argc, char* argv[])
 				timestamps.insert(DTC_Timestamp(a));
 			}
 			number = timestamps.size();
-			cfo.SendRequestsForList(timestamps, cfodelay);
+			cfo.SendRequestsForList(timestamps, cfodelay, heartbeatsAfter);
 		}
 		else if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && !syncRequests)
 		{
-			cfo.SendRequestsForRange(number, DTC_Timestamp(timestampOffset), incrementTimestamp, cfodelay, requestsAhead);
+			cfo.SendRequestsForRange(number, DTC_Timestamp(timestampOffset), incrementTimestamp, cfodelay, requestsAhead, heartbeatsAfter);
 		}
 		else if (thisDTC->ReadSimMode() == DTC_SimMode_Loopback)
 		{
@@ -693,7 +701,7 @@ int main(int argc, char* argv[])
 			if (syncRequests)
 			{
 				auto startRequest = std::chrono::steady_clock::now();
-				cfo.SendRequestForTimestamp(DTC_Timestamp(timestampOffset + (incrementTimestamp ? ii : 0)));
+				cfo.SendRequestForTimestamp(DTC_Timestamp(timestampOffset + (incrementTimestamp ? ii : 0), heartbeatsAfter));
 				auto endRequest = std::chrono::steady_clock::now();
 				readoutRequestTime +=
 					std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(endRequest - startRequest).count();
@@ -816,7 +824,7 @@ break;
 
 		if (!syncRequests)
 		{
-			theCFO.SendRequestsForRange(number, DTC_Timestamp(timestampOffset), incrementTimestamp, cfodelay, requestsAhead);
+			theCFO.SendRequestsForRange(number, DTC_Timestamp(timestampOffset), incrementTimestamp, cfodelay, requestsAhead, heartbeatsAfter);
 		}
 
 		uint64_t ii = 0;
@@ -835,7 +843,7 @@ break;
 			{
 				auto startRequest = std::chrono::steady_clock::now();
 				auto ts = incrementTimestamp ? ii + timestampOffset : timestampOffset;
-				theCFO.SendRequestForTimestamp(DTC_Timestamp(ts));
+				theCFO.SendRequestForTimestamp(DTC_Timestamp(ts), heartbeatsAfter);
 				auto endRequest = std::chrono::steady_clock::now();
 				readoutRequestTime +=
 					std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(endRequest - startRequest).count();

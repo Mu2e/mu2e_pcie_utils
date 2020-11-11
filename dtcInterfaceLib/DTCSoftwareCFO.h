@@ -47,7 +47,7 @@ public:
 	/// Send a Heartbeat Packet and data request for a given timestamp
 	/// </summary>
 	/// <param name="ts">Timestamp for requests</param>
-	void SendRequestForTimestamp(DTC_Timestamp ts = DTC_Timestamp(static_cast<uint64_t>(0)));
+	void SendRequestForTimestamp(DTC_Timestamp ts = DTC_Timestamp(static_cast<uint64_t>(0)), uint32_t heartbeatsAfter = 16);
 	/// <summary>
 	/// Send Heartbeat Packets and Data Requests for a range of timestamps.
 	/// </summary>
@@ -56,16 +56,16 @@ public:
 	/// <param name="increment">Whether to increment the timestamp for each request (Default: true)</param>
 	/// <param name="delayBetweenDataRequests">Number of microseconds to wait between requests</param>
 	/// <param name="requestsAhead">Number of Heartbeat Packets to send ahead of data requests</param>
-	/// <param name="readoutRequestsAfter">How many Heartbeat Packets to send after all Data Requests have been sent to flush the system</param>
+	/// <param name="heartbeatsAfter">How many Heartbeat Packets to send after all Data Requests have been sent to flush the system</param>
 	void SendRequestsForRange(int count, DTC_Timestamp start = DTC_Timestamp(static_cast<uint64_t>(0)),
-							  bool increment = true, uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t readoutRequestsAfter = 4);
+							  bool increment = true, uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t heartbeatsAfter = 16);
 
 	/// <summary>
 	/// Send requests for a list of timestamps.
 	/// </summary>
 	/// <param name="timestamps">List of timestamps to send</param>
 	/// <param name="delayBetweenDataRequests">Number of microseconds to wait between requests</param>
-	void SendRequestsForList(std::set<DTC_Timestamp> timestamps, uint32_t delayBetweenDataRequests = 0);
+	void SendRequestsForList(std::set<DTC_Timestamp> timestamps, uint32_t delayBetweenDataRequests = 0, uint32_t heartbeatsAfter = 16);
 
 	/// <summary>
 	/// Enable quiet mode.
@@ -94,11 +94,11 @@ public:
 
 private:
 	void SendRequestsForRangeImplAsync(DTC_Timestamp start, int count, bool increment = true,
-									   uint32_t delayBetweenDataRequests = 0, uint32_t readoutRequestsAfter = 4);
+									   uint32_t delayBetweenDataRequests = 0, uint32_t heartbeatsAfter = 16);
 	void SendRequestsForRangeImplSync(DTC_Timestamp start, int count, bool increment = true,
-									  uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t readoutRequestsAfter = 4);
+									  uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t heartbeatsAfter = 16);
 
-	void SendRequestsForListImplAsync(std::set<DTC_Timestamp> timestamps, uint32_t delayBetweenDataRequests = 0);
+	void SendRequestsForListImplAsync(std::set<DTC_Timestamp> timestamps, uint32_t delayBetweenDataRequests = 0, uint32_t heartbeatsAfter = 16);
 
 	// Request Parameters
 	bool useCFOEmulator_;
