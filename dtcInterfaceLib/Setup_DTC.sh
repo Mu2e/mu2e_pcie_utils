@@ -88,7 +88,7 @@ DTC_Reset()
   my_cntl write 0x9100 0x00000000  >/dev/null  # clear reset
 
   counter=0  
-  while [ `my_cntl read 0x9138|grep 0x` != 0xffffffff ];do
+  while [[ `my_cntl read 0x9138|grep 0x` != 0xffffffff ]];do
 	echo "Waiting for SERDES Reset done, $counter seconds elapsed"
     sleep 1
     counter=$(( $counter + 1 ))
