@@ -100,6 +100,8 @@ struct DTC_DebugTypeConverter
 		return "Unknown";
 	}
 
+	static DTC_DebugType ConvertToDebugType(std::string const& type);
+
 	/// <summary>
 	/// Write a DTC_DebugTypeConverter in JSON format to the given stream
 	/// </summary>
