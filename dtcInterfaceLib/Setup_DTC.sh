@@ -43,9 +43,9 @@ else
   export TRACE_FILE=/tmp/trace_buffer_$USER
   export DTCLIB_SIM_ENABLE=1
 fi
-echo "Doing \"Super\" Reset Chants"
-my_cntl write 0x9100 0xa0000000  >/dev/null # reset DTC  reset serdes osc
-my_cntl write 0x9100 0x00000000  >/dev/null  # clear reset
+#echo "Doing \"Super\" Reset Chants"
+#my_cntl write 0x9100 0xa0000000  >/dev/null # reset DTC  reset serdes osc
+#my_cntl write 0x9100 0x00000000  >/dev/null  # clear reset
 # v3.0 firmware doesn't have SERDES...doing this results in error!
 #rocUtil toggle_serdes
 #rocUtil reset_roc
