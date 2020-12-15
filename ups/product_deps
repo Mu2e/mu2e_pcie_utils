@@ -1,6 +1,6 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent pcie_linux_kernel_module	v2_03_11
+parent pcie_linux_kernel_module	v2_03_12_indev
 defaultqual	e19:s96
 
 # These optional lines define the installed directories where
