@@ -151,7 +151,7 @@ DTCLib::DTC_DMAPacket::DTC_DMAPacket(const DTC_DataPacket in)
 	hopCount_ = hopCount;
 	linkID_ = static_cast<DTC_Link_ID>(linkID);
 	packetType_ = static_cast<DTC_PacketType>(packetType);
-	TLOG_ARB(20, "DTC_DMAPacket") << headerJSON();
+	TLOG(TLVL_TRACE + 10, "DTC_DMAPacket") << headerJSON();
 }
 
 std::string DTCLib::DTC_DMAPacket::headerJSON() const

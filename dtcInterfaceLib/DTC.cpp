@@ -3,23 +3,23 @@
 #define TRACE_NAME "DTC.cpp"
 
 #include "DTC.h"
-#define TLVL_GetData 10
-#define TLVL_GetJSONData 11
-#define TLVL_ReadBuffer 12
-#define TLVL_ReadNextDAQPacket 13
-#define TLVL_ReadNextDCSPacket 14
-#define TLVL_SendDCSRequestPacket 15
-#define TLVL_SendReadoutRequestPacket 16
-#define TLVL_VerifySimFileInDTC 17
-#define TLVL_VerifySimFileInDTC2 18
-#define TLVL_VerifySimFileInDTC3 19
-#define TLVL_WriteSimFileToDTC 20
-#define TLVL_WriteSimFileToDTC2 21
-#define TLVL_WriteSimFileToDTC3 22
-#define TLVL_WriteDetectorEmulatorData 23
-#define TLVL_WriteDataPacket 24
-#define TLVL_ReleaseBuffers 25
-#define TLVL_GetCurrentBuffer 26
+#define TLVL_GetData TLVL_DEBUG + 5
+#define TLVL_GetJSONData TLVL_DEBUG + 6
+#define TLVL_ReadBuffer TLVL_DEBUG + 7
+#define TLVL_ReadNextDAQPacket TLVL_DEBUG + 8
+#define TLVL_ReadNextDCSPacket TLVL_DEBUG + 9
+#define TLVL_SendDCSRequestPacket TLVL_DEBUG + 10
+#define TLVL_SendReadoutRequestPacket TLVL_DEBUG + 11
+#define TLVL_VerifySimFileInDTC TLVL_DEBUG + 12
+#define TLVL_VerifySimFileInDTC2 TLVL_DEBUG + 13
+#define TLVL_VerifySimFileInDTC3 TLVL_DEBUG + 14
+#define TLVL_WriteSimFileToDTC TLVL_DEBUG + 15
+#define TLVL_WriteSimFileToDTC2 TLVL_DEBUG + 16
+#define TLVL_WriteSimFileToDTC3 TLVL_DEBUG + 17
+#define TLVL_WriteDetectorEmulatorData TLVL_DEBUG + 18
+#define TLVL_WriteDataPacket TLVL_DEBUG + 19
+#define TLVL_ReleaseBuffers TLVL_DEBUG + 20
+#define TLVL_GetCurrentBuffer TLVL_DEBUG + 21
 
 #include <unistd.h>
 #include <fstream>
@@ -231,7 +231,6 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 				break;
 			}
 			auto sz = *reinterpret_cast<uint64_t*>(buf);
-			// TLOG(5) << "Size is " << << ", writing to device", (long long unsigned)sz);
 			is.read(reinterpret_cast<char*>(buf) + 8, sz - sizeof(uint64_t));
 			if (sz < 80 && sz > 0)
 			{
@@ -340,7 +339,6 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 			break;
 		}
 		auto sz = *reinterpret_cast<uint64_t*>(buf);
-		// TLOG(5) << "Size is " << << ", writing to device", (long long unsigned)sz);
 		is.read(reinterpret_cast<char*>(buf) + 8, sz - sizeof(uint64_t));
 		if (sz < 80 && sz > 0)
 		{
@@ -388,7 +386,7 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 										  << " rdSz=" << readSz;
 
 			// DMA engine strips off leading 64-bit word
-			TLOG(6) << "VerifySimFileInDTC - Checking buffer size";
+			TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC - Checking buffer size";
 			if (static_cast<size_t>(sts) != sz - sizeof(uint64_t))
 			{
 				TLOG(TLVL_ERROR) << "VerifySimFileInDTC Buffer " << n << " has size 0x" << std::hex << sts
@@ -1130,7 +1128,7 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
 	memcpy(&buf[0], &size, sizeof(uint64_t));
 	memcpy(&buf[8], packet.GetData(), packet.GetSize() * sizeof(uint8_t));
 
-	Utilities::PrintBuffer(buf, size, 0, 27);
+	Utilities::PrintBuffer(buf, size, 0, TLVL_TRACE + 30);
 
 	auto retry = 3;
 	int errorCode;

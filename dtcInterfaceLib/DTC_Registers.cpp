@@ -10,6 +10,11 @@
 #include "TRACE/tracemf.h"
 
 #define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << device_.getDTCID() << ": "
+#define TLVL_ResetDTC TLVL_DEBUG + 5
+#define TLVL_AutogenDRP TLVL_DEBUG + 6
+#define TLVL_SERDESReset TLVL_DEBUG + 7
+#define TLVL_CalculateFreq TLVL_DEBUG + 8
+#define TLVL_ReadRegister TLVL_DEBUG + 20
 
 #define __SHORTFILE__ \
 	(strstr(&__FILE__[0], "/srcs/") ? strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
@@ -424,7 +429,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatFPGAAlarms()
 // DTC Control Register
 void DTCLib::DTC_Registers::ResetDTC()
 {
-	DTC_TLOG(15) << "ResetDTC start";
+	DTC_TLOG(TLVL_ResetDTC) << "ResetDTC start";
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	data[31] = 1;  // DTC Reset bit
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
@@ -549,7 +554,7 @@ bool DTCLib::DTC_Registers::ReadCFOEmulatorDRP()
 
 void DTCLib::DTC_Registers::EnableAutogenDRP()
 {
-	DTC_TLOG(15) << "EnableAutogenDRP start";
+	DTC_TLOG(TLVL_AutogenDRP) << "EnableAutogenDRP start";
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	data[23] = 1;
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
@@ -1036,7 +1041,7 @@ void DTCLib::DTC_Registers::ResetSERDESTX(const DTC_Link_ID& link, int interval)
 	auto resetDone = false;
 	while (!resetDone)
 	{
-		DTC_TLOG(4) << "Entering SERDES Reset Loop for Link " << link;
+		DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
 		std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
 		data[link + 24] = 1;
 		WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
@@ -1050,7 +1055,7 @@ void DTCLib::DTC_Registers::ResetSERDESTX(const DTC_Link_ID& link, int interval)
 		usleep(interval);
 
 		resetDone = ReadResetTXSERDESDone(link);
-		DTC_TLOG(4) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
+		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
 	}
 }
 
@@ -1065,7 +1070,7 @@ void DTCLib::DTC_Registers::ResetSERDESRX(const DTC_Link_ID& link, int interval)
 	auto resetDone = false;
 	while (!resetDone)
 	{
-		DTC_TLOG(4) << "Entering SERDES Reset Loop for Link " << link;
+		DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
 		std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
 		data[link + 16] = 1;
 		WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
@@ -1079,7 +1084,7 @@ void DTCLib::DTC_Registers::ResetSERDESRX(const DTC_Link_ID& link, int interval)
 		usleep(interval);
 
 		resetDone = ReadResetRXSERDESDone(link);
-		DTC_TLOG(4) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
+		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
 	}
 }
 
@@ -1094,7 +1099,7 @@ void DTCLib::DTC_Registers::ResetSERDES(const DTC_Link_ID& link, int interval)
 	auto resetDone = false;
 	while (!resetDone)
 	{
-		DTC_TLOG(4) << "Entering SERDES Reset Loop for Link " << link;
+		DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
 		std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
 		data[link] = 1;
 		WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
@@ -1109,7 +1114,7 @@ void DTCLib::DTC_Registers::ResetSERDES(const DTC_Link_ID& link, int interval)
 
 		resetDone = ReadResetRXSERDESDone(link);
 		resetDone = resetDone && ReadResetTXSERDESDone(link);
-		DTC_TLOG(4) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
+		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
 	}
 }
 
@@ -4894,7 +4899,7 @@ uint32_t DTCLib::DTC_Registers::ReadRegister_(const DTC_Register& address)
 		throw DTC_IOErrorException(errorCode);
 	}
 
-	DTC_TLOG(21) << "ReadRegister_ returning " << std::hex << std::showbase << data << " for address " << static_cast<uint32_t>(address);
+	DTC_TLOG(TLVL_ReadRegister) << "ReadRegister_ returning " << std::hex << std::showbase << data << " for address " << static_cast<uint32_t>(address);
 	return data;
 }
 
@@ -4950,17 +4955,17 @@ int DTCLib::DTC_Registers::EncodeOutputDivider_(int input)
 uint64_t DTCLib::DTC_Registers::CalculateFrequencyForProgramming_(double targetFrequency, double currentFrequency,
 																  uint64_t currentProgram)
 {
-	DTC_TLOG(4) << "CalculateFrequencyForProgramming: targetFrequency=" << targetFrequency << ", currentFrequency=" << currentFrequency
+	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: targetFrequency=" << targetFrequency << ", currentFrequency=" << currentFrequency
 				<< ", currentProgram=" << std::showbase << std::hex << static_cast<unsigned long long>(currentProgram);
 	auto currentHighSpeedDivider = DecodeHighSpeedDivider_((currentProgram >> 45) & 0x7);
 	auto currentOutputDivider = DecodeOutputDivider_((currentProgram >> 38) & 0x7F);
 	auto currentRFREQ = DecodeRFREQ_(currentProgram & 0x3FFFFFFFFF);
-	DTC_TLOG(4) << "CalculateFrequencyForProgramming: Current HSDIV=" << currentHighSpeedDivider << ", N1=" << currentOutputDivider << ", RFREQ=" << currentRFREQ;
+	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: Current HSDIV=" << currentHighSpeedDivider << ", N1=" << currentOutputDivider << ", RFREQ=" << currentRFREQ;
 	const auto minFreq = 4850000000;  // Hz
 	const auto maxFreq = 5670000000;  // Hz
 
 	auto fXTAL = currentFrequency * currentHighSpeedDivider * currentOutputDivider / currentRFREQ;
-	DTC_TLOG(4) << "CalculateFrequencyForProgramming: fXTAL=" << fXTAL;
+	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: fXTAL=" << fXTAL;
 
 	std::vector<int> hsdiv_values = {11, 9, 7, 6, 5, 4};
 	std::vector<std::pair<int, double>> parameter_values;
@@ -4976,7 +4981,7 @@ uint64_t DTCLib::DTC_Registers::CalculateFrequencyForProgramming_(double targetF
 			thisN += 2;
 		}
 		auto fdco_new = hsdiv * thisN * targetFrequency;
-		DTC_TLOG(4) << "CalculateFrequencyForProgramming: Adding solution: HSDIV=" << hsdiv << ", N1=" << thisN << ", fdco_new=" << fdco_new;
+		DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: Adding solution: HSDIV=" << hsdiv << ", N1=" << thisN << ", fdco_new=" << fdco_new;
 		parameter_values.push_back(std::make_pair(thisN, fdco_new));
 	}
 
@@ -4995,27 +5000,27 @@ uint64_t DTCLib::DTC_Registers::CalculateFrequencyForProgramming_(double targetF
 		newRFREQ = values.second / fXTAL;
 		break;
 	}
-	DTC_TLOG(4) << "CalculateFrequencyForProgramming: New Program: HSDIV=" << newHighSpeedDivider << ", N1=" << newOutputDivider << ", RFREQ=" << newRFREQ;
+	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: New Program: HSDIV=" << newHighSpeedDivider << ", N1=" << newOutputDivider << ", RFREQ=" << newRFREQ;
 
 	if (EncodeHighSpeedDivider_(newHighSpeedDivider) == -1)
 	{
-		DTC_TLOG(0) << "ERROR: CalculateFrequencyForProgramming: Invalid HSDIV " << newHighSpeedDivider << "!";
+		DTC_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid HSDIV " << newHighSpeedDivider << "!";
 		return 0;
 	}
 	if (newOutputDivider > 128 || newOutputDivider < 0)
 	{
-		DTC_TLOG(0) << "ERROR: CalculateFrequencyForProgramming: Invalid N1 " << newOutputDivider << "!";
+		DTC_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid N1 " << newOutputDivider << "!";
 		return 0;
 	}
 	if (newRFREQ <= 0)
 	{
-		DTC_TLOG(0) << "ERROR: CalculateFrequencyForProgramming: Invalid RFREQ " << newRFREQ << "!";
+		DTC_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid RFREQ " << newRFREQ << "!";
 		return 0;
 	}
 
 	auto output = (static_cast<uint64_t>(EncodeHighSpeedDivider_(newHighSpeedDivider)) << 45) +
 				  (static_cast<uint64_t>(EncodeOutputDivider_(newOutputDivider)) << 38) + EncodeRFREQ_(newRFREQ);
-	DTC_TLOG(4) << "CalculateFrequencyForProgramming: New Program: " << std::showbase << std::hex << static_cast<unsigned long long>(output);
+	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: New Program: " << std::showbase << std::hex << static_cast<unsigned long long>(output);
 	return output;
 }
 

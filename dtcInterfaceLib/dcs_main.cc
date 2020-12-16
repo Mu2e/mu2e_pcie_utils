@@ -19,7 +19,7 @@
 
 #include "DTC.h"
 
-#define DCS_TLVL(b) b ? 10 : TLVL_INFO
+#define DCS_TLVL(b) b ? TLVL_DEBUG + 6 : TLVL_INFO
 
 using namespace DTCLib;
 
@@ -261,7 +261,7 @@ int main(int argc, char* argv[])
 			auto tmo_ms = 0;
 			auto stsRD = device->read_data(DTC_DMA_Engine_DCS, &buffer, tmo_ms);
 			auto stsRL = device->read_release(DTC_DMA_Engine_DCS, 1);
-			TLOG(11) << "dcs - release/read for DCS ii=" << ii << ", stsRD=" << stsRD << ", stsRL=" << stsRL << ", buffer=" << buffer;
+			TLOG(TLVL_DEBUG + 7) << "dcs - release/read for DCS ii=" << ii << ", stsRD=" << stsRD << ", stsRL=" << stsRL << ", buffer=" << buffer;
 			if (delay > 0) usleep(delay);
 		}
 	}
@@ -307,7 +307,7 @@ int main(int argc, char* argv[])
 			void* readPtr = &buffer[0];
 			auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
 			readPtr = static_cast<uint8_t*>(readPtr) + 8;
-			TLOG((reallyQuiet ? 9 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
+			TLOG((reallyQuiet ? TLVL_DEBUG + 5 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
 												<< sts << " bytes," << std::endl;
 
 			TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
