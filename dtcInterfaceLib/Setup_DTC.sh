@@ -85,7 +85,7 @@ DTC_Reset()
 
   my_cntl write 0x9100 0x80000000  >/dev/null # reset DTC  reset serdes osc
   my_cntl write 0x9100 0x00008000 > /dev/null # Turn on CFO Emulation Mode for Serdes Reset
-  my_cntl write 0x9118 0ffff00ff  >/dev/null  # SERDES resets
+  my_cntl write 0x9118 0xffff00ff  >/dev/null  # SERDES resets
   my_cntl write 0x9118 0x00000000  >/dev/null  # clear SERDES reset on link 0
 
   sleep 1
