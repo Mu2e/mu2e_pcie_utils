@@ -35,7 +35,33 @@ enum DTC_Link_ID : uint8_t
 	DTC_Link_Unused,
 };
 
-static const std::vector<DTC_Link_ID> DTC_Links{DTC_Link_0, DTC_Link_1, DTC_Link_2, DTC_Link_3, DTC_Link_4, DTC_Link_5};
+static const std::vector<DTC_Link_ID> DTC_Links{DTC_Link_0,
+												DTC_Link_1,
+												DTC_Link_2,
+												DTC_Link_3,
+												DTC_Link_4,
+												DTC_Link_5};
+
+enum DTC_PLL_ID : uint8_t
+{
+	DTC_PLL_Link_0 = 0,
+	DTC_PLL_Link_1 = 1,
+	DTC_PLL_Link_2 = 2,
+	DTC_PLL_Link_3 = 3,
+	DTC_PLL_Link_4 = 4,
+	DTC_PLL_Link_5 = 5,
+	DTC_PLL_CFO_RX = 6,
+	DTC_PLL_CFO_TX = 7,
+	DTC_PLL_CFO_TXRX = 8,
+	DTC_PLL_PunchedClock = 9,
+	DTC_PLL_Unused,
+};
+static const std::vector<DTC_PLL_ID> DTC_PLLs{DTC_PLL_Link_0,
+											  DTC_PLL_Link_1,
+											  DTC_PLL_Link_2,
+											  DTC_PLL_Link_3,
+											  DTC_PLL_Link_4,
+											  DTC_PLL_Link_5};
 
 enum DTC_OscillatorType
 {
@@ -950,34 +976,40 @@ struct DTC_FIFOFullErrorFlags
 /// </summary>
 struct DTC_DDRFlags
 {
-	bool InputFragmentBufferFull;       ///< The input fragment buffer is full
-	bool InputFragmentBufferFullError;  ///< The input fragment buffer is full and in error state
-	bool InputFragmentBufferEmpty;      ///< The input fragment buffer is empty
-	bool InputFragmentBufferHalfFull;   ///< The input fragment buffer is at least half full
-	bool OutputEventBufferFull;         ///< The output event buffer is full
-	bool OutputEventBufferFullError;    ///< The output event buffer is full and in error state
-	bool OutputEventBufferEmpty;        ///< The output event buffer is empty
-	bool OutputEventBufferHalfFull;     ///< The output event buffer is at least half full
+	bool InputFragmentBufferFull;      ///< The input fragment buffer is full
+	bool InputFragmentBufferEmpty;     ///< The input fragment buffer is empty
+	bool InputFragmentBufferHalfFull;  ///< The input fragment buffer is at least half full
+	bool OutputEventBufferFull;        ///< The output event buffer is full
+	bool OutputEventBufferEmpty;       ///< The output event buffer is empty
+	bool OutputEventBufferHalfFull;    ///< The output event buffer is at least half full
 
 	/// <summary>
 	/// Default Constructor, sets all flags to false
 	/// </summary>
 	DTC_DDRFlags()
-		: InputFragmentBufferFull(false), InputFragmentBufferFullError(false), InputFragmentBufferEmpty(false), InputFragmentBufferHalfFull(false), OutputEventBufferFull(false), OutputEventBufferFullError(false), OutputEventBufferEmpty(false), OutputEventBufferHalfFull(false) {}
+		: InputFragmentBufferFull(false)
+		, InputFragmentBufferEmpty(false)
+		, InputFragmentBufferHalfFull(false)
+		, OutputEventBufferFull(false)
+		, OutputEventBufferEmpty(false)
+		, OutputEventBufferHalfFull(false) {}
 
 	/// <summary>
 	/// Construct a DTC_DDRFlags instance with the given values
 	/// </summary>
 	/// <param name="ifbf">InputFragmentBufferFull value</param>
-	/// <param name="ifbfe">InputFragmentBufferFullError</param>
 	/// <param name="ifbe">InputFragmentBufferEmpty</param>
 	/// <param name="ifbhf">InputFragmentBufferHalfFull</param>
 	/// <param name="ofbf">OutputEventBufferFull</param>
-	/// <param name="ofbfe">OutputEventBufferFullError</param>
 	/// <param name="ofbe">OutputEventBufferEmpty</param>
 	/// <param name="ofbhf">OutputEventBufferHalfFull</param>
-	DTC_DDRFlags(bool ifbf, bool ifbfe, bool ifbe, bool ifbhf, bool ofbf, bool ofbfe, bool ofbe, bool ofbhf)
-		: InputFragmentBufferFull(ifbf), InputFragmentBufferFullError(ifbfe), InputFragmentBufferEmpty(ifbe), InputFragmentBufferHalfFull(ifbhf), OutputEventBufferFull(ofbf), OutputEventBufferFullError(ofbfe), OutputEventBufferEmpty(ofbe), OutputEventBufferHalfFull(ofbhf) {}
+	DTC_DDRFlags(bool ifbf, bool ifbe, bool ifbhf, bool ofbf, bool ofbe, bool ofbhf)
+		: InputFragmentBufferFull(ifbf)
+		, InputFragmentBufferEmpty(ifbe)
+		, InputFragmentBufferHalfFull(ifbhf)
+		, OutputEventBufferFull(ofbf)
+		, OutputEventBufferEmpty(ofbe)
+		, OutputEventBufferHalfFull(ofbhf) {}
 
 	/// <summary>
 	/// Write the DTC_DDRFlags to stream in JSON format.
@@ -991,11 +1023,9 @@ struct DTC_DDRFlags
 		auto formatSet = (stream.flags() & std::ios_base::boolalpha) != 0;
 		stream.setf(std::ios_base::boolalpha);
 		stream << "{\"InputFragmentBufferFull\":" << flags.InputFragmentBufferFull
-			   << ",\"InputFragmentBufferFullError\":" << flags.InputFragmentBufferFullError
 			   << ",\"InputFragmentBufferEmpty\":" << flags.InputFragmentBufferEmpty
 			   << ",\"InputFragmentBufferHalfFull\":" << flags.InputFragmentBufferHalfFull
 			   << ",\"OutputEventBufferFull\":" << flags.OutputEventBufferFull
-			   << ",\"OutputEventBufferFullError\":" << flags.OutputEventBufferFullError
 			   << ",\"OutputEventBufferEmpty\":" << flags.OutputEventBufferEmpty
 			   << ",\"OutputEventBufferHalfFull\":" << flags.OutputEventBufferHalfFull << "}";
 		if (!formatSet) stream.unsetf(std::ios_base::boolalpha);

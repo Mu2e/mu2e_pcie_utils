@@ -388,7 +388,7 @@ public:
 	/// Gets the Link ID of the packet
 	/// </summary>
 	/// <returns>The Link ID of the packet</returns>
-	DTC_Link_ID GetRingID() const { return linkID_; }
+	DTC_Link_ID GetLinkID() const { return linkID_; }
 
 	/// <summary>
 	/// Gets the Hop Count of the packet
@@ -606,7 +606,7 @@ public:
 	/// <param name="link">Destination Link</param>
 	/// <param name="timestamp">Timestamp of request</param>
 	/// <param name="eventMode">Debug event mode bytes (Default: nullptr) If not null, must be 6 bytes long</param>
-	DTC_HeartbeatPacket(DTC_Link_ID link, DTC_Timestamp timestamp, uint8_t* eventMode = nullptr);
+	DTC_HeartbeatPacket(DTC_Link_ID link, DTC_Timestamp timestamp, uint8_t* eventMode = nullptr, uint8_t deliveryRingTDC = 0);
 	/// <summary>
 	/// Default Copy Constructor
 	/// </summary>
@@ -658,7 +658,8 @@ public:
 
 private:
 	DTC_Timestamp timestamp_;
-	uint8_t eventMode_[6];
+	uint8_t eventMode_[5];
+	uint8_t deliveryRingTDC_;
 };
 
 /// <summary>

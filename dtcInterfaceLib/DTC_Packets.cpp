@@ -401,22 +401,21 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DCSRequestPacket::ConvertToDataPacket() const
 }
 
 DTCLib::DTC_HeartbeatPacket::DTC_HeartbeatPacket(DTC_Link_ID link)
-	: DTC_DMAPacket(DTC_PacketType_Heartbeat, link), timestamp_(), eventMode_()
+	: DTC_DMAPacket(DTC_PacketType_Heartbeat, link), timestamp_(), eventMode_(), deliveryRingTDC_()
 {
 	eventMode_[0] = 0;
 	eventMode_[1] = 0;
 	eventMode_[2] = 0;
 	eventMode_[3] = 0;
 	eventMode_[4] = 0;
-	eventMode_[5] = 0;
 }
 
-DTCLib::DTC_HeartbeatPacket::DTC_HeartbeatPacket(DTC_Link_ID link, DTC_Timestamp timestamp, uint8_t* eventMode)
-	: DTC_DMAPacket(DTC_PacketType_Heartbeat, link), timestamp_(timestamp), eventMode_()
+DTCLib::DTC_HeartbeatPacket::DTC_HeartbeatPacket(DTC_Link_ID link, DTC_Timestamp timestamp, uint8_t* eventMode, uint8_t deliveryRingTDC)
+	: DTC_DMAPacket(DTC_PacketType_Heartbeat, link), timestamp_(timestamp), eventMode_(), deliveryRingTDC_(deliveryRingTDC)
 {
 	if (eventMode != nullptr)
 	{
-		for (auto i = 0; i < 6; ++i)
+		for (auto i = 0; i < 5; ++i)
 		{
 			eventMode_[i] = eventMode[i];
 		}
@@ -438,7 +437,7 @@ DTCLib::DTC_HeartbeatPacket::DTC_HeartbeatPacket(const DTC_DataPacket in)
 	eventMode_[2] = arr[12];
 	eventMode_[3] = arr[13];
 	eventMode_[4] = arr[14];
-	eventMode_[5] = arr[15];
+	deliveryRingTDC_ = arr[15];
 	timestamp_ = DTC_Timestamp(arr, 4);
 }
 
@@ -452,8 +451,8 @@ std::string DTCLib::DTC_HeartbeatPacket::toJSON()
 	ss << std::hex << "0x" << static_cast<int>(eventMode_[1]) << ",";
 	ss << std::hex << "0x" << static_cast<int>(eventMode_[2]) << ",";
 	ss << std::hex << "0x" << static_cast<int>(eventMode_[3]) << ",";
-	ss << std::hex << "0x" << static_cast<int>(eventMode_[4]) << ",";
-	ss << std::hex << "0x" << static_cast<int>(eventMode_[5]) << "],";
+	ss << std::hex << "0x" << static_cast<int>(eventMode_[4]) << "],";
+	ss << "\"deliveryRingTDC\": " << std::hex << " 0x" << static_cast<int>(deliveryRingTDC_) << "";
 	ss << "}";
 	return ss.str();
 }
@@ -467,7 +466,7 @@ std::string DTCLib::DTC_HeartbeatPacket::toPacketFormat()
 	   << static_cast<int>(eventMode_[0]) << "\n";
 	ss << "0x" << std::setw(6) << static_cast<int>(eventMode_[3]) << "\t0x" << std::setw(6)
 	   << static_cast<int>(eventMode_[2]) << "\n";
-	ss << "0x" << std::setw(6) << static_cast<int>(eventMode_[5]) << "\t0x" << std::setw(6)
+	ss << "0x" << std::setw(6) << static_cast<int>(deliveryRingTDC_) << "\t0x" << std::setw(6)
 	   << static_cast<int>(eventMode_[4]) << "\n";
 	return ss.str();
 }
@@ -476,10 +475,11 @@ DTCLib::DTC_DataPacket DTCLib::DTC_HeartbeatPacket::ConvertToDataPacket() const
 {
 	auto output = DTC_DMAPacket::ConvertToDataPacket();
 	timestamp_.GetTimestamp(output.GetData(), 4);
-	for (auto i = 0; i < 6; ++i)
+	for (auto i = 0; i < 5; ++i)
 	{
 		output.SetWord(static_cast<uint16_t>(10 + i), eventMode_[i]);
 	}
+	output.SetWord(static_cast<uint16_t>(15), deliveryRingTDC_);
 	return output;
 }
 

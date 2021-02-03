@@ -460,7 +460,7 @@ uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t ad
 			do
 			{
 				auto replytmp = reply->GetReply(false);
-				auto linktmp = reply->GetRingID();
+				auto linktmp = reply->GetLinkID();
 				TLOG(TLVL_TRACE) << "Got packet, "
 								 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
 								 << "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
@@ -519,7 +519,7 @@ void DTCLib::DTC::WriteROCRegister(const DTC_Link_ID& link, const uint16_t addre
 		{
 			count++;
 			auto reply1tmp = reply->GetReply(false);
-			auto linktmp = reply->GetRingID();
+			auto linktmp = reply->GetLinkID();
 			TLOG(TLVL_TRACE) << "Got packet, "
 							 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
 							 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
@@ -555,7 +555,7 @@ std::pair<uint16_t, uint16_t> DTCLib::DTC::ReadROCRegisters(const DTC_Link_ID& l
 			count++;
 			auto reply1tmp = reply->GetReply(false);
 			auto reply2tmp = reply->GetReply(true);
-			auto linktmp = reply->GetRingID();
+			auto linktmp = reply->GetLinkID();
 			TLOG(TLVL_TRACE) << "Got packet, "
 							 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
 							 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
@@ -612,7 +612,7 @@ void DTCLib::DTC::WriteROCRegisters(const DTC_Link_ID& link, const uint16_t addr
 			count++;
 			auto reply1tmp = reply->GetReply(false);
 			auto reply2tmp = reply->GetReply(true);
-			auto linktmp = reply->GetRingID();
+			auto linktmp = reply->GetLinkID();
 			TLOG(TLVL_TRACE) << "Got packet, "
 							 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
 							 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
@@ -655,7 +655,7 @@ void DTCLib::DTC::ReadROCBlock(
 	while (reply != nullptr)
 	{
 		auto replytmp = reply->GetReply(false);
-		auto linktmp = reply->GetRingID();
+		auto linktmp = reply->GetLinkID();
 		TLOG(TLVL_TRACE) << "Got packet, "
 						 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
 						 << "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
@@ -728,7 +728,7 @@ void DTCLib::DTC::WriteROCBlock(const DTC_Link_ID& link, const uint16_t address,
 		{
 			count++;
 			auto reply1tmp = reply->GetReply(false);
-			auto linktmp = reply->GetRingID();
+			auto linktmp = reply->GetLinkID();
 			TLOG(TLVL_TRACE) << "Got packet, "
 							 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
 							 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "

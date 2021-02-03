@@ -108,100 +108,28 @@ int mu2esim::init(DTCLib::DTC_SimMode mode)
 	// Set initial register values...
 	registers_[DTCLib::DTC_Register_DesignVersion] = 0x00006363;  // v99.99
 	registers_[DTCLib::DTC_Register_DesignDate] = 0x53494D44;     // SIMD in ASCII
-	registers_[DTCLib::DTC_Register_DesignStatus] = 0,
-	registers_[DTCLib::DTC_Register_VivadoVersion] = 0,
-	registers_[DTCLib::DTC_Register_FPGA_Temperature] = 0,
-	registers_[DTCLib::DTC_Register_FPGA_VCCINT] = 0,
-	registers_[DTCLib::DTC_Register_FPGA_VCCAUX] = 0,
-	registers_[DTCLib::DTC_Register_FPGA_VCCBRAM] = 0,
-	registers_[DTCLib::DTC_Register_FPGA_MonitorAlarm] = 0,
 	registers_[DTCLib::DTC_Register_DTCControl] = 0x00000003;                  // System Clock, Timing Enable
 	registers_[DTCLib::DTC_Register_DMATransferLength] = 0x80000010;           // Default value from HWUG
 	registers_[DTCLib::DTC_Register_SERDESLoopbackEnable] = 0x00000000;        // SERDES Loopback Disabled
 	registers_[DTCLib::DTC_Register_ClockOscillatorStatus] = 0x20002;          // Initialization Complete, no IIC Error
 	registers_[DTCLib::DTC_Register_ROCEmulationEnable] = 0x3F;                // ROC Emulators enabled (of course!)
 	registers_[DTCLib::DTC_Register_LinkEnable] = 0x3F3F;                      // All links Tx/Rx enabled, CFO and timing disabled
-	registers_[DTCLib::DTC_Register_SERDES_Reset] = 0x0;                       // No SERDES Reset
-	registers_[DTCLib::DTC_Register_SERDES_RXDisparityError] = 0x0;            // No SERDES Disparity Error
-	registers_[DTCLib::DTC_Register_SERDES_RXCharacterNotInTableError] = 0x0;  // No SERDES CNIT Error
-	registers_[DTCLib::DTC_Register_SERDES_UnlockError] = 0x0;                 // No SERDES Unlock Error
 	registers_[DTCLib::DTC_Register_SERDES_PLLLocked] = 0x7F;                  // SERDES PLL Locked
-	registers_[DTCLib::DTC_Register_SERDES_PLLPowerDown] = 0;
-	registers_[DTCLib::DTC_Register_SERDES_RXStatus] = 0x0;                // SERDES RX Status Nominal
 	registers_[DTCLib::DTC_Register_SERDES_ResetDone] = 0xFFFFFFFF;        // SERDES Resets Done
 	registers_[DTCLib::DTC_Register_SERDES_RXCDRLockStatus] = 0x7F00007F;  // RX CDR Locked
 	registers_[DTCLib::DTC_Register_DMATimeoutPreset] = 0x800;             // DMA Timeout Preset
 	registers_[DTCLib::DTC_Register_ROCReplyTimeout] = 0x200000;           // ROC Timeout Preset
-	registers_[DTCLib::DTC_Register_ROCReplyTimeoutError] = 0x0;           // ROC Timeout Error
 	registers_[DTCLib::DTC_Register_LinkPacketLength] = 0x10;
-	registers_[DTCLib::DTC_Register_EVBPartitionID] = 0x0;
-	registers_[DTCLib::DTC_Register_EVBDestCount] = 0x0;
-	registers_[DTCLib::DTC_Register_SERDESOscillatorIICBusControl] = 0;
 	registers_[DTCLib::DTC_Register_SERDESOscillatorIICBusLow] = 0xFFFFFFFF;
 	registers_[DTCLib::DTC_Register_SERDESOscillatorIICBusHigh] = 0x77f3f;
 	registers_[DTCLib::DTC_Register_DDROscillatorReferenceFrequency] = 0xbebc200;
-	registers_[DTCLib::DTC_Register_DDROscillatorIICBusControl] = 0;
 	registers_[DTCLib::DTC_Register_DDROscillatorIICBusLow] = 0x1074f43b;
 	registers_[DTCLib::DTC_Register_DDROscillatorIICBusHigh] = 0x30303;
-	registers_[DTCLib::DTC_Register_TimestampPreset0] = 0x0;  // Timestamp preset to 0
-	registers_[DTCLib::DTC_Register_TimestampPreset1] = 0x0;
 	registers_[DTCLib::DTC_Register_DataPendingTimer] = 0x00002000;  // Data pending timeout preset
 	registers_[DTCLib::DTC_Register_NUMROCs] = 0x1;                  // NUMROCs 0 for all links,except Link 0 which has 1
-	registers_[DTCLib::DTC_Register_FIFOFullErrorFlag0] = 0x0;       // NO FIFO Full flags
-	registers_[DTCLib::DTC_Register_FIFOFullErrorFlag1] = 0x0;
-	registers_[DTCLib::DTC_Register_FIFOFullErrorFlag2] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceivePacketError] = 0x0;        // Receive Packet Error
-	registers_[DTCLib::DTC_Register_CFOEmulationTimestampLow] = 0x0;  // CFO Emulation Registers
-	registers_[DTCLib::DTC_Register_CFOEmulationTimestampHigh] = 0x0;
-	registers_[DTCLib::DTC_Register_CFOEmulationRequestInterval] = 0x0;
-	registers_[DTCLib::DTC_Register_CFOEmulationNumRequests] = 0x0;
-	registers_[DTCLib::DTC_Register_CFOEmulationNumPacketsLinks10] = 0x0;
-	registers_[DTCLib::DTC_Register_CFOEmulationNumPacketsLinks32] = 0x0;
-	registers_[DTCLib::DTC_Register_CFOEmulationNumPacketsLinks54] = 0x0;
-	registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] = 0x0;
-	registers_[DTCLib::DTC_Register_CFOEmulationEventMode2] = 0x0;
-	registers_[DTCLib::DTC_Register_CFOEmulationDebugPacketType] = 0x0;
-	registers_[DTCLib::DTC_Register_DetEmulationDMACount] = 0x0;
-	registers_[DTCLib::DTC_Register_DetEmulationDelayCount] = 0x0;
-	registers_[DTCLib::DTC_Register_DetEmulationControl0] = 0x0;
-	registers_[DTCLib::DTC_Register_DetEmulationControl1] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceiveByteCountDataLink0] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceiveByteCountDataLink1] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceiveByteCountDataLink2] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceiveByteCountDataLink3] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceiveByteCountDataLink4] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceiveByteCountDataLink5] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceiveByteCountDataCFO] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceivePacketCountDataLink0] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceivePacketCountDataLink1] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceivePacketCountDataLink2] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceivePacketCountDataLink3] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceivePacketCountDataLink4] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceivePacketCountDataLink5] = 0x0;
-	registers_[DTCLib::DTC_Register_ReceivePacketCountDataCFO] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitByteCountDataLink0] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitByteCountDataLink1] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitByteCountDataLink2] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitByteCountDataLink3] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitByteCountDataLink4] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitByteCountDataLink5] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitByteCountDataCFO] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitPacketCountDataLink0] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitPacketCountDataLink1] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitPacketCountDataLink2] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitPacketCountDataLink3] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitPacketCountDataLink4] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitPacketCountDataLink5] = 0x0;
-	registers_[DTCLib::DTC_Register_TransmitPacketCountDataCFO] = 0x0;
-	registers_[DTCLib::DTC_Register_DetEmulationDataStartAddress] = 0x0;
-	registers_[DTCLib::DTC_Register_DetEmulationDataEndAddress] = 0x0;
 	registers_[DTCLib::DTC_Register_EthernetFramePayloadSize] = 0x5D4;
-	registers_[DTCLib::DTC_Register_FPGAProgramData] = 0x0;
 	registers_[DTCLib::DTC_Register_FPGAPROMProgramStatus] = 0x1;
-	registers_[DTCLib::DTC_Register_FPGACoreAccess] = 0x0;  // FPGA Core Access OK
-	registers_[DTCLib::DTC_Register_EventModeLookupTableStart] = 0;
-	registers_[DTCLib::DTC_Register_EventModeLookupTableEnd] = 0;
-
+	
 	TLOG(TLVL_Init) << "Initialize finished";
 	return 0;
 }
@@ -586,7 +514,7 @@ void mu2esim::dcsPacketSimulator_(DTCLib::DTC_DCSRequestPacket in)
 		packetCount = 1;
 	}
 	TLOG(TLVL_DCSPacketSimulator) << "mu2esim::dcsPacketSimulator_: Constructing DCS Response";
-	DTCLib::DTC_DMAPacket packet(DTCLib::DTC_PacketType_DCSReply, in.GetRingID(), (1 + packetCount) * 16, true);
+	DTCLib::DTC_DMAPacket packet(DTCLib::DTC_PacketType_DCSReply, in.GetLinkID(), (1 + packetCount) * 16, true);
 
 	TLOG(TLVL_DCSPacketSimulator) << "mu2esim::dcsPacketSimulator_: copying response into new buffer";
 	auto dataPacket = packet.ConvertToDataPacket();
