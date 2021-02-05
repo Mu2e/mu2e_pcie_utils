@@ -832,7 +832,7 @@ DTCLib::DTC_SubEvent::DTC_SubEvent(const uint8_t*& ptr)
 }
 
 DTCLib::DTC_Event::DTC_Event(const void* data)
-	: header_(), sub_events_()
+	: header_(), sub_events_(), buffer_ptr_(data)
 {
 	auto ptr = reinterpret_cast<const uint8_t*>(data);
 

@@ -1079,10 +1079,12 @@ public:
 
 	size_t GetEventByteCount() const { return header_.inclusive_event_byte_count;}
 	DTC_EventWindowTag GetEventWindowTag() const { return header_.event_tag;}
+	const void* GetRawBufferPointer() const { return buffer_ptr_; }
 
 private:
 	DTC_EventHeader header_;
 	std::list<DTC_SubEvent> sub_events_;
+	const void* buffer_ptr_;
 };
 
 }  // namespace DTCLib
