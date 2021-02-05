@@ -222,19 +222,19 @@ int mu2esim::write_data(int chn, void* buffer, size_t bytes)
 		TLOG(TLVL_WriteData) << "mu2esim::write_data worda is 0x" << std::hex << worda << " and word is 0x" << std::hex << word;
 		auto activeLink = static_cast<DTCLib::DTC_Link_ID>((word & 0x0F00) >> 8);
 
-		DTCLib::DTC_Timestamp ts(reinterpret_cast<uint8_t*>(buffer) + 6);
+		DTCLib::DTC_EventWindowTag ts(reinterpret_cast<uint8_t*>(buffer) + 6);
 		if ((word & 0x8010) == 0x8010)
 		{
 			TLOG(TLVL_WriteData) << "mu2esim::write_data: Readout Request: activeDAQLink=" << activeLink
-					 << ", ts=" << ts.GetTimestamp(true);
-			readoutRequestReceived_[ts.GetTimestamp(true)][activeLink] = true;
+					 << ", ts=" << ts.GetEventWindowTag(true);
+			readoutRequestReceived_[ts.GetEventWindowTag(true)][activeLink] = true;
 		}
 		else if ((word & 0x8020) == 0x8020)
 		{
-			TLOG(TLVL_WriteData) << "mu2esim::write_data: Data Request: activeDAQLink=" << activeLink << ", ts=" << ts.GetTimestamp(true);
+			TLOG(TLVL_WriteData) << "mu2esim::write_data: Data Request: activeDAQLink=" << activeLink << ", ts=" << ts.GetEventWindowTag(true);
 			if (activeLink != DTCLib::DTC_Link_Unused)
 			{
-				if (!readoutRequestReceived_[ts.GetTimestamp(true)][activeLink])
+				if (!readoutRequestReceived_[ts.GetEventWindowTag(true)][activeLink])
 				{
 					TLOG(TLVL_WriteData) << "mu2esim::write_data: Data Request Received but missing Readout Request!";
 				}
@@ -245,11 +245,11 @@ int mu2esim::write_data(int chn, void* buffer, size_t bytes)
 					auto packetCount = *(reinterpret_cast<uint16_t*>(buffer) + 7);
 					packetSimulator_(ts, activeLink, packetCount);
 
-					readoutRequestReceived_[ts.GetTimestamp(true)][activeLink] = false;
-					if (readoutRequestReceived_[ts.GetTimestamp(true)].count() == 0)
+					readoutRequestReceived_[ts.GetEventWindowTag(true)][activeLink] = false;
+					if (readoutRequestReceived_[ts.GetEventWindowTag(true)].count() == 0)
 					{
 						closeEvent_();
-						readoutRequestReceived_.erase(ts.GetTimestamp(true));
+						readoutRequestReceived_.erase(ts.GetEventWindowTag(true));
 					}
 				}
 			}
@@ -379,11 +379,11 @@ void mu2esim::CFOEmulator_()
 		registers_[0x9100] = ctrlReg.to_ulong();
 		return;
 	}
-	DTCLib::DTC_Timestamp start(registers_[DTCLib::DTC_Register_CFOEmulationTimestampLow],
+	DTCLib::DTC_EventWindowTag start(registers_[DTCLib::DTC_Register_CFOEmulationTimestampLow],
 								static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulationTimestampHigh]));
 	auto count = registers_[DTCLib::DTC_Register_CFOEmulationNumRequests];
 	auto ticksToWait = static_cast<long long>(registers_[DTCLib::DTC_Register_CFOEmulationRequestInterval] * 0.0064);
-	TLOG(TLVL_CFOEmulator) << "mu2esim::CFOEmulator_ start timestamp=" << start.GetTimestamp(true) << ", count=" << count
+	TLOG(TLVL_CFOEmulator) << "mu2esim::CFOEmulator_ start timestamp=" << start.GetEventWindowTag(true) << ", count=" << count
 			 << ", delayBetween=" << ticksToWait;
 
 	bool linkEnabled[6];
@@ -429,7 +429,7 @@ void mu2esim::CFOEmulator_()
 			{
 				TLOG(TLVL_CFOEmulator) << "mu2esim::CFOEmulator_ linkRocs[" << link << "]=" << linkEnabled[link];
 				TLOG(TLVL_CFOEmulator2) << "mu2esim::CFOEmulator_ activating packet simulator, link=" << link
-						 << ", for timestamp=" << (start + sentCount).GetTimestamp(true);
+						 << ", for timestamp=" << (start + sentCount).GetEventWindowTag(true);
 				packetSimulator_(start + sentCount, link, packetCount);
 			}
 		}
@@ -475,10 +475,10 @@ void mu2esim::clearBuffer_(int chn, bool increment)
 	TLOG(TLVL_ClearBuffer2) << "mu2esim::clearBuffer_(" << chn << ", " << increment << "): NOP";
 }
 
-void mu2esim::openEvent_(DTCLib::DTC_Timestamp ts)
+void mu2esim::openEvent_(DTCLib::DTC_EventWindowTag ts)
 {
-	TLOG(TLVL_OpenEvent) << "mu2esim::openEvent_ Checking timestamp " << ts.GetTimestamp(true) << " vs current timestamp "
-			 << currentTimestamp_.GetTimestamp(true);
+	TLOG(TLVL_OpenEvent) << "mu2esim::openEvent_ Checking timestamp " << ts.GetEventWindowTag(true) << " vs current timestamp "
+			 << currentTimestamp_.GetEventWindowTag(true);
 	if (ts == currentTimestamp_) return;
 	if (currentEventSize_ > 0) closeEvent_();
 
@@ -551,9 +551,9 @@ void mu2esim::dcsPacketSimulator_(DTCLib::DTC_DCSRequestPacket in)
 	hwIdx_[1] = (hwIdx_[1] + 1) % SIM_BUFFCOUNT;
 }
 
-void mu2esim::packetSimulator_(DTCLib::DTC_Timestamp ts, DTCLib::DTC_Link_ID link, uint16_t packetCount)
+void mu2esim::packetSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_Link_ID link, uint16_t packetCount)
 {
-	TLOG(TLVL_PacketSimulator) << "mu2esim::packetSimulator_: Generating data for timestamp " << ts.GetTimestamp(true);
+	TLOG(TLVL_PacketSimulator) << "mu2esim::packetSimulator_: Generating data for timestamp " << ts.GetEventWindowTag(true);
 
 	uint8_t packet[16];
 	auto packetSize = sizeof(packet) / sizeof(char);
@@ -593,7 +593,7 @@ void mu2esim::packetSimulator_(DTCLib::DTC_Timestamp ts, DTCLib::DTC_Link_ID lin
 		packet[3] = 0x80 + (link & 0x0F);
 		packet[4] = static_cast<uint8_t>(nPackets & 0xFF);
 		packet[5] = static_cast<uint8_t>(nPackets >> 8);
-		ts.GetTimestamp(packet, 6);
+		ts.GetEventWindowTag(packet, 6);
 		packet[12] = 0;
 		packet[13] = 0;
 		packet[14] = 0;

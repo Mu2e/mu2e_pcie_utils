@@ -63,13 +63,13 @@ int main(int argc, char* argv[])
 	{
 		TRACE(1, "mu2eReceiver::getNext: Starting CFO thread");
 		uint64_t z = 0;
-		DTC_Timestamp zero(z);
+		DTC_EventWindowTag zero(z);
 		TRACE(1, "Sending requests for %i timestamps, starting at %lu", BLOCK_COUNT_MAX, BLOCK_COUNT_MAX * loopCounter);
-		theCFO->SendRequestsForRange(BLOCK_COUNT_MAX, DTC_Timestamp(BLOCK_COUNT_MAX * loopCounter));
+		theCFO->SendRequestsForRange(BLOCK_COUNT_MAX, DTC_EventWindowTag(BLOCK_COUNT_MAX * loopCounter));
 
 		fragmentTester newfrag(BLOCK_COUNT_MAX * sizeof(packet_t) * 2);
 
-		DTC_Timestamp expected_timestamp;
+		DTC_EventWindowTag expected_timestamp;
 		auto firstLoop = true;
 
 		// Get data from DTCReceiver
@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
 		while (newfrag.hdr_block_count() < BLOCK_COUNT_MAX)
 		{
 			TRACE(1, "Getting DTC Data");
-			std::vector<DTC_DataBlock> data;
+			std::vector<std::unique_ptr<DTC_Event>> data;
 			auto retryCount = 5;
 			while (data.size() == 0 && retryCount >= 0)
 			{
@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
 			}
 
 			auto first = DTC_DataHeaderPacket(DTC_DataPacket(data[0].blockPointer));
-			auto ts = first.GetTimestamp();
+			auto ts = first.GetEventWindowTag();
 			if (firstLoop)
 			{
 				expected_timestamp = ts;
@@ -111,13 +111,13 @@ int main(int argc, char* argv[])
 			}
 			if (ts != expected_timestamp)
 			{
-				std::cerr << "WRONG TIMESTAMP DETECTED: 0x" << std::hex << ts.GetTimestamp(true) << " (expected: 0x"
-						  << expected_timestamp.GetTimestamp(true) << ")" << std::endl;
+				std::cerr << "WRONG TIMESTAMP DETECTED: 0x" << std::hex << ts.GetEventWindowTag(true) << " (expected: 0x"
+						  << expected_timestamp.GetEventWindowTag(true) << ")" << std::endl;
 			}
 			expected_timestamp = ts + 1;
 			// int packetCount = first.GetPacketCount() + 1;
 			// TRACE(1, "There are %lu data blocks in timestamp %lu. Packet count of first data block: %i", data.size(),
-			// ts.GetTimestamp(true), packetCount);
+			// ts.GetEventWindowTag(true), packetCount);
 
 			size_t totalSize = 0;
 

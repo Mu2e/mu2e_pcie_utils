@@ -560,8 +560,8 @@ public:
 	DTC_RegisterFormatter FormatReceivePacketError();
 
 	// CFO Emulation Timestamp Registers
-	void SetCFOEmulationTimestamp(const DTC_Timestamp& ts);
-	DTC_Timestamp ReadCFOEmulationTimestamp();
+	void SetCFOEmulationTimestamp(const DTC_EventWindowTag& ts);
+	DTC_EventWindowTag ReadCFOEmulationTimestamp();
 	DTC_RegisterFormatter FormatCFOEmulationTimestampLow();
 	DTC_RegisterFormatter FormatCFOEmulationTimestampHigh();
 

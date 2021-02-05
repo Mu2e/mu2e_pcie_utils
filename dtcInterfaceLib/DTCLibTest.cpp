@@ -189,52 +189,52 @@ void DTCLib::DTCLibTest::doClassTest()
 	auto err = false;
 	try
 	{
-		if (printMessages_) std::cout << "Testing DTC_Timestamp Class..." << std::endl;
+		if (printMessages_) std::cout << "Testing DTC_EventWindowTag Class..." << std::endl;
 
-		auto defaultTS = DTC_Timestamp();
+		auto defaultTS = DTC_EventWindowTag();
 		if (printMessages_)
-			std::cout << "Default Constructor, TS should be 0: " << defaultTS.GetTimestamp(true) << std::endl;
-		err = err || defaultTS.GetTimestamp(true) != 0;
+			std::cout << "Default Constructor, TS should be 0: " << defaultTS.GetEventWindowTag(true) << std::endl;
+		err = err || defaultTS.GetEventWindowTag(true) != 0;
 
-		auto tsSixtyFour = DTC_Timestamp(static_cast<uint64_t>(0xFFFFBEEFDEADBEEF));
+		auto tsSixtyFour = DTC_EventWindowTag(static_cast<uint64_t>(0xFFFFBEEFDEADBEEF));
 		if (printMessages_)
 			std::cout << "uint64_t Constructor, TS should be 0xBEEFDEADBEEF: " << std::hex << std::showbase
-					  << tsSixtyFour.GetTimestamp(true) << std::endl;
-		err = err || tsSixtyFour.GetTimestamp(true) != 0xBEEFDEADBEEF;
+					  << tsSixtyFour.GetEventWindowTag(true) << std::endl;
+		err = err || tsSixtyFour.GetEventWindowTag(true) != 0xBEEFDEADBEEF;
 
-		auto tsSixteenThirtyTwo = DTC_Timestamp(static_cast<uint32_t>(0xDEADBEEF), static_cast<uint16_t>(0xDEAD));
+		auto tsSixteenThirtyTwo = DTC_EventWindowTag(static_cast<uint32_t>(0xDEADBEEF), static_cast<uint16_t>(0xDEAD));
 		if (printMessages_)
 			std::cout << "uint32_t/uint16_t Constructor, TS should be 0xDEADDEADBEEF: "
-					  << tsSixteenThirtyTwo.GetTimestamp(true) << std::endl;
-		err = err || tsSixteenThirtyTwo.GetTimestamp(true) != 0xDEADDEADBEEF;
+					  << tsSixteenThirtyTwo.GetEventWindowTag(true) << std::endl;
+		err = err || tsSixteenThirtyTwo.GetEventWindowTag(true) != 0xDEADDEADBEEF;
 
 		uint8_t arr[6] = {0xAD, 0xDE, 0xAD, 0xDE, 0xEF, 0xBE};
-		auto tsArray = DTC_Timestamp(arr);
+		auto tsArray = DTC_EventWindowTag(arr);
 		if (printMessages_)
-			std::cout << "Array Constructor, TS should be 0xBEEFDEADDEAD: " << tsArray.GetTimestamp(true) << std::endl;
-		err = err || tsArray.GetTimestamp(true) != 0xBEEFDEADDEAD;
+			std::cout << "Array Constructor, TS should be 0xBEEFDEADDEAD: " << tsArray.GetEventWindowTag(true) << std::endl;
+		err = err || tsArray.GetEventWindowTag(true) != 0xBEEFDEADDEAD;
 
-		auto tsCopy = new DTC_Timestamp(defaultTS);
-		if (printMessages_) std::cout << "Copy Constructor, TS should be 0: " << tsCopy->GetTimestamp(true) << std::endl;
-		err = err || tsCopy->GetTimestamp(true) != 0;
+		auto tsCopy = new DTC_EventWindowTag(defaultTS);
+		if (printMessages_) std::cout << "Copy Constructor, TS should be 0: " << tsCopy->GetEventWindowTag(true) << std::endl;
+		err = err || tsCopy->GetEventWindowTag(true) != 0;
 
-		tsCopy->SetTimestamp(0xBEEFDEAD, 0xBEEF);
+		tsCopy->SetEventWindowTag(0xBEEFDEAD, 0xBEEF);
 		if (printMessages_)
-			std::cout << "SetTimestamp 32/16 Method, TS should be 0xBEEFBEEFDEAD: " << tsCopy->GetTimestamp(true)
+			std::cout << "SetEventWindowTag 32/16 Method, TS should be 0xBEEFBEEFDEAD: " << tsCopy->GetEventWindowTag(true)
 					  << std::endl;
-		err = err || tsCopy->GetTimestamp().to_ullong() != 0xBEEFBEEFDEAD;
+		err = err || tsCopy->GetEventWindowTag().to_ullong() != 0xBEEFBEEFDEAD;
 
-		tsCopy->SetTimestamp(0xDEADDEADBEEFBEEF);
+		tsCopy->SetEventWindowTag(0xDEADDEADBEEFBEEF);
 		if (printMessages_)
-			std::cout << "SetTimestamp 64 Method, TS should be 0xDEADBEEFBEEF: " << tsCopy->GetTimestamp(true) << std::endl;
-		err = err || tsCopy->GetTimestamp().to_ullong() != 0xDEADBEEFBEEF;
+			std::cout << "SetEventWindowTag 64 Method, TS should be 0xDEADBEEFBEEF: " << tsCopy->GetEventWindowTag(true) << std::endl;
+		err = err || tsCopy->GetEventWindowTag().to_ullong() != 0xDEADBEEFBEEF;
 
-		if (printMessages_) std::cout << "Running DTC_Timestamp destructor" << std::endl;
+		if (printMessages_) std::cout << "Running DTC_EventWindowTag destructor" << std::endl;
 		delete tsCopy;
 
 		if (err)
 		{
-			if (printMessages_) std::cout << "DTC_Timestamp Class failed checks!" << std::endl;
+			if (printMessages_) std::cout << "DTC_EventWindowTag Class failed checks!" << std::endl;
 			goto end;
 		}
 
@@ -468,24 +468,7 @@ void DTCLib::DTCLibTest::doDAQTest()
 		if (data.size() > 0)
 		{
 			if (printMessages_) std::cout << data.size() << " packets returned\n";
-			for (auto i = 0ULL; i < data.size(); ++i)
-			{
-				TRACE(19, "DTC::GetJSONData constructing DataPacket:");
-				auto test = DTC_DataPacket(data[i].blockPointer);
-				if (printMessages_) std::cout << test.toJSON() << '\n';  // dumps whole databuff_t
-				auto h2 = DTC_DataHeaderPacket(test);
-				if (printMessages_)
-				{
-					std::cout << h2.toJSON() << '\n';
-					for (auto jj = 0; jj < h2.GetPacketCount(); ++jj)
-					{
-						std::cout << "\t"
-								  << DTC_DataPacket(reinterpret_cast<const uint8_t*>(data[i].blockPointer) + (jj + 1) * 16).toJSON()
-								  << std::endl;
-					}
-				}
 			}
-		}
 		else
 		{
 			TRACE_CNTL("modeM", 0L);

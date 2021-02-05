@@ -401,26 +401,18 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DCSRequestPacket::ConvertToDataPacket() const
 }
 
 DTCLib::DTC_HeartbeatPacket::DTC_HeartbeatPacket(DTC_Link_ID link)
-	: DTC_DMAPacket(DTC_PacketType_Heartbeat, link), timestamp_(), eventMode_(), deliveryRingTDC_()
+	: DTC_DMAPacket(DTC_PacketType_Heartbeat, link), event_tag_(), eventMode_(), deliveryRingTDC_()
 {
-	eventMode_[0] = 0;
-	eventMode_[1] = 0;
-	eventMode_[2] = 0;
-	eventMode_[3] = 0;
-	eventMode_[4] = 0;
+	eventMode_.mode0 = 0;
+	eventMode_.mode1 = 0;
+	eventMode_.mode2 = 0;
+	eventMode_.mode3 = 0;
+	eventMode_.mode4 = 0;
 }
 
-DTCLib::DTC_HeartbeatPacket::DTC_HeartbeatPacket(DTC_Link_ID link, DTC_Timestamp timestamp, uint8_t* eventMode, uint8_t deliveryRingTDC)
-	: DTC_DMAPacket(DTC_PacketType_Heartbeat, link), timestamp_(timestamp), eventMode_(), deliveryRingTDC_(deliveryRingTDC)
-{
-	if (eventMode != nullptr)
-	{
-		for (auto i = 0; i < 5; ++i)
-		{
-			eventMode_[i] = eventMode[i];
-		}
-	}
-}
+DTCLib::DTC_HeartbeatPacket::DTC_HeartbeatPacket(DTC_Link_ID link, DTC_EventWindowTag event_tag, DTC_EventMode eventMode, uint8_t deliveryRingTDC)
+	: DTC_DMAPacket(DTC_PacketType_Heartbeat, link), event_tag_(event_tag), eventMode_(eventMode), deliveryRingTDC_(deliveryRingTDC)
+{}
 
 DTCLib::DTC_HeartbeatPacket::DTC_HeartbeatPacket(const DTC_DataPacket in)
 	: DTC_DMAPacket(in)
@@ -432,13 +424,13 @@ DTCLib::DTC_HeartbeatPacket::DTC_HeartbeatPacket(const DTC_DataPacket in)
 		throw ex;
 	}
 	auto arr = in.GetData();
-	eventMode_[0] = arr[10];
-	eventMode_[1] = arr[11];
-	eventMode_[2] = arr[12];
-	eventMode_[3] = arr[13];
-	eventMode_[4] = arr[14];
+	eventMode_.mode0 = arr[10];
+	eventMode_.mode1 = arr[11];
+	eventMode_.mode2 = arr[12];
+	eventMode_.mode3 = arr[13];
+	eventMode_.mode4 = arr[14];
 	deliveryRingTDC_ = arr[15];
-	timestamp_ = DTC_Timestamp(arr, 4);
+	event_tag_ = DTC_EventWindowTag(arr, 4);
 }
 
 std::string DTCLib::DTC_HeartbeatPacket::toJSON()
@@ -446,12 +438,12 @@ std::string DTCLib::DTC_HeartbeatPacket::toJSON()
 	std::stringstream ss;
 	ss << "\"ReadoutRequestPacket\": {";
 	ss << headerJSON() << ",";
-	ss << timestamp_.toJSON() << ",";
-	ss << "\"request\": [" << std::hex << "0x" << static_cast<int>(eventMode_[0]) << ",";
-	ss << std::hex << "0x" << static_cast<int>(eventMode_[1]) << ",";
-	ss << std::hex << "0x" << static_cast<int>(eventMode_[2]) << ",";
-	ss << std::hex << "0x" << static_cast<int>(eventMode_[3]) << ",";
-	ss << std::hex << "0x" << static_cast<int>(eventMode_[4]) << "],";
+	ss << event_tag_.toJSON() << ",";
+	ss << "\"request\": [" << std::hex << "0x" << static_cast<int>(eventMode_.mode0) << ",";
+	ss << std::hex << "0x" << static_cast<int>(eventMode_.mode1) << ",";
+	ss << std::hex << "0x" << static_cast<int>(eventMode_.mode2) << ",";
+	ss << std::hex << "0x" << static_cast<int>(eventMode_.mode3) << ",";
+	ss << std::hex << "0x" << static_cast<int>(eventMode_.mode4) << "],";
 	ss << "\"deliveryRingTDC\": " << std::hex << " 0x" << static_cast<int>(deliveryRingTDC_) << "";
 	ss << "}";
 	return ss.str();
@@ -461,35 +453,32 @@ std::string DTCLib::DTC_HeartbeatPacket::toPacketFormat()
 {
 	std::stringstream ss;
 	ss << headerPacketFormat() << std::setfill('0') << std::hex;
-	ss << timestamp_.toPacketFormat();
-	ss << "0x" << std::setw(6) << static_cast<int>(eventMode_[1]) << "\t0x" << std::setw(6)
-	   << static_cast<int>(eventMode_[0]) << "\n";
-	ss << "0x" << std::setw(6) << static_cast<int>(eventMode_[3]) << "\t0x" << std::setw(6)
-	   << static_cast<int>(eventMode_[2]) << "\n";
+	ss << event_tag_.toPacketFormat();
+	ss << "0x" << std::setw(6) << static_cast<int>(eventMode_.mode1) << "\t0x" << std::setw(6)
+	   << static_cast<int>(eventMode_.mode0) << "\n";
+	ss << "0x" << std::setw(6) << static_cast<int>(eventMode_.mode3) << "\t0x" << std::setw(6)
+	   << static_cast<int>(eventMode_.mode2) << "\n";
 	ss << "0x" << std::setw(6) << static_cast<int>(deliveryRingTDC_) << "\t0x" << std::setw(6)
-	   << static_cast<int>(eventMode_[4]) << "\n";
+	   << static_cast<int>(eventMode_.mode4) << "\n";
 	return ss.str();
 }
 
 DTCLib::DTC_DataPacket DTCLib::DTC_HeartbeatPacket::ConvertToDataPacket() const
 {
 	auto output = DTC_DMAPacket::ConvertToDataPacket();
-	timestamp_.GetTimestamp(output.GetData(), 4);
-	for (auto i = 0; i < 5; ++i)
-	{
-		output.SetWord(static_cast<uint16_t>(10 + i), eventMode_[i]);
-	}
+	event_tag_.GetEventWindowTag(output.GetData(), 4);
+	eventMode_.GetEventMode(output.GetData(), 10);
 	output.SetWord(static_cast<uint16_t>(15), deliveryRingTDC_);
 	return output;
 }
 
 DTCLib::DTC_DataRequestPacket::DTC_DataRequestPacket(DTC_Link_ID link, bool debug, uint16_t debugPacketCount,
 													 DTC_DebugType type)
-	: DTC_DMAPacket(DTC_PacketType_DataRequest, link), timestamp_(), debug_(debug), debugPacketCount_(debugPacketCount), type_(type) {}
+	: DTC_DMAPacket(DTC_PacketType_DataRequest, link), event_tag_(), debug_(debug), debugPacketCount_(debugPacketCount), type_(type) {}
 
-DTCLib::DTC_DataRequestPacket::DTC_DataRequestPacket(DTC_Link_ID link, DTC_Timestamp timestamp, bool debug,
+DTCLib::DTC_DataRequestPacket::DTC_DataRequestPacket(DTC_Link_ID link, DTC_EventWindowTag event_tag, bool debug,
 													 uint16_t debugPacketCount, DTC_DebugType type)
-	: DTC_DMAPacket(DTC_PacketType_DataRequest, link), timestamp_(timestamp), debug_(debug), debugPacketCount_(debugPacketCount), type_(type) {}
+	: DTC_DMAPacket(DTC_PacketType_DataRequest, link), event_tag_(event_tag), debug_(debug), debugPacketCount_(debugPacketCount), type_(type) {}
 
 DTCLib::DTC_DataRequestPacket::DTC_DataRequestPacket(DTC_DataPacket in)
 	: DTC_DMAPacket(in)
@@ -500,7 +489,7 @@ DTCLib::DTC_DataRequestPacket::DTC_DataRequestPacket(DTC_DataPacket in)
 		TLOG(TLVL_ERROR) << ex.what();
 		throw ex;
 	}
-	timestamp_ = DTC_Timestamp(in.GetData(), 4);
+	event_tag_ = DTC_EventWindowTag(in.GetData(), 4);
 	debug_ = (in.GetData()[12] & 0x1) == 1;
 	type_ = DTC_DebugType((in.GetData()[12] & 0xF0) >> 4);
 	debugPacketCount_ = in.GetData()[14] + (in.GetData()[15] << 8);
@@ -511,7 +500,7 @@ std::string DTCLib::DTC_DataRequestPacket::toJSON()
 	std::stringstream ss;
 	ss << "\"DataRequestPacket\": {";
 	ss << headerJSON() << ",";
-	ss << timestamp_.toJSON() << ",";
+	ss << event_tag_.toJSON() << ",";
 	ss << "\"debug\":" << (debug_ ? "true" : "false") << ",";
 	ss << "\"debugPacketCount\": " << std::dec << static_cast<int>(debugPacketCount_) << ",";
 	ss << DTC_DebugTypeConverter(type_);
@@ -523,7 +512,7 @@ std::string DTCLib::DTC_DataRequestPacket::toPacketFormat()
 {
 	std::stringstream ss;
 	ss << headerPacketFormat() << std::setfill('0') << std::hex;
-	ss << timestamp_.toPacketFormat();
+	ss << event_tag_.toPacketFormat();
 	ss << "        \t        \n";
 	ss << "        \t0x" << std::setw(2) << static_cast<int>(type_) << "   " << std::setw(1) << static_cast<int>(debug_)
 	   << "\n";
@@ -535,7 +524,7 @@ std::string DTCLib::DTC_DataRequestPacket::toPacketFormat()
 DTCLib::DTC_DataPacket DTCLib::DTC_DataRequestPacket::ConvertToDataPacket() const
 {
 	auto output = DTC_DMAPacket::ConvertToDataPacket();
-	timestamp_.GetTimestamp(output.GetData(), 4);
+	event_tag_.GetEventWindowTag(output.GetData(), 4);
 	output.SetWord(12, (static_cast<uint8_t>(type_) << 4) + (debug_ ? 1 : 0));
 	output.SetWord(14, debugPacketCount_ & 0xFF);
 	output.SetWord(15, (debugPacketCount_ >> 8) & 0xFF);
@@ -727,9 +716,9 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DCSReplyPacket::ConvertToDataPacket() const
 }
 
 DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_Link_ID link, uint16_t packetCount, DTC_DataStatus status,
-												   uint8_t dtcid, DTC_Subsystem subsystemid, uint8_t packetVersion, DTC_Timestamp timestamp,
+												   uint8_t dtcid, DTC_Subsystem subsystemid, uint8_t packetVersion, DTC_EventWindowTag event_tag,
 												   uint8_t evbMode)
-	: DTC_DMAPacket(DTC_PacketType_DataHeader, link, (1 + packetCount) * 16, true, subsystemid), packetCount_(packetCount), timestamp_(timestamp), status_(status), dataPacketVersion_(packetVersion), dtcId_(dtcid), evbMode_(evbMode) {}
+	: DTC_DMAPacket(DTC_PacketType_DataHeader, link, (1 + packetCount) * 16, true, subsystemid), packetCount_(packetCount), event_tag_(event_tag), status_(status), dataPacketVersion_(packetVersion), dtcId_(dtcid), evbMode_(evbMode) {}
 
 DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_DataPacket in)
 	: DTC_DMAPacket(in)
@@ -744,7 +733,7 @@ DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_DataPacket in)
 	}
 	auto arr = in.GetData();
 	packetCount_ = arr[4] + (arr[5] << 8);
-	timestamp_ = DTC_Timestamp(arr, 6);
+	event_tag_ = DTC_EventWindowTag(arr, 6);
 	status_ = DTC_DataStatus(arr[12]);
 	dataPacketVersion_ = arr[13];
 	dtcId_ = arr[14];
@@ -757,7 +746,7 @@ std::string DTCLib::DTC_DataHeaderPacket::toJSON()
 	ss << "\"DataHeaderPacket\": {";
 	ss << headerJSON() << ",";
 	ss << "\"packetCount\": " << std::dec << static_cast<int>(packetCount_) << ",";
-	ss << timestamp_.toJSON() << ",";
+	ss << event_tag_.toJSON() << ",";
 	ss << "\"status\": " << std::dec << static_cast<int>(status_) << ",";
 	ss << "\"packetVersion\": " << std::hex << static_cast<int>(dataPacketVersion_) << ",";
 	ss << "\"DTC ID\": " << std::dec << static_cast<int>(dtcId_) << ",";
@@ -771,7 +760,7 @@ std::string DTCLib::DTC_DataHeaderPacket::toPacketFormat()
 	ss << headerPacketFormat() << std::setfill('0') << std::hex;
 	ss << "     0x" << std::setw(1) << ((packetCount_ & 0x0700) >> 8) << "\t"
 	   << "0x" << std::setw(6) << (packetCount_ & 0xFF) << "\n";
-	ss << timestamp_.toPacketFormat();
+	ss << event_tag_.toPacketFormat();
 	ss << "0x" << std::setw(6) << static_cast<int>(dataPacketVersion_) << "\t"
 	   << "0x" << std::setw(6) << static_cast<int>(status_) << "\n";
 	ss << "0x" << std::setw(6) << static_cast<int>(evbMode_) << "\t" << std::dec << std::setw(8) << static_cast<int>(dtcId_) << "\n";
@@ -783,7 +772,7 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DataHeaderPacket::ConvertToDataPacket() const
 	auto output = DTC_DMAPacket::ConvertToDataPacket();
 	output.SetWord(4, static_cast<uint8_t>(packetCount_));
 	output.SetWord(5, static_cast<uint8_t>((packetCount_ & 0x0700) >> 8));
-	timestamp_.GetTimestamp(output.GetData(), 6);
+	event_tag_.GetEventWindowTag(output.GetData(), 6);
 	output.SetWord(12, static_cast<uint8_t>(status_));
 	output.SetWord(13, static_cast<uint8_t>(dataPacketVersion_));
 	output.SetWord(14, static_cast<uint8_t>(dtcId_));
@@ -795,3 +784,85 @@ bool DTCLib::DTC_DataHeaderPacket::Equals(const DTC_DataHeaderPacket& other) con
 {
 	return ConvertToDataPacket() == other.ConvertToDataPacket();
 }
+
+DTCLib::DTC_SubEvent::DTC_SubEvent(const uint8_t*& ptr)
+	: header_(), data_blocks_()
+{
+	header_.inclusive_subevent_byte_count = *reinterpret_cast<const uint32_t*>(ptr) & 0x1FFFFFF;
+	ptr += 4;
+	header_.event_tag.GetEventWindowTag(ptr);
+	ptr += 6;
+
+	header_.num_rocs = *ptr;
+	ptr += 1;
+	header_.event_mode.GetEventMode(ptr);
+	ptr += 5;
+	header_.dtc_mac = *ptr;
+	ptr += 1;
+	header_.partition_id = *ptr;
+	ptr += 1;
+	header_.evb_mode = *ptr;
+	ptr += 1;
+	header_.source_dtc_id = *ptr;
+	ptr += 1;
+
+	header_.link0_status = DTC_LinkStatus(*ptr);
+	ptr += 1;
+	header_.link1_status = DTC_LinkStatus(*ptr);
+	ptr += 1;
+	header_.link2_status = DTC_LinkStatus(*ptr);
+	ptr += 1;
+	header_.link3_status = DTC_LinkStatus(*ptr);
+	ptr += 1;
+	header_.link4_status = DTC_LinkStatus(*ptr);
+	ptr += 1;
+	header_.link5_status = DTC_LinkStatus(*ptr);
+	ptr += 2;
+	header_.emtdc = *ptr;
+	ptr += 1;
+
+	size_t byte_count = 32;
+	while (byte_count < header_.inclusive_subevent_byte_count)
+	{
+		data_blocks_.emplace_back(static_cast<const void*>(ptr));
+		auto data_block_byte_count =data_blocks_.back().byteSize;
+		byte_count += data_block_byte_count;
+		ptr += data_block_byte_count;
+	}
+}
+
+DTCLib::DTC_Event::DTC_Event(const void* data)
+	: header_(), sub_events_()
+{
+	auto ptr = reinterpret_cast<const uint8_t*>(data);
+
+	header_.inclusive_event_byte_count = *reinterpret_cast<const uint32_t*>(ptr) & 0x1FFFFFF;
+	ptr += 4;
+	header_.event_tag.GetEventWindowTag(ptr);
+	ptr += 6;
+	header_.num_dtcs = *ptr;
+	ptr += 1;
+	header_.event_mode.GetEventMode(ptr);
+	ptr += 5;
+	header_.dtc_mac = *ptr;
+	ptr += 1;
+	header_.partition_id = *ptr;
+	ptr += 1;
+	header_.evb_mode = *ptr;
+	ptr += 1;
+	header_.evb_id = *ptr;
+	ptr += 1;
+	header_.evb_status = DTC_EVBStatus(*ptr);
+	ptr += 1;
+	header_.emtdc = *ptr;
+	ptr += 3;
+
+	size_t byte_count = 24;
+	while (byte_count < header_.inclusive_event_byte_count)
+	{
+		sub_events_.emplace_back(ptr);
+		byte_count += sub_events_.back().GetSubEventByteCount();
+	}
+
+}
+

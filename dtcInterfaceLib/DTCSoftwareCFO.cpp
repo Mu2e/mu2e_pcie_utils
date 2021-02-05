@@ -60,7 +60,7 @@ void DTCLib::DTCSoftwareCFO::WaitForRequestsToBeSent() const
 	}
 }
 
-void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_Timestamp ts, uint32_t heartbeatsAfter)
+void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint32_t heartbeatsAfter)
 {
 	if (theDTC_->IsDetectorEmulatorInUse())
 	{
@@ -129,7 +129,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_Timestamp ts, uint32_t 
 	requestsSent_ = true;
 }
 
-void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_Timestamp start, bool increment,
+void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag start, bool increment,
 												  uint32_t delayBetweenDataRequests, int requestsAhead,
 												  uint32_t heartbeatsAfter)
 {
@@ -200,7 +200,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_Timestamp start
 	}
 }
 
-void DTCLib::DTCSoftwareCFO::SendRequestsForList(std::set<DTC_Timestamp> timestamps,
+void DTCLib::DTCSoftwareCFO::SendRequestsForList(std::set<DTC_EventWindowTag> timestamps,
 												 uint32_t delayBetweenDataRequests,
 												 uint32_t heartbeatsAfter)
 {
@@ -219,7 +219,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForList(std::set<DTC_Timestamp> timesta
 		new std::thread(&DTCSoftwareCFO::SendRequestsForListImplAsync, this, timestamps, delayBetweenDataRequests, heartbeatsAfter));
 }
 
-void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_Timestamp> timestamps,
+void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_EventWindowTag> timestamps,
 														  uint32_t delayBetweenDataRequests,
 														  uint32_t heartbeatsAfter)
 {
@@ -234,7 +234,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_Timestamp
 		TLOG(TLVL_SendRequestsForRangeImpl) << "Setting up CFO Emulator for next entry in list";
 		auto thisTimestamp = *ii;
 		++ii;
-		DTC_Timestamp nextTimestamp = thisTimestamp + 5;  // Generate 5 nulls at the end of the list
+		DTC_EventWindowTag nextTimestamp = thisTimestamp + 5;  // Generate 5 nulls at the end of the list
 		if (ii != timestamps.end())
 		{
 			nextTimestamp = *ii;
@@ -265,7 +265,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_Timestamp
 	}
 }
 
-void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplSync(DTC_Timestamp start, int count, bool increment,
+void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplSync(DTC_EventWindowTag start, int count, bool increment,
 														  uint32_t delayBetweenDataRequests, int requestsAhead, uint32_t heartbeatsAfter)
 {
 	TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImplSync Start";
@@ -284,7 +284,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplSync(DTC_Timestamp start, i
 	}
 }
 
-void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_Timestamp start, int count, bool increment,
+void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag start, int count, bool increment,
 														   uint32_t delayBetweenDataRequests, uint32_t heartbeatsAfter)
 {
 	TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImplAsync Start";

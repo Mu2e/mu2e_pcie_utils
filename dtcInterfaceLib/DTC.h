@@ -35,18 +35,13 @@ public:
 	//
 	// Data read-out
 	/// <summary>
-	/// Reads data from the DTC, and returns all data blocks with the same timestamp. If timestamp is specified, will look
-	/// for data with that timestamp.
+	/// Reads data from the DTC, and returns all data blocks with the same event window tag. If event window tag is specified, will look
+	/// for data with that event window tag.
 	/// </summary>
-	/// <param name="when">Desired timestamp for readout. Default means use whatever timestamp is next</param>
-	/// <returns>A vector of DTC_DataBlock objects</returns>
-	std::vector<DTC_DataBlock> GetData(DTC_Timestamp when = DTC_Timestamp());
-	/// <summary>
-	/// Reads data from the DTC and returns all data blocks with the same timestamp, as a JSON string.
-	/// </summary>
-	/// <param name="when">Desired timestamp for readout. Default means use whatever timestamp is next</param>
-	/// <returns>JSON data string</returns>
-	std::string GetJSONData(DTC_Timestamp when = DTC_Timestamp());
+	/// <param name="when">Desired event window tag for readout. Default means use whatever event window tag is next</param>
+	/// <returns>A vector of DTC_Event objects</returns>
+	std::vector<std::unique_ptr<DTC_Event>> GetData(DTC_EventWindowTag when = DTC_EventWindowTag());
+
 	/// <summary>
 	/// Read a file into the DTC memory. Will truncate the file so that it fits in the DTC memory.
 	/// </summary>
@@ -163,7 +158,7 @@ public:
 	/// <param name="when">Timestamp for the Readout Request</param>
 	/// <param name="quiet">Whether to not print the JSON representation of the Readout Request (Default: true, no JSON
 	/// printed)</param>
-	void SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_Timestamp& when, bool quiet = true);
+	void SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_EventWindowTag& when, bool quiet = true);
 	/// <summary>
 	/// Send a DCS Request Packet to the given ROC. Use the Read/Write ROC Register functions for more convinient register
 	/// access.
@@ -192,13 +187,12 @@ public:
 	/// <param name="buf">DMA buffer to write. Must have an inclusive 64-bit byte count at the beginning, followed by an
 	/// exclusive 64-bit block count.</param> <param name="sz">Size ofthe data in the buffer</param>
 	void WriteDetectorEmulatorData(mu2e_databuff_t* buf, size_t sz);
-	/// <summary>
-	/// Reads the next available DataHeaderPacket. If no data is available in the cache, a new DMA buffer is obtained.
-	/// Performs several validity checks on the data, if no data is available or data is invalid, will return nullptr.
-	/// </summary>
-	/// <param name="tmo_ms">Timeout before returning nullptr. Default: 0, no timeout</param>
-	/// <returns>Pointer to DataHeaderPacket. Will be nullptr if no data available.</returns>
-	std::unique_ptr<DTC_DataHeaderPacket> ReadNextDAQPacket(int tmo_ms = 0);
+	/**
+	 * @brief Read the next DMA from the DAQ channel. If no data is present, will return nullptr
+	 * @param tmo_ms Timeout
+	 * @return A DTC_Event representing the data in a single DMA, or nullptr if no data/timeout
+	*/
+	std::unique_ptr<DTC_Event> ReadNextDAQDMA(int tmo_ms = 0);
 	/// <summary>
 	/// DCS packets are read one-at-a-time, this function reads the next one from the DTC
 	/// </summary>

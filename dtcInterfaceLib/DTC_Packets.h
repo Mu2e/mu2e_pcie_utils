@@ -140,27 +140,11 @@ public:
 	DTC_DataPacket();
 
 	/// <summary>
-	/// Construct a DTC_DataPacket in "overlay" mode using the given DMA buffer pointer. Flag will be set that the packet
-	/// is read-only.
-	/// </summary>
-	/// <param name="data">Pointer data</param>
-	explicit DTC_DataPacket(const mu2e_databuff_t* data)
-		: dataPtr_(*data), dataSize_(16), memPacket_(true) {}
-
-	/// <summary>
 	/// Construct a DTC_DataPacket using a pointer to data. Flag will be set that the packet is read-only.
 	/// </summary>
 	/// <param name="data">Pointer to data</param>
 	explicit DTC_DataPacket(const void* data)
 		: dataPtr_(static_cast<const uint8_t*>(data)), dataSize_(16), memPacket_(true) {}
-
-	/// <summary>
-	/// Construct a DTC_DataPacket in "overlay" mode using the given byte pointer. Flag will be set that the packet is
-	/// read-only.
-	/// </summary>
-	/// <param name="data">Pointer to data</param>
-	explicit DTC_DataPacket(const uint8_t* data)
-		: dataPtr_(data), dataSize_(16), memPacket_(true) {}
 
 	/// <summary>
 	/// Creates a copy of the DTC_DataPacket. Mode is preserved, if the existing DataPacket was in "owner" mode, a deep
@@ -606,7 +590,7 @@ public:
 	/// <param name="link">Destination Link</param>
 	/// <param name="timestamp">Timestamp of request</param>
 	/// <param name="eventMode">Debug event mode bytes (Default: nullptr) If not null, must be 6 bytes long</param>
-	DTC_HeartbeatPacket(DTC_Link_ID link, DTC_Timestamp timestamp, uint8_t* eventMode = nullptr, uint8_t deliveryRingTDC = 0);
+	DTC_HeartbeatPacket(DTC_Link_ID link, DTC_EventWindowTag event_tag, DTC_EventMode eventMode = DTC_EventMode(), uint8_t deliveryRingTDC = 0);
 	/// <summary>
 	/// Default Copy Constructor
 	/// </summary>
@@ -629,16 +613,16 @@ public:
 	virtual ~DTC_HeartbeatPacket() noexcept = default;
 
 	/// <summary>
-	/// Get the DTC_Timestamp stored in the HeartbeatPacket
+	/// Get the DTC_EventWindowTag stored in the HeartbeatPacket
 	/// </summary>
 	/// <returns>Timestamp of Heartbeat</returns>
-	DTC_Timestamp GetTimestamp() const { return timestamp_; }
+	DTC_EventWindowTag GetEventWindowTag() const { return event_tag_; }
 
 	/// <summary>
 	/// Get the Mode bytes from the Heartbeat packet
 	/// </summary>
-	/// <returns>6-byte array containing mode bytes</returns>
-	virtual uint8_t* GetData() { return eventMode_; }
+	/// <returns>5-byte array containing mode bytes</returns>
+	virtual DTC_EventMode GetData() { return eventMode_; }
 
 	/// <summary>
 	/// Convert a DTC_HeartbeatPacket to DTC_DataPacket in "owner" mode
@@ -657,8 +641,8 @@ public:
 	std::string toPacketFormat() override;
 
 private:
-	DTC_Timestamp timestamp_;
-	uint8_t eventMode_[5];
+	DTC_EventWindowTag event_tag_;
+	DTC_EventMode eventMode_;
 	uint8_t deliveryRingTDC_;
 };
 
@@ -685,7 +669,7 @@ public:
 	/// <param name="debug">Debug Mode flag (Default: true)</param>
 	/// <param name="debugPacketCount">Debug Packet Count (Default: 0)</param>
 	/// <param name="type">Debug Type (Default: DTC_DebugType_SpecialSequence</param>
-	DTC_DataRequestPacket(DTC_Link_ID link, DTC_Timestamp timestamp, bool debug = true, uint16_t debugPacketCount = 0,
+	DTC_DataRequestPacket(DTC_Link_ID link, DTC_EventWindowTag event_tag, bool debug = true, uint16_t debugPacketCount = 0,
 						  DTC_DebugType type = DTC_DebugType_SpecialSequence);
 	/// <summary>
 	/// Default Copy Constructor
@@ -730,8 +714,8 @@ public:
 	/// <summary>
 	/// Get the timestamp of the request
 	/// </summary>
-	/// <returns>DTC_Timestamp of reqeust</returns>
-	DTC_Timestamp GetTimestamp() const { return timestamp_; }
+	/// <returns>DTC_EventWindowTag of reqeust</returns>
+	DTC_EventWindowTag GetEventWindowTag() const { return event_tag_; }
 
 	/// <summary>
 	/// Convert a DTC_DataRequestPacket to DTC_DataPacket in "owner" mode
@@ -750,7 +734,7 @@ public:
 	std::string toPacketFormat() override;
 
 private:
-	DTC_Timestamp timestamp_;
+	DTC_EventWindowTag event_tag_;
 	bool debug_;
 	uint16_t debugPacketCount_;
 	DTC_DebugType type_;
@@ -879,7 +863,7 @@ public:
 	/// <param name="timestamp">Timestamp of Data Packet (Default: DTC_Timetstamp())</param>
 	/// <param name="evbMode">EVB Mode byte (Default: 0)</param>
 	DTC_DataHeaderPacket(DTC_Link_ID link, uint16_t packetCount, DTC_DataStatus status, uint8_t dtcid, DTC_Subsystem subsystemid,
-						 uint8_t packetVersion, DTC_Timestamp timestamp = DTC_Timestamp(), uint8_t evbMode = 0);
+						 uint8_t packetVersion,DTC_EventWindowTag event_tag = DTC_EventWindowTag(), uint8_t evbMode = 0);
 	/// <summary>
 	/// Default Copy Constructor
 	/// </summary>
@@ -936,7 +920,7 @@ public:
 	/// Get the Timestamp of the Data Block
 	/// </summary>
 	/// <returns>timestamp of Data Block</returns>
-	DTC_Timestamp GetTimestamp() const { return timestamp_; }
+	DTC_EventWindowTag GetEventWindowTag() const { return event_tag_; }
 
 	/// <summary>
 	/// Get the Data Status of the Data Block
@@ -978,7 +962,7 @@ public:
 
 private:
 	uint16_t packetCount_;
-	DTC_Timestamp timestamp_;
+	DTC_EventWindowTag event_tag_;
 	DTC_DataStatus status_;
 	uint8_t dataPacketVersion_;
 	uint8_t dtcId_;
@@ -1027,7 +1011,80 @@ struct DTC_DataBlock
 		assert(byteSize > 16);
 		return static_cast<const void*>(reinterpret_cast<const uint8_t*>(blockPointer) + 16);
 	}
+	};
+
+struct DTC_SubEventHeader
+{
+	uint32_t inclusive_subevent_byte_count;  // 25 bits
+	DTC_EventWindowTag event_tag;
+
+	uint8_t num_rocs;
+	DTC_EventMode event_mode;
+
+	uint8_t dtc_mac;
+	uint8_t partition_id;
+	uint8_t evb_mode;
+	uint8_t source_dtc_id;
+
+	DTC_LinkStatus link0_status;
+	DTC_LinkStatus link1_status;
+	DTC_LinkStatus link2_status;
+	DTC_LinkStatus link3_status;
+	DTC_LinkStatus link4_status;
+	DTC_LinkStatus link5_status;
+	uint8_t emtdc;
 };
+
+class DTC_SubEvent
+{
+public:
+	/// <summary>
+	/// Construct a DTC_SubEvent using a pointer to data. Flag will be set that the packet is read-only.
+	/// </summary>
+	/// <param name="ptr">Pointer to data</param>
+	explicit DTC_SubEvent(const uint8_t*& ptr);
+
+	size_t GetSubEventByteCount() { return header_.inclusive_subevent_byte_count; }
+
+private:
+	DTC_SubEventHeader header_;
+	std::list<DTC_DataBlock> data_blocks_;
+};
+
+struct DTC_EventHeader
+{
+	uint32_t inclusive_event_byte_count;  // 25 bits
+	DTC_EventWindowTag event_tag;
+
+	uint8_t num_dtcs;
+	DTC_EventMode event_mode;
+
+	uint8_t dtc_mac;
+	uint8_t partition_id;
+	uint8_t evb_mode;
+	uint8_t evb_id;
+	DTC_EVBStatus evb_status;
+	uint8_t emtdc;
+};
+
+class DTC_Event
+{
+public:
+	/// <summary>
+	/// Construct a DTC_Event in "overlay" mode using the given DMA buffer pointer. Flag will be set that the packet
+	/// is read-only.
+	/// </summary>
+	/// <param name="data">Pointer data</param>
+	explicit DTC_Event(const void* data);
+
+	size_t GetEventByteCount() const { return header_.inclusive_event_byte_count;}
+	DTC_EventWindowTag GetEventWindowTag() const { return header_.event_tag;}
+
+private:
+	DTC_EventHeader header_;
+	std::list<DTC_SubEvent> sub_events_;
+};
+
 }  // namespace DTCLib
 
 #endif  // DTC_PACKETS_H

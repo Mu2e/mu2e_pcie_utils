@@ -89,10 +89,10 @@ public:
 private:
 	unsigned delta_(int chn, int dir);
 	static void clearBuffer_(int chn, bool increment = true);
-	void openEvent_(DTCLib::DTC_Timestamp ts);
+	void openEvent_(DTCLib::DTC_EventWindowTag ts);
 	void closeEvent_();
 	void CFOEmulator_();
-	void packetSimulator_(DTCLib::DTC_Timestamp ts, DTCLib::DTC_Link_ID link, uint16_t packetCount);
+	void packetSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_Link_ID link, uint16_t packetCount);
 	void dcsPacketSimulator_(DTCLib::DTC_DCSRequestPacket in);
 
 	std::unordered_map<uint16_t, uint32_t> registers_;
@@ -110,7 +110,7 @@ private:
 	typedef std::bitset<6> readoutRequestData;
 	std::map<uint64_t, readoutRequestData> readoutRequestReceived_;
 
-	DTCLib::DTC_Timestamp currentTimestamp_;
+	DTCLib::DTC_EventWindowTag currentTimestamp_;
 	uint64_t currentEventSize_;
 	std::streampos eventBegin_;
 };

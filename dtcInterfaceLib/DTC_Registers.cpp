@@ -2949,12 +2949,12 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatReceivePacketError()
 
 // CFO Emulation Timestamp Registers
 /// <summary>
-/// Set the starting DTC_Timestamp for the CFO Emulator
+/// Set the starting DTC_EventWindowTag for the CFO Emulator
 /// </summary>
 /// <param name="ts">Starting Timestamp for CFO Emulation</param>
-void DTCLib::DTC_Registers::SetCFOEmulationTimestamp(const DTC_Timestamp& ts)
+void DTCLib::DTC_Registers::SetCFOEmulationTimestamp(const DTC_EventWindowTag& ts)
 {
-	auto timestamp = ts.GetTimestamp();
+	auto timestamp = ts.GetEventWindowTag();
 	auto timestampLow = static_cast<uint32_t>(timestamp.to_ulong());
 	timestamp >>= 32;
 	auto timestampHigh = static_cast<uint16_t>(timestamp.to_ulong());
@@ -2964,14 +2964,14 @@ void DTCLib::DTC_Registers::SetCFOEmulationTimestamp(const DTC_Timestamp& ts)
 }
 
 /// <summary>
-/// Read the starting DTC_Timestamp for the CFO Emulator
+/// Read the starting DTC_EventWindowTag for the CFO Emulator
 /// </summary>
-/// <returns>DTC_Timestamp object</returns>
-DTCLib::DTC_Timestamp DTCLib::DTC_Registers::ReadCFOEmulationTimestamp()
+/// <returns>DTC_EventWindowTag object</returns>
+DTCLib::DTC_EventWindowTag DTCLib::DTC_Registers::ReadCFOEmulationTimestamp()
 {
 	auto timestampLow = ReadRegister_(DTC_Register_CFOEmulationTimestampLow);
-	DTC_Timestamp output;
-	output.SetTimestamp(timestampLow, static_cast<uint16_t>(ReadRegister_(DTC_Register_CFOEmulationTimestampHigh)));
+	DTC_EventWindowTag output;
+	output.SetEventWindowTag(timestampLow, static_cast<uint16_t>(ReadRegister_(DTC_Register_CFOEmulationTimestampHigh)));
 	return output;
 }
 

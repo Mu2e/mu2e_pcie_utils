@@ -956,9 +956,9 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParam
 }
 
 // Timestamp Preset Registers
-void CFOLib::CFO_Registers::SetTimestampPreset(const DTC_Timestamp& preset)
+void CFOLib::CFO_Registers::SetEventWindowTagPreset(const DTC_EventWindowTag& preset)
 {
-	auto timestamp = preset.GetTimestamp();
+	auto timestamp = preset.GetEventWindowTag();
 	auto timestampLow = static_cast<uint32_t>(timestamp.to_ulong());
 	timestamp >>= 32;
 	auto timestampHigh = static_cast<uint16_t>(timestamp.to_ulong());
@@ -967,11 +967,11 @@ void CFOLib::CFO_Registers::SetTimestampPreset(const DTC_Timestamp& preset)
 	WriteRegister_(timestampHigh, CFO_Register_TimestampPreset1);
 }
 
-DTCLib::DTC_Timestamp CFOLib::CFO_Registers::ReadTimestampPreset()
+DTCLib::DTC_EventWindowTag CFOLib::CFO_Registers::ReadTimestampPreset()
 {
 	auto timestampLow = ReadRegister_(CFO_Register_TimestampPreset0);
-	DTC_Timestamp output;
-	output.SetTimestamp(timestampLow, static_cast<uint16_t>(ReadRegister_(CFO_Register_TimestampPreset1)));
+	DTC_EventWindowTag output;
+	output.SetEventWindowTag(timestampLow, static_cast<uint16_t>(ReadRegister_(CFO_Register_TimestampPreset1)));
 	return output;
 }
 

@@ -717,12 +717,12 @@ public:
 	/// Set the Timestamp preset for Timing system emulation mode
 	/// </summary>
 	/// <param name="preset">Timestamp for Timing emulation</param>
-	void SetTimestampPreset(const DTC_Timestamp& preset);
+	void SetEventWindowTagPreset(const DTC_EventWindowTag& preset);
 	/// <summary>
 	/// Read the Timestamp preset for Timing system emulation mode
 	/// </summary>
 	/// <returns>Timestamp preset</returns>
-	DTC_Timestamp ReadTimestampPreset();
+	DTC_EventWindowTag ReadTimestampPreset();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>

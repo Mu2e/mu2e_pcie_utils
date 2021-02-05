@@ -249,7 +249,7 @@ void WriteGeneratedData(DTC* thisDTC)
 			{
 				auto index = kk % DTC_Links.size();
 				DTC_DataHeaderPacket header(DTC_Links[index], static_cast<uint16_t>(packetCount), DTC_DataStatus_Valid,
-											static_cast<uint8_t>(kk / DTC_Links.size()), DTC_Subsystem_Other, 0, DTC_Timestamp(ts));
+											static_cast<uint8_t>(kk / DTC_Links.size()), DTC_Subsystem_Other, 0, DTC_EventWindowTag(ts));
 				auto packet = header.ConvertToDataPacket();
 				memcpy(reinterpret_cast<uint8_t*>(buf) + currentOffset, packet.GetData(), sizeof(uint8_t) * 16);
 				if (rawOutput) outputStream << packet;
@@ -307,7 +307,7 @@ void WriteGeneratedData(DTC* thisDTC)
 void printHelpMsg()
 {
 	std::cout << "Usage: mu2eUtil [options] "
-				 "[read,read_data,reset_ddrread,reset_detemu,toggle_serdes,loopback,buffer_test,read_release,DTC,program_"
+				 "[read_data,reset_ddrread,reset_detemu,toggle_serdes,loopback,buffer_test,read_release,DTC,program_"
 				 "clock,verify_simfile,dma_info]"
 			  << std::endl;
 	std::cout
@@ -525,27 +525,7 @@ int main(int argc, char* argv[])
 	}
 	if (rawOutput) outputStream.open(rawOutputFile, std::ios::out | std::ios::app | std::ios::binary);
 
-	if (op == "read")
-	{
-		TLOG(TLVL_DEBUG) << "Operation \"read\"" << std::endl;
-		auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
-		auto packet = thisDTC->ReadNextDAQPacket();
-		if (packet)
-		{
-			TLOG((reallyQuiet ? TLVL_DEBUG + 5 : TLVL_INFO)) << packet->toJSON() << '\n';
-			if (rawOutput)
-			{
-				auto rawPacket = packet->ConvertToDataPacket();
-				for (auto ii = 0; ii < 16; ++ii)
-				{
-					auto word = rawPacket.GetWord(ii);
-					outputStream.write(reinterpret_cast<char*>(&word), sizeof(uint8_t));
-				}
-			}
-		}
-		delete thisDTC;
-	}
-	else if (op == "read_data")
+	if (op == "read_data")
 	{
 		TLOG(TLVL_DEBUG) << "Operation \"read_data\"" << std::endl;
 		auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
@@ -671,24 +651,24 @@ int main(int argc, char* argv[])
 		if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && timestampFile != "")
 		{
 			syncRequests = false;
-			std::set<DTC_Timestamp> timestamps;
+			std::set<DTC_EventWindowTag> timestamps;
 			std::ifstream is(timestampFile);
 			uint64_t a;
 			while (is >> a)
 			{
-				timestamps.insert(DTC_Timestamp(a));
+				timestamps.insert(DTC_EventWindowTag(a));
 			}
 			number = timestamps.size();
 			cfo.SendRequestsForList(timestamps, cfodelay, heartbeatsAfter);
 		}
 		else if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && !syncRequests)
 		{
-			cfo.SendRequestsForRange(number, DTC_Timestamp(timestampOffset), incrementTimestamp, cfodelay, requestsAhead, heartbeatsAfter);
+			cfo.SendRequestsForRange(number, DTC_EventWindowTag(timestampOffset), incrementTimestamp, cfodelay, requestsAhead, heartbeatsAfter);
 		}
 		else if (thisDTC->ReadSimMode() == DTC_SimMode_Loopback)
 		{
 			uint64_t ts = timestampOffset;
-			DTC_DataHeaderPacket header(DTC_Link_0, static_cast<uint16_t>(0), DTC_DataStatus_Valid, 0, DTC_Subsystem_Other, 0, DTC_Timestamp(ts));
+			DTC_DataHeaderPacket header(DTC_Link_0, static_cast<uint16_t>(0), DTC_DataStatus_Valid, 0, DTC_Subsystem_Other, 0, DTC_EventWindowTag(ts));
 			TLOG(TLVL_INFO) << "Request: " << header.toJSON() << std::endl;
 			thisDTC->WriteDMAPacket(header);
 		}
@@ -702,7 +682,7 @@ int main(int argc, char* argv[])
 			if (syncRequests)
 			{
 				auto startRequest = std::chrono::steady_clock::now();
-				cfo.SendRequestForTimestamp(DTC_Timestamp(timestampOffset + (incrementTimestamp ? ii : 0), heartbeatsAfter));
+				cfo.SendRequestForTimestamp(DTC_EventWindowTag(timestampOffset + (incrementTimestamp ? ii : 0), heartbeatsAfter));
 				auto endRequest = std::chrono::steady_clock::now();
 				readoutRequestTime +=
 					std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(endRequest - startRequest).count();
@@ -825,7 +805,7 @@ break;
 
 		if (!syncRequests)
 		{
-			theCFO.SendRequestsForRange(number, DTC_Timestamp(timestampOffset), incrementTimestamp, cfodelay, requestsAhead, heartbeatsAfter);
+			theCFO.SendRequestsForRange(number, DTC_EventWindowTag(timestampOffset), incrementTimestamp, cfodelay, requestsAhead, heartbeatsAfter);
 		}
 
 		uint64_t ii = 0;
@@ -844,13 +824,13 @@ break;
 			{
 				auto startRequest = std::chrono::steady_clock::now();
 				auto ts = incrementTimestamp ? ii + timestampOffset : timestampOffset;
-				theCFO.SendRequestForTimestamp(DTC_Timestamp(ts), heartbeatsAfter);
+				theCFO.SendRequestForTimestamp(DTC_EventWindowTag(ts), heartbeatsAfter);
 				auto endRequest = std::chrono::steady_clock::now();
 				readoutRequestTime +=
 					std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(endRequest - startRequest).count();
 			}
 
-			auto data = thisDTC->GetData();  // DTC_Timestamp(ts));
+			auto data = thisDTC->GetData();  // DTC_EventWindowTag(ts));
 
 			if (data.size() > 0)
 			{
@@ -864,16 +844,16 @@ break;
 					// TRACE(19, test.toJSON().c_str());
 					// if (!reallyQuiet) cout << test.toJSON() << '\n'; // dumps whole databuff_t
 					auto h2 = DTC_DataHeaderPacket(test);
-					if (expectedTS != h2.GetTimestamp().GetTimestamp(true))
+					if (expectedTS != h2.GetEventWindowTag().GetEventWindowTag(true))
 					{
-						TLOG(TLVL_INFO) << std::dec << h2.GetTimestamp().GetTimestamp(true) << " does not match expected timestamp of "
+						TLOG(TLVL_INFO) << std::dec << h2.GetEventWindowTag().GetEventWindowTag(true) << " does not match expected timestamp of "
 										<< expectedTS << "!!!" << std::endl;
-						if (incrementTimestamp && h2.GetTimestamp().GetTimestamp(true) <= timestampOffset + number)
+						if (incrementTimestamp && h2.GetEventWindowTag().GetEventWindowTag(true) <= timestampOffset + number)
 						{
-							auto diff = static_cast<int64_t>(h2.GetTimestamp().GetTimestamp(true)) - static_cast<int64_t>(expectedTS);
+							auto diff = static_cast<int64_t>(h2.GetEventWindowTag().GetEventWindowTag(true)) - static_cast<int64_t>(expectedTS);
 							ii += diff > 0 ? diff : 0;
 						}
-						expectedTS = h2.GetTimestamp().GetTimestamp(true);
+						expectedTS = h2.GetEventWindowTag().GetEventWindowTag(true);
 					}
 					else if (i == data.size() - 1)
 					{

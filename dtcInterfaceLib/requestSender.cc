@@ -98,10 +98,10 @@ int main(int argc, char* argv[])
 
 	if (number > 1)
 	{
-		theEmulator.SendRequestsForRange(number, DTCLib::DTC_Timestamp(timestampOffset), incrementTimestamp, delay);
+		theEmulator.SendRequestsForRange(number, DTCLib::DTC_EventWindowTag(timestampOffset), incrementTimestamp, delay);
 	}
 	else
 	{
-		theEmulator.SendRequestForTimestamp(DTCLib::DTC_Timestamp(timestampOffset));
+		theEmulator.SendRequestForTimestamp(DTCLib::DTC_EventWindowTag(timestampOffset));
 	}
 }

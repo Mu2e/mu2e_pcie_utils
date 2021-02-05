@@ -43,85 +43,78 @@ DTCLib::DTC::~DTC()
 //
 // DMA Functions
 //
-std::vector<DTCLib::DTC_DataBlock> DTCLib::DTC::GetData(DTC_Timestamp when)
+std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWindowTag when)
 {
 	TLOG(TLVL_GetData) << "GetData begin";
-	std::vector<DTC_DataBlock> output;
-	std::unique_ptr<DTC_DataHeaderPacket> packet = nullptr;
+	std::vector<std::unique_ptr<DTC_Event>> output;
+	std::unique_ptr<DTC_Event> packet = nullptr;
 	ReleaseBuffers(DTC_DMA_Engine_DAQ);
 
 	try
 	{
-		// Read the header packet
+		// Read the next DTC_Event
 		auto tries = 0;
-		size_t sz;
 		while (packet == nullptr && tries < 3)
 		{
 			TLOG(TLVL_GetData) << "GetData before ReadNextDAQPacket, tries=" << tries;
-			packet = ReadNextDAQPacket(100);
+			packet = ReadNextDAQDMA(100);
 			if (packet != nullptr)
 			{
 				TLOG(TLVL_GetData) << "GetData after ReadDMADAQPacket, ts=0x" << std::hex
-								   << packet->GetTimestamp().GetTimestamp(true);
+								   << packet->GetEventWindowTag().GetEventWindowTag(true);
 			}
 			tries++;
 			// if (packet == nullptr) usleep(5000);
 		}
 		if (packet == nullptr)
 		{
-			TLOG(TLVL_GetData) << "GetData: Timeout Occurred! (Lead packet is nullptr after retries)";
+			TLOG(TLVL_GetData) << "GetData: Timeout Occurred! (DTC_Event is nullptr after retries)";
 			return output;
 		}
 
-		if (packet->GetTimestamp() != when && when.GetTimestamp(true) != 0)
+		if (packet->GetEventWindowTag() != when && when.GetEventWindowTag(true) != 0)
 		{
-			TLOG(TLVL_ERROR) << "GetData: Error: Lead packet has wrong timestamp! 0x" << std::hex << when.GetTimestamp(true)
-							 << "(expected) != 0x" << std::hex << packet->GetTimestamp().GetTimestamp(true);
+			TLOG(TLVL_ERROR) << "GetData: Error: DTC_Event has wrong Event Window Tag! 0x" << std::hex << when.GetEventWindowTag(true)
+							 << "(expected) != 0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true);
 			packet.reset(nullptr);
 			daqDMAInfo_.currentReadPtr = daqDMAInfo_.lastReadPtr;
 			return output;
 		}
 
-		sz = packet->GetByteCount();
-		when = packet->GetTimestamp();
+		when = packet->GetEventWindowTag();
 
-		packet.reset(nullptr);
-
-		TLOG(TLVL_GetData) << "GetData: Adding pointer " << (void*)daqDMAInfo_.lastReadPtr << " to the list (first)";
-		output.push_back(DTC_DataBlock(daqDMAInfo_.lastReadPtr, sz));
+		TLOG(TLVL_GetData) << "GetData: Adding DTC_Event " << (void*)daqDMAInfo_.lastReadPtr << " to the list (first)";
+		output.push_back(std::move(packet));
 
 		auto done = false;
 		while (!done)
 		{
-			size_t sz2 = 0;
 			TLOG(TLVL_GetData) << "GetData: Reading next DAQ Packet";
-			packet = ReadNextDAQPacket();
+			packet = ReadNextDAQDMA();
 			if (packet == nullptr)  // End of Data
 			{
 				TLOG(TLVL_GetData) << "GetData: Next packet is nullptr; we're done";
 				done = true;
 				daqDMAInfo_.currentReadPtr = nullptr;
 			}
-			else if (packet->GetTimestamp() != when)
+			else if (packet->GetEventWindowTag() != when)
 			{
-				TLOG(TLVL_GetData) << "GetData: Next packet has ts=0x" << std::hex << packet->GetTimestamp().GetTimestamp(true)
-								   << ", not 0x" << std::hex << when.GetTimestamp(true) << "; we're done";
+				TLOG(TLVL_GetData) << "GetData: Next packet has ts=0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true)
+								   << ", not 0x" << std::hex << when.GetEventWindowTag(true) << "; we're done";
 				done = true;
 				daqDMAInfo_.currentReadPtr = daqDMAInfo_.lastReadPtr;
 			}
 			else
 			{
 				TLOG(TLVL_GetData) << "GetData: Next packet has same ts=0x" << std::hex
-								   << packet->GetTimestamp().GetTimestamp(true) << ", continuing (bc=0x" << std::hex
-								   << packet->GetByteCount() << ")";
-				sz2 = packet->GetByteCount();
+								   << packet->GetEventWindowTag().GetEventWindowTag(true) << ", continuing (bc=0x" << std::hex
+								   << packet->GetEventByteCount() << ")";
 			}
-			packet.reset(nullptr);
 
 			if (!done)
 			{
 				TLOG(TLVL_GetData) << "GetData: Adding pointer " << (void*)daqDMAInfo_.lastReadPtr << " to the list";
-				output.push_back(DTC_DataBlock(daqDMAInfo_.lastReadPtr, sz2));
+				output.push_back(std::move(packet));
 			}
 		}
 	}
@@ -142,44 +135,8 @@ std::vector<DTCLib::DTC_DataBlock> DTCLib::DTC::GetData(DTC_Timestamp when)
 	}
 
 	TLOG(TLVL_GetData) << "GetData RETURN";
-	packet.reset(nullptr);
 	return output;
 }  // GetData
-
-std::string DTCLib::DTC::GetJSONData(DTC_Timestamp when)
-{
-	TLOG(TLVL_GetJSONData) << "GetJSONData BEGIN";
-	std::stringstream ss;
-	TLOG(TLVL_GetJSONData) << "GetJSONData before call to GetData";
-	auto data = GetData(when);
-	TLOG(TLVL_GetJSONData) << "GetJSONData after call to GetData, data size " << data.size();
-
-	for (size_t i = 0; i < data.size(); ++i)
-	{
-		TLOG(TLVL_GetJSONData) << "GetJSONData constructing DataPacket:";
-		auto test = DTC_DataPacket(data[i].blockPointer);
-		TLOG(TLVL_GetJSONData) << test.toJSON();
-		TLOG(TLVL_GetJSONData) << "GetJSONData constructing DataHeaderPacket";
-		auto theHeader = DTC_DataHeaderPacket(test);
-		ss << "DataBlock: {";
-		ss << theHeader.toJSON() << ",";
-		ss << "DataPackets: [";
-		for (auto packet = 0; packet < theHeader.GetPacketCount(); ++packet)
-		{
-			auto packetPtr = static_cast<const void*>(reinterpret_cast<const uint8_t*>(data[i].blockPointer) + 16 * (1 + packet));
-			ss << DTC_DataPacket(packetPtr).toJSON() << ",";
-		}
-		ss << "]";
-		ss << "}";
-		if (i + 1 < data.size())
-		{
-			ss << ",";
-		}
-	}
-
-	TLOG(TLVL_GetJSONData) << "GetJSONData RETURN";
-	return ss.str();
-}
 
 void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool overwriteEnvironment,
 									std::string outputFileName, bool skipVerify)
@@ -785,7 +742,7 @@ std::string DTCLib::DTC::ROCRegDump(const DTC_Link_ID& link)
 	return o.str();
 }
 
-void DTCLib::DTC::SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_Timestamp& when, bool quiet)
+void DTCLib::DTC::SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_EventWindowTag& when, bool quiet)
 {
 	DTC_HeartbeatPacket req(link, when);
 	TLOG(TLVL_SendReadoutRequestPacket) << "SendReadoutRequestPacket before WriteDMADAQPacket - DTC_HeartbeatPacket";
@@ -820,20 +777,74 @@ void DTCLib::DTC::SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOpe
 	TLOG(TLVL_SendDCSRequestPacket) << "SendDCSRequestPacket after  WriteDMADCSPacket - DTC_DCSRequestPacket";
 }
 
-std::unique_ptr<DTCLib::DTC_DataHeaderPacket> DTCLib::DTC::ReadNextDAQPacket(int tmo_ms)
+std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 {
-	auto test = ReadNextPacket(DTC_DMA_Engine_DAQ, tmo_ms);
-	if (test == nullptr) return nullptr;  // Couldn't read new block
-	auto output = std::make_unique<DTC_DataHeaderPacket>(*test.get());
-	TLOG(TLVL_ReadNextDAQPacket) << output->toJSON();
-	if (static_cast<uint16_t>((1 + output->GetPacketCount()) * 16) != output->GetByteCount())
+	TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA BEGIN";
+
+	if (daqDMAInfo_.currentReadPtr != nullptr)
 	{
-		TLOG(TLVL_ERROR) << "Data Error Detected: PacketCount: " << output->GetPacketCount()
-						 << ", ExpectedByteCount: " << (1u + output->GetPacketCount()) * 16u
-						 << ", BlockByteCount: " << output->GetByteCount();
-		throw DTC_DataCorruptionException();
+		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA BEFORE BUFFER CHECK daqDMAInfo_.currentReadPtr="
+									 << (void*)daqDMAInfo_.currentReadPtr << " *nextReadPtr_=0x" << std::hex
+									 << *(uint16_t*)daqDMAInfo_.currentReadPtr;
 	}
-	return output;
+	else
+	{
+		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA BEFORE BUFFER CHECK daqDMAInfo_.currentReadPtr=nullptr";
+	}
+
+	auto index = GetCurrentBuffer(&daqDMAInfo_);
+
+	// Need new buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
+	if (index < 0)
+	{
+		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA Obtaining new DAQ Buffer";
+
+		void* oldBufferPtr = nullptr;
+		if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
+		auto sts = ReadBuffer(DTC_DMA_Engine_DAQ, tmo_ms, 0 /*retries*/);  // does return code
+		if (sts <= 0)
+		{
+			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA: ReadBuffer returned " << sts << ", returning nullptr";
+			return nullptr;
+		}
+		// MUST BE ABLE TO HANDLE daqbuffer_==nullptr OR retry forever?
+		daqDMAInfo_.currentReadPtr = &daqDMAInfo_.buffer.back()[0];
+		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
+									 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
+									 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
+		void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
+		if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
+		{
+			TLOG(TLVL_ReadNextDAQPacket)
+				<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
+			daqDMAInfo_.currentReadPtr = nullptr;
+			// We didn't actually get a new buffer...this probably means there's no more data
+			// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
+			device_.read_release(DTC_DMA_Engine_DAQ, 1);
+			return nullptr;
+		}
+		daqDMAInfo_.bufferIndex++;
+
+		daqDMAInfo_.currentReadPtr = reinterpret_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
+		*static_cast<uint32_t*>(daqDMAInfo_.currentReadPtr) = daqDMAInfo_.bufferIndex;
+		daqDMAInfo_.currentReadPtr = reinterpret_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
+
+		index =daqDMAInfo_.buffer.size() - 1;
+	}
+
+	TLOG(TLVL_ReadNextDAQPacket) << "Creating DTC_Event from current DMA Buffer";
+	auto res = std::make_unique<DTC_Event>(daqDMAInfo_.currentReadPtr);
+
+	// Update the packet pointers
+
+	// lastReadPtr_ is easy...
+	daqDMAInfo_.lastReadPtr = daqDMAInfo_.currentReadPtr;
+
+	// Increment by the size of the data block
+	daqDMAInfo_.currentReadPtr = reinterpret_cast<char*>(daqDMAInfo_.currentReadPtr) + res->GetEventByteCount();
+
+	TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA: RETURN";
+	return res;
 }
 
 std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int tmo_ms)
@@ -842,16 +853,6 @@ std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int t
 	if (test == nullptr) return nullptr;  // Couldn't read new block
 	auto output = std::make_unique<DTC_DCSReplyPacket>(*test.get());
 	TLOG(TLVL_ReadNextDAQPacket) << output->toJSON();
-	// ELF 5/21/2019: Since we had to add a word to the DCS reply to work around a mysterious issue in the DMA engine, these byte counts will not match
-	/*
-	if (static_cast<uint16_t>((1 + output->GetBlockPacketCount()) * 16) != output->GetByteCount())
-	{
-		TLOG(TLVL_ERROR) << "Data Error Detected: PacketCount: " << output->GetBlockPacketCount()
-						 << ", ExpectedByteCount: " << (1u + output->GetBlockPacketCount()) * 16u
-						 << ", BlockByteCount: " << output->GetByteCount();
-		throw DTC_DataCorruptionException();
-	}
-	*/
 
 	return output;
 }

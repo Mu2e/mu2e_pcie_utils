@@ -95,48 +95,48 @@ DTCLib::DTC_SimMode DTCLib::DTC_SimModeConverter::ConvertToSimMode(std::string m
 	}
 }
 
-DTCLib::DTC_Timestamp::DTC_Timestamp()
-	: timestamp_(0) {}
+DTCLib::DTC_EventWindowTag::DTC_EventWindowTag()
+	: event_tag_(0) {}
 
-DTCLib::DTC_Timestamp::DTC_Timestamp(const uint64_t timestamp)
-	: timestamp_(timestamp) {}
+DTCLib::DTC_EventWindowTag::DTC_EventWindowTag(const uint64_t event_tag)
+	: event_tag_(event_tag) {}
 
-DTCLib::DTC_Timestamp::DTC_Timestamp(const uint32_t timestampLow, const uint16_t timestampHigh)
+DTCLib::DTC_EventWindowTag::DTC_EventWindowTag(const uint32_t event_tag_low, const uint16_t event_tag_high)
 {
-	SetTimestamp(timestampLow, timestampHigh);
+	SetEventWindowTag(event_tag_low, event_tag_high);
 }
 
-DTCLib::DTC_Timestamp::DTC_Timestamp(const uint8_t* timeArr, int offset)
+DTCLib::DTC_EventWindowTag::DTC_EventWindowTag(const uint8_t* timeArr, int offset)
 {
 	auto arr = reinterpret_cast<const uint64_t*>(timeArr + offset);
-	timestamp_ = *arr;
+	event_tag_ = *arr;
 }
 
-DTCLib::DTC_Timestamp::DTC_Timestamp(const std::bitset<48> timestamp)
-	: timestamp_(timestamp.to_ullong()) {}
+DTCLib::DTC_EventWindowTag::DTC_EventWindowTag(const std::bitset<48> event_tag)
+	: event_tag_(event_tag.to_ullong()) {}
 
-void DTCLib::DTC_Timestamp::SetTimestamp(const uint32_t timestampLow, const uint16_t timestampHigh)
+void DTCLib::DTC_EventWindowTag::SetEventWindowTag(const uint32_t event_tag_low, const uint16_t event_tag_high)
 {
-	uint64_t timestamp_temp = timestampHigh;
-	timestamp_temp = timestamp_temp << 32;
-	timestamp_ = timestampLow + timestamp_temp;
+	uint64_t event_tag_temp = event_tag_high;
+	event_tag_temp = event_tag_temp << 32;
+	event_tag_ = event_tag_low + event_tag_temp;
 }
 
-void DTCLib::DTC_Timestamp::GetTimestamp(const uint8_t* timeArr, int offset) const
+void DTCLib::DTC_EventWindowTag::GetEventWindowTag(const uint8_t* timeArr, int offset) const
 {
 	for (auto i = 0; i < 6; i++)
 	{
-		const_cast<uint8_t*>(timeArr)[i + offset] = static_cast<uint8_t>(timestamp_ >> i * 8);
+		const_cast<uint8_t*>(timeArr)[i + offset] = static_cast<uint8_t>(event_tag_ >> i * 8);
 	}
 }
 
-std::string DTCLib::DTC_Timestamp::toJSON(bool arrayMode) const
+std::string DTCLib::DTC_EventWindowTag::toJSON(bool arrayMode) const
 {
 	std::stringstream ss;
 	if (arrayMode)
 	{
 		uint8_t ts[6];
-		GetTimestamp(ts, 0);
+		GetEventWindowTag(ts, 0);
 		ss << "\"timestamp\": [" << static_cast<int>(ts[0]) << ",";
 		ss << static_cast<int>(ts[1]) << ",";
 		ss << static_cast<int>(ts[2]) << ",";
@@ -146,15 +146,15 @@ std::string DTCLib::DTC_Timestamp::toJSON(bool arrayMode) const
 	}
 	else
 	{
-		ss << "\"timestamp\": " << timestamp_;
+		ss << "\"timestamp\": " << event_tag_;
 	}
 	return ss.str();
 }
 
-std::string DTCLib::DTC_Timestamp::toPacketFormat() const
+std::string DTCLib::DTC_EventWindowTag::toPacketFormat() const
 {
 	uint8_t ts[6];
-	GetTimestamp(ts, 0);
+	GetEventWindowTag(ts, 0);
 	std::stringstream ss;
 	ss << std::setfill('0') << std::hex;
 	ss << "0x" << std::setw(6) << static_cast<int>(ts[1]) << "\t"
