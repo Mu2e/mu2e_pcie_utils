@@ -145,7 +145,8 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	if (op == "simple_read") {
+	if (op == "simple_read")
+	{
 		TRACE_CNTL("modeS", 0);
 	}
 
@@ -163,16 +164,30 @@ int main(int argc, char* argv[])
 		for (unsigned ii = 0; ii < number; ++ii)
 		{
 			TLOG(TLVL_DEBUG) << "Operation \"read_register\" " << ii << std::endl;
-			auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
-			TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
+			try
+			{
+				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
+				TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
+			}
+			catch (std::runtime_error& err)
+			{
+				TLOG(TLVL_ERROR) << "Error reading from ROC: " << err;
+			}
 		}
 	}
-	else if(op == "simple_read")
+	else if (op == "simple_read")
 	{
-			TLOG(TLVL_DEBUG) << "Operation \"simple_read\"" << std::endl;
+		TLOG(TLVL_DEBUG) << "Operation \"simple_read\"" << std::endl;
+		try
+		{
 			auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
 			std::cout << std::hex << std::showbase << rocdata;
 			TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
+		}
+		catch (std::runtime_error& err)
+		{
+			TLOG(TLVL_ERROR) << "Error reading from ROC: " << err;
+		}
 	}
 	else if (op == "reset_roc")
 	{
@@ -319,7 +334,7 @@ int main(int argc, char* argv[])
 			auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
 			readPtr = static_cast<uint8_t*>(readPtr) + 8;
 			TLOG((reallyQuiet ? TLVL_DEBUG + 5 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
-												<< sts << " bytes," << std::endl;
+															 << sts << " bytes," << std::endl;
 
 			TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
 
@@ -338,7 +353,7 @@ int main(int argc, char* argv[])
 	}
 
 	delete thisDTC;
-		
+
 	if (op == "simple_read")
 	{
 		TRACE_CNTL("modeS", 1);
