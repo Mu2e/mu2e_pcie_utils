@@ -60,7 +60,7 @@ std::string getOptionString(int* index, char** argv[])
 void printHelpMsg()
 {
 	std::cout << "Usage: rocUtil [options] "
-				 "[read_register,reset_roc,write_register,read_extregister,write_extregister,test_read,read_release,"
+				 "[read_register,simple_read,reset_roc,write_register,read_extregister,write_extregister,test_read,read_release,"
 				 "toggle_serdes,block_read,block_write,raw_block_read]"
 			  << std::endl;
 	std::cout << "Options are:" << std::endl
@@ -145,6 +145,10 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	if (op == "simple_read") {
+		TRACE_CNTL("modeS", 0);
+	}
+
 	TLOG(TLVL_DEBUG) << "Options are: " << std::boolalpha
 					 << "Operation: " << std::string(op) << ", Num: " << number << ", Link: " << link << ", Delay: " << delay
 					 << ", Address: " << address << ", Data: " << data << ", Block: " << block << ", Quiet Mode: " << quiet
@@ -162,6 +166,13 @@ int main(int argc, char* argv[])
 			auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
 			TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
 		}
+	}
+	else if(op == "simple_read")
+	{
+			TLOG(TLVL_DEBUG) << "Operation \"simple_read\"" << std::endl;
+			auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
+			std::cout << std::hex << std::showbase << rocdata;
+			TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
 	}
 	else if (op == "reset_roc")
 	{
@@ -327,5 +338,10 @@ int main(int argc, char* argv[])
 	}
 
 	delete thisDTC;
+		
+	if (op == "simple_read")
+	{
+		TRACE_CNTL("modeS", 1);
+	}
 	return 0;
 }  // main
