@@ -171,7 +171,7 @@ int main(int argc, char* argv[])
 			}
 			catch (std::runtime_error& err)
 			{
-				TLOG(TLVL_ERROR) << "Error reading from ROC: " << err;
+				TLOG(TLVL_ERROR) << "Error reading from ROC: " << err.what();
 			}
 		}
 	}
@@ -186,7 +186,7 @@ int main(int argc, char* argv[])
 		}
 		catch (std::runtime_error& err)
 		{
-			TLOG(TLVL_ERROR) << "Error reading from ROC: " << err;
+			TLOG(TLVL_ERROR) << "Error reading from ROC: " << err.what();
 		}
 	}
 	else if (op == "reset_roc")
