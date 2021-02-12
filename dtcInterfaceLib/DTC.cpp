@@ -746,7 +746,7 @@ void DTCLib::DTC::SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_Ev
 {
 	DTC_HeartbeatPacket req(link, when);
 	TLOG(TLVL_SendReadoutRequestPacket) << "SendReadoutRequestPacket before WriteDMADAQPacket - DTC_HeartbeatPacket";
-	if (!quiet) std::cout << req.toJSON() << std::endl;
+	if (!quiet) TLOG(TLVL_SendReadoutRequestPacket) << req.toJSON();
 	WriteDMAPacket(req);
 	TLOG(TLVL_SendReadoutRequestPacket) << "SendReadoutRequestPacket after  WriteDMADAQPacket - DTC_HeartbeatPacket";
 }
@@ -756,20 +756,20 @@ void DTCLib::DTC::SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOpe
 {
 	DTC_DCSRequestPacket req(link, type, requestAck, false /*incrementAddress*/, address, data);
 
-	if (!quiet) std::cout << "Init DCS Packet: \n"
-						  << req.toJSON() << std::endl;
+	if (!quiet) TLOG(TLVL_SendDCSRequestPacket) << "Init DCS Packet: \n"
+												<< req.toJSON();
 
 	if (type == DTC_DCSOperationType_DoubleRead ||
 		type == DTC_DCSOperationType_DoubleWrite)
 	{
-		std::cout << "Double operation enabled!" << std::endl;
+		TLOG(TLVL_SendDCSRequestPacket) << "Double operation enabled!";
 		req.AddRequest(address2, data2);
 	}
 
 	TLOG(TLVL_SendDCSRequestPacket) << "SendDCSRequestPacket before WriteDMADCSPacket - DTC_DCSRequestPacket";
 
-	if (!quiet) std::cout << "Sending DCS Packet: \n"
-						  << req.toJSON() << std::endl;
+	if (!quiet) TLOG(TLVL_SendDCSRequestPacket) << "Sending DCS Packet: \n"
+												<< req.toJSON();
 
 	if (!ReadDCSReception()) EnableDCSReception();
 

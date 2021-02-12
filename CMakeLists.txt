@@ -60,8 +60,10 @@ add_subdirectory(tools)
 # ups - table and config files
 add_subdirectory(ups)
 
-# doc - Doxygen documentation
-add_subdirectory(doc)
+# Documentation (to comment out if not needed DOXYGEN locally)
+if( $ENV{OTS_DOXY} MATCHES "DOIT" )
+	add_subdirectory(doc)
+endif()
 
 # packaging utility
 include(UseCPack)
