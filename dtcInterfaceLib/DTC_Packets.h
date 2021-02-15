@@ -863,7 +863,7 @@ public:
 	/// <param name="timestamp">Timestamp of Data Packet (Default: DTC_Timetstamp())</param>
 	/// <param name="evbMode">EVB Mode byte (Default: 0)</param>
 	DTC_DataHeaderPacket(DTC_Link_ID link, uint16_t packetCount, DTC_DataStatus status, uint8_t dtcid, DTC_Subsystem subsystemid,
-						 uint8_t packetVersion,DTC_EventWindowTag event_tag = DTC_EventWindowTag(), uint8_t evbMode = 0);
+						 uint8_t packetVersion, DTC_EventWindowTag event_tag = DTC_EventWindowTag(), uint8_t evbMode = 0);
 	/// <summary>
 	/// Default Copy Constructor
 	/// </summary>
@@ -1011,28 +1011,32 @@ struct DTC_DataBlock
 		assert(byteSize > 16);
 		return static_cast<const void*>(reinterpret_cast<const uint8_t*>(blockPointer) + 16);
 	}
-	};
+};
 
 struct DTC_SubEventHeader
 {
-	uint32_t inclusive_subevent_byte_count;  // 25 bits
-	DTC_EventWindowTag event_tag;
+	uint64_t inclusive_subevent_byte_count : 25;
+	uint64_t reserved1 : 7;
+	uint64_t event_tag_low : 32;
 
-	uint8_t num_rocs;
-	DTC_EventMode event_mode;
+	uint64_t event_tag_high : 16;
+	uint64_t num_rocs : 8;
+	uint64_t event_mode : 40;
 
-	uint8_t dtc_mac;
-	uint8_t partition_id;
-	uint8_t evb_mode;
-	uint8_t source_dtc_id;
+	uint64_t dtc_mac : 8;
+	uint64_t partition_id : 8;
+	uint64_t evb_mode : 8;
+	uint64_t source_dtc_id : 8;
+	uint64_t reserved2 : 32;
 
-	DTC_LinkStatus link0_status;
-	DTC_LinkStatus link1_status;
-	DTC_LinkStatus link2_status;
-	DTC_LinkStatus link3_status;
-	DTC_LinkStatus link4_status;
-	DTC_LinkStatus link5_status;
-	uint8_t emtdc;
+	uint64_t link0_status : 8;
+	uint64_t link1_status : 8;
+	uint64_t link2_status : 8;
+	uint64_t link3_status : 8;
+	uint64_t link4_status : 8;
+	uint64_t link5_status : 8;
+	uint64_t reserved3 : 8;
+	uint64_t emtdc : 8;
 };
 
 class DTC_SubEvent
@@ -1044,27 +1048,49 @@ public:
 	/// <param name="ptr">Pointer to data</param>
 	explicit DTC_SubEvent(const uint8_t*& ptr);
 
+	DTC_SubEvent() {}
+
 	size_t GetSubEventByteCount() { return header_.inclusive_subevent_byte_count; }
+
+	DTC_EventWindowTag GetEventWindowTag() const;
+	void SetEventWindowTag(DTC_EventWindowTag const& tag);
+	void SetEventMode(DTC_EventMode const& mode);
+
+	std::vector<DTC_DataBlock> const& GetDataBlocks()
+	{
+		return data_blocks_;
+	}
+	size_t GetDataBlockCount() { return data_blocks_.size(); }
+	DTC_DataBlock* GetDataBlock(size_t idx)
+	{
+		if (idx >= data_blocks_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(data_blocks_.size() - 1) + ")");
+		return &data_blocks_[idx];
+	}
+
+	DTC_SubEventHeader* GetHeader() { return &header_; }
 
 private:
 	DTC_SubEventHeader header_;
-	std::list<DTC_DataBlock> data_blocks_;
+	std::vector<DTC_DataBlock> data_blocks_;
 };
 
 struct DTC_EventHeader
 {
-	uint32_t inclusive_event_byte_count;  // 25 bits
-	DTC_EventWindowTag event_tag;
+	uint64_t inclusive_event_byte_count : 25;
+	uint64_t reserved1 : 7;
+	uint64_t event_tag_low : 32;
 
-	uint8_t num_dtcs;
-	DTC_EventMode event_mode;
+	uint64_t event_tag_high : 16;
+	uint64_t num_dtcs : 8;
+	uint64_t event_mode : 40;
 
-	uint8_t dtc_mac;
-	uint8_t partition_id;
-	uint8_t evb_mode;
-	uint8_t evb_id;
-	DTC_EVBStatus evb_status;
-	uint8_t emtdc;
+	uint64_t dtc_mac : 8;
+	uint64_t partition_id : 8;
+	uint64_t evb_mode : 8;
+	uint64_t evb_id : 8;
+	uint64_t evb_status : 8;
+	uint64_t emtdc : 8;
+	uint64_t reserved2 : 16;
 };
 
 class DTC_Event
@@ -1077,13 +1103,31 @@ public:
 	/// <param name="data">Pointer data</param>
 	explicit DTC_Event(const void* data);
 
-	size_t GetEventByteCount() const { return header_.inclusive_event_byte_count;}
-	DTC_EventWindowTag GetEventWindowTag() const { return header_.event_tag;}
+	DTC_Event()
+		: buffer_ptr_(nullptr) {}
+
+	size_t GetEventByteCount() const { return header_.inclusive_event_byte_count; }
+	DTC_EventWindowTag GetEventWindowTag() const;
+	void SetEventWindowTag(DTC_EventWindowTag const& tag);
+	void SetEventMode(DTC_EventMode const& mode);
 	const void* GetRawBufferPointer() const { return buffer_ptr_; }
+
+	std::vector<DTC_SubEvent> const& GetSubEvents()
+	{
+		return sub_events_;
+	}
+	size_t GetSubEventCount() { return sub_events_.size(); }
+	DTC_SubEvent* GetSubEvent(size_t idx)
+	{
+		if (idx >= sub_events_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(sub_events_.size() - 1) + ")");
+		return &sub_events_[idx];
+	}
+
+	DTC_EventHeader* GetHeader() { return &header_; }
 
 private:
 	DTC_EventHeader header_;
-	std::list<DTC_SubEvent> sub_events_;
+	std::vector<DTC_SubEvent> sub_events_;
 	const void* buffer_ptr_;
 };
 

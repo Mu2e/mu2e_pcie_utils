@@ -34,6 +34,10 @@ enum DTC_Link_ID : uint8_t
 	DTC_Link_EVB = 7,
 	DTC_Link_Unused,
 };
+inline TraceStreamer& operator<<(TraceStreamer& ts, DTC_Link_ID const& link)
+{
+	return ts << static_cast<uint8_t>(link);
+}
 
 static const std::vector<DTC_Link_ID> DTC_Links{DTC_Link_0,
 												DTC_Link_1,

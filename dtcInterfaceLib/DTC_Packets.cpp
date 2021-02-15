@@ -788,47 +788,40 @@ bool DTCLib::DTC_DataHeaderPacket::Equals(const DTC_DataHeaderPacket& other) con
 DTCLib::DTC_SubEvent::DTC_SubEvent(const uint8_t*& ptr)
 	: header_(), data_blocks_()
 {
-	header_.inclusive_subevent_byte_count = *reinterpret_cast<const uint32_t*>(ptr) & 0x1FFFFFF;
-	ptr += 4;
-	header_.event_tag.GetEventWindowTag(ptr);
-	ptr += 6;
+	memcpy(&header_, ptr, sizeof(header_));
+	ptr += sizeof(header_);
 
-	header_.num_rocs = *ptr;
-	ptr += 1;
-	header_.event_mode.GetEventMode(ptr);
-	ptr += 5;
-	header_.dtc_mac = *ptr;
-	ptr += 1;
-	header_.partition_id = *ptr;
-	ptr += 1;
-	header_.evb_mode = *ptr;
-	ptr += 1;
-	header_.source_dtc_id = *ptr;
-	ptr += 1;
-
-	header_.link0_status = DTC_LinkStatus(*ptr);
-	ptr += 1;
-	header_.link1_status = DTC_LinkStatus(*ptr);
-	ptr += 1;
-	header_.link2_status = DTC_LinkStatus(*ptr);
-	ptr += 1;
-	header_.link3_status = DTC_LinkStatus(*ptr);
-	ptr += 1;
-	header_.link4_status = DTC_LinkStatus(*ptr);
-	ptr += 1;
-	header_.link5_status = DTC_LinkStatus(*ptr);
-	ptr += 2;
-	header_.emtdc = *ptr;
-	ptr += 1;
-
-	size_t byte_count = 32;
+	size_t byte_count = sizeof(header_);
 	while (byte_count < header_.inclusive_subevent_byte_count)
 	{
 		data_blocks_.emplace_back(static_cast<const void*>(ptr));
-		auto data_block_byte_count =data_blocks_.back().byteSize;
+		auto data_block_byte_count = data_blocks_.back().byteSize;
 		byte_count += data_block_byte_count;
 		ptr += data_block_byte_count;
 	}
+}
+
+DTCLib::DTC_EventWindowTag DTCLib::DTC_SubEvent::GetEventWindowTag() const
+{
+	return DTC_EventWindowTag(header_.event_tag_low, header_.event_tag_high);
+}
+
+void DTCLib::DTC_SubEvent::SetEventWindowTag(DTC_EventWindowTag const& tag)
+{
+	uint64_t tag_word = tag.GetEventWindowTag(true);
+	header_.event_tag_low = tag_word;
+	header_.event_tag_high = tag_word >> 32;
+}
+
+void DTCLib::DTC_SubEvent::SetEventMode(DTC_EventMode const& mode)
+{
+	uint64_t mode_word = mode.mode0;
+	mode_word += (static_cast<uint64_t>(mode.mode1) << 8);
+	mode_word += (static_cast<uint64_t>(mode.mode2) << 16);
+	mode_word += (static_cast<uint64_t>(mode.mode3) << 24);
+	mode_word += (static_cast<uint64_t>(mode.mode4) << 32);
+
+	header_.event_mode = mode_word;
 }
 
 DTCLib::DTC_Event::DTC_Event(const void* data)
@@ -836,33 +829,36 @@ DTCLib::DTC_Event::DTC_Event(const void* data)
 {
 	auto ptr = reinterpret_cast<const uint8_t*>(data);
 
-	header_.inclusive_event_byte_count = *reinterpret_cast<const uint32_t*>(ptr) & 0x1FFFFFF;
-	ptr += 4;
-	header_.event_tag.GetEventWindowTag(ptr);
-	ptr += 6;
-	header_.num_dtcs = *ptr;
-	ptr += 1;
-	header_.event_mode.GetEventMode(ptr);
-	ptr += 5;
-	header_.dtc_mac = *ptr;
-	ptr += 1;
-	header_.partition_id = *ptr;
-	ptr += 1;
-	header_.evb_mode = *ptr;
-	ptr += 1;
-	header_.evb_id = *ptr;
-	ptr += 1;
-	header_.evb_status = DTC_EVBStatus(*ptr);
-	ptr += 1;
-	header_.emtdc = *ptr;
-	ptr += 3;
+	memcpy(&header_, ptr, sizeof(header_));
+	ptr += sizeof(header_);
 
-	size_t byte_count = 24;
+	size_t byte_count = sizeof(header_);
 	while (byte_count < header_.inclusive_event_byte_count)
 	{
 		sub_events_.emplace_back(ptr);
 		byte_count += sub_events_.back().GetSubEventByteCount();
 	}
-
 }
 
+DTCLib::DTC_EventWindowTag DTCLib::DTC_Event::GetEventWindowTag() const
+{
+	return DTC_EventWindowTag(header_.event_tag_low, header_.event_tag_high);
+}
+
+void DTCLib::DTC_Event::SetEventWindowTag(DTC_EventWindowTag const& tag)
+{
+	uint64_t tag_word = tag.GetEventWindowTag(true);
+	header_.event_tag_low = tag_word;
+	header_.event_tag_high = tag_word >> 32;
+}
+
+void DTCLib::DTC_Event::SetEventMode(DTC_EventMode const& mode)
+{
+	uint64_t mode_word = mode.mode0;
+	mode_word += (static_cast<uint64_t>(mode.mode1) << 8);
+	mode_word += (static_cast<uint64_t>(mode.mode2) << 16);
+	mode_word += (static_cast<uint64_t>(mode.mode3) << 24);
+	mode_word += (static_cast<uint64_t>(mode.mode4) << 32);
+
+	header_.event_mode = mode_word;
+}

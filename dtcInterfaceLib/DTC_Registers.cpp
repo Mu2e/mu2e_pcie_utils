@@ -6929,22 +6929,22 @@ void DTCLib::DTC_Registers::SetSERDESInduceErrorSequenceNumber(const DTC_Link_ID
 	switch (link)
 	{
 		case DTC_Link_0:
-			WriteRegister_(0, DTC_Register_DiagSERDESPacket0);
+			WriteRegister_(sequence, DTC_Register_DiagSERDESPacket0);
 			break;
 		case DTC_Link_1:
-			WriteRegister_(0, DTC_Register_DiagSERDESPacket1);
+			WriteRegister_(sequence, DTC_Register_DiagSERDESPacket1);
 			break;
 		case DTC_Link_2:
-			WriteRegister_(0, DTC_Register_DiagSERDESPacket2);
+			WriteRegister_(sequence, DTC_Register_DiagSERDESPacket2);
 			break;
 		case DTC_Link_3:
-			WriteRegister_(0, DTC_Register_DiagSERDESPacket3);
+			WriteRegister_(sequence, DTC_Register_DiagSERDESPacket3);
 			break;
 		case DTC_Link_4:
-			WriteRegister_(0, DTC_Register_DiagSERDESPacket4);
+			WriteRegister_(sequence, DTC_Register_DiagSERDESPacket4);
 			break;
 		case DTC_Link_5:
-			WriteRegister_(0, DTC_Register_DiagSERDESPacket5);
+			WriteRegister_(sequence, DTC_Register_DiagSERDESPacket5);
 			break;
 		default:
 			break;

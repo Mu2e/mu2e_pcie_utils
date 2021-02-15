@@ -112,6 +112,8 @@ private:
 
 	DTCLib::DTC_EventWindowTag currentTimestamp_;
 	uint64_t currentEventSize_;
+	DTCLib::DTC_Event event_;
+	DTCLib::DTC_SubEvent sub_event_;
 	std::streampos eventBegin_;
 };
 
