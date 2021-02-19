@@ -1048,7 +1048,7 @@ public:
 	/// <param name="ptr">Pointer to data</param>
 	explicit DTC_SubEvent(const uint8_t*& ptr);
 
-	DTC_SubEvent() {}
+	DTC_SubEvent() : header_(), data_blocks_() {}
 
 	size_t GetSubEventByteCount() { return header_.inclusive_subevent_byte_count; }
 
@@ -1104,7 +1104,7 @@ public:
 	explicit DTC_Event(const void* data);
 
 	DTC_Event()
-		: buffer_ptr_(nullptr) {}
+		: header_(), sub_events_(), buffer_ptr_(nullptr) {}
 
 	size_t GetEventByteCount() const { return header_.inclusive_event_byte_count; }
 	DTC_EventWindowTag GetEventWindowTag() const;
