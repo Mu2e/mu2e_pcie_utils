@@ -975,8 +975,9 @@ private:
 /// </summary>
 struct DTC_DataBlock
 {
-	const void* blockPointer;  ///< Pointer to DataBlock in Memory
-	size_t byteSize;           ///< Size of DataBlock
+	void* blockPointer{nullptr};  ///< Pointer to DataBlock in Memory
+	size_t byteSize{0};                 ///< Size of DataBlock
+	bool alloc{false};                  ///< Whether the DTC_DataBlock owns the memory
 
 	/**
 	 * @brief Create a DTC_DataBlock using a pointer to a memory location containing a Data Block
@@ -985,7 +986,7 @@ struct DTC_DataBlock
 	 * WARNING: This function assumes that the pointer is pointing to a valid DTC_DataHeaderPacket!
 	*/
 	DTC_DataBlock(const void* ptr)
-		: blockPointer(ptr)
+		: blockPointer(const_cast<void*>(ptr))
 	{
 		DTC_DataPacket pkt(ptr);
 		DTC_DataHeaderPacket hdr(pkt);
@@ -998,7 +999,22 @@ struct DTC_DataBlock
 	/// <param name="ptr">Pointer to DataBlock in memory</param>
 	/// <param name="sz">Size of DataBlock</param>
 	DTC_DataBlock(const void* ptr, size_t sz)
-		: blockPointer(ptr), byteSize(sz) {}
+		: blockPointer(const_cast<void*>(ptr)), byteSize(sz) {}
+
+	DTC_DataBlock(size_t sz)
+	{
+		blockPointer = malloc(sz);
+		if (blockPointer != nullptr)
+		{
+			byteSize = sz;
+			alloc = true;
+		}
+	}
+
+	~DTC_DataBlock()
+	{
+		if (alloc) free(blockPointer);
+	}
 
 	inline DTC_DataHeaderPacket GetHeader() const
 	{
@@ -1009,9 +1025,11 @@ struct DTC_DataBlock
 	inline const void* GetData() const
 	{
 		assert(byteSize > 16);
-		return static_cast<const void*>(reinterpret_cast<const uint8_t*>(blockPointer) + 16);
+		return static_cast<void*>(reinterpret_cast<uint8_t*>(blockPointer) + 16);
 	}
 };
+
+std::ostream& operator<<(std::ostream& o, DTC_DataBlock const& blk);
 
 struct DTC_SubEventHeader
 {
@@ -1048,13 +1066,15 @@ public:
 	/// <param name="ptr">Pointer to data</param>
 	explicit DTC_SubEvent(const uint8_t*& ptr);
 
-	DTC_SubEvent() : header_(), data_blocks_() {}
+	DTC_SubEvent()
+		: header_(), data_blocks_() {}
 
 	size_t GetSubEventByteCount() { return header_.inclusive_subevent_byte_count; }
 
 	DTC_EventWindowTag GetEventWindowTag() const;
 	void SetEventWindowTag(DTC_EventWindowTag const& tag);
 	void SetEventMode(DTC_EventMode const& mode);
+	uint8_t GetDTCID() const;
 
 	std::vector<DTC_DataBlock> const& GetDataBlocks()
 	{
@@ -1066,13 +1086,23 @@ public:
 		if (idx >= data_blocks_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(data_blocks_.size() - 1) + ")");
 		return &data_blocks_[idx];
 	}
+	void AddDataBlock(DTC_DataBlock blk)
+	{
+		data_blocks_.push_back(blk);
+		header_.num_rocs++;
+		UpdateHeader();
+	}
 
 	DTC_SubEventHeader* GetHeader() { return &header_; }
+	void UpdateHeader();
 
 private:
 	DTC_SubEventHeader header_;
 	std::vector<DTC_DataBlock> data_blocks_;
+	friend std::ostream& operator<<(std::ostream& o, DTC_SubEvent const& subEvt);
 };
+
+std::ostream& operator<<(std::ostream& o, DTC_SubEvent const& subEvt);
 
 struct DTC_EventHeader
 {
@@ -1122,14 +1152,34 @@ public:
 		if (idx >= sub_events_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(sub_events_.size() - 1) + ")");
 		return &sub_events_[idx];
 	}
+	void AddSubEvent(DTC_SubEvent subEvt)
+	{
+		sub_events_.push_back(subEvt);
+		header_.num_dtcs++;
+		UpdateHeader();
+	}
+	DTC_SubEvent* GetSubEventByDTCID(uint8_t dtcid)
+	{
+		for (size_t ii = 0; ii < sub_events_.size(); ++ii)
+		{
+			if (sub_events_[ii].GetDTCID() == dtcid) return &sub_events_[ii];
+		}
+		return nullptr;
+	}
 
 	DTC_EventHeader* GetHeader() { return &header_; }
+
+	void UpdateHeader();
+	void WriteEvent(std::ostream& output);
 
 private:
 	DTC_EventHeader header_;
 	std::vector<DTC_SubEvent> sub_events_;
 	const void* buffer_ptr_;
+	friend std::ostream& operator<<(std::ostream& o, DTC_Event const& evt);
 };
+
+std::ostream& operator<<(std::ostream& o, DTC_Event const& evt);
 
 }  // namespace DTCLib
 
