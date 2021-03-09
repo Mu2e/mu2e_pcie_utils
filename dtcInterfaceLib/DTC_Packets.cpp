@@ -824,6 +824,21 @@ void DTCLib::DTC_SubEvent::SetEventMode(DTC_EventMode const& mode)
 	header_.event_mode = mode_word;
 }
 
+uint8_t DTCLib::DTC_SubEvent::GetDTCID() const
+{
+	return header_.source_dtc_id;
+}
+
+void DTCLib::DTC_SubEvent::UpdateHeader()
+{
+	header_.inclusive_subevent_byte_count = sizeof(DTC_SubEventHeader);
+
+	for (auto& block : data_blocks_)
+	{
+		header_.inclusive_subevent_byte_count += block.byteSize;
+	}
+}
+
 DTCLib::DTC_Event::DTC_Event(const void* data)
 	: header_(), sub_events_(), buffer_ptr_(data)
 {
@@ -861,4 +876,72 @@ void DTCLib::DTC_Event::SetEventMode(DTC_EventMode const& mode)
 	mode_word += (static_cast<uint64_t>(mode.mode4) << 32);
 
 	header_.event_mode = mode_word;
+}
+
+void DTCLib::DTC_Event::UpdateHeader()
+{
+	header_.inclusive_event_byte_count = sizeof(DTC_EventHeader);
+	for (auto& sub_evt : sub_events_)
+	{
+		sub_evt.UpdateHeader();
+		header_.inclusive_event_byte_count += sub_evt.GetSubEventByteCount();
+	}
+}
+
+void DTCLib::DTC_Event::WriteEvent(std::ostream& output)
+{
+	UpdateHeader();
+
+	// Set up an extra event, in case we need it
+	DTC_Event overflow;
+	memcpy(overflow.GetHeader(), &header_, sizeof(DTC_EventHeader));
+
+	size_t current_size = 16 + sizeof(DTC_EventHeader);
+	bool over_size = false;
+	for (auto it = sub_events_.begin(); it != sub_events_.end(); ++it)
+	{
+		current_size += it->GetSubEventByteCount();
+		if (current_size > sizeof(mu2e_databuff_t))
+		{
+			over_size = true;
+			overflow.AddSubEvent(*it);
+			it = sub_events_.erase(it);
+			--it;
+		}
+	}
+
+	UpdateHeader();
+
+	uint64_t dmaSize = header_.inclusive_event_byte_count + 16;
+	output.write(reinterpret_cast<const char*>(&dmaSize), sizeof(uint64_t));
+	output << *this;
+
+	// Recursion
+	if (over_size) overflow.WriteEvent(output);
+}
+
+std::ostream& DTCLib::operator<<(std::ostream& o, DTC_DataBlock const& blk)
+{
+	o.write(static_cast<const char*>(blk.blockPointer), blk.byteSize);
+	return o;
+}
+
+std::ostream& DTCLib::operator<<(std::ostream& o, DTC_SubEvent const& subEvt)
+{
+	o.write(reinterpret_cast<const char*>(&subEvt.header_), sizeof(DTC_SubEventHeader));
+	for (auto& blk : subEvt.data_blocks_)
+	{
+		o << blk;
+	}
+	return o;
+}
+
+std::ostream& DTCLib::operator<<(std::ostream& o, DTC_Event const& evt)
+{
+	o.write(reinterpret_cast<const char*>(&evt.header_), sizeof(DTC_EventHeader));
+	for (auto& subevt : evt.sub_events_)
+	{
+		o << subevt;
+	}
+	return o;
 }
