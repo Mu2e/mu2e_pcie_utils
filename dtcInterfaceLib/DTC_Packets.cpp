@@ -153,7 +153,7 @@ DTCLib::DTC_DMAPacket::DTC_DMAPacket(const DTC_DataPacket in)
 	packetType_ = static_cast<DTC_PacketType>(packetType);
 
 // This TRACE can be time-consuming!
-#ifdef NDEBUG
+#ifndef __OPTIMIZE__
 	TLOG(TLVL_TRACE + 10, "DTC_DMAPacket") << headerJSON();
 #endif
 }
