@@ -975,9 +975,9 @@ private:
 /// </summary>
 struct DTC_DataBlock
 {
-	void* blockPointer{nullptr};  ///< Pointer to DataBlock in Memory
-	size_t byteSize{0};                 ///< Size of DataBlock
-	bool alloc{false};                  ///< Whether the DTC_DataBlock owns the memory
+	std::shared_ptr<std::vector<uint8_t>> allocBytes{nullptr}; ///< Used if the block owns its memory
+	const void* blockPointer{nullptr};  ///< Pointer to DataBlock in Memory
+	size_t byteSize{0};           ///< Size of DataBlock
 
 	/**
 	 * @brief Create a DTC_DataBlock using a pointer to a memory location containing a Data Block
@@ -986,7 +986,7 @@ struct DTC_DataBlock
 	 * WARNING: This function assumes that the pointer is pointing to a valid DTC_DataHeaderPacket!
 	*/
 	DTC_DataBlock(const void* ptr)
-		: blockPointer(const_cast<void*>(ptr))
+		: blockPointer(ptr)
 	{
 		DTC_DataPacket pkt(ptr);
 		DTC_DataHeaderPacket hdr(pkt);
@@ -999,21 +999,11 @@ struct DTC_DataBlock
 	/// <param name="ptr">Pointer to DataBlock in memory</param>
 	/// <param name="sz">Size of DataBlock</param>
 	DTC_DataBlock(const void* ptr, size_t sz)
-		: blockPointer(const_cast<void*>(ptr)), byteSize(sz) {}
+		: blockPointer(ptr), byteSize(sz) {}
 
 	DTC_DataBlock(size_t sz)
+		: allocBytes(new std::vector<uint8_t>(sz)), blockPointer(allocBytes->data()), byteSize(sz)
 	{
-		blockPointer = malloc(sz);
-		if (blockPointer != nullptr)
-		{
-			byteSize = sz;
-			alloc = true;
-		}
-	}
-
-	~DTC_DataBlock()
-	{
-		if (alloc) free(blockPointer);
 	}
 
 	inline DTC_DataHeaderPacket GetHeader() const
@@ -1025,7 +1015,7 @@ struct DTC_DataBlock
 	inline const void* GetData() const
 	{
 		assert(byteSize > 16);
-		return static_cast<void*>(reinterpret_cast<uint8_t*>(blockPointer) + 16);
+		return static_cast<const void*>(reinterpret_cast<const uint8_t*>(blockPointer) + 16);
 	}
 };
 
