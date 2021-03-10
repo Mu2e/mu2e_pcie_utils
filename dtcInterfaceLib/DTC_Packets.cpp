@@ -151,7 +151,11 @@ DTCLib::DTC_DMAPacket::DTC_DMAPacket(const DTC_DataPacket in)
 	hopCount_ = hopCount;
 	linkID_ = static_cast<DTC_Link_ID>(linkID);
 	packetType_ = static_cast<DTC_PacketType>(packetType);
+
+// This TRACE can be time-consuming!
+#ifdef NDEBUG
 	TLOG(TLVL_TRACE + 10, "DTC_DMAPacket") << headerJSON();
+#endif
 }
 
 std::string DTCLib::DTC_DMAPacket::headerJSON() const

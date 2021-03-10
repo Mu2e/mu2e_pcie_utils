@@ -1066,11 +1066,11 @@ public:
 	void SetEventMode(DTC_EventMode const& mode);
 	uint8_t GetDTCID() const;
 
-	std::vector<DTC_DataBlock> const& GetDataBlocks()
+	std::vector<DTC_DataBlock> const& GetDataBlocks() const
 	{
 		return data_blocks_;
 	}
-	size_t GetDataBlockCount() { return data_blocks_.size(); }
+	size_t GetDataBlockCount() const { return data_blocks_.size(); }
 	DTC_DataBlock* GetDataBlock(size_t idx)
 	{
 		if (idx >= data_blocks_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(data_blocks_.size() - 1) + ")");
@@ -1132,11 +1132,11 @@ public:
 	void SetEventMode(DTC_EventMode const& mode);
 	const void* GetRawBufferPointer() const { return buffer_ptr_; }
 
-	std::vector<DTC_SubEvent> const& GetSubEvents()
+	std::vector<DTC_SubEvent> const& GetSubEvents() const
 	{
 		return sub_events_;
 	}
-	size_t GetSubEventCount() { return sub_events_.size(); }
+	size_t GetSubEventCount() const { return sub_events_.size(); }
 	DTC_SubEvent* GetSubEvent(size_t idx)
 	{
 		if (idx >= sub_events_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(sub_events_.size() - 1) + ")");
