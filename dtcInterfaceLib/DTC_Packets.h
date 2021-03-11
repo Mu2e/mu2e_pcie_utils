@@ -1083,6 +1083,7 @@ public:
 		UpdateHeader();
 	}
 
+	DTC_Subsystem GetSubsystem() const { return static_cast<DTC_Subsystem>((header_.source_dtc_id & 0x70) >> 4); }
 	DTC_SubEventHeader* GetHeader() { return &header_; }
 	void UpdateHeader();
 
