@@ -4,6 +4,13 @@
 # Any code changes to the TRACE, mu2e, or pci_devel_main modules will need to have a either a new version,
 # or a dkms -m pcie_linux_kernel_module -v VERSION uninstall, remove, add, build, install cycle
 
+# To install (as root):
+# cd /usr/src
+# git clone https://cdcvs.fnal.gov/projects/pcie_linux_kernel_module pcie_linux_kernel_module-version
+# echo mu2e >/etc/modules-load.d/mu2e.conf
+# dkms add -m pcie_linux_kernel_module -v VERSION
+# dkms autoinstall
+
 if ! [ -d trace-git ]; then
   git clone https://cdcvs.fnal.gov/projects/trace-git
 fi
