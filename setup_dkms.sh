@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# This script prepares the repo to serve as a DKMS build area (in /usr/src/pcie_linux_kernel_module-VERSION)
+# Any code changes to the TRACE, mu2e, or pci_devel_main modules will need to have a either a new version,
+# or a dkms -m pcie_linux_kernel_module -v VERSION uninstall, remove, add, build, install cycle
+
 if ! [ -d trace-git ]; then
   git clone https://cdcvs.fnal.gov/projects/trace-git
 fi
