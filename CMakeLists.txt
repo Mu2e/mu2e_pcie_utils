@@ -7,11 +7,12 @@
 # ======================================================================
 
 
-# use cmake 2.8 or later
-cmake_minimum_required (VERSION 2.8)
+# use cmake 3.16 or later
+cmake_minimum_required (VERSION 3.16)
 
+find_package(cetbuildtools)
 
-project(pcie_linux_kernel_module)
+project(pcie_linux_kernel_module VERSION 2.04.02)
 # cetbuildtools contains our cmake modules
 SET ( CETBUILDTOOLS_VERSION $ENV{CETBUILDTOOLS_VERSION} )
 IF (NOT CETBUILDTOOLS_VERSION)
