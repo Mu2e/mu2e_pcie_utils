@@ -202,8 +202,8 @@ enum DTC_Register : uint16_t
 	DTC_Register_DataPendingDiagTimerLink3 = 0x949C,
 	DTC_Register_DataPendingDiagTimerLink4 = 0x94A0,
 	DTC_Register_DataPendingDiagTimerLink5 = 0x94A4,
-	DTC_Register_EventModeLookupTableStart = 0x9500,
-	DTC_Register_EventModeLookupTableEnd = 0x98FC,
+	DTC_Register_EventModeLookupTableStart = 0xA000,
+	DTC_Register_EventModeLookupTableEnd = 0xA3FC,
 	DTC_Register_Invalid,
 };
 
