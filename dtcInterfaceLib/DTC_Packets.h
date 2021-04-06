@@ -975,9 +975,9 @@ private:
 /// </summary>
 struct DTC_DataBlock
 {
-	std::shared_ptr<std::vector<uint8_t>> allocBytes{nullptr}; ///< Used if the block owns its memory
-	const void* blockPointer{nullptr};  ///< Pointer to DataBlock in Memory
-	size_t byteSize{0};           ///< Size of DataBlock
+	std::shared_ptr<std::vector<uint8_t>> allocBytes{nullptr};  ///< Used if the block owns its memory
+	const void* blockPointer{nullptr};                          ///< Pointer to DataBlock in Memory
+	size_t byteSize{0};                                         ///< Size of DataBlock
 
 	/**
 	 * @brief Create a DTC_DataBlock using a pointer to a memory location containing a Data Block
@@ -1008,7 +1008,7 @@ struct DTC_DataBlock
 
 	inline DTC_DataHeaderPacket GetHeader() const
 	{
-		assert(byteSize > 16);
+		assert(byteSize >= 16);
 		return DTC_DataHeaderPacket(DTC_DataPacket(blockPointer));
 	}
 
@@ -1045,6 +1045,28 @@ struct DTC_SubEventHeader
 	uint64_t link5_status : 8;
 	uint64_t reserved3 : 8;
 	uint64_t emtdc : 8;
+
+	DTC_SubEventHeader()
+		: inclusive_subevent_byte_count(0)
+		, reserved1(0)
+		, event_tag_low(0)
+		, event_tag_high(0)
+		, num_rocs(0)
+		, event_mode(0)
+		, dtc_mac(0)
+		, partition_id(0)
+		, evb_mode(0)
+		, source_dtc_id(0)
+		, reserved2(0)
+		, link0_status(0)
+		, link1_status(0)
+		, link2_status(0)
+		, link3_status(0)
+		, link4_status(0)
+		, link5_status(0)
+		, reserved3(0)
+		, emtdc(0)
+	{}
 };
 
 class DTC_SubEvent
@@ -1112,6 +1134,22 @@ struct DTC_EventHeader
 	uint64_t evb_status : 8;
 	uint64_t emtdc : 8;
 	uint64_t reserved2 : 16;
+
+	DTC_EventHeader()
+		: inclusive_event_byte_count(0)
+		, reserved1(0)
+		, event_tag_low(0)
+		, event_tag_high(0)
+		, num_dtcs(0)
+		, event_mode(0)
+		, dtc_mac(0)
+		, partition_id(0)
+		, evb_mode(0)
+		, evb_id(0)
+		, evb_status(0)
+		, emtdc(0)
+		, reserved2(0)
+	{}
 };
 
 class DTC_Event

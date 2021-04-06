@@ -798,6 +798,7 @@ DTCLib::DTC_SubEvent::DTC_SubEvent(const uint8_t*& ptr)
 	size_t byte_count = sizeof(header_);
 	while (byte_count < header_.inclusive_subevent_byte_count)
 	{
+		TLOG(TLVL_TRACE + 5) << "Current byte_count is " << byte_count << " / " << header_.inclusive_subevent_byte_count << ", creating block";
 		data_blocks_.emplace_back(static_cast<const void*>(ptr));
 		auto data_block_byte_count = data_blocks_.back().byteSize;
 		byte_count += data_block_byte_count;
@@ -854,6 +855,7 @@ DTCLib::DTC_Event::DTC_Event(const void* data)
 	size_t byte_count = sizeof(header_);
 	while (byte_count < header_.inclusive_event_byte_count)
 	{
+		TLOG(TLVL_TRACE + 5) << "Current byte_count is " << byte_count << " / " << header_.inclusive_event_byte_count << ", creating sub event";
 		sub_events_.emplace_back(ptr);
 		byte_count += sub_events_.back().GetSubEventByteCount();
 	}
@@ -900,7 +902,7 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& output)
 	DTC_Event overflow;
 	memcpy(overflow.GetHeader(), &header_, sizeof(DTC_EventHeader));
 
-	size_t current_size = 16 + sizeof(DTC_EventHeader);
+	size_t current_size = sizeof(uint64_t) + sizeof(uint64_t) + sizeof(DTC_EventHeader);
 	bool over_size = false;
 	for (auto it = sub_events_.begin(); it != sub_events_.end(); ++it)
 	{
@@ -909,6 +911,7 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& output)
 		{
 			over_size = true;
 			overflow.AddSubEvent(*it);
+			overflow.GetHeader()->num_dtcs--;
 			it = sub_events_.erase(it);
 			--it;
 		}
@@ -916,7 +919,9 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& output)
 
 	UpdateHeader();
 
-	uint64_t dmaSize = header_.inclusive_event_byte_count + 16;
+	uint64_t dmaWriteSize = header_.inclusive_event_byte_count + sizeof(uint64_t) + sizeof(uint64_t);
+	uint64_t dmaSize = header_.inclusive_event_byte_count;
+	output.write(reinterpret_cast<const char*>(&dmaWriteSize), sizeof(uint64_t));
 	output.write(reinterpret_cast<const char*>(&dmaSize), sizeof(uint64_t));
 	output << *this;
 

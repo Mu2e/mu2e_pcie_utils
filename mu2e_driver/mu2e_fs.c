@@ -63,7 +63,7 @@ int mu2e_fs_up()
 
 	sts = cdev_add(&mu2e_cdev, mu2e_dev_number, MU2E_MAX_NUM_DTCS);
 	// NOTE: permissions set -- use udev - i.e:
-	// echo 'KERNEL=="mu2e", MODE="0666"' >/etc/udev/rules.d/98-mu2e.rules
+	// echo 'KERNEL=="mu2e*", MODE="0666"' >/etc/udev/rules.d/98-mu2e.rules
 
 	return (0);
 }  // mu2e_fs
