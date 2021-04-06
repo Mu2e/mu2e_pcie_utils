@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <bitset>
 
+#include "dtcInterfaceLib/DTC_Packets.h"
 #include "mu2e_driver/mu2e_mmap_ioctl.h"
 
 #include "TRACE/tracemf.h"
@@ -44,39 +45,19 @@ void printHelpMsg()
 	exit(0);
 }
 
-bool VerifyTrackerDataBlock(DataHeaderPacket* blockPtr)
+bool continueFile = true;
+uint64_t total_size_read = 0;
+uint64_t current_buffer_pos = 0;
+uint64_t dmaSize = 0;
+
+bool VerifyTrackerDataBlock(DTCLib::DTC_DataBlock /*block*/)
 {
-	auto blockByteSize = blockPtr->s.TransferByteCount;
-	if (blockByteSize != 0x10 && blockByteSize != 0x30)
-	{
-		TLOG(TLVL_ERROR) << "VerifyTrackerDataBlock: Block has incorrect size 0x" << std::hex << blockByteSize << ". Valid sizes are 0x10 and 0x30";
-		return false;
-	}
-
-	if (blockByteSize == 0x30)
-	{
-		auto firstDataPacket = *reinterpret_cast<DataPacket*>(blockPtr + 1);
-		auto secondDataPacket = *reinterpret_cast<DataPacket*>(blockPtr + 2);
-
-		auto strawIndex = firstDataPacket.data10;
-		if (strawIndex > 23039)
-		{
-			TLOG(TLVL_WARNING) << "VerifyTrackerDataBlock: strawIndex " << strawIndex << " is out-of-range! (Max 23039)";
-			//return false;
-		}
-		if ((secondDataPacket.dataFE & 0xF0) != 0)
-		{
-			TLOG(TLVL_ERROR) << "VerifyTrackerDataBlock: Data present in Reserved word: 0x" << std::hex << ((secondDataPacket.dataFE & 0xF0) >> 4);
-			return false;
-		}
-	}
-
 	return true;
 }
 
-bool VerifyCalorimeterDataBlock(DataHeaderPacket* blockPtr)
+bool VerifyCalorimeterDataBlock(DTCLib::DTC_DataBlock block)
 {
-	auto blockByteSize = blockPtr->s.TransferByteCount;
+	auto blockByteSize = block.GetHeader().GetByteCount();
 
 	if (blockByteSize == 0x10)
 	{
@@ -84,7 +65,7 @@ bool VerifyCalorimeterDataBlock(DataHeaderPacket* blockPtr)
 		return true;
 	}
 
-	auto dataPtr = reinterpret_cast<uint16_t*>(blockPtr + 1);
+	auto dataPtr = reinterpret_cast<const uint16_t*>(block.GetData());
 	auto hitCount = *dataPtr;
 	auto currentOffset = 0;
 
@@ -175,10 +156,180 @@ bool VerifyCalorimeterDataBlock(DataHeaderPacket* blockPtr)
 	return true;
 }
 
-bool VerifyCRVDataBlock(DataHeaderPacket* /*blockPtr*/)
+bool VerifyCRVDataBlock(DTCLib::DTC_DataBlock /*block*/)
 {
-	TLOG(TLVL_WARNING) << "VerifyCRVDataBlock: Not yet implemented!";
 	return true;
+}
+
+bool VerifyBlock(DTCLib::DTC_DataBlock block)
+{
+	auto header = block.GetHeader();
+	auto blockByteSize = header.GetByteCount();
+
+	// Check that this is indeed a DataHeader packet
+	auto dataHeaderMask = 0x80F0;
+	uint16_t dataHeaderTest = static_cast<uint16_t>(header.ConvertToDataPacket().GetWord(2)) + (static_cast<uint16_t>(header.ConvertToDataPacket().GetWord(3)) << 8);
+	TLOG(TLVL_TRACE) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
+	if ((dataHeaderTest & dataHeaderMask) != 0x8050)
+	{
+		TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << (total_size_read - dmaSize + current_buffer_pos) << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<const uint64_t*>(block.GetData());
+		TLOG(TLVL_ERROR) << "This most likely means that the declared DMA size is incorrect, it was declared as 0x" << std::hex << dmaSize << ", but we ran out of DataHeaders at 0x" << std::hex << current_buffer_pos;
+		// go to next file
+		continueFile = false;
+		return false;
+	}
+	if (current_buffer_pos + blockByteSize > dmaSize)
+	{
+		TLOG(TLVL_ERROR) << "Block goes past end of DMA! Blocks should always end at DMA boundary! Error at 0x" << std::hex << (total_size_read - dmaSize + current_buffer_pos);
+		// go to next file
+		continueFile = false;
+		return false;
+	}
+
+	auto packetCountTest = header.GetPacketCount();
+	if ((packetCountTest + 1) * 16 != blockByteSize)
+	{
+		TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: 0x" << std::hex << blockByteSize;
+
+		// We don't have to skip to the next file, because we already know the data block integrity is fine.
+		current_buffer_pos += blockByteSize;
+		return false;
+	}
+
+	auto subsystemID = header.GetSubsystemID();
+	bool subsystemCheck = true;
+	switch (subsystemID)
+	{
+		case 0:  // Tracker
+			subsystemCheck = VerifyTrackerDataBlock(block);
+			break;
+		case 1:  // Calorimeter
+			subsystemCheck = VerifyCalorimeterDataBlock(block);
+			break;
+		case 2:  // CRV
+			subsystemCheck = VerifyCRVDataBlock(block);
+			break;
+		default:
+			TLOG(TLVL_INFO) << "Data-level verification not implemented for subsystem ID " << subsystemID;
+			break;
+	}
+	if (!subsystemCheck)
+	{
+		TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read - dmaSize + current_buffer_pos) << " is not a valid data block for subsystem ID " << subsystemID;
+		current_buffer_pos += blockByteSize;
+
+		return false;
+		// We don't have to skip to the next file, because we already know the data block integrity is fine.
+	}
+
+	current_buffer_pos += blockByteSize;
+	return true;
+}
+
+bool VerifySubEvent(DTCLib::DTC_SubEvent subevt, DTCLib::DTC_EventWindowTag eventTag)
+{
+	if (subevt.GetEventWindowTag() != eventTag)
+	{
+		TLOG(TLVL_WARNING) << "Event Window Tag from Event does not agree with EWT from SubEvent! (" << eventTag.GetEventWindowTag(true) << " != " << subevt.GetEventWindowTag().GetEventWindowTag(true) << ")";
+	}
+	if (subevt.GetHeader()->num_rocs != subevt.GetDataBlockCount())
+	{
+		TLOG(TLVL_WARNING) << "SubEvent Header num_rocs field disagrees with number of DataBlocks! (" << subevt.GetHeader()->num_rocs << " != " << subevt.GetDataBlockCount() << ")";
+	}
+
+	current_buffer_pos += sizeof(DTCLib::DTC_SubEventHeader);
+
+	bool success = true;
+	for (auto& block : subevt.GetDataBlocks())
+	{
+		auto blockSuccess = VerifyBlock(block);
+		success &= blockSuccess;
+		if (!continueFile) return false;
+	}
+	return success;
+}
+
+bool VerifyEvent(DTCLib::DTC_Event evt)
+{
+	bool success = true;
+
+	if (evt.GetEventByteCount() != dmaSize)
+	{
+		TLOG(TLVL_ERROR) << "Event Header byte count does not match DMA byte count!";
+		return false;
+	}
+
+	if (evt.GetHeader()->num_dtcs != evt.GetSubEventCount())
+	{
+		TLOG(TLVL_WARNING) << "Event Header num_dtcs field disagrees with number of SubEvents! (" << evt.GetHeader()->num_dtcs << " != " << evt.GetSubEventCount() << ")";
+	}
+
+	auto eventTag = evt.GetEventWindowTag();
+
+	current_buffer_pos += sizeof(DTCLib::DTC_EventHeader);
+
+	for (auto& subevt : evt.GetSubEvents())
+	{
+		auto subevtSuccess = VerifySubEvent(subevt, eventTag);
+		success &= subevtSuccess;
+		if (!continueFile) return false;
+	}
+	return success;
+}
+
+bool VerifyFile(std::string file)
+{
+	std::ifstream is(file);
+	if (is.bad() || !is)
+	{
+		TLOG(TLVL_ERROR) << "Cannot read file " << file;
+		return false;
+	}
+	TLOG(TLVL_INFO) << "Reading binary file " << file;
+	total_size_read = 0;
+
+	mu2e_databuff_t buf;
+
+	bool success = true;
+	bool continueFile = true;
+	while (is && continueFile)
+	{
+		uint64_t dmaWriteSize;  // DMA Write buffer size
+		is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
+		total_size_read += sizeof(dmaWriteSize);
+
+		is.read((char*)&dmaSize, sizeof(dmaSize));
+		total_size_read += sizeof(dmaSize);
+
+		// Check that DMA Write Buffer Size = DMA Buffer Size + 16
+		if (dmaSize + 16 != dmaWriteSize)
+		{
+			TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
+			success = false;
+			break;
+		}
+
+		// Check that size of all DataBlocks = DMA Buffer Size
+		is.read((char*)buf, dmaSize);
+		total_size_read += dmaSize;
+
+		current_buffer_pos = 0;
+
+		TLOG(TLVL_TRACE) << "Verifying event at offset 0x" << std::hex << (total_size_read - dmaSize);
+		DTCLib::DTC_Event thisEvent(buf);
+		success = VerifyEvent(thisEvent);
+	}
+
+	if (success)
+	{
+		TLOG(TLVL_INFO) << "File " << file << " verified successfully!";
+	}
+	else
+	{
+		TLOG(TLVL_WARNING) << "File " << file << " had verification errors, see TRACE output for details";
+	}
+
+	return success;
 }
 
 int main(int argc, char* argv[])
@@ -215,122 +366,7 @@ int main(int argc, char* argv[])
 	}
 
 	for (auto& file : binaryFiles)
-	{		bool success = true;
-		std::ifstream is(file);
-		if (is.bad() || !is)
-		{
-			TLOG(TLVL_ERROR) << "Cannot read file " << file;
-			continue;
-		}
-		TLOG(TLVL_INFO) << "Reading binary file " << file;
-		uint64_t total_size_read = 0;
-
-		mu2e_databuff_t buf;
-
-		bool continueFile = true;
-		while (is && continueFile)
-		{
-			uint64_t dmaWriteSize;  // DMA Write buffer size
-			is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
-			total_size_read += sizeof(dmaWriteSize);
-
-			uint64_t dmaSize;  // DMA buffer size
-			is.read((char*)&dmaSize, sizeof(dmaSize));
-			total_size_read += sizeof(dmaSize);
-
-			// Check that DMA Write Buffer Size = DMA Buffer Size + 16
-			if (dmaSize + 16 != dmaWriteSize)
-			{
-				TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
-				break;
-			}
-
-			// Check that size of all DataBlocks = DMA Buffer Size
-			is.read((char*)buf, dmaSize);
-			total_size_read += dmaSize;
-
-			size_t offset = 0;
-			while (offset < dmaSize)
-			{
-				auto header = *reinterpret_cast<DataHeaderPacket*>(buf + offset);
-				auto blockByteSize = header.s.TransferByteCount;
-
-				// Check that this is indeed a DataHeader packet
-				auto dataHeaderMask = 0x80F0;
-				auto dataHeaderTest = header.w.w1;
-				TLOG(TLVL_TRACE) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
-				if ((dataHeaderTest & dataHeaderMask) != 0x8050)
-				{
-					TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << (total_size_read - dmaSize + offset) << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<uint64_t*>(buf + offset);
-					TLOG(TLVL_ERROR) << "This most likely means that the declared DMA size is incorrect, it was declared as 0x" << std::hex << dmaSize << ", but we ran out of DataHeaders at 0x" << std::hex << offset;
-					// go to next file
-					continueFile = false;
-					break;
-				}
-				if (offset + blockByteSize > dmaSize)
-				{
-					TLOG(TLVL_ERROR) << "Block goes past end of DMA! Blocks should always end at DMA boundary! Error at 0x" << std::hex << (total_size_read - dmaSize + offset);
-					// go to next file
-					continueFile = false;
-					break;
-				}
-
-				auto packetCountTest = header.s.PacketCount;
-				if ((packetCountTest + 1) * 16 != blockByteSize)
-				{
-					TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: 0x" << std::hex << blockByteSize;
-					success = false;
-
-					// We don't have to skip to the next file, because we already know the data block integrity is fine.
-					offset += blockByteSize;
-					continue;
-				}
-
-				auto dataVersionTest = header.s.Version;
-				if (MU2E_DATA_FORMAT_VERSION != dataVersionTest)
-				{
-					TLOG(TLVL_INFO) << "Data format version for binary file " << dataVersionTest << " does not match expected version " << MU2E_DATA_FORMAT_VERSION << ". Not performing subsystem-level validation";
-					success = false;
-
-					// We don't have to skip to the next file, because we already know the data block integrity is fine.
-					offset += blockByteSize;
-					continue;
-				}
-				
-				auto subsystemID = header.s.SubsystemID;
-				bool subsystemCheck = true;
-				switch (subsystemID)
-				{
-					case 0:  // Tracker
-						subsystemCheck = VerifyTrackerDataBlock(reinterpret_cast<DataHeaderPacket*>(buf + offset));
-						break;
-					case 1:  // Calorimeter
-						subsystemCheck = VerifyCalorimeterDataBlock(reinterpret_cast<DataHeaderPacket*>(buf + offset));
-						break;
-					case 2:  // CRV
-						subsystemCheck = VerifyCRVDataBlock(reinterpret_cast<DataHeaderPacket*>(buf + offset));
-						break;
-					default:
-						TLOG(TLVL_INFO) << "Data-level verification not implemented for subsystem ID " << subsystemID;
-						break;
-				}
-				if (!subsystemCheck)
-				{
-					TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read - dmaSize + offset) << " is not a valid data block for subsystem ID " << subsystemID;
-					success = false;
-					// We don't have to skip to the next file, because we already know the data block integrity is fine.
-				}
-				offset += blockByteSize;
-			}
-		}
-
-		if (success)
-		{
-			TLOG(TLVL_INFO) << "File " << file << " verified successfully!";
-		}
-		else
-		{
-			TLOG(TLVL_WARNING) << "File " << file << " had verification errors, see TRACE output for details";
-		}
+	{
+		VerifyFile(file);
 	}
 }
