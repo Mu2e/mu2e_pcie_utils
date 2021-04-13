@@ -9,29 +9,11 @@
 devnum=$1; shift
 file=$1; shift
 
-# look for pci_devel_main.ko
-fdir= DEVMOD=
-if   [ -d "${CETPKG_BUILD-}" ];then
-    fdir="${CETPKG_BUILD-}"
-elif [ -d "${MRB_BUILDDIR-}" ]; then
-    fdir="${MRB_BUILDDIR-}"
-elif [ -d "${PCIE_LINUX_KERNEL_MODULE_DIR-}" ];then
-    fdir="${PCIE_LINUX_KERNEL_MODULE_DIR-}"
-fi
-
-vers=`uname -r`
-test -n "$fdir" && DEVMOD=`find $fdir -name pci_devel_main.ko | grep $vers|head -1`
-if [ -z "$DEVMOD" ];then
-   echo "ERROR - can't find pci_devel_main.ko"
-   exit
-fi
-
 # find the mcs and devl executables
 if type mcs >/dev/null;then :;else
     echo "ERROR - mcs and devl executables not found - setup pcie_linux_kernel_driver"
     exit
 fi
-
 
 pids=`lsof -t /dev/mu2e* 2>/dev/null` && kill $pids
 
@@ -41,7 +23,6 @@ lsmod | grep mu2e           >/dev/null && rmmod mu2e
 lsmod | grep TRACE          >/dev/null && rmmod TRACE
 
 if ! [ -z "${MRB_BUILDDIR-}" ] && [ -e "${MRB_BUILDDIR}/TRACE/module/`uname -r`/TRACE.ko" ]; then
-    lsmod | grep TRACE -q || insmod $MRB_BUILDDIR/TRACE/module/`uname -r`/TRACE.ko trace_allow_printk=1
     source $TRACE_DIR/script/trace.sh.functions 
 else
   # (re)setup TRACE (no get functions defined in this script
@@ -49,15 +30,14 @@ else
     test -n "${SETUP_TRACE-}"\
    && { xx=$SETUP_TRACE; unsetup TRACE; eval setup $xx;}\
    || setup TRACE
-
-    lsmod | grep TRACE -q || insmod $TRACE_DIR/module/`uname -r`/TRACE.ko trace_allow_printk=1
 fi
+
+modprobe TRACE
+modprobe pci_devel_main
 
 export TRACE_FILE=/proc/trace/buffer
 tonSg 0-7; tonMg 0-15
 
-
-insmod $DEVMOD
 
 echo "Detected mu2e devices:"
 
