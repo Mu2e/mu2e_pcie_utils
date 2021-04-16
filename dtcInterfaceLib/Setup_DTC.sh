@@ -47,22 +47,26 @@ DTC_Test_ROC_emulation()
 
 DTC_Reset()
 {
+  dtc=-1
+  if [ $# -ge 1 ]
+    dtc=$1
+  fi
 #    my_cntl write 0x9100 0x30000000 >/dev/null;: Oscillator resets;\
 #    my_cntl write 0x9100 0x80000000 >/dev/null;: DTC reset, Clear Oscillator resets;\
 #    my_cntl write 0x9100 0x00000000 >/dev/null;: Clear DTC reset;\
 #    my_cntl write 0x9118 0x0000003f >/dev/null;: Reset all links;\
 #    my_cntl write 0x9118 0x00000000 >/dev/null;: Clear Link Resets
 
-  my_cntl write 0x9100 0x80000000  >/dev/null # reset DTC  reset serdes osc
-  my_cntl write 0x9100 0x00008000 > /dev/null # Turn on CFO Emulation Mode for Serdes Reset
-  my_cntl write 0x9118 0xffff00ff  >/dev/null  # SERDES resets
-  my_cntl write 0x9118 0x00000000  >/dev/null  # clear SERDES reset on link 0
+  my_cntl -d $dtc write 0x9100 0x80000000  >/dev/null # reset DTC  reset serdes osc
+  my_cntl -d $dtc write 0x9100 0x00008000 > /dev/null # Turn on CFO Emulation Mode for Serdes Reset
+  my_cntl -d $dtc write 0x9118 0xffff00ff  >/dev/null  # SERDES resets
+  my_cntl -d $dtc write 0x9118 0x00000000  >/dev/null  # clear SERDES reset on link 0
 
   sleep 1
 
 
   echo "SERDES Reset Done after reset: "
-  my_cntl read 0x9138
+  my_cntl -d $dtc read 0x9138
 }
 
 ROC_Reset()

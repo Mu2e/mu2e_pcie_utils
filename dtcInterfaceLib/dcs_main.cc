@@ -23,6 +23,72 @@
 
 using namespace DTCLib;
 
+unsigned getLongOptionValue(int* index, char** argv[])
+{
+	auto arg = std::string((*argv)[*index]);
+	auto pos = arg.find('=');
+
+	if (pos == std::string::npos)
+	{
+		(*index)++;
+		unsigned ret = strtoul((*argv)[*index], nullptr, 0);
+		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
+		{
+			(*index)--;
+		}
+		return ret;
+	}
+
+	return strtoul(&arg[++pos], nullptr, 0);
+}
+unsigned long long getLongOptionValueLong(int* index, char** argv[])
+{
+	auto arg = std::string((*argv)[*index]);
+	auto pos = arg.find('=');
+
+	if (pos == std::string::npos)
+	{
+		(*index)++;
+		unsigned long long ret = strtoull((*argv)[*index], nullptr, 0);
+		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
+		{
+			(*index)--;
+		}
+		return ret;
+	}
+
+	return strtoull(&arg[++pos], nullptr, 0);
+}
+
+std::string getLongOptionOption(int* index, char** argv[])
+{
+	auto arg = std::string((*argv)[*index]);
+	auto pos = arg.find('=');
+
+	if (pos == std::string::npos)
+	{
+		return arg;
+	}
+	else
+	{
+		return arg.substr(0, pos - 1);
+	}
+}
+
+std::string getLongOptionString(int* index, char** argv[])
+{
+	auto arg = std::string((*argv)[*index]);
+
+	if (arg.find('=') == std::string::npos)
+	{
+		return std::string((*argv)[++(*index)]);
+	}
+	else
+	{
+		return arg.substr(arg.find('='));
+	}
+}
+
 unsigned getOptionValue(int* index, char** argv[])
 {
 	auto arg = (*argv)[*index];
@@ -75,7 +141,8 @@ void printHelpMsg()
 			  << "    -Q: Really Quiet mode (Try not to print anything)" << std::endl
 			  << "    -v: Expected DTC Design version string (Default: \"\")" << std::endl
 			  << "    -c: Word count for Block Reads (Default: 0)" << std::endl
-			  << "    -i: Do not set the incrementAddress bit for block operations" << std::endl;
+			  << "    -i: Do not set the incrementAddress bit for block operations" << std::endl
+			  << " --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl;
 	exit(0);
 }
 
@@ -92,6 +159,7 @@ int main(int argc, char* argv[])
 	size_t count = 0;
 	bool incrementAddress = true;
 	std::string op = "";
+	int dtc = -1;
 
 	for (auto optind = 1; optind < argc; ++optind)
 	{
@@ -130,6 +198,19 @@ int main(int argc, char* argv[])
 					quiet = true;
 					reallyQuiet = true;
 					break;
+				case '-':  // Long option
+				{
+					auto option = getLongOptionOption(&optind, &argv);
+					if (option == "--dtc")
+					{
+						dtc = getLongOptionValue(&optind, &argv);
+					}
+					else if (option == "--help")
+					{
+						printHelpMsg();
+					}
+					break;
+				}
 				default:
 					TLOG(TLVL_ERROR) << "Unknown option: " << argv[optind] << std::endl;
 					printHelpMsg();
@@ -156,7 +237,7 @@ int main(int argc, char* argv[])
 					 << ", Really Quiet Mode: " << reallyQuiet << std::endl;
 
 	auto dtc_link = static_cast<DTC_Link_ID>(link);
-	auto thisDTC = new DTC(DTC_SimMode_NoCFO, -1, (0x1 << (link * 4)));  // rocMask is in hex, not binary
+	auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, (0x1 << (link * 4)));  // rocMask is in hex, not binary
 	auto device = thisDTC->GetDevice();
 
 	if (op == "read_register")
