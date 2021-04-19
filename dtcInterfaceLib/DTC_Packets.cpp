@@ -894,7 +894,7 @@ void DTCLib::DTC_Event::UpdateHeader()
 	}
 }
 
-void DTCLib::DTC_Event::WriteEvent(std::ostream& output)
+void DTCLib::DTC_Event::WriteEvent(std::ostream& output, bool includeDMAWriteSize)
 {
 	UpdateHeader();
 
@@ -919,9 +919,13 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& output)
 
 	UpdateHeader();
 
+	if (includeDMAWriteSize) {
+
 	uint64_t dmaWriteSize = header_.inclusive_event_byte_count + sizeof(uint64_t) + sizeof(uint64_t);
-	uint64_t dmaSize = header_.inclusive_event_byte_count;
 	output.write(reinterpret_cast<const char*>(&dmaWriteSize), sizeof(uint64_t));
+	}
+
+	uint64_t dmaSize = header_.inclusive_event_byte_count;
 	output.write(reinterpret_cast<const char*>(&dmaSize), sizeof(uint64_t));
 	output << *this;
 

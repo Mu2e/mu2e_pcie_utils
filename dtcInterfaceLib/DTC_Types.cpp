@@ -43,6 +43,17 @@ DTCLib::DTC_SimMode DTCLib::DTC_SimModeConverter::ConvertToSimMode(std::string m
 	switch (modeName[0])
 	{
 		case '1':
+			if (modeName.size() > 1) {
+				switch (modeName[1])
+				{
+					case '0':
+						return DTC_SimMode_Event;
+					default:
+						break;
+				}
+				break;
+			}
+			return DTC_SimMode_Tracker;
 		case 't':
 		case 'T':
 			return DTC_SimMode_Tracker;
@@ -78,6 +89,10 @@ DTCLib::DTC_SimMode DTCLib::DTC_SimModeConverter::ConvertToSimMode(std::string m
 		case 'o':
 		case 'O':
 			return DTC_SimMode_Timeout;
+		case 'e':
+		case 'E':
+			return DTC_SimMode_Event;
+
 		case '0':
 			return DTC_SimMode_Disabled;
 		default:

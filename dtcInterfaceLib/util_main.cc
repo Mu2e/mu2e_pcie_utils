@@ -31,6 +31,7 @@ bool quiet = false;
 unsigned quietCount = 0;
 bool reallyQuiet = false;
 bool rawOutput = false;
+bool binaryFileOutput = false;
 bool skipVerify = false;
 bool writeDMAHeadersToOutput = false;
 bool useCFOEmulator = true;
@@ -350,6 +351,7 @@ void printHelpMsg()
 		<< "    --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl
 		<< "    --cfoDRP: Send DRPs from the DTC CFO Emulator instead of from the DTC itself" << std::endl
 		<< "    --heartbeats: Send <int> heartbeats after each DataRequestPacket" << std::endl
+		<< "    --binary-file-mode: Write DMA sizes to <file> along with read data, to generate a new binary file for detector emulator mode (not compatible with -f)" << std::endl
 		;
 
 	exit(0);
@@ -477,7 +479,13 @@ int main(int argc, char* argv[])
 					}
 					else if (option == "--heartbeats")
 					{
-						heartbeatsAfter = getOptionValue(&optind, &argv);
+						heartbeatsAfter = getLongOptionValue(&optind, &argv);
+					}
+					else if (option == "--binary-file-mode")
+					{
+						binaryFileOutput = true;
+						rawOutput = true;
+						rawOutputFile = getLongOptionString(&optind, &argv);
 					}
 					else if (option == "--help")
 					{
@@ -703,7 +711,12 @@ int main(int argc, char* argv[])
 													<< sts << " bytes," << std::endl;
 
 				TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
-				if (rawOutput) outputStream.write(static_cast<char*>(readPtr), sts - 8);
+				if (binaryFileOutput) {
+					uint64_t dmaWriteSize = sts + 8;
+					outputStream.write(reinterpret_cast<char*>(&dmaWriteSize), sizeof(dmaWriteSize));
+					outputStream.write(reinterpret_cast<char*>(&buffer[0]), sts);
+				}
+				else if (rawOutput) outputStream.write(static_cast<char*>(readPtr), sts - 8);
 
 				// Check for dead or cafe in first packet
 				for (size_t word = 1; word <= 8; ++word)

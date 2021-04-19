@@ -352,7 +352,8 @@ enum DTC_SimMode
 	DTC_SimMode_Loopback = 6,
 	DTC_SimMode_Performance = 7,
 	DTC_SimMode_LargeFile = 8,
-	DTC_SimMode_Timeout,
+	DTC_SimMode_Timeout = 9,
+	DTC_SimMode_Event = 10,
 	DTC_SimMode_Invalid,
 };
 
@@ -404,6 +405,10 @@ struct DTC_SimModeConverter
 				return "Performance";
 			case DTC_SimMode_LargeFile:
 				return "LargeFile";
+			case DTC_SimMode_Timeout:
+				return "Timeout";
+			case DTC_SimMode_Event:
+				return "Event";
 			case DTC_SimMode_Disabled:
 			default:
 				return "Disabled";

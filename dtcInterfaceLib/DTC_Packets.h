@@ -1106,6 +1106,9 @@ public:
 	}
 
 	DTC_Subsystem GetSubsystem() const { return static_cast<DTC_Subsystem>((header_.source_dtc_id & 0x70) >> 4); }
+	void SetSourceDTC(uint8_t id, DTC_Subsystem subsystem = DTC_Subsystem_Other) {
+		header_.source_dtc_id = (id & 0xf) + ((static_cast<int>(subsystem) & 0x70) << 4);
+	}
 	DTC_SubEventHeader* GetHeader() { return &header_; }
 	void UpdateHeader();
 
@@ -1199,7 +1202,7 @@ public:
 	DTC_EventHeader* GetHeader() { return &header_; }
 
 	void UpdateHeader();
-	void WriteEvent(std::ostream& output);
+	void WriteEvent(std::ostream& output, bool includeDMAWriteSize = true);
 
 private:
 	DTC_EventHeader header_;
