@@ -1,7 +1,7 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent pcie_linux_kernel_module	v2_04_03
-defaultqual	e20:s105
+parent pcie_linux_kernel_module
+defaultqual	e20:s107
 
 # These optional lines define the installed directories where
 # headers, libraries, and executables will be found
@@ -17,16 +17,26 @@ bindir      fq_dir      bin
 fcldir      -
 
 #
-product		 version	optional
-messagefacility  v2_07_02
-TRACE            v3_17_01
-cetbuildtools    v7_17_01        -       only_for_build
+product			version		optional
+messagefacility	v2_07_02	s104
+messagefacility	v2_07_02	s105
+messagefacility	v2_07_02	s106
+messagefacility	v2_08_00	s107
+TRACE			v3_17_01
+cetbuildtools	v8_04_00	-	only_for_build
 end_product_list
 
 # e6  - with gcc 4.9.1 and -std=c++1y
 # -nq- here means there is no qualifier
 # a "-" here means the dependent product is not required by the parent and will not be setup
 qualifier     messagefacility   TRACE   notes
+
+e20:s107:debug e20:debug         -nq-    -std=c++17
+e20:s107:prof  e20:prof          -nq-    -std=c++17
+e19:s107:debug e19:debug         -nq-    -std=c++17
+e19:s107:prof  e19:prof          -nq-    -std=c++17
+c7:s107:debug  c7:debug          -nq-    -std=c++17
+c7:s107:prof   c7:prof           -nq-    -std=c++17
 
 e20:s106:debug e20:debug         -nq-    -std=c++17
 e20:s106:prof  e20:prof          -nq-    -std=c++17
