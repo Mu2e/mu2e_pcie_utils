@@ -169,7 +169,7 @@ bool VerifyBlock(DTCLib::DTC_DataBlock block)
 	// Check that this is indeed a DataHeader packet
 	auto dataHeaderMask = 0x80F0;
 	uint16_t dataHeaderTest = static_cast<uint16_t>(header.ConvertToDataPacket().GetWord(2)) + (static_cast<uint16_t>(header.ConvertToDataPacket().GetWord(3)) << 8);
-	TLOG(TLVL_TRACE) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
+	TLOG(TLVL_DEBUG + 5) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
 	if ((dataHeaderTest & dataHeaderMask) != 0x8050)
 	{
 		TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << (total_size_read - dmaSize + current_buffer_pos) << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<const uint64_t*>(block.GetData());
@@ -236,7 +236,7 @@ bool VerifySubEvent(DTCLib::DTC_SubEvent subevt, DTCLib::DTC_EventWindowTag even
 	{
 		TLOG(TLVL_WARNING) << "SubEvent Header num_rocs field disagrees with number of DataBlocks! (" << subevt.GetHeader()->num_rocs << " != " << subevt.GetDataBlockCount() << ")";
 	}
-
+	TLOG(TLVL_DEBUG + 4) << subevt.GetHeader()->toJson();
 	current_buffer_pos += sizeof(DTCLib::DTC_SubEventHeader);
 
 	bool success = true;
@@ -264,6 +264,7 @@ bool VerifyEvent(DTCLib::DTC_Event evt)
 		TLOG(TLVL_WARNING) << "Event Header num_dtcs field disagrees with number of SubEvents! (" << evt.GetHeader()->num_dtcs << " != " << evt.GetSubEventCount() << ")";
 	}
 
+	TLOG(TLVL_DEBUG + 3) << evt.GetHeader()->toJson();
 	auto eventTag = evt.GetEventWindowTag();
 
 	current_buffer_pos += sizeof(DTCLib::DTC_EventHeader);
@@ -315,7 +316,7 @@ bool VerifyFile(std::string file)
 
 		current_buffer_pos = 0;
 
-		TLOG(TLVL_TRACE) << "Verifying event at offset 0x" << std::hex << (total_size_read - dmaSize);
+		TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << (total_size_read - dmaSize);
 		DTCLib::DTC_Event thisEvent(buf);
 		success = VerifyEvent(thisEvent);
 	}

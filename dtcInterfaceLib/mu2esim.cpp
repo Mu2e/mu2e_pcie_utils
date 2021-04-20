@@ -694,22 +694,24 @@ void mu2esim::trackerBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_
 	buffer[8] = static_cast<int>(link) + (DTCID * 6);
 	// TDC set to EventWindowTag
 	buffer[9] = (ts.GetEventWindowTag(true) & 0xFFFF);
-	buffer[10] = (ts.GetEventWindowTag(true) & 0xFFFF);
+	buffer[10] = 0x1000 + 0xF00 + ((ts.GetEventWindowTag(true) & 0xFF0000) >> 16);
 
-	buffer[11] = 0x0F0F;  // Both ToT0 and ToT1 set to 0xF
+	buffer[11] = (ts.GetEventWindowTag(true) & 0xFFFF);
+	buffer[12] = 0xF00 + ((ts.GetEventWindowTag(true) & 0xFF0000) >> 16);
 
-	buffer[12] = 0x2111;  // ADC values go from 1 to 15
-	buffer[13] = 0x3322;
-	buffer[14] = 0x4443;
-	buffer[15] = 0x6555;
-	buffer[16] = 0x7766;
-	buffer[17] = 0x8887;
-	buffer[18] = 0xA999;
-	buffer[19] = 0xBBAA;
-	buffer[20] = 0xCCCB;
-	buffer[21] = 0xEDDD;
-	buffer[22] = 0xFFEE;
-	buffer[23] = 0x000F;  // Preprocessing flags set to 0
+	buffer[13] = (0x7 << 6) + 0x1; // PMP = 7, 1 ADC packet
+	
+	buffer[14] = 0x1 + (0x2 << 10);
+	buffer[15] = 0x3 << 4;
+
+	buffer[16] = 0x4 + (0x5 << 10);
+	buffer[17] = 0x6 << 4;
+	buffer[18] = 0x7 + (0x8 << 10);
+	buffer[19] = 0x9 << 4;
+	buffer[20] = 0xA + (0xB << 10);
+	buffer[21] = 0xC << 4;
+	buffer[22] = 0xD + (0xE << 10);
+	buffer[23] = 0xF << 4;
 
 	DTCLib::DTC_DataBlock block(sizeof(buffer));
 	memcpy(&(*block.allocBytes)[0], buffer, sizeof(buffer));

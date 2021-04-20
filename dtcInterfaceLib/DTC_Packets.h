@@ -1067,6 +1067,8 @@ struct DTC_SubEventHeader
 		, reserved3(0)
 		, emtdc(0)
 	{}
+
+	std::string toJson() const;
 };
 
 class DTC_SubEvent
@@ -1107,7 +1109,7 @@ public:
 
 	DTC_Subsystem GetSubsystem() const { return static_cast<DTC_Subsystem>((header_.source_dtc_id & 0x70) >> 4); }
 	void SetSourceDTC(uint8_t id, DTC_Subsystem subsystem = DTC_Subsystem_Other) {
-		header_.source_dtc_id = (id & 0xf) + ((static_cast<int>(subsystem) & 0x70) << 4);
+		header_.source_dtc_id = (id & 0xf) + ((static_cast<int>(subsystem) & 0x7) << 4);
 	}
 	DTC_SubEventHeader* GetHeader() { return &header_; }
 	void UpdateHeader();
@@ -1153,6 +1155,8 @@ struct DTC_EventHeader
 		, emtdc(0)
 		, reserved2(0)
 	{}
+
+	std::string toJson() const;
 };
 
 class DTC_Event
