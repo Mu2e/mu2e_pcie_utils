@@ -21,6 +21,7 @@
 
 #include "DTC.h"
 #include "DTCSoftwareCFO.h"
+#include "DTC_Data_Verifier.h"
 
 using namespace DTCLib;
 
@@ -308,7 +309,7 @@ void WriteGeneratedData(DTC* thisDTC)
 void printHelpMsg()
 {
 	std::cout << "Usage: mu2eUtil [options] "
-				 "[read_data,reset_ddrread,reset_detemu,toggle_serdes,loopback,buffer_test,read_release,program_clock,verify_simfile,dma_info]"
+				 "[read_data,reset_ddrread,reset_detemu,toggle_serdes,loopback,verify_stream,buffer_test,read_release,program_clock,verify_simfile,dma_info]"
 			  << std::endl;
 	std::cout
 		<< "Options are:" << std::endl
@@ -351,8 +352,7 @@ void printHelpMsg()
 		<< "    --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl
 		<< "    --cfoDRP: Send DRPs from the DTC CFO Emulator instead of from the DTC itself" << std::endl
 		<< "    --heartbeats: Send <int> heartbeats after each DataRequestPacket" << std::endl
-		<< "    --binary-file-mode: Write DMA sizes to <file> along with read data, to generate a new binary file for detector emulator mode (not compatible with -f)" << std::endl
-		;
+		<< "    --binary-file-mode: Write DMA sizes to <file> along with read data, to generate a new binary file for detector emulator mode (not compatible with -f)" << std::endl;
 
 	exit(0);
 }
@@ -619,6 +619,173 @@ int main(int argc, char* argv[])
 			thisDTC->VerifySimFileInDTC(simFile, rawOutputFile);
 		}
 	}
+	else if (op == "verify_stream")
+	{
+		TLOG(TLVL_DEBUG) << "Operation \"verify_stream\"" << std::endl;
+		auto startTime = std::chrono::steady_clock::now();
+		auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
+		auto device = thisDTC->GetDevice();
+		thisDTC->SetSequenceNumberDisable();  // For Tracker Testing
+
+		auto initTime = device->GetDeviceTime();
+		device->ResetDeviceTime();
+		auto afterInit = std::chrono::steady_clock::now();
+
+		DTCSoftwareCFO cfo(thisDTC, useCFOEmulator, packetCount, debugType, stickyDebugType, quiet, false, forceNoDebug, useCFODRP);
+
+		if (genDMABlocks > 0)
+		{
+			WriteGeneratedData(thisDTC);
+		}
+		else if (useSimFile)
+		{
+			auto overwrite = false;
+			if (simFile.size() > 0) overwrite = true;
+			thisDTC->WriteSimFileToDTC(simFile, false, overwrite, rawOutputFile, skipVerify);
+			if (readGenerated)
+			{
+				exit(0);
+			}
+		}
+		else if (readGenerated)
+		{
+			thisDTC->DisableDetectorEmulator();
+			thisDTC->EnableDetectorEmulatorMode();
+			thisDTC->SetDetectorEmulationDMACount(number);
+			thisDTC->EnableDetectorEmulator();
+		}
+
+		if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && timestampFile != "")
+		{
+			syncRequests = false;
+			std::set<DTC_EventWindowTag> timestamps;
+			std::ifstream is(timestampFile);
+			uint64_t a;
+			while (is >> a)
+			{
+				timestamps.insert(DTC_EventWindowTag(a));
+			}
+			number = timestamps.size();
+			cfo.SendRequestsForList(timestamps, cfodelay, heartbeatsAfter);
+		}
+		else if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && !syncRequests)
+		{
+			cfo.SendRequestsForRange(number, DTC_EventWindowTag(timestampOffset), incrementTimestamp, cfodelay, requestsAhead, heartbeatsAfter);
+		}
+		else if (thisDTC->ReadSimMode() == DTC_SimMode_Loopback)
+		{
+			uint64_t ts = timestampOffset;
+			DTC_DataHeaderPacket header(DTC_Link_0, static_cast<uint16_t>(0), DTC_DataStatus_Valid, 0, DTC_Subsystem_Other, 0, DTC_EventWindowTag(ts));
+			TLOG(TLVL_INFO) << "Request: " << header.toJSON() << std::endl;
+			thisDTC->WriteDMAPacket(header);
+		}
+
+		auto readoutRequestTime = device->GetDeviceTime();
+		device->ResetDeviceTime();
+		auto afterRequests = std::chrono::steady_clock::now();
+
+		for (unsigned ii = 0; ii < number; ++ii)
+		{
+			if (syncRequests)
+			{
+				auto startRequest = std::chrono::steady_clock::now();
+				cfo.SendRequestForTimestamp(DTC_EventWindowTag(timestampOffset + (incrementTimestamp ? ii : 0), heartbeatsAfter));
+				auto endRequest = std::chrono::steady_clock::now();
+				readoutRequestTime +=
+					std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(endRequest - startRequest).count();
+			}
+			TLOG((reallyQuiet ? TLVL_DEBUG + 4 : TLVL_INFO)) << "Buffer Read " << std::dec << ii << std::endl;
+
+			mu2e_databuff_t* buffer;
+			auto tmo_ms = 1500;
+			TLOG(TLVL_TRACE) << "util - before read for DAQ - ii=" << ii;
+			auto sts = device->read_data(DTC_DMA_Engine_DAQ, reinterpret_cast<void**>(&buffer), tmo_ms);
+			TLOG(TLVL_TRACE) << "util - after read for DAQ - ii=" << ii << ", sts=" << sts << ", buffer=" << (void*)buffer;
+
+			if (sts > 0)
+			{
+				void* readPtr = &buffer[0];
+				auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
+				readPtr = static_cast<uint8_t*>(readPtr) + 8;
+				TLOG((reallyQuiet ? TLVL_DEBUG + 4 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
+																 << sts << " bytes," << std::endl;
+
+				TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
+				if (binaryFileOutput)
+				{
+					uint64_t dmaWriteSize = sts + 8;
+					outputStream.write(reinterpret_cast<char*>(&dmaWriteSize), sizeof(dmaWriteSize));
+					outputStream.write(reinterpret_cast<char*>(&buffer[0]), sts);
+				}
+				else if (rawOutput)
+					outputStream.write(static_cast<char*>(readPtr), sts - 8);
+
+				// Check for dead or cafe in first packet
+				for (size_t word = 1; word <= 8; ++word)
+				{
+					auto wordPtr = static_cast<uint16_t*>(readPtr) + (word - 1);
+					TLOG(TLVL_TRACE + 1) << word << (word == 1 ? "st" : word == 2 ? "nd"
+																	: word == 3   ? "rd"
+																				  : "th")
+										 << " word of buffer: " << *wordPtr;
+					if (*wordPtr == 0xcafe || *wordPtr == 0xdead)
+					{
+						TLOG(TLVL_WARNING) << "Buffer " << ii << ": Timeout detected! " << word << (word == 1 ? "st" : word == 2 ? "nd"
+																												   : word == 3   ? "rd"
+																																 : "th")
+										   << " word of buffer is 0x" << std::hex << *wordPtr;
+						break;
+					}
+				}
+
+				DTC_Event evt(readPtr);
+				DTC_Data_Verifier verifier;
+				auto verified = verifier.VerifyEvent(evt, bufSize);
+				if (!reallyQuiet) {
+					if (verified) {
+						TLOG(TLVL_INFO) << "Event verified successfully, " << evt.GetSubEventCount() << " sub-events";
+					}
+					else
+					{
+						TLOG(TLVL_WARNING) << "Event verification failed!";
+					}
+				}
+			}
+			else if (checkSERDES)
+				break;
+			device->read_release(DTC_DMA_Engine_DAQ, 1);
+			if (delay > 0) usleep(delay);
+		}
+
+		auto readDevTime = device->GetDeviceTime();
+		auto doneTime = std::chrono::steady_clock::now();
+		auto totalBytesRead = device->GetReadSize();
+		auto totalBytesWritten = device->GetWriteSize();
+		auto totalTime =
+			std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(doneTime - startTime).count();
+		auto totalInitTime =
+			std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(afterInit - startTime).count();
+		auto totalRequestTime =
+			std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(afterRequests - afterInit).count();
+		auto totalReadTime =
+			std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(doneTime - afterRequests).count();
+
+		TLOG(TLVL_INFO) << "Total Elapsed Time: " << Utilities::FormatTimeString(totalTime) << "." << std::endl
+						<< "Total Init Time: " << Utilities::FormatTimeString(totalInitTime) << "." << std::endl
+						<< "Total Readout Request Time: " << Utilities::FormatTimeString(totalRequestTime) << "." << std::endl
+						<< "Total Read Time: " << Utilities::FormatTimeString(totalReadTime) << "." << std::endl;
+		TLOG(TLVL_INFO) << "Device Init Time: " << Utilities::FormatTimeString(initTime) << "." << std::endl
+						<< "Device Request Time: " << Utilities::FormatTimeString(readoutRequestTime) << "." << std::endl
+						<< "Device Read Time: " << Utilities::FormatTimeString(readDevTime) << "." << std::endl;
+		TLOG(TLVL_INFO) << "Total Bytes Written: " << Utilities::FormatByteString(static_cast<double>(totalBytesWritten), "")
+						<< "." << std::endl
+						<< "Total Bytes Read: " << Utilities::FormatByteString(static_cast<double>(totalBytesRead), "") << "."
+						<< std::endl;
+		TLOG(TLVL_INFO) << "Total PCIe Rate: "
+						<< Utilities::FormatByteString((totalBytesWritten + totalBytesRead) / totalTime, "/s") << std::endl
+						<< "Read Rate: " << Utilities::FormatByteString(totalBytesRead / totalReadTime, "/s") << std::endl
+						<< "Device Read Rate: " << Utilities::FormatByteString(totalBytesRead / readDevTime, "/s") << std::endl;
+	}
 	else if (op == "buffer_test")
 	{
 		TLOG(TLVL_DEBUG) << "Operation \"buffer_test\"" << std::endl;
@@ -708,25 +875,33 @@ int main(int argc, char* argv[])
 				auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
 				readPtr = static_cast<uint8_t*>(readPtr) + 8;
 				TLOG((reallyQuiet ? TLVL_DEBUG + 4 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
-													<< sts << " bytes," << std::endl;
+																 << sts << " bytes," << std::endl;
 
 				TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
-				if (binaryFileOutput) {
+				if (binaryFileOutput)
+				{
 					uint64_t dmaWriteSize = sts + 8;
 					outputStream.write(reinterpret_cast<char*>(&dmaWriteSize), sizeof(dmaWriteSize));
 					outputStream.write(reinterpret_cast<char*>(&buffer[0]), sts);
 				}
-				else if (rawOutput) outputStream.write(static_cast<char*>(readPtr), sts - 8);
+				else if (rawOutput)
+					outputStream.write(static_cast<char*>(readPtr), sts - 8);
 
 				// Check for dead or cafe in first packet
 				for (size_t word = 1; word <= 8; ++word)
 				{
 					auto wordPtr = static_cast<uint16_t*>(readPtr) + (word - 1);
-					TLOG(TLVL_TRACE + 1) << word << (word == 1 ? "st" : word == 2 ? "nd" : word == 3 ? "rd" : "th") << " word of buffer: " << *wordPtr;
+					TLOG(TLVL_TRACE + 1) << word << (word == 1 ? "st" : word == 2 ? "nd"
+																	: word == 3   ? "rd"
+																				  : "th")
+										 << " word of buffer: " << *wordPtr;
 					if (*wordPtr == 0xcafe || *wordPtr == 0xdead)
 					{
-						TLOG(TLVL_WARNING) << "Buffer " << ii << ": Timeout detected! " << word << (word == 1 ? "st" : word == 2 ? "nd" : word == 3 ? "rd" : "th") << " word of buffer is 0x" << std::hex << *wordPtr;
-break;
+						TLOG(TLVL_WARNING) << "Buffer " << ii << ": Timeout detected! " << word << (word == 1 ? "st" : word == 2 ? "nd"
+																												   : word == 3   ? "rd"
+																																 : "th")
+										   << " word of buffer is 0x" << std::hex << *wordPtr;
+						break;
 					}
 				}
 
