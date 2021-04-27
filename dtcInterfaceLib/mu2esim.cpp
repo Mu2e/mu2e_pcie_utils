@@ -102,10 +102,7 @@ mu2esim::~mu2esim()
 		delete[] dmaData_[0][ii];
 		delete[] dmaData_[1][ii];
 	}
-	if (ddrFile_ && ddrFile_->is_open())
-	{
-		ddrFile_->close();
-	}
+	ddrFile_.reset(nullptr);
 }
 
 int mu2esim::init(DTCLib::DTC_SimMode mode)
@@ -787,24 +784,19 @@ void mu2esim::reopenDDRFile_()
 	if (!ddrFile_)
 	{
 		TLOG(TLVL_INFO) << "Going to open simulated RAM file " << ddrFileName_;
-		ddrFile_ = std::make_unique<std::fstream>(ddrFileName_, std::ios::binary | std::ios::in | std::ios::out);
+		ddrFile_.reset(new std::fstream(ddrFileName_, std::fstream::binary | std::fstream::in | std::fstream::out));
 	}
 	else
 	{
-		if (ddrFile_->is_open())
-		{
-			ddrFile_->close();
-		}
-		ddrFile_->open(ddrFileName_, std::ios::trunc | std::ios::binary | std::ios::out | std::ios::in);
+		ddrFile_.reset(new std::fstream(ddrFileName_, std::fstream::trunc | std::fstream::binary | std::fstream::out | std::ios::in));
 	}
 
 	if (!ddrFile_->is_open() || ddrFile_->fail())
 	{
 		TLOG(TLVL_INFO) << "File " << ddrFileName_ << " does not exist, creating";
-		ddrFile_->open(ddrFileName_, std::fstream::binary | std::fstream::trunc | std::fstream::out);
-		ddrFile_->close();
-		// re-open with original flags
-		ddrFile_->open(ddrFileName_, std::fstream::binary | std::fstream::in | std::fstream::out);
+		ddrFile_.reset(new std::fstream(ddrFileName_, std::fstream::binary | std::fstream::trunc | std::fstream::out));
+		// Reopen with original flags
+		ddrFile_.reset(new std::fstream(ddrFileName_, std::fstream::binary | std::fstream::in | std::fstream::out));
 	}
 }
 
