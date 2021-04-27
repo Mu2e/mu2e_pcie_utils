@@ -102,6 +102,8 @@ private:
 	void calorimeterBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_Link_ID link, int DTCID);
 	void crvBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_Link_ID link, int DTCID);
 
+	void reopenDDRFile_();
+
 	std::unordered_map<uint16_t, uint32_t> registers_;
 	unsigned swIdx_[MU2E_MAX_CHANNELS];
 	unsigned hwIdx_[MU2E_MAX_CHANNELS];

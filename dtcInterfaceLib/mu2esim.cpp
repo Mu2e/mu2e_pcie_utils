@@ -88,17 +88,7 @@ mu2esim::mu2esim(std::string ddrFileName)
 		event_mode_num_crv_blocks_ = std::atoi(crv_count_c);
 	}
 
-	TLOG(TLVL_INFO) << "Going to open simulated RAM file " << ddrFileName_;
-	ddrFile_ = std::make_unique<std::fstream>(ddrFileName_, std::ios::binary | std::ios::in | std::ios::out);
-
-	if (!ddrFile_->is_open() || ddrFile_->fail())
-	{
-		TLOG(TLVL_INFO) << "File " << ddrFileName_ << " does not exist, creating";
-		ddrFile_->open(ddrFileName_, std::fstream::binary | std::fstream::trunc | std::fstream::out);
-		ddrFile_->close();
-		// re-open with original flags
-		ddrFile_->open(ddrFileName_, std::fstream::binary | std::fstream::in | std::fstream::out);
-	}
+	reopenDDRFile_();
 
 	TLOG(TLVL_Constructor) << "mu2esim::mu2esim END";
 }
@@ -112,7 +102,10 @@ mu2esim::~mu2esim()
 		delete[] dmaData_[0][ii];
 		delete[] dmaData_[1][ii];
 	}
-	ddrFile_->close();
+	if (ddrFile_ && ddrFile_->is_open())
+	{
+		ddrFile_->close();
+	}
 }
 
 int mu2esim::init(DTCLib::DTC_SimMode mode)
@@ -379,16 +372,14 @@ int mu2esim::write_register(uint16_t address, int tmo_ms, uint32_t data)
 		{
 			TLOG(TLVL_WriteRegister2) << "mu2esim::write_register: RESETTING DTC EMULATOR!";
 			init(mode_);
-			ddrFile_->close();
-			ddrFile_->open(ddrFileName_, std::ios::trunc | std::ios::binary | std::ios::out | std::ios::in);
+			reopenDDRFile_();
 		}
 	}
 	if (address == DTCLib::DTC_Register_DetEmulationControl0)
 	{
 		if (dataBS[0] == 0)
 		{
-			ddrFile_->close();
-			ddrFile_->open(ddrFileName_, std::ios::trunc | std::ios::binary | std::ios::out | std::ios::in);
+			reopenDDRFile_();
 		}
 	}
 	if (address == DTCLib::DTC_Register_DetEmulationDataStartAddress)
@@ -699,8 +690,8 @@ void mu2esim::trackerBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_
 	buffer[11] = (ts.GetEventWindowTag(true) & 0xFFFF);
 	buffer[12] = 0xF00 + ((ts.GetEventWindowTag(true) & 0xFF0000) >> 16);
 
-	buffer[13] = (0x7 << 6) + 0x1; // PMP = 7, 1 ADC packet
-	
+	buffer[13] = (0x7 << 6) + 0x1;  // PMP = 7, 1 ADC packet
+
 	buffer[14] = 0x1 + (0x2 << 10);
 	buffer[15] = 0x3 << 4;
 
@@ -789,6 +780,32 @@ void mu2esim::crvBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_Link
 	DTCLib::DTC_DataBlock block(sizeof(buffer));
 	memcpy(&(*block.allocBytes)[0], buffer, sizeof(buffer));
 	sub_event_->AddDataBlock(block);
+}
+
+void mu2esim::reopenDDRFile_()
+{
+	if (!ddrFile_)
+	{
+		TLOG(TLVL_INFO) << "Going to open simulated RAM file " << ddrFileName_;
+		ddrFile_ = std::make_unique<std::fstream>(ddrFileName_, std::ios::binary | std::ios::in | std::ios::out);
+	}
+	else
+	{
+		if (ddrFile_->is_open())
+		{
+			ddrFile_->close();
+		}
+		ddrFile_->open(ddrFileName_, std::ios::trunc | std::ios::binary | std::ios::out | std::ios::in);
+	}
+
+	if (!ddrFile_->is_open() || ddrFile_->fail())
+	{
+		TLOG(TLVL_INFO) << "File " << ddrFileName_ << " does not exist, creating";
+		ddrFile_->open(ddrFileName_, std::fstream::binary | std::fstream::trunc | std::fstream::out);
+		ddrFile_->close();
+		// re-open with original flags
+		ddrFile_->open(ddrFileName_, std::fstream::binary | std::fstream::in | std::fstream::out);
+	}
 }
 
 void mu2esim::packetSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_Link_ID link, uint16_t packetCount)
