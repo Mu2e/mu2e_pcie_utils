@@ -123,7 +123,7 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DMAPacket::ConvertToDataPacket() const
 	output.SetWord(1, word0B);
 	auto word1A = static_cast<uint8_t>(hopCount_ & 0xF);
 	word1A += static_cast<uint8_t>(packetType_) << 4;
-	uint8_t word1B = static_cast<uint8_t>(linkID_ & 0x7) + (valid_ ? 0x80 : 0x0) + ((subsystemID_ & 0x7) << 8);
+	uint8_t word1B = static_cast<uint8_t>(linkID_ & 0x7) + (valid_ ? 0x80 : 0x0) + ((subsystemID_ & 0x7) << 4);
 	output.SetWord(2, word1A);
 	output.SetWord(3, word1B);
 	for (uint16_t i = 4; i < byteCount_; ++i)
