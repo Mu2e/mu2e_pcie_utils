@@ -130,6 +130,10 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 				EnableROCEmulator(link);
 				// SetMaxROCNumber(DTC_Link_0, DTC_ROC_0);
 			}
+			else {
+				SetSERDESLoopbackMode(link, DTC_SERDESLoopbackMode_Disabled);
+				DisableROCEmulator(link);
+			}
 		}
 		DisableTiming();
 		SetCFOEmulationMode();

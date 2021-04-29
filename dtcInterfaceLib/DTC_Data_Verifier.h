@@ -122,6 +122,42 @@ public:
 		return true;
 	}
 
+	bool VerifyROCEmulatorBlock(DTCLib::DTC_DataBlock block)
+	{
+		auto headerDP = block.GetHeader().ConvertToDataPacket();
+
+		bool success = true;
+		success = headerDP.GetWord(12) == 0xEF;
+		success &= headerDP.GetWord(13) == 0xBE;
+		success &= headerDP.GetWord(16) == 0xBE;
+		if (!success) {
+			TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Header format is incorrect (check bytes)";
+			return false;
+		}
+
+		auto packetCount = block.GetHeader().GetPacketCount();
+		auto dataPtr = reinterpret_cast<uint32_t const*>(block.GetData());
+		
+		for (int ii = 0; ii < packetCount; ++ii) 
+		{
+			success = *dataPtr == 0x22221111;
+			++dataPtr;
+			success &= *dataPtr == roc_emulator_packet_count_;
+			++dataPtr;
+			success &= *dataPtr == 0x44443333;
+			++dataPtr;
+			success &= *dataPtr == roc_emulator_packet_count_;
+			++dataPtr;
+			roc_emulator_packet_count_++;
+
+			if (!success) {
+				TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Data packet " << ii << " has format error";
+			}
+		}
+
+		return true;
+	}
+
 	bool VerifyBlock(DTCLib::DTC_DataBlock block, uint64_t dmaSize)
 	{
 		auto header = block.GetHeader();
@@ -133,17 +169,17 @@ public:
 		TLOG(TLVL_DEBUG + 5) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
 		if ((dataHeaderTest & dataHeaderMask) != 0x8050)
 		{
-			TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << (total_size_read - dmaSize + current_buffer_pos) << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<const uint64_t*>(block.GetData());
-			TLOG(TLVL_ERROR) << "This most likely means that the declared DMA size is incorrect, it was declared as 0x" << std::hex << dmaSize << ", but we ran out of DataHeaders at 0x" << std::hex << current_buffer_pos;
+			TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_) << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<const uint64_t*>(block.GetData());
+			TLOG(TLVL_ERROR) << "This most likely means that the declared DMA size is incorrect, it was declared as 0x" << std::hex << dmaSize << ", but we ran out of DataHeaders at 0x" << std::hex << current_buffer_pos_;
 			// go to next file
-			continueFile = false;
+			continueFile_ = false;
 			return false;
 		}
-		if (current_buffer_pos + blockByteSize > dmaSize)
+		if (current_buffer_pos_ + blockByteSize > dmaSize)
 		{
-			TLOG(TLVL_ERROR) << "Block goes past end of DMA! Blocks should always end at DMA boundary! Error at 0x" << std::hex << (total_size_read - dmaSize + current_buffer_pos);
+			TLOG(TLVL_ERROR) << "Block goes past end of DMA! Blocks should always end at DMA boundary! Error at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_);
 			// go to next file
-			continueFile = false;
+			continueFile_ = false;
 			return false;
 		}
 
@@ -153,7 +189,7 @@ public:
 			TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: 0x" << std::hex << blockByteSize;
 
 			// We don't have to skip to the next file, because we already know the data block integrity is fine.
-			current_buffer_pos += blockByteSize;
+			current_buffer_pos_ += blockByteSize;
 			return false;
 		}
 
@@ -170,20 +206,23 @@ public:
 			case 2:  // CRV
 				subsystemCheck = VerifyCRVDataBlock(block);
 				break;
+			case 3: // ROC Emulator
+				subsystemCheck = VerifyROCEmulatorBlock(block);
+				break;
 			default:
 				TLOG(TLVL_INFO) << "Data-level verification not implemented for subsystem ID " << subsystemID;
 				break;
 		}
 		if (!subsystemCheck)
 		{
-			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read - dmaSize + current_buffer_pos) << " is not a valid data block for subsystem ID " << subsystemID;
-			current_buffer_pos += blockByteSize;
+			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_) << " is not a valid data block for subsystem ID " << subsystemID;
+			current_buffer_pos_ += blockByteSize;
 
 			return false;
 			// We don't have to skip to the next file, because we already know the data block integrity is fine.
 		}
 
-		current_buffer_pos += blockByteSize;
+		current_buffer_pos_ += blockByteSize;
 		return true;
 	}
 
@@ -198,14 +237,14 @@ public:
 			TLOG(TLVL_WARNING) << "SubEvent Header num_rocs field disagrees with number of DataBlocks! (" << subevt.GetHeader()->num_rocs << " != " << subevt.GetDataBlockCount() << ")";
 		}
 		TLOG(TLVL_DEBUG + 4) << subevt.GetHeader()->toJson();
-		current_buffer_pos += sizeof(DTCLib::DTC_SubEventHeader);
+		current_buffer_pos_ += sizeof(DTCLib::DTC_SubEventHeader);
 
 		bool success = true;
 		for (auto& block : subevt.GetDataBlocks())
 		{
 			auto blockSuccess = VerifyBlock(block, dmaSize);
 			success &= blockSuccess;
-			if (!continueFile) return false;
+			if (!continueFile_) return false;
 		}
 		return success;
 	}
@@ -228,13 +267,13 @@ public:
 		TLOG(TLVL_DEBUG + 3) << evt.GetHeader()->toJson();
 		auto eventTag = evt.GetEventWindowTag();
 
-		current_buffer_pos += sizeof(DTCLib::DTC_EventHeader);
+		current_buffer_pos_ += sizeof(DTCLib::DTC_EventHeader);
 
 		for (auto& subevt : evt.GetSubEvents())
 		{
 			auto subevtSuccess = VerifySubEvent(subevt, eventTag, dmaSize);
 			success &= subevtSuccess;
-			if (!continueFile) return false;
+			if (!continueFile_) return false;
 		}
 		return success;
 	}
@@ -248,37 +287,37 @@ public:
 			return false;
 		}
 		TLOG(TLVL_INFO) << "Reading binary file " << file;
-		total_size_read = 0;
+		total_size_read_ = 0;
 
 		mu2e_databuff_t buf;
 
 		bool success = true;
-		bool continueFile = true;
-		while (is && continueFile)
+		continueFile_ = true;
+		while (is && continueFile_)
 		{
 			uint64_t dmaWriteSize;  // DMA Write buffer size
 			is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
-			total_size_read += sizeof(dmaWriteSize);
+			total_size_read_ += sizeof(dmaWriteSize);
 
 			uint64_t dmaSize;
 			is.read((char*)&dmaSize, sizeof(dmaSize));
-			total_size_read += sizeof(dmaSize);
+			total_size_read_ += sizeof(dmaSize);
 
 			// Check that DMA Write Buffer Size = DMA Buffer Size + 16
 			if (dmaSize + 16 != dmaWriteSize)
 			{
-				TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
+				TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read_ << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
 				success = false;
 				break;
 			}
 
 			// Check that size of all DataBlocks = DMA Buffer Size
 			is.read((char*)buf, dmaSize);
-			total_size_read += dmaSize;
+			total_size_read_ += dmaSize;
 
-			current_buffer_pos = 0;
+			current_buffer_pos_ = 0;
 
-			TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << (total_size_read - dmaSize);
+			TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << (total_size_read_ - dmaSize);
 			DTCLib::DTC_Event thisEvent(buf);
 			success = VerifyEvent(thisEvent, dmaSize);
 		}
@@ -296,8 +335,9 @@ public:
 	}
 
 private:
-	bool continueFile{true};
-	uint64_t total_size_read{0};
-	uint64_t current_buffer_pos{0};
+	bool continueFile_{true};
+	uint64_t total_size_read_{0};
+	uint64_t current_buffer_pos_{0};
+	uint32_t roc_emulator_packet_count_{0};
 };
 }  // namespace DTCLib
