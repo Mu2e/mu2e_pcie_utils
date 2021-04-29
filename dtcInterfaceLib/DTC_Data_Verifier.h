@@ -142,7 +142,11 @@ public:
 		{
 			success = *dataPtr == 0x22221111;
 			++dataPtr;
-			success &= *dataPtr == roc_emulator_packet_count_;
+
+			if (*dataPtr != roc_emulator_packet_count_) {
+				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet count unexpected, shifting from " << roc_emulator_packet_count_ << " to " << *dataPtr;
+				roc_emulator_packet_count_ = *dataPtr;
+			}
 			++dataPtr;
 			success &= *dataPtr == 0x44443333;
 			++dataPtr;
