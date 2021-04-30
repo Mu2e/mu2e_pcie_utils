@@ -679,7 +679,8 @@ void mu2esim::trackerBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_
 	DTCLib::DTC_DataHeaderPacket header(link, nPackets, DTCLib::DTC_DataStatus_Valid, DTCID, DTCLib::DTC_Subsystem_Tracker, CURRENT_EMULATED_TRACKER_VERSION, ts, static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF));
 	memcpy(&buffer[0], header.ConvertToDataPacket().GetData(), 16);
 
-	buffer[8] = static_cast<int>(link) + (DTCID * 6);
+	uint16_t strawID = ((static_cast<int>(link) + (DTCID * 6)) << 7) + 1;
+	buffer[8] = strawID;
 	// TDC set to EventWindowTag
 	buffer[9] = (ts.GetEventWindowTag(true) & 0xFFFF);
 	buffer[10] = 0x1000 + 0xF00 + ((ts.GetEventWindowTag(true) & 0xFF0000) >> 16);
@@ -719,13 +720,14 @@ void mu2esim::calorimeterBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::
 	buffer[9] = 8;  // Index of hit from start of index packet
 
 	// Board ID
-	uint8_t board_number = (static_cast<uint8_t>(link) + (DTCID * 6)) & 0x3F;  // 6 bits
+	uint16_t roc_id = static_cast<uint8_t>(link) + (DTCID * 6);
+	uint8_t board_number = (roc_id) & 0x3F;  // 6 bits
 	buffer[10] = 0xFC00 + (board_number << 3);
 	buffer[11] = 0x3FFF;
 
 	// Hit readout
 	buffer[12] = board_number;
-	buffer[13] = 0;  // DIRAC B...do we need to put something here?
+	buffer[13] = 10 * roc_id;  // DIRAC B...do we need to put something here?
 
 	buffer[14] = 0;                                    // No error flags
 	buffer[15] = ts.GetEventWindowTag(true) & 0xFFFF;  // Time
