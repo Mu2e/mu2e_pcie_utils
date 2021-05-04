@@ -219,7 +219,7 @@ public:
 		}
 		if (!subsystemCheck)
 		{
-			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_) << " is not a valid data block for subsystem ID " << subsystemID;
+			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_) << " is not a valid data block for subsystem ID " << static_cast<int>(subsystemID);
 			current_buffer_pos_ += blockByteSize;
 
 			return false;

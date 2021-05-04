@@ -75,6 +75,7 @@ mu2esim::mu2esim(std::string ddrFileName)
 	{
 		event_mode_num_tracker_blocks_ = std::atoi(tracker_count_c);
 	}
+	// Max is 134
 	event_mode_num_calo_blocks_ = 6;
 	auto calo_count_c = getenv("DTCLIB_NUM_CALORIMETER_BLOCKS");
 	if (calo_count_c != nullptr)
@@ -731,7 +732,7 @@ void mu2esim::calorimeterBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::
 
 	buffer[14] = 0;                                    // No error flags
 	buffer[15] = ts.GetEventWindowTag(true) & 0xFFFF;  // Time
-	buffer[16] = 0x0707;                               // Max sample/num samples
+	buffer[16] = 0x0607;                               // Max sample/num samples
 
 	// Digitizer samples
 	buffer[17] = 0x1111;
