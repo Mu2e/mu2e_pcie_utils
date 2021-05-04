@@ -171,7 +171,7 @@ int main(int argc, char* argv[])
 			auto header = *reinterpret_cast<DataHeaderPacket*>(buf + offset);
 			size_t blockByteSize = header.s.TransferByteCount;
 
-			uint64_t timestamp = header.s.ts10 + (static_cast<uint64_t>(header.s.ts32) << 16) + (static_cast<uint64_t>(header.s.ts54) << 32);
+			uint64_t timestamp = (static_cast<uint64_t>(header.s.ts10) << 32) + (static_cast<uint64_t>(header.s.ts32) << 16) + (static_cast<uint64_t>(header.s.ts54));
 			size_t bufSize = blockByteSize - 0x10;
 
 			if (first_file_contents.count(timestamp) && first_file_contents[timestamp].count(header.s.SubsystemID) && first_file_contents[timestamp][header.s.SubsystemID].count(header.s.DTCID) && first_file_contents[timestamp][header.s.SubsystemID][header.s.DTCID].count(header.s.LinkID))

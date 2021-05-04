@@ -633,7 +633,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 		for (auto link : DTCLib::DTC_Links)
 		{
 			TLOG(TLVL_EventSimulator) << "Generating Tracker data block for DTC " << DTCID << " link " << static_cast<int>(link);
-			trackerBlockSimulator_(ts, link, DTCID);
+			trackerBlockSimulator_(ts, link, ii);
 			if (++generated_trk_blocks >= event_mode_num_tracker_blocks_) break;
 		}
 		closeSubEvent_();
@@ -648,7 +648,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 		for (auto link : DTCLib::DTC_Links)
 		{
 			TLOG(TLVL_EventSimulator) << "Generating Calorimeter data block for DTC " << DTCID << " link " << static_cast<int>(link);
-			calorimeterBlockSimulator_(ts, link, DTCID);
+			calorimeterBlockSimulator_(ts, link, ii);
 			if (++generated_calo_blocks >= event_mode_num_calo_blocks_) break;
 		}
 		closeSubEvent_();
@@ -663,7 +663,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 		for (auto link : DTCLib::DTC_Links)
 		{
 			TLOG(TLVL_EventSimulator) << "Generating CRV data block for DTC " << DTCID << " link " << static_cast<int>(link);
-			crvBlockSimulator_(ts, link, DTCID);
+			crvBlockSimulator_(ts, link, ii);
 			if (++generated_crv_blocks >= event_mode_num_crv_blocks_) break;
 		}
 		closeSubEvent_();
