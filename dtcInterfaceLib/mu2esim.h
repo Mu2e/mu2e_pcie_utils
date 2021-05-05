@@ -117,6 +117,7 @@ private:
 
 	size_t event_mode_num_tracker_blocks_;
 	size_t event_mode_num_calo_blocks_;
+	uint16_t event_mode_num_calo_hits_;
 	size_t event_mode_num_crv_blocks_;
 
 	typedef std::bitset<6> readoutRequestData;
