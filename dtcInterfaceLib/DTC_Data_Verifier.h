@@ -78,7 +78,24 @@ public:
 				return false;
 			}
 
-			dataPtr += 4;
+
+			//auto channelNumber = *dataPtr & 0x3F;
+			//auto diracA = (*dataPtr >> 6) & 0x3FF;
+			++dataPtr;
+			auto diracB = *dataPtr;
+
+			auto sipmID = diracB >> 12;
+			auto crystalID = diracB & 0xFFF;
+
+			if(sipmID != 0 && sipmID != 1){ TLOG(TLVL_WARNING) << "Invalid sipmID " << sipmID << " detected!"; }
+			if(crystalID > 674 * 2) { TLOG(TLVL_WARNING) << "Invalid crystalID " << crystalID << " detected!"; } 
+
+			dataPtr += 2;
+
+			auto time = *dataPtr;
+			if(time < 500) { TLOG(TLVL_WARNING) << "VerifyCalorimeterBlock: Suspicious time " << time << " detected!";}
+
+			++dataPtr;
 			currentOffset += 8;
 
 			auto numSamples = *dataPtr & 0xFF;
