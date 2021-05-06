@@ -12,7 +12,7 @@ cmake_minimum_required (VERSION 3.16)
 
 find_package(cetbuildtools)
 
-project(pcie_linux_kernel_module VERSION 2.04.07)
+project(pcie_linux_kernel_module VERSION 2.04.08)
 
 # cetbuildtools contains our cmake modules
 SET ( CETBUILDTOOLS_VERSION $ENV{CETBUILDTOOLS_VERSION} )

@@ -75,11 +75,18 @@ mu2esim::mu2esim(std::string ddrFileName)
 	{
 		event_mode_num_tracker_blocks_ = std::atoi(tracker_count_c);
 	}
+	// Max is 134
 	event_mode_num_calo_blocks_ = 6;
 	auto calo_count_c = getenv("DTCLIB_NUM_CALORIMETER_BLOCKS");
 	if (calo_count_c != nullptr)
 	{
 		event_mode_num_calo_blocks_ = std::atoi(calo_count_c);
+	}
+	event_mode_num_calo_hits_ = 6;
+	auto calo_hit_count_c = getenv("DTCLIB_NUM_CALORIMETER_HITS");
+	if (calo_hit_count_c != nullptr)
+	{
+		event_mode_num_calo_hits_ = std::atoi(calo_hit_count_c);
 	}
 	event_mode_num_crv_blocks_ = 0;
 	auto crv_count_c = getenv("DTCLIB_NUM_CRV_BLOCKS");
@@ -632,7 +639,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 		for (auto link : DTCLib::DTC_Links)
 		{
 			TLOG(TLVL_EventSimulator) << "Generating Tracker data block for DTC " << DTCID << " link " << static_cast<int>(link);
-			trackerBlockSimulator_(ts, link, DTCID);
+			trackerBlockSimulator_(ts, link, ii);
 			if (++generated_trk_blocks >= event_mode_num_tracker_blocks_) break;
 		}
 		closeSubEvent_();
@@ -647,7 +654,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 		for (auto link : DTCLib::DTC_Links)
 		{
 			TLOG(TLVL_EventSimulator) << "Generating Calorimeter data block for DTC " << DTCID << " link " << static_cast<int>(link);
-			calorimeterBlockSimulator_(ts, link, DTCID);
+			calorimeterBlockSimulator_(ts, link, ii);
 			if (++generated_calo_blocks >= event_mode_num_calo_blocks_) break;
 		}
 		closeSubEvent_();
@@ -662,7 +669,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 		for (auto link : DTCLib::DTC_Links)
 		{
 			TLOG(TLVL_EventSimulator) << "Generating CRV data block for DTC " << DTCID << " link " << static_cast<int>(link);
-			crvBlockSimulator_(ts, link, DTCID);
+			crvBlockSimulator_(ts, link, ii);
 			if (++generated_crv_blocks >= event_mode_num_crv_blocks_) break;
 		}
 		closeSubEvent_();
@@ -709,41 +716,54 @@ void mu2esim::trackerBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_
 
 void mu2esim::calorimeterBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_Link_ID link, int DTCID)
 {
-	uint16_t buffer[24];
-
-	size_t nPackets = 2;
-	DTCLib::DTC_DataHeaderPacket header(link, nPackets, DTCLib::DTC_DataStatus_Valid, DTCID, DTCLib::DTC_Subsystem_Calorimeter, CURRENT_EMULATED_CALORIMETER_VERSION, ts, static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF));
-	memcpy(&buffer[0], header.ConvertToDataPacket().GetData(), 16);
+	std::vector<uint16_t> buffer(9);
 
 	// Index Packet
-	buffer[8] = 1;
-	buffer[9] = 8;  // Index of hit from start of index packet
+	buffer[8] = event_mode_num_calo_hits_;
+
+	for (size_t idx = 0; idx < event_mode_num_calo_hits_; ++idx)
+	{
+		buffer.push_back(2 /* num hits */ + 2 * event_mode_num_calo_hits_ /* hit offsets */ + 4 /* board ID */ + idx * 24 /* hit readout */);  // Index of hit from start of index packet
+	}
 
 	// Board ID
 	uint16_t roc_id = static_cast<uint8_t>(link) + (DTCID * 6);
-	uint8_t board_number = (roc_id) & 0x3F;  // 6 bits
-	buffer[10] = 0xFC00 + (board_number << 3);
-	buffer[11] = 0x3FFF;
+	uint8_t board_number = (roc_id)&0x3F;  // 6 bits
+	buffer.push_back(0xFC00 + (board_number << 3));
+	buffer.push_back(0x3FFF);
 
-	// Hit readout
-	buffer[12] = board_number;
-	buffer[13] = 10 * roc_id;  // DIRAC B...do we need to put something here?
+	auto t0Step = 2000 / event_mode_num_calo_hits_;
 
-	buffer[14] = 0;                                    // No error flags
-	buffer[15] = ts.GetEventWindowTag(true) & 0xFFFF;  // Time
-	buffer[16] = 0x0707;                               // Max sample/num samples
+	for (size_t idx = 0; idx < event_mode_num_calo_hits_; ++idx)
+	{
+		// Hit readout
+		buffer.push_back(board_number);
+		buffer.push_back(10 * roc_id);  // DIRAC B...do we need to put something here?
 
-	// Digitizer samples
-	buffer[17] = 0x1111;
-	buffer[18] = 0x2222;
-	buffer[19] = 0x3333;
-	buffer[20] = 0x4444;
-	buffer[21] = 0x5555;
-	buffer[22] = 0x6666;
-	buffer[23] = 0x7777;
+		buffer.push_back(0);                           // No error flags
+		buffer.push_back((idx * t0Step) & 0xFFFF);  // Time
+		buffer.push_back(0x0607);                      // Max sample/num samples
 
-	DTCLib::DTC_DataBlock block(sizeof(buffer));
-	memcpy(&(*block.allocBytes)[0], buffer, sizeof(buffer));
+		// Digitizer samples
+		buffer.push_back(0x1111);
+		buffer.push_back(0x2222);
+		buffer.push_back(0x3333);
+		buffer.push_back(0x4444);
+		buffer.push_back(0x5555);
+		buffer.push_back(0x6666);
+		buffer.push_back(0x7777);
+	}
+
+	while (buffer.size() % 8 != 0) {
+		buffer.push_back(0);
+	}
+
+	size_t nPackets = (buffer.size() / 8) - 1;
+	DTCLib::DTC_DataHeaderPacket header(link, nPackets, DTCLib::DTC_DataStatus_Valid, DTCID, DTCLib::DTC_Subsystem_Calorimeter, CURRENT_EMULATED_CALORIMETER_VERSION, ts, static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF));
+	memcpy(&buffer[0], header.ConvertToDataPacket().GetData(), 16);
+
+	DTCLib::DTC_DataBlock block(buffer.size() * sizeof(uint16_t));
+	memcpy(&(*block.allocBytes)[0], &buffer[0], buffer.size() * sizeof(uint16_t));
 	sub_event_->AddDataBlock(block);
 }
 

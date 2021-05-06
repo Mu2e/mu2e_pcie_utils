@@ -57,11 +57,15 @@ public:
 			return false;
 		}
 
-		if (channelStatusA != 0x3F || channelStatusB != 0x3FFF)
+		if (channelStatusA == 0x0 && channelStatusB != 0x0)
 		{
-			TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: Not all 20 channels are enabled! StsA: 0x" << std::hex << channelStatusA << ", stsB: 0x" << std::hex << channelStatusB;
+			TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: None of the 20 channels are enabled! StsA: 0x" << std::hex << channelStatusA << ", stsB: 0x" << std::hex << channelStatusB;
 			// Not sure if this is a fatal error or not, leaving it for now
 			// return false;
+		}
+
+		if (hitCount == 0) {
+			TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: There are zero hits in this block!";
 		}
 
 		for (int ii = 0; ii < hitCount; ++ii)
@@ -81,6 +85,10 @@ public:
 			auto maxSample = (*dataPtr & 0xFF00) >> 8;
 			auto currentMaximumValue = 0;
 			auto currentMaximumIndex = 0;
+
+			if (numSamples == 0) {
+				TLOG(TLVL_WARNING) << "VerifyCalorimeterBlock: This hit has zero samples!";
+			}
 
 			for (int jj = 0; jj < numSamples; ++jj)
 			{
@@ -219,7 +227,7 @@ public:
 		}
 		if (!subsystemCheck)
 		{
-			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_) << " is not a valid data block for subsystem ID " << subsystemID;
+			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_) << " is not a valid data block for subsystem ID " << static_cast<int>(subsystemID);
 			current_buffer_pos_ += blockByteSize;
 
 			return false;
@@ -257,7 +265,8 @@ public:
 	{
 		bool success = true;
 
-		if (evt.GetEventByteCount() != dmaSize && dmaSize != 0)
+		// Check if the DMA size is inclusive or not
+		if (evt.GetEventByteCount() != dmaSize && evt.GetEventByteCount() != dmaSize - 8 && dmaSize != 0)
 		{
 			TLOG(TLVL_ERROR) << "Event Header byte count (" << evt.GetEventByteCount() << ") does not match DMA byte count (" << dmaSize << ")!";
 			return false;
