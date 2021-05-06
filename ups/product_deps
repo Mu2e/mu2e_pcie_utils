@@ -22,14 +22,22 @@ messagefacility	v2_07_02	s104
 messagefacility	v2_07_02	s105
 messagefacility	v2_07_02	s106
 messagefacility	v2_08_00	s107
+messagefacility	v2_08_01	s108
 TRACE			v3_17_01
-cetbuildtools	v8_06_02	-	only_for_build
+cetbuildtools	v8_07_01	-	only_for_build
 end_product_list
 
 # e6  - with gcc 4.9.1 and -std=c++1y
 # -nq- here means there is no qualifier
 # a "-" here means the dependent product is not required by the parent and will not be setup
 qualifier     messagefacility   TRACE   notes
+
+e20:s108:debug e20:debug         -nq-    -std=c++17
+e20:s108:prof  e20:prof          -nq-    -std=c++17
+e19:s108:debug e19:debug         -nq-    -std=c++17
+e19:s108:prof  e19:prof          -nq-    -std=c++17
+c7:s108:debug  c7:debug          -nq-    -std=c++17
+c7:s108:prof   c7:prof           -nq-    -std=c++17
 
 e20:s107:debug e20:debug         -nq-    -std=c++17
 e20:s107:prof  e20:prof          -nq-    -std=c++17
