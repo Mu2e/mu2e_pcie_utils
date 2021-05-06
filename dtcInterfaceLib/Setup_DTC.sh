@@ -48,7 +48,7 @@ DTC_Test_ROC_emulation()
 DTC_Reset()
 {
   dtc=-1
-  if [ $# -ge 1 ]
+  if [ $# -ge 1 ];then
     dtc=$1
   fi
 #    my_cntl write 0x9100 0x30000000 >/dev/null;: Oscillator resets;\

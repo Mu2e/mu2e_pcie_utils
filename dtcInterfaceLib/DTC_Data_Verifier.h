@@ -282,7 +282,8 @@ public:
 	{
 		bool success = true;
 
-		if (evt.GetEventByteCount() != dmaSize && dmaSize != 0)
+		// Check if the DMA size is inclusive or not
+		if (evt.GetEventByteCount() != dmaSize && evt.GetEventByteCount() != dmaSize - 8 && dmaSize != 0)
 		{
 			TLOG(TLVL_ERROR) << "Event Header byte count (" << evt.GetEventByteCount() << ") does not match DMA byte count (" << dmaSize << ")!";
 			return false;

@@ -732,6 +732,8 @@ void mu2esim::calorimeterBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::
 	buffer.push_back(0xFC00 + (board_number << 3));
 	buffer.push_back(0x3FFF);
 
+	auto t0Step = 2000 / event_mode_num_calo_hits_;
+
 	for (size_t idx = 0; idx < event_mode_num_calo_hits_; ++idx)
 	{
 		// Hit readout
@@ -739,7 +741,7 @@ void mu2esim::calorimeterBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::
 		buffer.push_back(10 * roc_id);  // DIRAC B...do we need to put something here?
 
 		buffer.push_back(0);                           // No error flags
-		buffer.push_back(((idx + 1) * 500) & 0xFFFF);  // Time
+		buffer.push_back((idx * t0Step) & 0xFFFF);  // Time
 		buffer.push_back(0x0607);                      // Max sample/num samples
 
 		// Digitizer samples
