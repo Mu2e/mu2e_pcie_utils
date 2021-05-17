@@ -35,6 +35,7 @@ bool rawOutput = false;
 bool binaryFileOutput = false;
 bool skipVerify = false;
 bool stopOnVerifyFailure = false;
+bool stopOnTimeout = false;
 bool writeDMAHeadersToOutput = false;
 bool useCFOEmulator = true;
 bool forceNoDebug = false;
@@ -355,6 +356,7 @@ void printHelpMsg()
 		<< "    --heartbeats: Send <int> heartbeats after each DataRequestPacket" << std::endl
 		<< "    --binary-file-mode: Write DMA sizes to <file> along with read data, to generate a new binary file for detector emulator mode (not compatible with -f)" << std::endl
 		<< "    --stop-verify: If a verify_stream mode error occurs, stop processing" << std::endl
+		<< "    --stop-on-timeout: Stop verify_stream or buffer_test mode if a timeout is detected (0xCAFE in first packet of buffer)" << std::endl
 		;
 
 	exit(0);
@@ -493,6 +495,10 @@ int main(int argc, char* argv[])
 					else if (option == "--stop-verify")
 					{
 						stopOnVerifyFailure = true;
+					}
+					else if (option == "--stop-on-timeout")
+					{
+						stopOnTimeout = true;
 					}
 					else if (option == "--help")
 					{
@@ -729,6 +735,7 @@ int main(int argc, char* argv[])
 				else if (rawOutput)
 					outputStream.write(static_cast<char*>(readPtr), sts - 8);
 
+				bool timeout = false;
 				// Check for dead or cafe in first packet
 				for (size_t word = 1; word <= 8; ++word)
 				{
@@ -743,8 +750,12 @@ int main(int argc, char* argv[])
 																												   : word == 3   ? "rd"
 																																 : "th")
 										   << " word of buffer is 0x" << std::hex << *wordPtr;
+						timeout = true;
 						break;
 					}
+				}
+				if (stopOnTimeout && timeout) {
+					TLOG(TLVL_ERROR) << "Timeout detected and stop-on-timeout mode enabled. Stopping after " << ii << " events!";
 				}
 
 				DTC_Event evt(readPtr);
@@ -900,6 +911,8 @@ int main(int argc, char* argv[])
 				else if (rawOutput)
 					outputStream.write(static_cast<char*>(readPtr), sts - 8);
 
+				
+				bool timeout = false;
 				// Check for dead or cafe in first packet
 				for (size_t word = 1; word <= 8; ++word)
 				{
@@ -914,8 +927,13 @@ int main(int argc, char* argv[])
 																												   : word == 3   ? "rd"
 																																 : "th")
 										   << " word of buffer is 0x" << std::hex << *wordPtr;
+						timeout = true;
 						break;
 					}
+				}
+				if (stopOnTimeout && timeout)
+				{
+					TLOG(TLVL_ERROR) << "Timeout detected and stop-on-timeout mode enabled. Stopping after " << ii << " events!";
 				}
 
 				if (!reallyQuiet)
