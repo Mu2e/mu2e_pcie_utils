@@ -165,9 +165,9 @@ public:
 		
 		for (int ii = 0; ii < packetCount; ++ii) 
 		{
-			success = *dataPtr == 0x1111;
+			success = *dataPtr == 0x2222;
 			++dataPtr;
-			success &= *dataPtr == 0x2222;
+			success &= *dataPtr == 0x1111;
 			++dataPtr;
 
 			uint32_t roc_packet_count_test = *dataPtr;
