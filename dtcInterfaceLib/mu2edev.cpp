@@ -50,7 +50,7 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFil
 		if (devfd_ == -1 || devfd_ == 0)
 		{
 			perror(("open " + std::string(devfile)).c_str());
-			TRACE(1, "mu2e Device file not found and DTCLIB_SIM_ENABLE not set! Exiting.");
+			TRACE(TLVL_WARNING, "mu2e Device file not found and DTCLIB_SIM_ENABLE not set! Exiting.");
 			throw std::runtime_error("mu2e Device file not found and DTCLIB_SIM_ENABLE not set! Exiting.");
 			//exit(1);
 		}
@@ -61,7 +61,7 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFil
 				get_info.chn = chn;
 				get_info.dir = dir;
 				get_info.tmo_ms = 0;
-				TRACE(17, "mu2edev::init before ioctl( devfd_, M_IOC_GET_INFO, &get_info ) chn=%u dir=%u", chn, dir);
+				TRACE(TLVL_DEBUG + 10, "mu2edev::init before ioctl( devfd_, M_IOC_GET_INFO, &get_info ) chn=%u dir=%u", chn, dir);
 				sts = ioctl(devfd_, M_IOC_GET_INFO, &get_info);
 				if (sts != 0)
 				{
@@ -71,7 +71,7 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFil
 					//exit(1);
 				}
 				mu2e_channel_info_[activeDTC_][chn][dir] = get_info;
-				TRACE(4, "mu2edev::init %d %u:%u - num=%u size=%u hwIdx=%u, swIdx=%u delta=%u", activeDTC_, chn, dir,
+				TRACE(TLVL_DEBUG, "mu2edev::init %d %u:%u - num=%u size=%u hwIdx=%u, swIdx=%u delta=%u", activeDTC_, chn, dir,
 					  get_info.num_buffs, get_info.buff_size, get_info.hwIdx, get_info.swIdx,
 					  mu2e_chn_info_delta_(activeDTC_, chn, dir, &mu2e_channel_info_));
 				for (unsigned map = 0; map < 2; ++map)
@@ -89,7 +89,7 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFil
 						throw std::runtime_error("mmap");
 						//exit(1);
 					}
-					TRACE(4, "mu2edev::init chnDirMap2offset=%lu mu2e_mmap_ptrs_[%d][%d][%d][%d]=%p p=%c l=%lu", offset, dtc, chn,
+					TRACE(TLVL_DEBUG, "mu2edev::init chnDirMap2offset=%lu mu2e_mmap_ptrs_[%d][%d][%d][%d]=%p p=%c l=%lu", offset, dtc, chn,
 						  dir, map, mu2e_mmap_ptrs_[activeDTC_][chn][dir][map], prot == PROT_READ ? 'R' : 'W', length);
 				}
 				if (dir == DTC_DMA_Direction_C2S)
@@ -136,12 +136,12 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 	{
 		retsts = 0;
 		unsigned has_recv_data;
-		TRACE(18, "mu2edev::read_data before (mu2e_mmap_ptrs_[%d][0][0][0]!=NULL) || ((retsts=init())==0)", activeDTC_);
+		TRACE(TLVL_DEBUG + 11, "mu2edev::read_data before (mu2e_mmap_ptrs_[%d][0][0][0]!=NULL) || ((retsts=init())==0)", activeDTC_);
 		if ((mu2e_mmap_ptrs_[activeDTC_][0][0][0] != NULL) ||
 			((retsts = init(DTCLib::DTC_SimMode_Disabled, 0)) == 0))  // Default-init mu2edev if not given guidance
 		{
 			has_recv_data = mu2e_chn_info_delta_(activeDTC_, chn, C2S, &mu2e_channel_info_);
-			TRACE(18, "mu2edev::read_data after %u=has_recv_data = delta_( chn, C2S )", has_recv_data);
+			TRACE(TLVL_DEBUG + 11, "mu2edev::read_data after %u=has_recv_data = delta_( chn, C2S )", has_recv_data);
 			mu2e_channel_info_[activeDTC_][chn][C2S].tmo_ms = tmo_ms;  // in case GET_INFO is called
 			if ((has_recv_data > buffers_held_) ||
 				((retsts = ioctl(devfd_, M_IOC_GET_INFO, &mu2e_channel_info_[activeDTC_][chn][C2S])) == 0 &&
@@ -154,7 +154,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 				int* BC_p = (int*)mu2e_mmap_ptrs_[activeDTC_][chn][C2S][MU2E_MAP_META];
 				retsts = BC_p[newNxtIdx];
 				*buffer = ((mu2e_databuff_t*)(mu2e_mmap_ptrs_[activeDTC_][chn][C2S][MU2E_MAP_BUFF]))[newNxtIdx];
-				TRACE(3,
+				TRACE(TLVL_INFO,
 					  "mu2edev::read_data chn%d hIdx=%u, sIdx=%u "
 					  "%u hasRcvDat=%u %p[newNxtIdx=%d]=retsts=%d buf(%p)[0]=0x%08x",
 					  chn, mu2e_channel_info_[activeDTC_][chn][C2S].hwIdx, mu2e_channel_info_[activeDTC_][chn][C2S].swIdx,
@@ -169,7 +169,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 					perror("M_IOC_GET_INFO");
 					exit(1);
 				}
-				TRACE(18, "mu2edev::read_data not error... return 0 status");
+				TRACE(TLVL_DEBUG + 11, "mu2edev::read_data not error... return 0 status");
 			}
 		}
 	}
@@ -238,7 +238,7 @@ int mu2edev::read_register(uint16_t address, int tmo_ms, uint32_t* output)
 		if (errorCode < 0) usleep(10000);
 	}
 	*output = reg.val;
-	TRACE(24, "Read value 0x%x from register 0x%x errorcode %d", reg.val, address, errorCode);
+	TRACE(TLVL_DEBUG + 15, "Read value 0x%x from register 0x%x errorcode %d", reg.val, address, errorCode);
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
 	return errorCode;
 }
@@ -257,7 +257,7 @@ int mu2edev::write_register(uint16_t address, int tmo_ms, uint32_t data)
 		reg.reg_offset = address;
 		reg.access_type = 1;
 		reg.val = data;
-		TRACE(24, "Writing value 0x%x to register 0x%x", data, address);
+		TRACE(TLVL_DEBUG + 16, "Writing value 0x%x to register 0x%x", data, address);
 		retsts = ioctl(devfd_, M_IOC_REG_ACCESS, &reg);
 	}
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
@@ -266,7 +266,7 @@ int mu2edev::write_register(uint16_t address, int tmo_ms, uint32_t data)
 
 void mu2edev::meta_dump()
 {
-	TRACE(10, "mu2edev::meta_dump");
+	TRACE(TLVL_DEBUG + 5, "mu2edev::meta_dump");
 	auto start = std::chrono::steady_clock::now();
 	if (simulator_ == nullptr)
 	{
@@ -300,7 +300,7 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 		int dir = S2C;
 		retsts = 0;
 		unsigned delta = mu2e_chn_info_delta_(activeDTC_, chn, dir, &mu2e_channel_info_);  // check cached info
-		TRACE(3, "write_data delta=%u chn=%d dir=S2C, sz=%zu", delta, chn, bytes);
+		TRACE(TLVL_INFO, "write_data delta=%u chn=%d dir=S2C, sz=%zu", delta, chn, bytes);
 		while (delta <= 1 &&
 			   std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() <
 				   1000)
@@ -322,7 +322,7 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 
 		if (delta <= 1)
 		{
-			TRACE(0, "HW_NOT_READING_BUFS");
+			TRACE(TLVL_ERROR, "HW_NOT_READING_BUFS");
 			perror("HW_NOT_READING_BUFS");
 			kill(0, SIGUSR2);
 			exit(2);
@@ -339,7 +339,7 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 			retsts = ioctl(devfd_, M_IOC_BUF_XMIT, arg);
 			if (retsts != 0)
 			{
-				TRACE(3, "write_data ioctl returned %d, errno=%d (%s), retrying.", retsts, errno, strerror(errno));
+				TRACE(TLVL_INFO, "write_data ioctl returned %d, errno=%d (%s), retrying.", retsts, errno, strerror(errno));
 				// perror("M_IOC_BUF_XMIT");
 				usleep(50000);
 			}  // exit(1); } // Take out the exit call for now
