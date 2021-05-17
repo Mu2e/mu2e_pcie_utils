@@ -154,7 +154,7 @@ public:
 		bool success = true;
 		success = headerDP.GetWord(12) == 0xEF;
 		success &= headerDP.GetWord(13) == 0xBE;
-		success &= headerDP.GetWord(16) == 0xBE;
+		success &= headerDP.GetWord(15) == 0xBE;
 		if (!success) {
 			TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Header format is incorrect (check bytes)";
 			return false;
