@@ -185,7 +185,7 @@ public:
 			success &= *dataPtr == 0x4444;
 			++dataPtr;
 
-			uint32_t roc_packet_count_test = *dataPtr;
+			roc_packet_count_test = *dataPtr;
 			++dataPtr;
 			roc_packet_count_test += (*dataPtr << 16);
 			success &= roc_packet_count_test == roc_emulator_packet_count_;
