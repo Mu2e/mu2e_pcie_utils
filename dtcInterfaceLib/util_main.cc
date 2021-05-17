@@ -684,6 +684,8 @@ int main(int argc, char* argv[])
 		device->ResetDeviceTime();
 		auto afterRequests = std::chrono::steady_clock::now();
 
+		DTC_Data_Verifier verifier;
+
 		for (unsigned ii = 0; ii < number; ++ii)
 		{
 			if (syncRequests)
@@ -739,7 +741,6 @@ int main(int argc, char* argv[])
 				}
 
 				DTC_Event evt(readPtr);
-				DTC_Data_Verifier verifier;
 				auto verified = verifier.VerifyEvent(evt, bufSize);
 				if (!reallyQuiet) {
 					if (verified) {
