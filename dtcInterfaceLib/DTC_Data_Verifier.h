@@ -297,6 +297,7 @@ public:
 	bool VerifyEvent(DTCLib::DTC_Event evt, uint64_t dmaSize)
 	{
 		bool success = true;
+		current_buffer_pos_ = 0;
 
 		// Check if the DMA size is inclusive or not
 		if (evt.GetEventByteCount() != dmaSize && evt.GetEventByteCount() != dmaSize - 8 && dmaSize != 0)
@@ -360,8 +361,6 @@ public:
 			// Check that size of all DataBlocks = DMA Buffer Size
 			is.read((char*)buf, dmaSize);
 			total_size_read_ += dmaSize;
-
-			current_buffer_pos_ = 0;
 
 			TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << (total_size_read_ - dmaSize);
 			DTCLib::DTC_Event thisEvent(buf);
