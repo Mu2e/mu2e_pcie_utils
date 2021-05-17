@@ -34,6 +34,7 @@ bool reallyQuiet = false;
 bool rawOutput = false;
 bool binaryFileOutput = false;
 bool skipVerify = false;
+bool stopOnVerifyFailure = false;
 bool writeDMAHeadersToOutput = false;
 bool useCFOEmulator = true;
 bool forceNoDebug = false;
@@ -352,7 +353,9 @@ void printHelpMsg()
 		<< "    --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl
 		<< "    --cfoDRP: Send DRPs from the DTC CFO Emulator instead of from the DTC itself" << std::endl
 		<< "    --heartbeats: Send <int> heartbeats after each DataRequestPacket" << std::endl
-		<< "    --binary-file-mode: Write DMA sizes to <file> along with read data, to generate a new binary file for detector emulator mode (not compatible with -f)" << std::endl;
+		<< "    --binary-file-mode: Write DMA sizes to <file> along with read data, to generate a new binary file for detector emulator mode (not compatible with -f)" << std::endl
+		<< "    --stop-verify: If a verify_stream mode error occurs, stop processing" << std::endl
+		;
 
 	exit(0);
 }
@@ -486,6 +489,10 @@ int main(int argc, char* argv[])
 						binaryFileOutput = true;
 						rawOutput = true;
 						rawOutputFile = getLongOptionString(&optind, &argv);
+					}
+					else if (option == "--stop-verify")
+					{
+						stopOnVerifyFailure = true;
 					}
 					else if (option == "--help")
 					{
@@ -750,6 +757,11 @@ int main(int argc, char* argv[])
 					{
 						TLOG(TLVL_WARNING) << "Event verification failed!";
 					}
+				}
+
+				if (stopOnVerifyFailure && !verified) {
+					TLOG(TLVL_ERROR) << "Event verification error encountered and stop-verify mode enabled. Stopping after " << ii << " events!";
+					break;
 				}
 			}
 			else if (checkSERDES)
