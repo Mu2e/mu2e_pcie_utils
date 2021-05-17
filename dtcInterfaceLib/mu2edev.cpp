@@ -154,7 +154,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 				int* BC_p = (int*)mu2e_mmap_ptrs_[activeDTC_][chn][C2S][MU2E_MAP_META];
 				retsts = BC_p[newNxtIdx];
 				*buffer = ((mu2e_databuff_t*)(mu2e_mmap_ptrs_[activeDTC_][chn][C2S][MU2E_MAP_BUFF]))[newNxtIdx];
-				TRACE(TLVL_INFO,
+				TRACE(TLVL_TRACE,
 					  "mu2edev::read_data chn%d hIdx=%u, sIdx=%u "
 					  "%u hasRcvDat=%u %p[newNxtIdx=%d]=retsts=%d buf(%p)[0]=0x%08x",
 					  chn, mu2e_channel_info_[activeDTC_][chn][C2S].hwIdx, mu2e_channel_info_[activeDTC_][chn][C2S].swIdx,
@@ -300,7 +300,7 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 		int dir = S2C;
 		retsts = 0;
 		unsigned delta = mu2e_chn_info_delta_(activeDTC_, chn, dir, &mu2e_channel_info_);  // check cached info
-		TRACE(TLVL_INFO, "write_data delta=%u chn=%d dir=S2C, sz=%zu", delta, chn, bytes);
+		TRACE(TLVL_TRACE, "write_data delta=%u chn=%d dir=S2C, sz=%zu", delta, chn, bytes);
 		while (delta <= 1 &&
 			   std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() <
 				   1000)
@@ -339,7 +339,7 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 			retsts = ioctl(devfd_, M_IOC_BUF_XMIT, arg);
 			if (retsts != 0)
 			{
-				TRACE(TLVL_INFO, "write_data ioctl returned %d, errno=%d (%s), retrying.", retsts, errno, strerror(errno));
+				TRACE(TLVL_TRACE, "write_data ioctl returned %d, errno=%d (%s), retrying.", retsts, errno, strerror(errno));
 				// perror("M_IOC_BUF_XMIT");
 				usleep(50000);
 			}  // exit(1); } // Take out the exit call for now
