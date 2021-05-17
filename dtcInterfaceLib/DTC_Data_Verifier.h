@@ -161,22 +161,36 @@ public:
 		}
 
 		auto packetCount = block.GetHeader().GetPacketCount();
-		auto dataPtr = reinterpret_cast<uint32_t const*>(block.GetData());
+		auto dataPtr = reinterpret_cast<uint16_t const*>(block.GetData());
 		
 		for (int ii = 0; ii < packetCount; ++ii) 
 		{
-			success = *dataPtr == 0x22221111;
+			success = *dataPtr == 0x2222;
+			++dataPtr;
+			success &= *dataPtr == 0x1111;
 			++dataPtr;
 
-			if (*dataPtr != roc_emulator_packet_count_) {
-				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet count unexpected, shifting from " << roc_emulator_packet_count_ << " to " << *dataPtr;
-				roc_emulator_packet_count_ = *dataPtr;
+			uint32_t roc_packet_count_test = *dataPtr;
+			++dataPtr;
+			roc_packet_count_test += (*dataPtr << 16);
+			++dataPtr;
+			if (roc_packet_count_test != roc_emulator_packet_count_)
+			{
+				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet count unexpected, shifting from " << roc_emulator_packet_count_ << " to " << roc_packet_count_test;
+				roc_emulator_packet_count_ = roc_packet_count_test;
 			}
+
+			success &= *dataPtr == 0x4444;
 			++dataPtr;
-			success &= *dataPtr == 0x44443333;
+			success &= *dataPtr == 0x3333;
 			++dataPtr;
-			success &= *dataPtr == roc_emulator_packet_count_;
+
+			roc_packet_count_test = *dataPtr;
 			++dataPtr;
+			roc_packet_count_test += (*dataPtr << 16);
+			success &= roc_packet_count_test == roc_emulator_packet_count_;
+			++dataPtr;
+
 			roc_emulator_packet_count_++;
 
 			if (!success) {
