@@ -170,9 +170,11 @@ public:
 			success &= *dataPtr == 0x2222;
 			++dataPtr;
 
-			uint32_t roc_packet_count_test = *dataPtr;
+			TLOG(TLVL_INFO) << "First 16-bit word: " << std::hex << static_cast<int>(*dataPtr);
+			uint32_t roc_packet_count_test = (*dataPtr << 16);
 			++dataPtr;
-			roc_packet_count_test += (*dataPtr << 16);
+			TLOG(TLVL_INFO) << "Second 16-bit word: " << std::hex << static_cast<int>(*dataPtr);
+			roc_packet_count_test += *dataPtr;
 			++dataPtr;
 			if (roc_packet_count_test != roc_emulator_packet_count_)
 			{
@@ -185,9 +187,9 @@ public:
 			success &= *dataPtr == 0x4444;
 			++dataPtr;
 
-			roc_packet_count_test = *dataPtr;
+			roc_packet_count_test = (*dataPtr << 16);
 			++dataPtr;
-			roc_packet_count_test += (*dataPtr << 16);
+			roc_packet_count_test += *dataPtr;
 			success &= roc_packet_count_test == roc_emulator_packet_count_;
 			++dataPtr;
 
