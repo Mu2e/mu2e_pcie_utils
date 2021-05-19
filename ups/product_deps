@@ -24,7 +24,7 @@ messagefacility	v2_07_02	s106
 messagefacility	v2_08_00	s107
 messagefacility	v2_08_01	s108
 TRACE			v3_17_01
-cetbuildtools	v8_07_01	-	only_for_build
+cetbuildtools	v8_08_02	-	only_for_build
 end_product_list
 
 # e6  - with gcc 4.9.1 and -std=c++1y
@@ -45,27 +45,6 @@ e19:s107:debug e19:debug         -nq-    -std=c++17
 e19:s107:prof  e19:prof          -nq-    -std=c++17
 c7:s107:debug  c7:debug          -nq-    -std=c++17
 c7:s107:prof   c7:prof           -nq-    -std=c++17
-
-e20:s106:debug e20:debug         -nq-    -std=c++17
-e20:s106:prof  e20:prof          -nq-    -std=c++17
-e19:s106:debug e19:debug         -nq-    -std=c++17
-e19:s106:prof  e19:prof          -nq-    -std=c++17
-c7:s106:debug  c7:debug          -nq-    -std=c++17
-c7:s106:prof   c7:prof           -nq-    -std=c++17
-
-e20:s105:debug e20:debug         -nq-    -std=c++17
-e20:s105:prof  e20:prof          -nq-    -std=c++17
-e19:s105:debug e19:debug         -nq-    -std=c++17
-e19:s105:prof  e19:prof          -nq-    -std=c++17
-c7:s105:debug  c7:debug          -nq-    -std=c++17
-c7:s105:prof   c7:prof           -nq-    -std=c++17
-
-e20:s104:debug e20:debug         -nq-    -std=c++17
-e20:s104:prof  e20:prof          -nq-    -std=c++17
-e19:s104:debug e19:debug         -nq-    -std=c++17
-e19:s104:prof  e19:prof          -nq-    -std=c++17
-c7:s104:debug  c7:debug          -nq-    -std=c++17
-c7:s104:prof   c7:prof           -nq-    -std=c++17
 
 end_qualifier_list
 
