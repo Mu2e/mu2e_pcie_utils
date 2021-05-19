@@ -142,7 +142,9 @@ void printHelpMsg()
 			  << "    -v: Expected DTC Design version string (Default: \"\")" << std::endl
 			  << "    -c: Word count for Block Reads (Default: 0)" << std::endl
 			  << "    -i: Do not set the incrementAddress bit for block operations" << std::endl
-			  << " --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl;
+			  << " --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl
+			  << "    --stop-on-error: Abort operation if an error occurs" << std::endl
+		;
 	exit(0);
 }
 
@@ -160,6 +162,7 @@ int main(int argc, char* argv[])
 	bool incrementAddress = true;
 	std::string op = "";
 	int dtc = -1;
+	bool stopOnError = false;
 
 	for (auto optind = 1; optind < argc; ++optind)
 	{
@@ -204,6 +207,10 @@ int main(int argc, char* argv[])
 					if (option == "--dtc")
 					{
 						dtc = getLongOptionValue(&optind, &argv);
+					}
+					else if (option == "--stop-on-error")
+					{
+						stopOnError = true;
 					}
 					else if (option == "--help")
 					{
@@ -253,6 +260,7 @@ int main(int argc, char* argv[])
 			catch (std::runtime_error& err)
 			{
 				TLOG(TLVL_ERROR) << "Error reading from ROC: " << err.what();
+				if (stopOnError) break;
 			}
 		}
 	}
@@ -343,6 +351,12 @@ int main(int argc, char* argv[])
 				}
 			}
 			device->read_release(DTC_DMA_Engine_DCS, 1);
+
+			if (sts <= 0 && stopOnError) {
+				TLOG(TLVL_ERROR) << "util - read for DCS: Error occurred, aborting!";
+				break;
+			}
+
 			if (delay > 0) usleep(delay);
 		}
 	}
