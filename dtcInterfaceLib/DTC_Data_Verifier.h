@@ -161,6 +161,7 @@ public:
 		}
 
 		auto packetCount = block.GetHeader().GetPacketCount();
+		auto roc = block.GetHeader().GetLinkID();
 		auto dataPtr = reinterpret_cast<uint16_t const*>(block.GetData());
 		
 		for (int ii = 0; ii < packetCount; ++ii) 
@@ -174,10 +175,15 @@ public:
 			++dataPtr;
 			roc_packet_count_test += *dataPtr;
 			++dataPtr;
-			if (roc_packet_count_test != roc_emulator_packet_count_)
+
+			if (roc_emulator_packet_count_.count(roc) == 0) {
+				roc_emulator_packet_count_[roc] = roc_packet_count_test;
+			}
+
+			if (roc_packet_count_test != roc_emulator_packet_count_[roc])
 			{
-				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet count unexpected, shifting from " << roc_emulator_packet_count_ << " to " << roc_packet_count_test;
-				roc_emulator_packet_count_ = roc_packet_count_test;
+				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet count unexpected, shifting from " << roc_emulator_packet_count_[roc] << " to " << roc_packet_count_test;
+				roc_emulator_packet_count_[roc] = roc_packet_count_test;
 			}
 
 			success &= *dataPtr == 0x3333;
@@ -188,10 +194,10 @@ public:
 			roc_packet_count_test = (*dataPtr << 16);
 			++dataPtr;
 			roc_packet_count_test += *dataPtr;
-			success &= roc_packet_count_test == roc_emulator_packet_count_;
+			success &= roc_packet_count_test == roc_emulator_packet_count_[roc];
 			++dataPtr;
 
-			roc_emulator_packet_count_++;
+			roc_emulator_packet_count_[roc]++;
 
 			if (!success) {
 				TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Data packet " << ii << " has format error";
@@ -381,6 +387,6 @@ private:
 	bool continueFile_{true};
 	uint64_t total_size_read_{0};
 	uint64_t current_buffer_pos_{0};
-	uint32_t roc_emulator_packet_count_{0};
+	std::unordered_map<DTCLib::DTC_Link_ID, uint32_t> roc_emulator_packet_count_;
 };
 }  // namespace DTCLib
