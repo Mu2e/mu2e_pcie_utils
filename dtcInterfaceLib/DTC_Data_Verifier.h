@@ -64,7 +64,8 @@ public:
 			// return false;
 		}
 
-		if (hitCount == 0) {
+		if (hitCount == 0)
+		{
 			TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: There are zero hits in this block!";
 		}
 
@@ -78,7 +79,6 @@ public:
 				return false;
 			}
 
-
 			//auto channelNumber = *dataPtr & 0x3F;
 			//auto diracA = (*dataPtr >> 6) & 0x3FF;
 			++dataPtr;
@@ -87,13 +87,13 @@ public:
 			auto sipmID = diracB >> 12;
 			auto crystalID = diracB & 0xFFF;
 
-			if(sipmID != 0 && sipmID != 1){ TLOG(TLVL_WARNING) << "Invalid sipmID " << sipmID << " detected!"; }
-			if(crystalID > 674 * 2) { TLOG(TLVL_WARNING) << "Invalid crystalID " << crystalID << " detected!"; } 
+			if (sipmID != 0 && sipmID != 1) { TLOG(TLVL_WARNING) << "Invalid sipmID " << sipmID << " detected!"; }
+			if (crystalID > 674 * 2) { TLOG(TLVL_WARNING) << "Invalid crystalID " << crystalID << " detected!"; }
 
 			dataPtr += 2;
 
 			auto time = *dataPtr;
-			if(time < 500) { TLOG(TLVL_WARNING) << "VerifyCalorimeterBlock: Suspicious time " << time << " detected!";}
+			if (time < 500) { TLOG(TLVL_WARNING) << "VerifyCalorimeterBlock: Suspicious time " << time << " detected!"; }
 
 			++dataPtr;
 			currentOffset += 8;
@@ -103,7 +103,8 @@ public:
 			auto currentMaximumValue = 0;
 			auto currentMaximumIndex = 0;
 
-			if (numSamples == 0) {
+			if (numSamples == 0)
+			{
 				TLOG(TLVL_WARNING) << "VerifyCalorimeterBlock: This hit has zero samples!";
 			}
 
@@ -155,7 +156,8 @@ public:
 		success = headerDP.GetWord(12) == 0xEF;
 		success &= headerDP.GetWord(13) == 0xBE;
 		success &= headerDP.GetWord(15) == 0xBE;
-		if (!success) {
+		if (!success)
+		{
 			TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Header format is incorrect (check bytes)";
 			return false;
 		}
@@ -163,8 +165,8 @@ public:
 		auto packetCount = block.GetHeader().GetPacketCount();
 		auto roc = block.GetHeader().GetLinkID();
 		auto dataPtr = reinterpret_cast<uint16_t const*>(block.GetData());
-		
-		for (int ii = 0; ii < packetCount; ++ii) 
+
+		for (int ii = 0; ii < packetCount; ++ii)
 		{
 			success = *dataPtr == 0x1111;
 			++dataPtr;
@@ -176,7 +178,8 @@ public:
 			roc_packet_count_test += *dataPtr;
 			++dataPtr;
 
-			if (roc_emulator_packet_count_.count(roc) == 0) {
+			if (roc_emulator_packet_count_.count(roc) == 0)
+			{
 				roc_emulator_packet_count_[roc] = roc_packet_count_test;
 			}
 
@@ -199,7 +202,8 @@ public:
 
 			roc_emulator_packet_count_[roc]++;
 
-			if (!success) {
+			if (!success)
+			{
 				TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Data packet " << ii << " has format error";
 			}
 		}
@@ -255,7 +259,7 @@ public:
 			case 2:  // CRV
 				subsystemCheck = VerifyCRVDataBlock(block);
 				break;
-			case 3: // ROC Emulator
+			case 3:  // ROC Emulator
 				subsystemCheck = VerifyROCEmulatorBlock(block);
 				break;
 			default:
@@ -303,11 +307,34 @@ public:
 		bool success = true;
 		current_buffer_pos_ = 0;
 
-		// Check if the DMA size is inclusive or not
-		if (evt.GetEventByteCount() != dmaSize && evt.GetEventByteCount() != dmaSize - 8 && dmaSize != 0)
+		auto eventTag = evt.GetEventWindowTag();
+
+		bool event_full_size = evt.GetEventByteCount() >= 32768;  // Max DMA size
+
+		if (event_full_size)
 		{
-			TLOG(TLVL_ERROR) << "Event Header byte count (" << evt.GetEventByteCount() << ") does not match DMA byte count (" << dmaSize << ")!";
-			return false;
+			TLOG(TLVL_TRACE) << "Continued DMA detected, not doing further byte count checks";
+		}
+		else
+		{
+			if (dmaSize != 0)
+			{
+				bool event_matches_exclusive_dma = evt.GetEventByteCount() == dmaSize;
+				bool event_matches_inclusive_dma = evt.GetEventByteCount() == dmaSize - 8;
+				if (!event_matches_exclusive_dma && !event_matches_inclusive_dma)
+				{
+					TLOG(TLVL_ERROR) << "Event Header byte count (" << evt.GetEventByteCount() << ") disagrees with DMA byte count (" << dmaSize << ")!";
+					return false;
+				}
+				else if (event_matches_exclusive_dma)
+				{
+					TLOG(TLVL_TRACE) << "DMA byte count is exclusive! (incorrect)";
+				}
+				else
+				{
+					TLOG(TLVL_TRACE) << "DMA byte count is inclusive! (correct)";
+				}
+			}
 		}
 
 		if (evt.GetHeader()->num_dtcs != evt.GetSubEventCount())
@@ -316,7 +343,6 @@ public:
 		}
 
 		TLOG(TLVL_DEBUG + 3) << evt.GetHeader()->toJson();
-		auto eventTag = evt.GetEventWindowTag();
 
 		current_buffer_pos_ += sizeof(DTCLib::DTC_EventHeader);
 
