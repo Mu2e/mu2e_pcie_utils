@@ -1163,6 +1163,7 @@ struct DTC_RegisterFormatter
 		tmp.resize(reg.descWidth, ' ');
 		stream << tmp << " | ";
 
+		if (!reg.vals.empty()) {
 		auto first = true;
 		for (auto i : reg.vals)
 		{
@@ -1174,6 +1175,11 @@ struct DTC_RegisterFormatter
 			}
 			stream << i << std::endl;
 			first = false;
+		}
+		}
+		else
+		{
+			stream << std::endl;
 		}
 
 		return stream;
