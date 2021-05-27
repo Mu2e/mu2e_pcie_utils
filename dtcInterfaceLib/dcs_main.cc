@@ -143,8 +143,7 @@ void printHelpMsg()
 			  << "    -c: Word count for Block Reads (Default: 0)" << std::endl
 			  << "    -i: Do not set the incrementAddress bit for block operations" << std::endl
 			  << " --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl
-			  << "    --stop-on-error: Abort operation if an error occurs" << std::endl
-		;
+			  << "    --stop-on-error: Abort operation if an error occurs" << std::endl;
 	exit(0);
 }
 
@@ -251,7 +250,7 @@ int main(int argc, char* argv[])
 	{
 		for (unsigned ii = 0; ii < number; ++ii)
 		{
-			TLOG(TLVL_DEBUG) << "Operation \"read_register\" " << ii << std::endl;
+			TLOG(DCS_TLVL(reallyQuiet)) << "Operation \"read_register\" " << ii << std::endl;
 			try
 			{
 				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
@@ -259,7 +258,7 @@ int main(int argc, char* argv[])
 			}
 			catch (std::runtime_error& err)
 			{
-				TLOG(TLVL_ERROR) << "Error reading from ROC: " << err.what();
+				TLOG(TLVL_ERROR) << "Error reading from ROC on iteration " << ii << ": " << err.what();
 				if (stopOnError) break;
 			}
 		}
@@ -267,15 +266,20 @@ int main(int argc, char* argv[])
 	else if (op == "simple_read")
 	{
 		TLOG(TLVL_DEBUG) << "Operation \"simple_read\"" << std::endl;
-		try
+		for (unsigned ii = 0; ii < number; ++ii)
 		{
-			auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
-			std::cout << std::hex << std::showbase << rocdata;
-			TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
-		}
-		catch (std::runtime_error& err)
-		{
-			TLOG(TLVL_ERROR) << "Error reading from ROC: " << err.what();
+			TLOG(DCS_TLVL(reallyQuiet)) << "Simple Read " << ii << std::endl;
+			try
+			{
+				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
+				std::cout << ii << " " << std::hex << std::showbase << rocdata;
+				TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
+			}
+			catch (std::runtime_error& err)
+			{
+				TLOG(TLVL_ERROR) << "Error reading from ROC on iteration " << ii << ": " << err.what();
+				if (stopOnError) break;
+			}
 		}
 	}
 	else if (op == "reset_roc")
@@ -291,25 +295,49 @@ int main(int argc, char* argv[])
 	{
 		for (unsigned ii = 0; ii < number; ++ii)
 		{
-			TLOG(TLVL_DEBUG) << "Operation \"write_register\" " << ii << std::endl;
-			thisDTC->WriteROCRegister(dtc_link, address, data, false);
+			try
+			{
+				TLOG(TLVL_DEBUG) << "Operation \"write_register\" " << ii << std::endl;
+				thisDTC->WriteROCRegister(dtc_link, address, data, false);
+			}
+			catch (std::runtime_error& err)
+			{
+				TLOG(TLVL_ERROR) << "Error writing to ROC on iteration " << ii << ": " << err.what();
+				if (stopOnError) break;
+			}
 		}
 	}
 	else if (op == "read_extregister")
 	{
 		for (unsigned ii = 0; ii < number; ++ii)
 		{
-			TLOG(TLVL_DEBUG) << "Operation \"read_register\" " << ii << std::endl;
-			auto rocdata = thisDTC->ReadExtROCRegister(dtc_link, block, address);
-			TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address << ", block " << block;
+			try
+			{
+				TLOG(DCS_TLVL(reallyQuiet)) << "Operation \"read_extregister\" " << ii << std::endl;
+				auto rocdata = thisDTC->ReadExtROCRegister(dtc_link, block, address);
+				TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address << ", block " << block;
+			}
+			catch (std::runtime_error& err)
+			{
+				TLOG(TLVL_ERROR) << "Error reading from ROC on iteration " << ii << ": " << err.what();
+				if (stopOnError) break;
+			}
 		}
 	}
 	else if (op == "write_extregister")
 	{
 		for (unsigned ii = 0; ii < number; ++ii)
 		{
-			TLOG(TLVL_DEBUG) << "Operation \"write_extregister\" " << ii << std::endl;
-			thisDTC->WriteExtROCRegister(dtc_link, block, address, data, false);
+			try
+			{
+				TLOG(TLVL_DEBUG) << "Operation \"write_extregister\" " << ii << std::endl;
+				thisDTC->WriteExtROCRegister(dtc_link, block, address, data, false);
+			}
+			catch (std::runtime_error& err)
+			{
+				TLOG(TLVL_ERROR) << "Error writing to ROC on iteration " << ii << ": " << err.what();
+				if (stopOnError) break;
+			}
 		}
 	}
 	else if (op == "test_read")
@@ -352,7 +380,8 @@ int main(int argc, char* argv[])
 			}
 			device->read_release(DTC_DMA_Engine_DCS, 1);
 
-			if (sts <= 0 && stopOnError) {
+			if (sts <= 0 && stopOnError)
+			{
 				TLOG(TLVL_ERROR) << "util - read for DCS: Error occurred, aborting!";
 				break;
 			}
@@ -388,58 +417,97 @@ int main(int argc, char* argv[])
 	}
 	else if (op == "block_read")
 	{
-		std::vector<uint16_t> data(count);
-		thisDTC->ReadROCBlock(data, dtc_link, address, count, incrementAddress);
-		DTCLib::Utilities::PrintBuffer(&data[0], data.size() * sizeof(uint16_t));
+		TLOG(TLVL_DEBUG) << "Operation \"block_read\"";
+		for (unsigned ii = 0; ii < number; ++ii)
+		{
+			TLOG(DCS_TLVL(reallyQuiet)) << "Block Read " << ii << std::endl;
+			try
+			{
+				std::vector<uint16_t> data(count);
+				thisDTC->ReadROCBlock(data, dtc_link, address, count, incrementAddress);
+				DTCLib::Utilities::PrintBuffer(&data[0], data.size() * sizeof(uint16_t));
+			}
+			catch (std::runtime_error& err)
+			{
+				TLOG(TLVL_ERROR) << "Error reading from ROC on iteration " << ii << ": " << err.what();
+				if (stopOnError) break;
+			}
+		}
 	}
 	else if (op == "block_write")
 	{
-		std::vector<uint16_t> blockData;
-		for (size_t ii = 0; ii < count; ++ii)
+		TLOG(TLVL_DEBUG) << "Operation \"block_write\"";
+		for (unsigned ii = 0; ii < number; ++ii)
 		{
-			blockData.push_back(static_cast<uint16_t>(ii));
+			TLOG(DCS_TLVL(reallyQuiet)) << "Block Write " << ii << std::endl;
+			try
+			{
+				std::vector<uint16_t> blockData;
+				for (size_t ii = 0; ii < count; ++ii)
+				{
+					blockData.push_back(static_cast<uint16_t>(ii));
+				}
+				thisDTC->WriteROCBlock(dtc_link, address, blockData, false, incrementAddress);
+			}
+			catch (std::runtime_error& err)
+			{
+				TLOG(TLVL_ERROR) << "Error writing to ROC on iteration " << ii << ": " << err.what();
+				if (stopOnError) break;
+			}
 		}
-		thisDTC->WriteROCBlock(dtc_link, address, blockData, false, incrementAddress);
 	}
 	else if (op == "raw_block_read")
 	{
-		DTC_DCSRequestPacket req(dtc_link, DTC_DCSOperationType_BlockRead, false, incrementAddress, address, count);
-
-		TLOG(TLVL_TRACE) << "rocUtil raw_block_read: before WriteDMADCSPacket - DTC_DCSRequestPacket";
-
-		thisDTC->ReleaseAllBuffers(DTC_DMA_Engine_DCS);
-
-		if (!thisDTC->ReadDCSReception()) thisDTC->EnableDCSReception();
-
-		thisDTC->WriteDMAPacket(req);
-		TLOG(TLVL_TRACE) << "rocUtil raw_block_read: after  WriteDMADCSPacket - DTC_DCSRequestPacket";
-
-		usleep(2500);
-
-		mu2e_databuff_t* buffer;
-		auto tmo_ms = 1500;
-		TLOG(TLVL_TRACE) << "rocUtil - before read for DCS";
-		auto sts = device->read_data(DTC_DMA_Engine_DCS, reinterpret_cast<void**>(&buffer), tmo_ms);
-		TLOG(TLVL_TRACE) << "rocUtil - after read for DCS - "
-						 << " sts=" << sts << ", buffer=" << (void*)buffer;
-
-		if (sts > 0)
+		TLOG(TLVL_DEBUG) << "Operation \"raw_block_read\"";
+		for (unsigned ii = 0; ii < number; ++ii)
 		{
-			void* readPtr = &buffer[0];
-			auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
-			readPtr = static_cast<uint8_t*>(readPtr) + 8;
-			TLOG((reallyQuiet ? TLVL_DEBUG + 5 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
-															 << sts << " bytes," << std::endl;
-
-			TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
-
-			if (!reallyQuiet)
+			TLOG(DCS_TLVL(reallyQuiet)) << "Raw Block Read " << ii << std::endl;
+			try
 			{
-				DTCLib::Utilities::PrintBuffer(buffer, sts >= bufSize ? sts : bufSize);
+				DTC_DCSRequestPacket req(dtc_link, DTC_DCSOperationType_BlockRead, false, incrementAddress, address, count);
+
+				TLOG(TLVL_TRACE) << "rocUtil raw_block_read: before WriteDMADCSPacket - DTC_DCSRequestPacket";
+
+				thisDTC->ReleaseAllBuffers(DTC_DMA_Engine_DCS);
+
+				if (!thisDTC->ReadDCSReception()) thisDTC->EnableDCSReception();
+
+				thisDTC->WriteDMAPacket(req);
+				TLOG(TLVL_TRACE) << "rocUtil raw_block_read: after  WriteDMADCSPacket - DTC_DCSRequestPacket";
+
+				usleep(2500);
+
+				mu2e_databuff_t* buffer;
+				auto tmo_ms = 1500;
+				TLOG(TLVL_TRACE) << "rocUtil - before read for DCS";
+				auto sts = device->read_data(DTC_DMA_Engine_DCS, reinterpret_cast<void**>(&buffer), tmo_ms);
+				TLOG(TLVL_TRACE) << "rocUtil - after read for DCS - "
+								 << " sts=" << sts << ", buffer=" << (void*)buffer;
+
+				if (sts > 0)
+				{
+					void* readPtr = &buffer[0];
+					auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
+					readPtr = static_cast<uint8_t*>(readPtr) + 8;
+					TLOG((reallyQuiet ? TLVL_DEBUG + 5 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
+																	 << sts << " bytes," << std::endl;
+
+					TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
+
+					if (!reallyQuiet)
+					{
+						DTCLib::Utilities::PrintBuffer(buffer, sts >= bufSize ? sts : bufSize);
+					}
+				}
+				device->read_release(DTC_DMA_Engine_DCS, 1);
+				if (delay > 0) usleep(delay);
+			}
+			catch (std::runtime_error& err)
+			{
+				TLOG(TLVL_ERROR) << "Error reading from ROC on iteration " << ii << ": " << err.what();
+				if (stopOnError) break;
 			}
 		}
-		device->read_release(DTC_DMA_Engine_DCS, 1);
-		if (delay > 0) usleep(delay);
 	}
 	else
 	{
