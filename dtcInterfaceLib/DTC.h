@@ -130,8 +130,9 @@ public:
 	/// <param name="link">Link of the ROC to read</param>
 	/// <param name="block">Block ID to read from</param>
 	/// <param name="address">Address of the register</param>
+	/// <param name="retries">Numberof times to retry when packet address or link does not match request</param>
 	/// <returns>Value of the ROC register from a DCS Reply packet</returns>
-	uint16_t ReadExtROCRegister(const DTC_Link_ID& link, const roc_address_t block, const roc_address_t address);
+	uint16_t ReadExtROCRegister(const DTC_Link_ID& link, const roc_address_t block, const roc_address_t address, int retries = 10);
 	/// <summary>
 	/// Sends a DCS Request Packet with fields filled in such that the given ROC firmware block register will be written.
 	/// This funcion writes to firmware blocks' register spaces.

@@ -130,20 +130,22 @@ void printHelpMsg()
 				 "toggle_serdes,block_read,block_write,raw_block_read]"
 			  << std::endl;
 	std::cout << "Options are:" << std::endl
-			  << "    -h: This message." << std::endl
-			  << "    -l: Link to send requests on (Default: 0)" << std::endl
-			  << "    -n: Number of times to repeat test. (Default: 1)" << std::endl
-			  << "    -d: Delay between tests, in us (Default: 0)." << std::endl
-			  << "    -w: Data to write to address" << std::endl
-			  << "    -a: Address to write" << std::endl
-			  << "    -b: Block address (for write_rocext)" << std::endl
-			  << "    -q: Quiet mode (Don't print requests)" << std::endl
-			  << "    -Q: Really Quiet mode (Try not to print anything)" << std::endl
-			  << "    -v: Expected DTC Design version string (Default: \"\")" << std::endl
-			  << "    -c: Word count for Block Reads (Default: 0)" << std::endl
-			  << "    -i: Do not set the incrementAddress bit for block operations" << std::endl
+			  << " -h: This message." << std::endl
+			  << " -l: Link to send requests on (Default: 0)" << std::endl
+			  << " -n: Number of times to repeat test. (Default: 1)" << std::endl
+			  << " -d: Delay between tests, in us (Default: 0)." << std::endl
+			  << " -w: Data to write to address" << std::endl
+			  << " -a: Address to write" << std::endl
+			  << " -b: Block address (for write_rocext)" << std::endl
+			  << " -q: Quiet mode (Don't print requests)" << std::endl
+			  << " -Q: Really Quiet mode (Try not to print anything)" << std::endl
+			  << " -v: Expected DTC Design version string (Default: \"\")" << std::endl
+			  << " -c: Word count for Block Reads (Default: 0)" << std::endl
+			  << " -i: Do not set the incrementAddress bit for block operations" << std::endl
 			  << " --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl
-			  << "    --stop-on-error: Abort operation if an error occurs" << std::endl;
+			  << " --stop-on-error: Abort operation if an error occurs" << std::endl
+			  << " --read-retries Try this many times to read a DCS DMA from the DTC (Default: 10)"
+		;
 	exit(0);
 }
 
@@ -157,6 +159,7 @@ int main(int argc, char* argv[])
 	unsigned address = 0;
 	unsigned data = 0;
 	unsigned block = 0;
+	unsigned retries = 10;
 	size_t count = 0;
 	bool incrementAddress = true;
 	std::string op = "";
@@ -211,6 +214,10 @@ int main(int argc, char* argv[])
 					{
 						stopOnError = true;
 					}
+					else if (option == "--read-retries")
+					{
+						retries = getLongOptionValue(&optind, &argv);
+					}
 					else if (option == "--help")
 					{
 						printHelpMsg();
@@ -253,7 +260,7 @@ int main(int argc, char* argv[])
 			TLOG(DCS_TLVL(reallyQuiet)) << "Operation \"read_register\" " << ii << std::endl;
 			try
 			{
-				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
+				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address, retries);
 				TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
 			}
 			catch (std::runtime_error& err)
@@ -271,7 +278,7 @@ int main(int argc, char* argv[])
 			TLOG(DCS_TLVL(reallyQuiet)) << "Simple Read " << ii << std::endl;
 			try
 			{
-				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
+				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address, retries);
 				std::cout << std::dec <<  ii << " " << std::hex << std::showbase << rocdata << std::endl;
 				TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
 			}

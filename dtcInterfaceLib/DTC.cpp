@@ -703,13 +703,13 @@ void DTCLib::DTC::WriteROCBlock(const DTC_Link_ID& link, const uint16_t address,
 }
 
 uint16_t DTCLib::DTC::ReadExtROCRegister(const DTC_Link_ID& link, const uint16_t block,
-										 const uint16_t address)
+										 const uint16_t address, int retries)
 {
 	uint16_t addressT = address & 0x7FFF;
 	WriteROCRegister(link, 12, block, false);
 	WriteROCRegister(link, 13, addressT, false);
 	WriteROCRegister(link, 13, addressT | 0x8000, false);
-	return ReadROCRegister(link, 22);
+	return ReadROCRegister(link, 22, retries);
 }
 
 void DTCLib::DTC::WriteExtROCRegister(const DTC_Link_ID& link, const uint16_t block,
