@@ -272,7 +272,7 @@ int main(int argc, char* argv[])
 			try
 			{
 				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address);
-				std::cout << ii << " " << std::hex << std::showbase << rocdata << std::endl;
+				std::cout << std::dec <<  ii << " " << std::hex << std::showbase << rocdata << std::endl;
 				TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
 			}
 			catch (std::runtime_error& err)
