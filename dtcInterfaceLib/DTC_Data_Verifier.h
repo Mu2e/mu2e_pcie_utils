@@ -5,6 +5,7 @@
 #include <bitset>
 
 #include "dtcInterfaceLib/DTC_Packets.h"
+#include "dtcInterfaceLib/DTC_Types.h"
 #include "mu2e_driver/mu2e_mmap_ioctl.h"
 
 namespace DTCLib {
@@ -222,15 +223,24 @@ public:
 		TLOG(TLVL_DEBUG + 5) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
 		if ((dataHeaderTest & dataHeaderMask) != 0x8050)
 		{
-			TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_) << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<const uint64_t*>(block.GetData());
+			auto offset = file_mode_ ? (total_size_read_ - dmaSize + current_buffer_pos_) : current_buffer_pos_;
+			TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << offset << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<const uint64_t*>(block.GetData());
 			TLOG(TLVL_ERROR) << "This most likely means that the declared DMA size is incorrect, it was declared as 0x" << std::hex << dmaSize << ", but we ran out of DataHeaders at 0x" << std::hex << current_buffer_pos_;
+
+			Utilities::PrintBuffer(block.GetData(), 16);
+
 			// go to next file
 			continueFile_ = false;
 			return false;
 		}
 		if (current_buffer_pos_ + blockByteSize > dmaSize)
 		{
-			TLOG(TLVL_ERROR) << "Block goes past end of DMA! Blocks should always end at DMA boundary! Error at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_);
+			auto offset = file_mode_ ? (total_size_read_ - dmaSize + current_buffer_pos_) : current_buffer_pos_;
+			TLOG(TLVL_ERROR) << "Block goes past end of DMA! Blocks should always end at DMA boundary! Error at 0x" << std::hex << offset;
+			if (dmaSize - current_buffer_pos_ > 0)
+			{
+				Utilities::PrintBuffer(block.GetData(), dmaSize - current_buffer_pos_);
+			}
 			// go to next file
 			continueFile_ = false;
 			return false;
@@ -241,6 +251,7 @@ public:
 		{
 			TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: 0x" << std::hex << blockByteSize;
 
+			Utilities::PrintBuffer(block.GetData(), 16);
 			// We don't have to skip to the next file, because we already know the data block integrity is fine.
 			current_buffer_pos_ += blockByteSize;
 			return false;
@@ -268,7 +279,9 @@ public:
 		}
 		if (!subsystemCheck)
 		{
-			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << (total_size_read_ - dmaSize + current_buffer_pos_) << " is not a valid data block for subsystem ID " << static_cast<int>(subsystemID);
+			auto offset = file_mode_ ? (total_size_read_ - dmaSize + current_buffer_pos_) : current_buffer_pos_;
+			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << offset << " is not a valid data block for subsystem ID " << static_cast<int>(subsystemID);
+
 			current_buffer_pos_ += blockByteSize;
 
 			return false;
@@ -365,6 +378,7 @@ public:
 		}
 		TLOG(TLVL_INFO) << "Reading binary file " << file;
 		total_size_read_ = 0;
+		file_mode_ = true;
 
 		mu2e_databuff_t buf;
 
@@ -411,6 +425,7 @@ public:
 
 private:
 	bool continueFile_{true};
+	bool file_mode_{false};
 	uint64_t total_size_read_{0};
 	uint64_t current_buffer_pos_{0};
 	std::unordered_map<DTCLib::DTC_Link_ID, uint32_t> roc_emulator_packet_count_;
