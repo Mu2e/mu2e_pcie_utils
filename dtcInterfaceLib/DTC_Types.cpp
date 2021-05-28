@@ -328,7 +328,7 @@ std::pair<double, std::string> DTCLib::Utilities::FormatTime(double seconds)
 	return std::make_pair(val, unit);
 }
 
-void DTCLib::Utilities::PrintBuffer(void* ptr, size_t sz, size_t quietCount, int tlvl)
+void DTCLib::Utilities::PrintBuffer(const void* ptr, size_t sz, size_t quietCount, int tlvl)
 {
 	auto maxLine = static_cast<unsigned>(ceil((sz - 8) / 16.0));
 	for (unsigned line = 0; line < maxLine; ++line)
@@ -339,7 +339,7 @@ void DTCLib::Utilities::PrintBuffer(void* ptr, size_t sz, size_t quietCount, int
 		{
 			if (line * 16 + 2 * byte < sz - 8u)
 			{
-				auto thisWord = reinterpret_cast<uint16_t*>(ptr)[4 + line * 8 + byte];
+				auto thisWord = reinterpret_cast<const uint16_t*>(ptr)[4 + line * 8 + byte];
 				ostr << std::setw(4) << static_cast<int>(thisWord) << " ";
 			}
 		}

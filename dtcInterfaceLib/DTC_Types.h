@@ -1227,7 +1227,7 @@ struct Utilities
 	/// <param name="sz">Size of the buffer</param>
 	/// <param name="quietCount">Number of lines to print at the begin/end. Default is 0, which prints entire buffer</param>
 	/// <param name="tlvl">TLVL to use for printing (Default TLVL_INFO)</param>
-	static void PrintBuffer(void* ptr, size_t sz, size_t quietCount = 0, int tlvl = TLVL_INFO);
+	static void PrintBuffer(const void* ptr, size_t sz, size_t quietCount = 0, int tlvl = TLVL_INFO);
 };
 }  // namespace DTCLib
 
