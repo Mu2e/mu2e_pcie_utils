@@ -174,20 +174,20 @@ public:
 			success &= *dataPtr == 0x2222;
 			++dataPtr;
 
-			uint32_t roc_packet_count_test = (*dataPtr << 16);
+			uint32_t roc_packet_counter_test = (*dataPtr << 16);
 			++dataPtr;
-			roc_packet_count_test += *dataPtr;
+			roc_packet_counter_test += *dataPtr;
 			++dataPtr;
 
-			if (roc_emulator_packet_count_.count(roc) == 0)
+			if (roc_emulator_packet_counters_.count(roc) == 0)
 			{
-				roc_emulator_packet_count_[roc] = roc_packet_count_test;
+				roc_emulator_packet_counters_[roc] = roc_packet_counter_test;
 			}
 
-			if (roc_packet_count_test != roc_emulator_packet_count_[roc])
+			if (roc_packet_counter_test != roc_emulator_packet_counters_[roc])
 			{
-				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet count unexpected, shifting from " << roc_emulator_packet_count_[roc] << " to " << roc_packet_count_test;
-				roc_emulator_packet_count_[roc] = roc_packet_count_test;
+				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet counter unexpected, shifting from " << roc_emulator_packet_counters_[roc] << " (expected) to " << roc_packet_counter_test << " (received)";
+				roc_emulator_packet_counters_[roc] = roc_packet_counter_test;
 			}
 
 			success &= *dataPtr == 0x3333;
@@ -195,13 +195,13 @@ public:
 			success &= *dataPtr == 0x4444;
 			++dataPtr;
 
-			roc_packet_count_test = (*dataPtr << 16);
+			roc_packet_counter_test = (*dataPtr << 16);
 			++dataPtr;
-			roc_packet_count_test += *dataPtr;
-			success &= roc_packet_count_test == roc_emulator_packet_count_[roc];
+			roc_packet_counter_test += *dataPtr;
+			success &= roc_packet_counter_test == roc_emulator_packet_counters_[roc];
 			++dataPtr;
 
-			roc_emulator_packet_count_[roc]++;
+			roc_emulator_packet_counters_[roc]++;
 
 			if (!success)
 			{
@@ -428,6 +428,6 @@ private:
 	bool file_mode_{false};
 	uint64_t total_size_read_{0};
 	uint64_t current_buffer_pos_{0};
-	std::unordered_map<DTCLib::DTC_Link_ID, uint32_t> roc_emulator_packet_count_;
+	std::unordered_map<DTCLib::DTC_Link_ID, uint32_t> roc_emulator_packet_counters_;
 };
 }  // namespace DTCLib
