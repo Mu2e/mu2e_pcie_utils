@@ -186,7 +186,7 @@ public:
 
 			if (roc_packet_counter_test != roc_emulator_packet_counters_[roc])
 			{
-				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet counter for roc " << roc << " unexpected, shifting from " << roc_emulator_packet_counters_[roc] << "(expected) to " << roc_packet_counter_test << "(received) ";
+				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet counter for roc " << static_cast<int>(roc) << " unexpected, shifting from " << roc_emulator_packet_counters_[roc] << "(expected) to " << roc_packet_counter_test << "(received) ";
 				roc_emulator_packet_counters_[roc] = roc_packet_counter_test;
 			}
 
