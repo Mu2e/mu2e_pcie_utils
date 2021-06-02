@@ -186,7 +186,7 @@ public:
 
 			if (roc_packet_counter_test != roc_emulator_packet_counters_[roc])
 			{
-				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet counter for roc " << static_cast<int>(roc) << " unexpected, shifting from " << roc_emulator_packet_counters_[roc] << "(expected) to " << roc_packet_counter_test << "(received) ";
+				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet counter for roc " << static_cast<int>(roc) << " unexpected, shifting from " << roc_emulator_packet_counters_[roc] << " (expected) to " << roc_packet_counter_test << " (received) ";
 				roc_emulator_packet_counters_[roc] = roc_packet_counter_test;
 			}
 
@@ -236,7 +236,7 @@ public:
 		if (current_buffer_pos_ + blockByteSize > dmaSize)
 		{
 			auto offset = file_mode_ ? (total_size_read_ - dmaSize + current_buffer_pos_) : current_buffer_pos_;
-			TLOG(TLVL_ERROR) << "Block goes past end of DMA! Blocks should always end at DMA boundary! Error at 0x" << std::hex << offset;
+			TLOG(TLVL_ERROR) << "Block goes past end of DMA (size 0x" << std::hex << blockByteSize << ")! Blocks should always end at DMA boundary! Error at 0x" << std::hex << offset;
 			if (dmaSize - current_buffer_pos_ > 0)
 			{
 				Utilities::PrintBuffer(block.blockPointer, dmaSize - current_buffer_pos_);
