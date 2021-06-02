@@ -48,6 +48,7 @@ bool useSimFile = false;
 unsigned delay = 0;
 unsigned cfodelay = 1000;
 unsigned number = 1;
+unsigned extraReads = 1;
 unsigned long timestampOffset = 1;
 unsigned eventCount = 1;
 unsigned blockCount = 1;
@@ -357,6 +358,7 @@ void printHelpMsg()
 		<< "    --binary-file-mode: Write DMA sizes to <file> along with read data, to generate a new binary file for detector emulator mode (not compatible with -f)" << std::endl
 		<< "    --stop-verify: If a verify_stream mode error occurs, stop processing" << std::endl
 		<< "    --stop-on-timeout: Stop verify_stream or buffer_test mode if a timeout is detected (0xCAFE in first packet of buffer)" << std::endl
+		<< "    --extra-reads: Number of extra DMA reads to attempt in verify_stream and buffer_test modes (Default: 1)" << std::endl
 		;
 
 	exit(0);
@@ -499,6 +501,10 @@ int main(int argc, char* argv[])
 					else if (option == "--stop-on-timeout")
 					{
 						stopOnTimeout = true;
+					}
+					else if (option == "--extra-reads")
+					{
+						extraReads = getLongOptionValue(&optind, &argv);
 					}
 					else if (option == "--help")
 					{
@@ -699,9 +705,9 @@ int main(int argc, char* argv[])
 
 		DTC_Data_Verifier verifier;
 
-		for (unsigned ii = 0; ii < number; ++ii)
+		for (unsigned ii = 0; ii < number + extraReads; ++ii)
 		{
-			if (syncRequests)
+			if (syncRequests && ii < number)
 			{
 				auto startRequest = std::chrono::steady_clock::now();
 				cfo.SendRequestForTimestamp(DTC_EventWindowTag(timestampOffset + (incrementTimestamp ? ii : 0), heartbeatsAfter));
@@ -875,9 +881,9 @@ int main(int argc, char* argv[])
 		device->ResetDeviceTime();
 		auto afterRequests = std::chrono::steady_clock::now();
 
-		for (unsigned ii = 0; ii < number; ++ii)
+		for (unsigned ii = 0; ii < number + extraReads; ++ii)
 		{
-			if (syncRequests)
+			if (syncRequests && ii < number)
 			{
 				auto startRequest = std::chrono::steady_clock::now();
 				cfo.SendRequestForTimestamp(DTC_EventWindowTag(timestampOffset + (incrementTimestamp ? ii : 0), heartbeatsAfter));
