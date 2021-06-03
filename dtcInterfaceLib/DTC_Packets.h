@@ -1108,7 +1108,8 @@ public:
 	}
 
 	DTC_Subsystem GetSubsystem() const { return static_cast<DTC_Subsystem>((header_.source_dtc_id & 0x70) >> 4); }
-	void SetSourceDTC(uint8_t id, DTC_Subsystem subsystem = DTC_Subsystem_Other) {
+	void SetSourceDTC(uint8_t id, DTC_Subsystem subsystem = DTC_Subsystem_Other)
+	{
 		header_.source_dtc_id = (id & 0xf) + ((static_cast<int>(subsystem) & 0x7) << 4);
 	}
 	DTC_SubEventHeader* GetHeader() { return &header_; }
@@ -1169,9 +1170,12 @@ public:
 	/// <param name="data">Pointer data</param>
 	explicit DTC_Event(const void* data);
 
+	explicit DTC_Event(size_t data_size);
+
 	DTC_Event()
 		: header_(), sub_events_(), buffer_ptr_(nullptr) {}
 
+	void SetupEvent();
 	size_t GetEventByteCount() const { return header_.inclusive_event_byte_count; }
 	DTC_EventWindowTag GetEventWindowTag() const;
 	void SetEventWindowTag(DTC_EventWindowTag const& tag);
@@ -1210,6 +1214,7 @@ public:
 	void WriteEvent(std::ostream& output, bool includeDMAWriteSize = true);
 
 private:
+	std::shared_ptr<std::vector<uint8_t>> allocBytes{nullptr};  ///< Used if the block owns its memory
 	DTC_EventHeader header_;
 	std::vector<DTC_SubEvent> sub_events_;
 	const void* buffer_ptr_;

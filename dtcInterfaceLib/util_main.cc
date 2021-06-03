@@ -358,10 +358,61 @@ void printHelpMsg()
 		<< "    --binary-file-mode: Write DMA sizes to <file> along with read data, to generate a new binary file for detector emulator mode (not compatible with -f)" << std::endl
 		<< "    --stop-verify: If a verify_stream mode error occurs, stop processing" << std::endl
 		<< "    --stop-on-timeout: Stop verify_stream or buffer_test mode if a timeout is detected (0xCAFE in first packet of buffer)" << std::endl
-		<< "    --extra-reads: Number of extra DMA reads to attempt in verify_stream and buffer_test modes (Default: 1)" << std::endl
-		;
+		<< "    --extra-reads: Number of extra DMA reads to attempt in verify_stream and buffer_test modes (Default: 1)" << std::endl;
 
 	exit(0);
+}
+
+mu2e_databuff_t* readDTCBuffer(mu2edev* device, bool& readSuccess, bool& timeout, size_t& sts)
+{
+	mu2e_databuff_t* buffer;
+	auto tmo_ms = 1500;
+	readSuccess = false;
+	TLOG(TLVL_TRACE) << "util - before read for DAQ";
+	sts = device->read_data(DTC_DMA_Engine_DAQ, reinterpret_cast<void**>(&buffer), tmo_ms);
+	TLOG(TLVL_TRACE) << "util - after read for DAQ sts=" << sts << ", buffer=" << (void*)buffer;
+
+	if (sts > 0)
+	{
+		readSuccess = true;
+		void* readPtr = &buffer[0];
+		uint16_t bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
+		readPtr = static_cast<uint8_t*>(readPtr) + 8;
+		TLOG((reallyQuiet ? TLVL_DEBUG + 4 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
+														 << sts << " bytes," << std::endl;
+
+		TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
+		if (binaryFileOutput)
+		{
+			uint64_t dmaWriteSize = sts + 8;
+			outputStream.write(reinterpret_cast<char*>(&dmaWriteSize), sizeof(dmaWriteSize));
+			outputStream.write(reinterpret_cast<char*>(&buffer[0]), sts);
+		}
+		else if (rawOutput)
+			outputStream.write(static_cast<char*>(readPtr), sts - 8);
+
+		timeout = false;
+		// Check for dead or cafe in first packet
+		std::vector<size_t> wordsToCheck{1, 2, 3, 7, 8};
+		for (auto& word : wordsToCheck)
+		{
+			auto wordPtr = static_cast<uint16_t*>(readPtr) + (word - 1);
+			TLOG(TLVL_TRACE + 1) << word << (word == 1 ? "st" : word == 2 ? "nd"
+															: word == 3   ? "rd"
+																		  : "th")
+								 << " word of buffer: " << *wordPtr;
+			if (*wordPtr == 0xcafe || *wordPtr == 0xdead)
+			{
+				TLOG(TLVL_WARNING) << "Buffer Timeout detected! " << word << (word == 1 ? "st" : word == 2 ? "nd"
+																										   : word == 3   ? "rd"
+																														 : "th")
+								   << " word of buffer is 0x" << std::hex << *wordPtr;
+				timeout = true;
+				break;
+			}
+		}
+	}
+	return buffer;
 }
 
 int main(int argc, char* argv[])
@@ -707,6 +758,7 @@ int main(int argc, char* argv[])
 
 		for (unsigned ii = 0; ii < number + extraReads; ++ii)
 		{
+			device->release_all(DTC_DMA_Engine_DAQ);
 			if (syncRequests && ii < number)
 			{
 				auto startRequest = std::chrono::steady_clock::now();
@@ -717,75 +769,81 @@ int main(int argc, char* argv[])
 			}
 			TLOG((reallyQuiet ? TLVL_DEBUG + 4 : TLVL_INFO)) << "Buffer Read " << std::dec << ii << std::endl;
 
-			mu2e_databuff_t* buffer;
-			auto tmo_ms = 1500;
-			TLOG(TLVL_TRACE) << "util - before read for DAQ - ii=" << ii;
-			auto sts = device->read_data(DTC_DMA_Engine_DAQ, reinterpret_cast<void**>(&buffer), tmo_ms);
-			TLOG(TLVL_TRACE) << "util - after read for DAQ - ii=" << ii << ", sts=" << sts << ", buffer=" << (void*)buffer;
+			bool readSuccess = false;
+			bool timeout = false;
+			bool verified = false;
+			size_t sts = 0;
+			mu2e_databuff_t* buffer = readDTCBuffer(device, readSuccess, timeout,sts);
 
-			if (sts > 0)
+			if (!readSuccess && checkSERDES)
+				break;
+			else if (!readSuccess)
+				continue;
+
+			void* readPtr = &buffer[0];
+			uint16_t bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
+			readPtr = static_cast<uint8_t*>(readPtr) + 8;
+
+			if (stopOnTimeout && timeout)
 			{
-				void* readPtr = &buffer[0];
-				auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
-				readPtr = static_cast<uint8_t*>(readPtr) + 8;
-				TLOG((reallyQuiet ? TLVL_DEBUG + 4 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
-																 << sts << " bytes," << std::endl;
+				TLOG(TLVL_ERROR) << "Timeout detected and stop-on-timeout mode enabled. Stopping after " << ii << " events!";
+				break;
+			}
 
-				TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
-				if (binaryFileOutput)
+			DTC_Event evt(readPtr);
+			size_t eventByteCount = evt.GetEventByteCount();
+			if (eventByteCount > bufSize - 8U)
+			{
+				DTC_Event newEvt(eventByteCount);
+				memcpy(const_cast<void*>(newEvt.GetRawBufferPointer()), evt.GetRawBufferPointer(), bufSize - 8);
+				size_t newEvtSize = bufSize - 8;
+				while (newEvtSize < eventByteCount)
 				{
-					uint64_t dmaWriteSize = sts + 8;
-					outputStream.write(reinterpret_cast<char*>(&dmaWriteSize), sizeof(dmaWriteSize));
-					outputStream.write(reinterpret_cast<char*>(&buffer[0]), sts);
-				}
-				else if (rawOutput)
-					outputStream.write(static_cast<char*>(readPtr), sts - 8);
-
-				bool timeout = false;
-				// Check for dead or cafe in first packet
-				for (size_t word = 1; word <= 8; ++word)
-				{
-					auto wordPtr = static_cast<uint16_t*>(readPtr) + (word - 1);
-					TLOG(TLVL_TRACE + 1) << word << (word == 1 ? "st" : word == 2 ? "nd"
-																	: word == 3   ? "rd"
-																				  : "th")
-										 << " word of buffer: " << *wordPtr;
-					if (*wordPtr == 0xcafe || *wordPtr == 0xdead)
+					device->read_release(DTC_DMA_Engine_DAQ, 1);
+					buffer = readDTCBuffer(device, readSuccess, timeout,sts);
+					if (!readSuccess || timeout)
 					{
-						TLOG(TLVL_WARNING) << "Buffer " << ii << ": Timeout detected! " << word << (word == 1 ? "st" : word == 2 ? "nd"
-																												   : word == 3   ? "rd"
-																																 : "th")
-										   << " word of buffer is 0x" << std::hex << *wordPtr;
-						timeout = true;
+						TLOG(TLVL_ERROR) << "Unable to receive continued DMA! Aborting!";
 						break;
 					}
+					readPtr = &buffer[0];
+					bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
+					readPtr = static_cast<uint8_t*>(readPtr) + 8;
+					memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(newEvt.GetRawBufferPointer()) + newEvtSize), readPtr, bufSize - 8);
+					newEvtSize += bufSize - 8;
 				}
-				if (stopOnTimeout && timeout) {
-					TLOG(TLVL_ERROR) << "Timeout detected and stop-on-timeout mode enabled. Stopping after " << ii << " events!";
-				}
+				if (!readSuccess || timeout) break;
 
-				DTC_Event evt(readPtr);
-				auto verified = verifier.VerifyEvent(evt, bufSize);
-				if (!reallyQuiet) {
-					if (verified) {
-						TLOG(TLVL_INFO) << "Event verified successfully, " << evt.GetSubEventCount() << " sub-events";
-					}
-					else
-					{
-						TLOG(TLVL_WARNING) << "Event verification failed!";
-					}
+				newEvt.SetupEvent();
+				verified = verifier.VerifyEvent(newEvt);
+			}
+			else
+			{
+				evt.SetupEvent();
+				verified = verifier.VerifyEvent(evt);
+				device->read_release(DTC_DMA_Engine_DAQ, 1);
+			}
+			if (!reallyQuiet)
+			{
+				if (verified)
+				{
+					TLOG(TLVL_INFO) << "Event verified successfully, " << evt.GetSubEventCount() << " sub-events";
 				}
-
-				if (stopOnVerifyFailure && !verified) {
-					TLOG(TLVL_ERROR) << "Event verification error encountered and stop-verify mode enabled. Stopping after " << ii << " events!";
-					break;
+				else
+				{
+					TLOG(TLVL_WARNING) << "Event verification failed!";
 				}
 			}
-			else if (checkSERDES)
+
+			if (stopOnVerifyFailure && !verified)
+			{
+				TLOG(TLVL_ERROR) << "Event verification error encountered and stop-verify mode enabled. Stopping after " << ii << " events!";
 				break;
-			device->read_release(DTC_DMA_Engine_DAQ, 1);
+			}
+
 			if (delay > 0) usleep(delay);
 		}
+		device->release_all(DTC_DMA_Engine_DAQ);
 
 		auto readDevTime = device->GetDeviceTime();
 		auto doneTime = std::chrono::steady_clock::now();
@@ -893,65 +951,31 @@ int main(int argc, char* argv[])
 			}
 			TLOG((reallyQuiet ? TLVL_DEBUG + 4 : TLVL_INFO)) << "Buffer Read " << std::dec << ii << std::endl;
 
-			mu2e_databuff_t* buffer;
-			auto tmo_ms = 1500;
-			TLOG(TLVL_TRACE) << "util - before read for DAQ - ii=" << ii;
-			auto sts = device->read_data(DTC_DMA_Engine_DAQ, reinterpret_cast<void**>(&buffer), tmo_ms);
-			TLOG(TLVL_TRACE) << "util - after read for DAQ - ii=" << ii << ", sts=" << sts << ", buffer=" << (void*)buffer;
+			bool readSuccess = false;
+			bool timeout = false;
+			size_t sts = 0;
+			mu2e_databuff_t* buffer = readDTCBuffer(device, readSuccess, timeout, sts);
 
-			if (sts > 0)
-			{
-				void* readPtr = &buffer[0];
-				auto bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
-				readPtr = static_cast<uint8_t*>(readPtr) + 8;
-				TLOG((reallyQuiet ? TLVL_DEBUG + 4 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
-																 << sts << " bytes," << std::endl;
-
-				TLOG(TLVL_TRACE) << "util - bufSize is " << bufSize;
-				if (binaryFileOutput)
-				{
-					uint64_t dmaWriteSize = sts + 8;
-					outputStream.write(reinterpret_cast<char*>(&dmaWriteSize), sizeof(dmaWriteSize));
-					outputStream.write(reinterpret_cast<char*>(&buffer[0]), sts);
-				}
-				else if (rawOutput)
-					outputStream.write(static_cast<char*>(readPtr), sts - 8);
-
-				
-				bool timeout = false;
-				// Check for dead or cafe in first packet
-				for (size_t word = 1; word <= 8; ++word)
-				{
-					auto wordPtr = static_cast<uint16_t*>(readPtr) + (word - 1);
-					TLOG(TLVL_TRACE + 1) << word << (word == 1 ? "st" : word == 2 ? "nd"
-																	: word == 3   ? "rd"
-																				  : "th")
-										 << " word of buffer: " << *wordPtr;
-					if (*wordPtr == 0xcafe || *wordPtr == 0xdead)
-					{
-						TLOG(TLVL_WARNING) << "Buffer " << ii << ": Timeout detected! " << word << (word == 1 ? "st" : word == 2 ? "nd"
-																												   : word == 3   ? "rd"
-																																 : "th")
-										   << " word of buffer is 0x" << std::hex << *wordPtr;
-						timeout = true;
-						break;
-					}
-				}
-				if (stopOnTimeout && timeout)
-				{
-					TLOG(TLVL_ERROR) << "Timeout detected and stop-on-timeout mode enabled. Stopping after " << ii << " events!";
-				}
-
-				if (!reallyQuiet)
-				{
-					DTCLib::Utilities::PrintBuffer(buffer, sts, quietCount);
-				}
-			}
-			else if (checkSERDES)
+			if (!readSuccess && checkSERDES)
 				break;
+			else if (!readSuccess)
+				continue;
+
+			if (stopOnTimeout && timeout)
+			{
+				TLOG(TLVL_ERROR) << "Timeout detected and stop-on-timeout mode enabled. Stopping after " << ii << " events!";
+				break;
+			}
+
+			if (!reallyQuiet)
+			{
+				DTCLib::Utilities::PrintBuffer(buffer, sts, quietCount);
+			}
+
 			device->read_release(DTC_DMA_Engine_DAQ, 1);
 			if (delay > 0) usleep(delay);
 		}
+		device->release_all(DTC_DMA_Engine_DAQ);
 
 		auto readDevTime = device->GetDeviceTime();
 		auto doneTime = std::chrono::steady_clock::now();

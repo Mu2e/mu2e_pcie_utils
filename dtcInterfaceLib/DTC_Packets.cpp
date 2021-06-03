@@ -847,7 +847,18 @@ void DTCLib::DTC_SubEvent::UpdateHeader()
 DTCLib::DTC_Event::DTC_Event(const void* data)
 	: header_(), sub_events_(), buffer_ptr_(data)
 {
-	auto ptr = reinterpret_cast<const uint8_t*>(data);
+	memcpy(&header_, data, sizeof(header_));
+}
+
+DTCLib::DTC_Event::DTC_Event(size_t data_size)
+	: allocBytes(new std::vector<uint8_t>(data_size)), header_(), sub_events_(), buffer_ptr_(allocBytes->data())
+{
+	TLOG(TLVL_TRACE) << "Empty DTC_Event created, copy in data and call SetupEvent to finalize";
+}
+
+void DTCLib::DTC_Event::SetupEvent()
+{
+	auto ptr = reinterpret_cast<const uint8_t*>(buffer_ptr_);
 
 	memcpy(&header_, ptr, sizeof(header_));
 	ptr += sizeof(header_);

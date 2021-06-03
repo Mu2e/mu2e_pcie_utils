@@ -737,9 +737,9 @@ std::string DTCLib::DTC::ROCRegDump(const DTC_Link_ID& link)
 	o << "\"Command Handler Errors\": " << ReadExtROCRegister(link, 10, 1) << ",\n";
 	o << "\"Packet Sender 0 Errors\": " << ReadExtROCRegister(link, 11, 1) << ",\n";
 	o << "\"Packet Sender 1 Errors\": " << ReadExtROCRegister(link, 12, 1) << "\n";
-	o << "}";
+o << "}";
 
-	return o.str();
+return o.str();
 }
 
 void DTCLib::DTC::SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_EventWindowTag& when, bool quiet)
@@ -752,12 +752,12 @@ void DTCLib::DTC::SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_Ev
 }
 
 void DTCLib::DTC::SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOperationType type, const uint16_t address,
-									   const uint16_t data, const uint16_t address2, const uint16_t data2, bool quiet, bool requestAck)
+	const uint16_t data, const uint16_t address2, const uint16_t data2, bool quiet, bool requestAck)
 {
 	DTC_DCSRequestPacket req(link, type, requestAck, false /*incrementAddress*/, address, data);
 
 	if (!quiet) TLOG(TLVL_SendDCSRequestPacket) << "Init DCS Packet: \n"
-												<< req.toJSON();
+		<< req.toJSON();
 
 	if (type == DTC_DCSOperationType_DoubleRead ||
 		type == DTC_DCSOperationType_DoubleWrite)
@@ -769,7 +769,7 @@ void DTCLib::DTC::SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOpe
 	TLOG(TLVL_SendDCSRequestPacket) << "SendDCSRequestPacket before WriteDMADCSPacket - DTC_DCSRequestPacket";
 
 	if (!quiet) TLOG(TLVL_SendDCSRequestPacket) << "Sending DCS Packet: \n"
-												<< req.toJSON();
+		<< req.toJSON();
 
 	if (!ReadDCSReception()) EnableDCSReception();
 
@@ -784,8 +784,8 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	if (daqDMAInfo_.currentReadPtr != nullptr)
 	{
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA BEFORE BUFFER CHECK daqDMAInfo_.currentReadPtr="
-									 << (void*)daqDMAInfo_.currentReadPtr << " *nextReadPtr_=0x" << std::hex
-									 << *(uint16_t*)daqDMAInfo_.currentReadPtr;
+			<< (void*)daqDMAInfo_.currentReadPtr << " *nextReadPtr_=0x" << std::hex
+			<< *(uint16_t*)daqDMAInfo_.currentReadPtr;
 	}
 	else
 	{
@@ -793,6 +793,7 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	}
 
 	auto index = GetCurrentBuffer(&daqDMAInfo_);
+	uint16_t buffer_size = 0;
 
 	// Need new buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
 	if (index < 0)
@@ -810,8 +811,8 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		// MUST BE ABLE TO HANDLE daqbuffer_==nullptr OR retry forever?
 		daqDMAInfo_.currentReadPtr = &daqDMAInfo_.buffer.back()[0];
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
-									 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
-									 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
+			<< " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
+			<< " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
 		void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
 		if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
 		{
@@ -825,15 +826,67 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		}
 		daqDMAInfo_.bufferIndex++;
 
-		daqDMAInfo_.currentReadPtr = reinterpret_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
+		buffer_size = *static_cast<uint16_t*>(daqDMAInfo_.currentReadPtr);
+		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
 		*static_cast<uint32_t*>(daqDMAInfo_.currentReadPtr) = daqDMAInfo_.bufferIndex;
-		daqDMAInfo_.currentReadPtr = reinterpret_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
+		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
 
-		index =daqDMAInfo_.buffer.size() - 1;
+		index = daqDMAInfo_.buffer.size() - 1;
 	}
 
 	TLOG(TLVL_ReadNextDAQPacket) << "Creating DTC_Event from current DMA Buffer";
 	auto res = std::make_unique<DTC_Event>(daqDMAInfo_.currentReadPtr);
+
+	auto eventByteCount = res->GetEventByteCount();
+	// Check for continued DMA
+	if (eventByteCount > buffer_size)
+	{
+		auto inmem = std::make_unique<DTC_Event>(eventByteCount);
+		memcpy(const_cast<void*>(inmem->GetRawBufferPointer()), res->GetRawBufferPointer(), buffer_size - 8);
+
+		auto bytes_read = buffer_size;
+		while (bytes_read < eventByteCount)
+		{
+			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA Obtaining new DAQ Buffer";
+
+			void* oldBufferPtr = nullptr;
+			if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
+			auto sts = ReadBuffer(DTC_DMA_Engine_DAQ, tmo_ms, 0 /*retries*/);  // does return code
+			if (sts <= 0)
+			{
+				TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA: ReadBuffer returned " << sts << ", returning nullptr";
+				return nullptr;
+			}
+			// MUST BE ABLE TO HANDLE daqbuffer_==nullptr OR retry forever?
+			daqDMAInfo_.currentReadPtr = &daqDMAInfo_.buffer.back()[0];
+			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
+										 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
+										 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
+			void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
+			if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
+			{
+				TLOG(TLVL_ReadNextDAQPacket)
+					<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
+				daqDMAInfo_.currentReadPtr = nullptr;
+				// We didn't actually get a new buffer...this probably means there's no more data
+				// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
+				device_.read_release(DTC_DMA_Engine_DAQ, 1);
+				return nullptr;
+			}
+			daqDMAInfo_.bufferIndex++;
+
+			buffer_size = *static_cast<uint16_t*>(daqDMAInfo_.currentReadPtr);
+			daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
+			*static_cast<uint32_t*>(daqDMAInfo_.currentReadPtr) = daqDMAInfo_.bufferIndex;
+			daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
+
+			memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(inmem->GetRawBufferPointer()) + bytes_read), daqDMAInfo_.currentReadPtr, buffer_size - 8);
+			bytes_read += buffer_size;
+		}
+
+		res.swap(inmem);
+	}
+	res->SetupEvent();
 
 	// Update the packet pointers
 

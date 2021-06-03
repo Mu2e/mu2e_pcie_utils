@@ -212,7 +212,7 @@ public:
 		return true;
 	}
 
-	bool VerifyBlock(DTCLib::DTC_DataBlock block, uint64_t dmaSize)
+	bool VerifyBlock(DTCLib::DTC_DataBlock block)
 	{
 		auto header = block.GetHeader();
 		auto blockByteSize = header.GetByteCount();
@@ -223,24 +223,11 @@ public:
 		TLOG(TLVL_DEBUG + 5) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
 		if ((dataHeaderTest & dataHeaderMask) != 0x8050)
 		{
-			auto offset = file_mode_ ? (total_size_read_ - dmaSize + current_buffer_pos_) : current_buffer_pos_;
+			auto offset = file_mode_ ? (current_buffer_offset_ + current_buffer_pos_) : current_buffer_pos_;
 			TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << offset << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<const uint64_t*>(block.blockPointer);
-			TLOG(TLVL_ERROR) << "This most likely means that the declared DMA size is incorrect, it was declared as 0x" << std::hex << dmaSize << ", but we ran out of DataHeaders at 0x" << std::hex << current_buffer_pos_;
-
+			
 			Utilities::PrintBuffer(block.blockPointer, 16);
 
-			// go to next file
-			continueFile_ = false;
-			return false;
-		}
-		if (current_buffer_pos_ + blockByteSize > dmaSize)
-		{
-			auto offset = file_mode_ ? (total_size_read_ - dmaSize + current_buffer_pos_) : current_buffer_pos_;
-			TLOG(TLVL_ERROR) << "Block goes past end of DMA (size 0x" << std::hex << blockByteSize << ")! Blocks should always end at DMA boundary! Error at 0x" << std::hex << offset;
-			if (dmaSize - current_buffer_pos_ > 0)
-			{
-				Utilities::PrintBuffer(block.blockPointer, dmaSize - current_buffer_pos_);
-			}
 			// go to next file
 			continueFile_ = false;
 			return false;
@@ -279,7 +266,7 @@ public:
 		}
 		if (!subsystemCheck)
 		{
-			auto offset = file_mode_ ? (total_size_read_ - dmaSize + current_buffer_pos_) : current_buffer_pos_;
+			auto offset = file_mode_ ? (current_buffer_offset_ + current_buffer_pos_) : current_buffer_pos_;
 			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << offset << " is not a valid data block for subsystem ID " << static_cast<int>(subsystemID);
 
 			current_buffer_pos_ += blockByteSize;
@@ -292,7 +279,7 @@ public:
 		return true;
 	}
 
-	bool VerifySubEvent(DTCLib::DTC_SubEvent subevt, DTCLib::DTC_EventWindowTag eventTag, uint64_t dmaSize)
+	bool VerifySubEvent(DTCLib::DTC_SubEvent subevt, DTCLib::DTC_EventWindowTag eventTag)
 	{
 		if (subevt.GetEventWindowTag() != eventTag)
 		{
@@ -308,47 +295,19 @@ public:
 		bool success = true;
 		for (auto& block : subevt.GetDataBlocks())
 		{
-			auto blockSuccess = VerifyBlock(block, dmaSize);
+			auto blockSuccess = VerifyBlock(block);
 			success &= blockSuccess;
 			if (!continueFile_) return false;
 		}
 		return success;
 	}
 
-	bool VerifyEvent(DTCLib::DTC_Event evt, uint64_t dmaSize)
+	bool VerifyEvent(DTCLib::DTC_Event evt)
 	{
 		bool success = true;
 		current_buffer_pos_ = 0;
 
 		auto eventTag = evt.GetEventWindowTag();
-
-		bool event_full_size = evt.GetEventByteCount() >= 32768;  // Max DMA size
-
-		if (event_full_size)
-		{
-			TLOG(TLVL_TRACE) << "Continued DMA detected, not doing further byte count checks";
-		}
-		else
-		{
-			if (dmaSize != 0)
-			{
-				bool event_matches_exclusive_dma = evt.GetEventByteCount() == dmaSize;
-				bool event_matches_inclusive_dma = evt.GetEventByteCount() == dmaSize - 8;
-				if (!event_matches_exclusive_dma && !event_matches_inclusive_dma)
-				{
-					TLOG(TLVL_ERROR) << "Event Header byte count (" << evt.GetEventByteCount() << ") disagrees with DMA byte count (" << dmaSize << ")!";
-					return false;
-				}
-				else if (event_matches_exclusive_dma)
-				{
-					TLOG(TLVL_TRACE) << "DMA byte count is exclusive! (incorrect)";
-				}
-				else
-				{
-					TLOG(TLVL_TRACE) << "DMA byte count is inclusive! (correct)";
-				}
-			}
-		}
 
 		if (evt.GetHeader()->num_dtcs != evt.GetSubEventCount())
 		{
@@ -361,7 +320,7 @@ public:
 
 		for (auto& subevt : evt.GetSubEvents())
 		{
-			auto subevtSuccess = VerifySubEvent(subevt, eventTag, dmaSize);
+			auto subevtSuccess = VerifySubEvent(subevt, eventTag);
 			success &= subevtSuccess;
 			if (!continueFile_) return false;
 		}
@@ -377,7 +336,7 @@ public:
 			return false;
 		}
 		TLOG(TLVL_INFO) << "Reading binary file " << file;
-		total_size_read_ = 0;
+		size_t total_size_read = 0;
 		file_mode_ = true;
 
 		mu2e_databuff_t buf;
@@ -388,27 +347,28 @@ public:
 		{
 			uint64_t dmaWriteSize;  // DMA Write buffer size
 			is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
-			total_size_read_ += sizeof(dmaWriteSize);
+			total_size_read += sizeof(dmaWriteSize);
 
 			uint64_t dmaSize;
 			is.read((char*)&dmaSize, sizeof(dmaSize));
-			total_size_read_ += sizeof(dmaSize);
+			total_size_read += sizeof(dmaSize);
 
 			// Check that DMA Write Buffer Size = DMA Buffer Size + 16
 			if (dmaSize + 16 != dmaWriteSize)
 			{
-				TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read_ << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
+				TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
 				success = false;
 				break;
 			}
 
 			// Check that size of all DataBlocks = DMA Buffer Size
 			is.read((char*)buf, dmaSize);
-			total_size_read_ += dmaSize;
+			current_buffer_offset_ = total_size_read;
+			total_size_read += dmaSize;
 
-			TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << (total_size_read_ - dmaSize);
+			TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << current_buffer_offset_;
 			DTCLib::DTC_Event thisEvent(buf);
-			success = VerifyEvent(thisEvent, dmaSize);
+			success = VerifyEvent(thisEvent);
 		}
 
 		if (success)
@@ -426,7 +386,7 @@ public:
 private:
 	bool continueFile_{true};
 	bool file_mode_{false};
-	uint64_t total_size_read_{0};
+	uint64_t current_buffer_offset_{0};
 	uint64_t current_buffer_pos_{0};
 	std::unordered_map<DTCLib::DTC_Link_ID, uint32_t> roc_emulator_packet_counters_;
 };
