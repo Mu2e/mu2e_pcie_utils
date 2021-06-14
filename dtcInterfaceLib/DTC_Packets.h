@@ -1187,6 +1187,16 @@ public:
 		return sub_events_;
 	}
 	size_t GetSubEventCount() const { return sub_events_.size(); }
+
+	size_t GetSubEventCount(DTC_Subsystem subsys) const {
+		size_t count = 0;
+		for (size_t ii = 0; ii < sub_events_.size(); ++ii)
+		{
+			if (sub_events_[ii].GetSubsystem() == subsys) ++count;
+		}
+		return count;
+	}
+
 	DTC_SubEvent* GetSubEvent(size_t idx)
 	{
 		if (idx >= sub_events_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(sub_events_.size() - 1) + ")");
