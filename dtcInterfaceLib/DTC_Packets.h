@@ -978,7 +978,7 @@ struct DTC_DataBlock
 	std::shared_ptr<std::vector<uint8_t>> allocBytes{nullptr};  ///< Used if the block owns its memory
 	const void* blockPointer{nullptr};                          ///< Pointer to DataBlock in Memory
 	size_t byteSize{0};                                         ///< Size of DataBlock
-	std::shared_ptr<DTC_DataHeaderPacket> hdr{nullptr};
+	mutable std::shared_ptr<DTC_DataHeaderPacket> hdr{nullptr};
 
 	/**
 	 * @brief Create a DTC_DataBlock using a pointer to a memory location containing a Data Block

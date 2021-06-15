@@ -19,7 +19,7 @@ public:
 
 	bool VerifyCalorimeterDataBlock(DTCLib::DTC_DataBlock block)
 	{
-		auto blockByteSize = block.GetHeader().GetByteCount();
+		auto blockByteSize = block.GetHeader()->GetByteCount();
 
 		if (blockByteSize == 0x10)
 		{
@@ -151,7 +151,7 @@ public:
 
 	bool VerifyROCEmulatorBlock(DTCLib::DTC_DataBlock block)
 	{
-		auto headerDP = block.GetHeader().ConvertToDataPacket();
+		auto headerDP = block.GetHeader()->ConvertToDataPacket();
 
 		bool success = true;
 		success = headerDP.GetWord(12) == 0xEF;
@@ -163,8 +163,8 @@ public:
 			return false;
 		}
 
-		auto packetCount = block.GetHeader().GetPacketCount();
-		auto roc = block.GetHeader().GetLinkID();
+		auto packetCount = block.GetHeader()->GetPacketCount();
+		auto roc = block.GetHeader()->GetLinkID();
 		auto dataPtr = reinterpret_cast<uint16_t const*>(block.GetData());
 
 		for (int ii = 0; ii < packetCount; ++ii)
@@ -215,11 +215,11 @@ public:
 	bool VerifyBlock(DTCLib::DTC_DataBlock block)
 	{
 		auto header = block.GetHeader();
-		auto blockByteSize = header.GetByteCount();
+		auto blockByteSize = header->GetByteCount();
 
 		// Check that this is indeed a DataHeader packet
 		auto dataHeaderMask = 0x80F0;
-		uint16_t dataHeaderTest = static_cast<uint16_t>(header.ConvertToDataPacket().GetWord(2)) + (static_cast<uint16_t>(header.ConvertToDataPacket().GetWord(3)) << 8);
+		uint16_t dataHeaderTest = static_cast<uint16_t>(header->ConvertToDataPacket().GetWord(2)) + (static_cast<uint16_t>(header->ConvertToDataPacket().GetWord(3)) << 8);
 		TLOG(TLVL_DEBUG + 5) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
 		if ((dataHeaderTest & dataHeaderMask) != 0x8050)
 		{
@@ -233,7 +233,7 @@ public:
 			return false;
 		}
 
-		auto packetCountTest = header.GetPacketCount();
+		auto packetCountTest = header->GetPacketCount();
 		if ((packetCountTest + 1) * 16 != blockByteSize)
 		{
 			TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: 0x" << std::hex << blockByteSize;
@@ -244,7 +244,7 @@ public:
 			return false;
 		}
 
-		auto subsystemID = header.GetSubsystemID();
+		auto subsystemID = header->GetSubsystemID();
 		bool subsystemCheck = true;
 		switch (subsystemID)
 		{
