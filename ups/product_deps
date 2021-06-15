@@ -35,24 +35,17 @@ qualifier     messagefacility   TRACE   notes
 
 e20:s109:debug e20:debug         -nq-    -std=c++17
 e20:s109:prof  e20:prof          -nq-    -std=c++17
-e19:s109:debug e19:debug         -nq-    -std=c++17
-e19:s109:prof  e19:prof          -nq-    -std=c++17
-c7:s109:debug  c7:debug          -nq-    -std=c++17
-c7:s109:prof   c7:prof           -nq-    -std=c++17
+#e19:s109:debug e19:debug         -nq-    -std=c++17
+#e19:s109:prof  e19:prof          -nq-    -std=c++17
+#c7:s109:debug  c7:debug          -nq-    -std=c++17
+#c7:s109:prof   c7:prof           -nq-    -std=c++17
 
-e20:s108:debug e20:debug         -nq-    -std=c++17
-e20:s108:prof  e20:prof          -nq-    -std=c++17
-e19:s108:debug e19:debug         -nq-    -std=c++17
-e19:s108:prof  e19:prof          -nq-    -std=c++17
-c7:s108:debug  c7:debug          -nq-    -std=c++17
-c7:s108:prof   c7:prof           -nq-    -std=c++17
-
-e20:s107:debug e20:debug         -nq-    -std=c++17
-e20:s107:prof  e20:prof          -nq-    -std=c++17
-e19:s107:debug e19:debug         -nq-    -std=c++17
-e19:s107:prof  e19:prof          -nq-    -std=c++17
-c7:s107:debug  c7:debug          -nq-    -std=c++17
-c7:s107:prof   c7:prof           -nq-    -std=c++17
+#e20:s108:debug e20:debug         -nq-    -std=c++17
+#e20:s108:prof  e20:prof          -nq-    -std=c++17
+#e19:s108:debug e19:debug         -nq-    -std=c++17
+#e19:s108:prof  e19:prof          -nq-    -std=c++17
+#c7:s108:debug  c7:debug          -nq-    -std=c++17
+#c7:s108:prof   c7:prof           -nq-    -std=c++17
 
 end_qualifier_list
 

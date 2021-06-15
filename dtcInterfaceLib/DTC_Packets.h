@@ -978,6 +978,7 @@ struct DTC_DataBlock
 	std::shared_ptr<std::vector<uint8_t>> allocBytes{nullptr};  ///< Used if the block owns its memory
 	const void* blockPointer{nullptr};                          ///< Pointer to DataBlock in Memory
 	size_t byteSize{0};                                         ///< Size of DataBlock
+	std::shared_ptr<DTC_DataHeaderPacket> hdr{nullptr};
 
 	/**
 	 * @brief Create a DTC_DataBlock using a pointer to a memory location containing a Data Block
@@ -1006,10 +1007,12 @@ struct DTC_DataBlock
 	{
 	}
 
-	inline DTC_DataHeaderPacket GetHeader() const
+	inline std::shared_ptr<DTC_DataHeaderPacket> GetHeader() const
 	{
 		assert(byteSize >= 16);
-		return DTC_DataHeaderPacket(DTC_DataPacket(blockPointer));
+		if (hdr) return hdr;
+		hdr = std::make_shared<DTC_DataHeaderPacket>(DTC_DataPacket(blockPointer));
+		return hdr;
 	}
 
 	inline const void* GetData() const
@@ -1188,11 +1191,25 @@ public:
 	}
 	size_t GetSubEventCount() const { return sub_events_.size(); }
 
-	size_t GetSubEventCount(DTC_Subsystem subsys) const {
+	size_t GetSubEventCount(DTC_Subsystem subsys) const
+	{
 		size_t count = 0;
 		for (size_t ii = 0; ii < sub_events_.size(); ++ii)
 		{
 			if (sub_events_[ii].GetSubsystem() == subsys) ++count;
+		}
+		return count;
+	}
+
+	size_t GetBlockCount(DTC_Subsystem subsys) const
+	{
+		size_t count = 0;
+		for (size_t ii = 0; ii < sub_events_.size(); ++ii)
+		{
+			if (sub_events_[ii].GetSubsystem() == subsys)
+			{
+				count += sub_events_[ii].GetDataBlockCount();
+			}
 		}
 		return count;
 	}

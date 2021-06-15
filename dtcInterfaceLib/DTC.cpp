@@ -793,7 +793,6 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	}
 
 	auto index = GetCurrentBuffer(&daqDMAInfo_);
-	uint16_t buffer_size = 0;
 
 	// Need new buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
 	if (index < 0)
@@ -826,7 +825,6 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		}
 		daqDMAInfo_.bufferIndex++;
 
-		buffer_size = *static_cast<uint16_t*>(daqDMAInfo_.currentReadPtr);
 		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
 		*static_cast<uint32_t*>(daqDMAInfo_.currentReadPtr) = daqDMAInfo_.bufferIndex;
 		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
@@ -838,13 +836,15 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	auto res = std::make_unique<DTC_Event>(daqDMAInfo_.currentReadPtr);
 
 	auto eventByteCount = res->GetEventByteCount();
+	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index) - 8;
+	TLOG(TLVL_ReadNextDAQPacket) << "eventByteCount: " << eventByteCount << ", remainingBufferSize: " << remainingBufferSize;
 	// Check for continued DMA
-	if (eventByteCount > buffer_size)
+	if (eventByteCount > remainingBufferSize)
 	{
 		auto inmem = std::make_unique<DTC_Event>(eventByteCount);
-		memcpy(const_cast<void*>(inmem->GetRawBufferPointer()), res->GetRawBufferPointer(), buffer_size - 8);
+		memcpy(const_cast<void*>(inmem->GetRawBufferPointer()), res->GetRawBufferPointer(), remainingBufferSize);
 
-		auto bytes_read = buffer_size;
+		auto bytes_read = remainingBufferSize;
 		while (bytes_read < eventByteCount)
 		{
 			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA Obtaining new DAQ Buffer";
@@ -875,13 +875,15 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 			}
 			daqDMAInfo_.bufferIndex++;
 
-			buffer_size = *static_cast<uint16_t*>(daqDMAInfo_.currentReadPtr);
+			size_t buffer_size = *static_cast<uint16_t*>(daqDMAInfo_.currentReadPtr);
 			daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
 			*static_cast<uint32_t*>(daqDMAInfo_.currentReadPtr) = daqDMAInfo_.bufferIndex;
 			daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
 
-			memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(inmem->GetRawBufferPointer()) + bytes_read), daqDMAInfo_.currentReadPtr, buffer_size - 8);
-			bytes_read += buffer_size;
+			size_t remainingEventSize = eventByteCount - bytes_read;
+			size_t copySize = remainingEventSize < buffer_size - 8 ? remainingEventSize : buffer_size - 8;
+			memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(inmem->GetRawBufferPointer()) + bytes_read), daqDMAInfo_.currentReadPtr, copySize);
+			bytes_read += buffer_size - 8;
 		}
 
 		res.swap(inmem);
