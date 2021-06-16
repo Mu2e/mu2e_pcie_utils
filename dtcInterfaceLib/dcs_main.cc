@@ -144,7 +144,7 @@ void printHelpMsg()
 			  << " -i: Do not set the incrementAddress bit for block operations" << std::endl
 			  << " --dtc: Use dtc <num> (Defaults to DTCLIB_DTC if set, 0 otherwise, see ls /dev/mu2e* for available DTCs)" << std::endl
 			  << " --stop-on-error: Abort operation if an error occurs" << std::endl
-			  << " --read-retries Try this many times to read a DCS DMA from the DTC (Default: 10)"
+			  << " --timeout-ms Try this long to read a DCS DMA from the DTC (Default: 10 ms)"
 		;
 	exit(0);
 }
@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
 	unsigned address = 0;
 	unsigned data = 0;
 	unsigned block = 0;
-	unsigned retries = 10;
+	unsigned tmo_ms = 10;
 	size_t count = 0;
 	bool incrementAddress = true;
 	std::string op = "";
@@ -214,9 +214,9 @@ int main(int argc, char* argv[])
 					{
 						stopOnError = true;
 					}
-					else if (option == "--read-retries")
+					else if (option == "--timeout-ms")
 					{
-						retries = getLongOptionValue(&optind, &argv);
+						tmo_ms = getLongOptionValue(&optind, &argv);
 					}
 					else if (option == "--help")
 					{
@@ -260,7 +260,7 @@ int main(int argc, char* argv[])
 			TLOG(DCS_TLVL(reallyQuiet)) << "Operation \"read_register\" " << ii << std::endl;
 			try
 			{
-				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address, retries);
+				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address, tmo_ms);
 				TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
 			}
 			catch (std::runtime_error& err)
@@ -278,7 +278,7 @@ int main(int argc, char* argv[])
 			TLOG(DCS_TLVL(reallyQuiet)) << "Simple Read " << ii << std::endl;
 			try
 			{
-				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address, retries);
+				auto rocdata = thisDTC->ReadROCRegister(dtc_link, address, tmo_ms);
 				std::cout << std::dec <<  ii << " " << std::hex << std::showbase << rocdata << std::endl;
 				TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address;
 			}
@@ -292,11 +292,11 @@ int main(int argc, char* argv[])
 	else if (op == "reset_roc")
 	{
 		TLOG(TLVL_DEBUG) << "Operation \"reset_roc\"" << std::endl;
-		thisDTC->WriteExtROCRegister(dtc_link, 12, 1, 0x11, false);
-		thisDTC->WriteExtROCRegister(dtc_link, 11, 1, 0x11, false);
-		thisDTC->WriteExtROCRegister(dtc_link, 10, 1, 0x11, false);
-		thisDTC->WriteExtROCRegister(dtc_link, 9, 1, 0x11, false);
-		thisDTC->WriteExtROCRegister(dtc_link, 8, 1, 0x11, false);
+		thisDTC->WriteExtROCRegister(dtc_link, 12, 1, 0x11, false, tmo_ms);
+		thisDTC->WriteExtROCRegister(dtc_link, 11, 1, 0x11, false, tmo_ms);
+		thisDTC->WriteExtROCRegister(dtc_link, 10, 1, 0x11, false, tmo_ms);
+		thisDTC->WriteExtROCRegister(dtc_link, 9, 1, 0x11, false, tmo_ms);
+		thisDTC->WriteExtROCRegister(dtc_link, 8, 1, 0x11, false, tmo_ms);
 	}
 	else if (op == "write_register")
 	{
@@ -305,7 +305,7 @@ int main(int argc, char* argv[])
 			try
 			{
 				TLOG(TLVL_DEBUG) << "Operation \"write_register\" " << ii << std::endl;
-				thisDTC->WriteROCRegister(dtc_link, address, data, false);
+				thisDTC->WriteROCRegister(dtc_link, address, data, false, tmo_ms);
 			}
 			catch (std::runtime_error& err)
 			{
@@ -321,7 +321,7 @@ int main(int argc, char* argv[])
 			try
 			{
 				TLOG(DCS_TLVL(reallyQuiet)) << "Operation \"read_extregister\" " << ii << std::endl;
-				auto rocdata = thisDTC->ReadExtROCRegister(dtc_link, block, address);
+				auto rocdata = thisDTC->ReadExtROCRegister(dtc_link, block, address, tmo_ms);
 				TLOG(DCS_TLVL(reallyQuiet)) << "ROC " << dtc_link << " returned " << rocdata << " for address " << address << ", block " << block;
 			}
 			catch (std::runtime_error& err)
@@ -338,7 +338,7 @@ int main(int argc, char* argv[])
 			try
 			{
 				TLOG(TLVL_DEBUG) << "Operation \"write_extregister\" " << ii << std::endl;
-				thisDTC->WriteExtROCRegister(dtc_link, block, address, data, false);
+				thisDTC->WriteExtROCRegister(dtc_link, block, address, data, false, tmo_ms);
 			}
 			catch (std::runtime_error& err)
 			{
@@ -431,7 +431,7 @@ int main(int argc, char* argv[])
 			try
 			{
 				std::vector<uint16_t> data(count);
-				thisDTC->ReadROCBlock(data, dtc_link, address, count, incrementAddress);
+				thisDTC->ReadROCBlock(data, dtc_link, address, count, incrementAddress, tmo_ms);
 				DTCLib::Utilities::PrintBuffer(&data[0], data.size() * sizeof(uint16_t));
 			}
 			catch (std::runtime_error& err)
@@ -454,7 +454,7 @@ int main(int argc, char* argv[])
 				{
 					blockData.push_back(static_cast<uint16_t>(ii));
 				}
-				thisDTC->WriteROCBlock(dtc_link, address, blockData, false, incrementAddress);
+				thisDTC->WriteROCBlock(dtc_link, address, blockData, false, incrementAddress, tmo_ms);
 			}
 			catch (std::runtime_error& err)
 			{
