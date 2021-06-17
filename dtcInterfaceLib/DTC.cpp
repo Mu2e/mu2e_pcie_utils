@@ -830,10 +830,14 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	}
 
 	TLOG(TLVL_ReadNextDAQPacket) << "Creating DTC_Event from current DMA Buffer";
+	//Utilities::PrintBuffer(daqDMAInfo_.currentReadPtr, 128, TLVL_ReadNextDAQPacket);
 	auto res = std::make_unique<DTC_Event>(daqDMAInfo_.currentReadPtr);
 
 	auto eventByteCount = res->GetEventByteCount();
-	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index) - 8;
+	if (eventByteCount == 0) {
+		throw std::runtime_error("Event inclusive byte count cannot be zero!");
+	}
+	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index);
 	TLOG(TLVL_ReadNextDAQPacket) << "eventByteCount: " << eventByteCount << ", remainingBufferSize: " << remainingBufferSize;
 	// Check for continued DMA
 	if (eventByteCount > remainingBufferSize)

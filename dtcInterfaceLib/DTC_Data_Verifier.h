@@ -9,245 +9,256 @@
 #include "mu2e_driver/mu2e_mmap_ioctl.h"
 
 namespace DTCLib {
-class DTC_Data_Verifier
-{
-public:
-	bool VerifyTrackerDataBlock(DTCLib::DTC_DataBlock /*block*/)
+	class DTC_Data_Verifier
 	{
-		return true;
-	}
-
-	bool VerifyCalorimeterDataBlock(DTCLib::DTC_DataBlock block)
-	{
-		auto blockByteSize = block.GetHeader()->GetByteCount();
-
-		if (blockByteSize == 0x10)
+	public:
+		bool VerifyTrackerDataBlock(DTCLib::DTC_DataBlock /*block*/)
 		{
-			//TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: Empty block encountered!";
 			return true;
 		}
 
-		auto dataPtr = reinterpret_cast<const uint16_t*>(block.GetData());
-		auto hitCount = *dataPtr;
-		auto currentOffset = 0;
-
-		std::vector<uint16_t> hitOffsets;
-		for (int ii = 0; ii < hitCount; ++ii)
+		bool VerifyCalorimeterDataBlock(DTCLib::DTC_DataBlock block)
 		{
-			hitOffsets.push_back(*(++dataPtr));
-			currentOffset += 2;
-			if (currentOffset > blockByteSize)
+			auto blockByteSize = block.GetHeader()->GetByteCount();
+
+			if (blockByteSize == 0x10)
 			{
-				TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Calorimeter data extends past declared block size! (0x" << std::hex << currentOffset << " > 0x" << std::hex << blockByteSize << ")";
-				return false;
-			}
-		}
-
-		++dataPtr;
-		currentOffset += 2;
-
-		auto channelStatusA = (*dataPtr & 0xFC00) >> 10;
-
-		++dataPtr;
-		currentOffset += 2;
-
-		auto channelStatusB = (*dataPtr & 0x3FFF);
-		if ((*dataPtr & 0xC000) != 0)
-		{
-			TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Data present in BoardID Reserved field!";
-			return false;
-		}
-
-		if (channelStatusA == 0x0 && channelStatusB != 0x0)
-		{
-			TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: None of the 20 channels are enabled! StsA: 0x" << std::hex << channelStatusA << ", stsB: 0x" << std::hex << channelStatusB;
-			// Not sure if this is a fatal error or not, leaving it for now
-			// return false;
-		}
-
-		if (hitCount == 0)
-		{
-			TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: There are zero hits in this block!";
-		}
-
-		for (int ii = 0; ii < hitCount; ++ii)
-		{
-			++dataPtr;
-			currentOffset += 2;
-			if (currentOffset != hitOffsets[ii])
-			{
-				TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Hit " << ii << " index value " << hitOffsets[ii] << " does not agree with current offset " << currentOffset;
-				return false;
+				//TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: Empty block encountered!";
+				return true;
 			}
 
-			//auto channelNumber = *dataPtr & 0x3F;
-			//auto diracA = (*dataPtr >> 6) & 0x3FF;
-			++dataPtr;
-			auto diracB = *dataPtr;
+			auto dataPtr = reinterpret_cast<const uint16_t*>(block.GetData());
+			auto hitCount = *dataPtr;
+			auto currentOffset = 0;
 
-			auto sipmID = diracB >> 12;
-			auto crystalID = diracB & 0xFFF;
-
-			if (sipmID != 0 && sipmID != 1) { TLOG(TLVL_WARNING) << "Invalid sipmID " << sipmID << " detected!"; }
-			if (crystalID > 674 * 2) { TLOG(TLVL_WARNING) << "Invalid crystalID " << crystalID << " detected!"; }
-
-			dataPtr += 2;
-
-			auto time = *dataPtr;
-			if (time < 500) { TLOG(TLVL_WARNING) << "VerifyCalorimeterBlock: Suspicious time " << time << " detected!"; }
-
-			++dataPtr;
-			currentOffset += 8;
-
-			auto numSamples = *dataPtr & 0xFF;
-			auto maxSample = (*dataPtr & 0xFF00) >> 8;
-			auto currentMaximumValue = 0;
-			auto currentMaximumIndex = 0;
-
-			if (numSamples == 0)
+			std::vector<uint16_t> hitOffsets;
+			for (int ii = 0; ii < hitCount; ++ii)
 			{
-				TLOG(TLVL_WARNING) << "VerifyCalorimeterBlock: This hit has zero samples!";
-			}
-
-			for (int jj = 0; jj < numSamples; ++jj)
-			{
-				++dataPtr;
+				hitOffsets.push_back(*(++dataPtr));
 				currentOffset += 2;
-
-				if (*dataPtr > currentMaximumValue)
+				if (currentOffset > blockByteSize)
 				{
-					currentMaximumValue = *dataPtr;
-					currentMaximumIndex = jj;
+					TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Calorimeter data extends past declared block size! (0x" << std::hex << currentOffset << " > 0x" << std::hex << blockByteSize << ")";
+					return false;
 				}
 			}
 
-			if (maxSample != currentMaximumIndex)
-			{
-				TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Hit " << ii << " has mismatched maximum sample; expected " << maxSample << ", actual maximum " << currentMaximumIndex;
-				return false;
-			}
-		}
-
-		++dataPtr;
-		currentOffset += 2;
-		while (currentOffset % 16 != 0)
-		{
-			if (*dataPtr != 0)
-			{
-				TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Data detected in end padding: 0x" << std::hex << *dataPtr;
-				return false;
-			}
 			++dataPtr;
 			currentOffset += 2;
-		}
 
-		return true;
-	}
+			auto channelStatusA = (*dataPtr & 0xFC00) >> 10;
 
-	bool VerifyCRVDataBlock(DTCLib::DTC_DataBlock /*block*/)
-	{
-		return true;
-	}
-
-	bool VerifyROCEmulatorBlock(DTCLib::DTC_DataBlock block)
-	{
-		auto headerDP = block.GetHeader()->ConvertToDataPacket();
-
-		bool success = true;
-		success = headerDP.GetWord(12) == 0xEF;
-		success &= headerDP.GetWord(13) == 0xBE;
-		success &= headerDP.GetWord(15) == 0xBE;
-		if (!success)
-		{
-			TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Header format is incorrect (check bytes)";
-			return false;
-		}
-
-		auto packetCount = block.GetHeader()->GetPacketCount();
-		auto roc = block.GetHeader()->GetLinkID();
-		auto dataPtr = reinterpret_cast<uint16_t const*>(block.GetData());
-
-		for (int ii = 0; ii < packetCount; ++ii)
-		{
-			success = *dataPtr == 0x1111;
 			++dataPtr;
-			success &= *dataPtr == 0x2222;
-			++dataPtr;
+			currentOffset += 2;
 
-			uint32_t roc_packet_counter_test = (*dataPtr << 16);
-			++dataPtr;
-			roc_packet_counter_test += *dataPtr;
-			++dataPtr;
-
-			if (roc_emulator_packet_counters_.count(roc) == 0)
+			auto channelStatusB = (*dataPtr & 0x3FFF);
+			if ((*dataPtr & 0xC000) != 0)
 			{
-				roc_emulator_packet_counters_[roc] = roc_packet_counter_test;
+				TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Data present in BoardID Reserved field!";
+				return false;
 			}
 
-			if (roc_packet_counter_test != roc_emulator_packet_counters_[roc])
+			if (channelStatusA == 0x0 && channelStatusB != 0x0)
 			{
-				TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet counter for roc " << static_cast<int>(roc) << " unexpected, shifting from " << roc_emulator_packet_counters_[roc] << " (expected) to " << roc_packet_counter_test << " (received) ";
-				roc_emulator_packet_counters_[roc] = roc_packet_counter_test;
+				TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: None of the 20 channels are enabled! StsA: 0x" << std::hex << channelStatusA << ", stsB: 0x" << std::hex << channelStatusB;
+				// Not sure if this is a fatal error or not, leaving it for now
+				// return false;
 			}
 
-			success &= *dataPtr == 0x3333;
-			++dataPtr;
-			success &= *dataPtr == 0x4444;
-			++dataPtr;
+			if (hitCount == 0)
+			{
+				TLOG(TLVL_WARNING) << "VerifyCalorimeterDataBlock: There are zero hits in this block!";
+			}
 
-			roc_packet_counter_test = (*dataPtr << 16);
-			++dataPtr;
-			roc_packet_counter_test += *dataPtr;
-			success &= roc_packet_counter_test == roc_emulator_packet_counters_[roc];
-			++dataPtr;
+			for (int ii = 0; ii < hitCount; ++ii)
+			{
+				++dataPtr;
+				currentOffset += 2;
+				if (currentOffset != hitOffsets[ii])
+				{
+					TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Hit " << ii << " index value " << hitOffsets[ii] << " does not agree with current offset " << currentOffset;
+					return false;
+				}
 
-			roc_emulator_packet_counters_[roc]++;
+				//auto channelNumber = *dataPtr & 0x3F;
+				//auto diracA = (*dataPtr >> 6) & 0x3FF;
+				++dataPtr;
+				auto diracB = *dataPtr;
 
+				auto sipmID = diracB >> 12;
+				auto crystalID = diracB & 0xFFF;
+
+				if (sipmID != 0 && sipmID != 1) { TLOG(TLVL_WARNING) << "Invalid sipmID " << sipmID << " detected!"; }
+				if (crystalID > 674 * 2) { TLOG(TLVL_WARNING) << "Invalid crystalID " << crystalID << " detected!"; }
+
+				dataPtr += 2;
+
+				auto time = *dataPtr;
+				if (time < 500) { TLOG(TLVL_WARNING) << "VerifyCalorimeterBlock: Suspicious time " << time << " detected!"; }
+
+				++dataPtr;
+				currentOffset += 8;
+
+				auto numSamples = *dataPtr & 0xFF;
+				auto maxSample = (*dataPtr & 0xFF00) >> 8;
+				auto currentMaximumValue = 0;
+				auto currentMaximumIndex = 0;
+
+				if (numSamples == 0)
+				{
+					TLOG(TLVL_WARNING) << "VerifyCalorimeterBlock: This hit has zero samples!";
+				}
+
+				for (int jj = 0; jj < numSamples; ++jj)
+				{
+					++dataPtr;
+					currentOffset += 2;
+
+					if (*dataPtr > currentMaximumValue)
+					{
+						currentMaximumValue = *dataPtr;
+						currentMaximumIndex = jj;
+					}
+				}
+
+				if (maxSample != currentMaximumIndex)
+				{
+					TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Hit " << ii << " has mismatched maximum sample; expected " << maxSample << ", actual maximum " << currentMaximumIndex;
+					return false;
+				}
+			}
+
+			++dataPtr;
+			currentOffset += 2;
+			while (currentOffset % 16 != 0)
+			{
+				if (*dataPtr != 0)
+				{
+					TLOG(TLVL_ERROR) << "VerifyCalorimeterDataBlock: Data detected in end padding: 0x" << std::hex << *dataPtr;
+					return false;
+				}
+				++dataPtr;
+				currentOffset += 2;
+			}
+
+			return true;
+		}
+
+		bool VerifyCRVDataBlock(DTCLib::DTC_DataBlock /*block*/)
+		{
+			return true;
+		}
+
+		bool VerifyROCEmulatorBlock(DTCLib::DTC_DataBlock block)
+		{
+			auto headerDP = block.GetHeader()->ConvertToDataPacket();
+
+			bool success = true;
+			success = headerDP.GetWord(12) == 0xEF;
+			success &= headerDP.GetWord(13) == 0xBE;
+			success &= headerDP.GetWord(15) == 0xBE;
 			if (!success)
 			{
-				TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Data packet " << ii << " has format error";
+				TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Header format is incorrect (check bytes)";
+				return false;
 			}
+
+			auto packetCount = block.GetHeader()->GetPacketCount();
+			auto roc = block.GetHeader()->GetLinkID();
+			auto dataPtr = reinterpret_cast<uint16_t const*>(block.GetData());
+
+			for (int ii = 0; ii < packetCount; ++ii)
+			{
+				success = *dataPtr == 0x1111;
+				++dataPtr;
+				success &= *dataPtr == 0x2222;
+				++dataPtr;
+
+				uint32_t roc_packet_counter_test = (*dataPtr << 16);
+				++dataPtr;
+				roc_packet_counter_test += *dataPtr;
+				++dataPtr;
+
+				if (roc_emulator_packet_counters_.count(roc) == 0)
+				{
+					roc_emulator_packet_counters_[roc] = roc_packet_counter_test;
+				}
+
+				if (roc_packet_counter_test != roc_emulator_packet_counters_[roc])
+				{
+					TLOG(TLVL_INFO) << "VerifyROCEmulatorBlock: ROC Emulator packet counter for roc " << static_cast<int>(roc) << " unexpected, shifting from " << roc_emulator_packet_counters_[roc] << " (expected) to " << roc_packet_counter_test << " (received) ";
+					roc_emulator_packet_counters_[roc] = roc_packet_counter_test;
+				}
+
+				success &= *dataPtr == 0x3333;
+				++dataPtr;
+				success &= *dataPtr == 0x4444;
+				++dataPtr;
+
+				roc_packet_counter_test = (*dataPtr << 16);
+				++dataPtr;
+				roc_packet_counter_test += *dataPtr;
+				success &= roc_packet_counter_test == roc_emulator_packet_counters_[roc];
+				++dataPtr;
+
+				roc_emulator_packet_counters_[roc]++;
+
+				if (!success)
+				{
+					TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Data packet " << ii << " has format error";
+					dataPtr -= 8;
+					std::vector<uint16_t> pktData(8);
+					for (size_t jj = 0; jj < 8; ++jj) {
+						pktData[jj] = *dataPtr;
+						++dataPtr;
+					}
+					TLOG(TLVL_ERROR) << "Packet data: " << std::hex << pktData[0] << " " << pktData[1]
+						<< " " << pktData[2] << " " << pktData[3]
+						<< " " << pktData[4] << " " << pktData[5]
+						<< " " << pktData[6] << " " << pktData[7];
+					return false;
+				}
+			}
+
+			return true;
 		}
 
-		return true;
-	}
-
-	bool VerifyBlock(DTCLib::DTC_DataBlock block)
-	{
-		auto header = block.GetHeader();
-		auto blockByteSize = header->GetByteCount();
-
-		// Check that this is indeed a DataHeader packet
-		auto dataHeaderMask = 0x80F0;
-		uint16_t dataHeaderTest = static_cast<uint16_t>(header->ConvertToDataPacket().GetWord(2)) + (static_cast<uint16_t>(header->ConvertToDataPacket().GetWord(3)) << 8);
-		TLOG(TLVL_DEBUG + 5) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
-		if ((dataHeaderTest & dataHeaderMask) != 0x8050)
+		bool VerifyBlock(DTCLib::DTC_DataBlock block)
 		{
-			auto offset = file_mode_ ? (current_buffer_offset_ + current_buffer_pos_) : current_buffer_pos_;
-			TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << offset << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<const uint64_t*>(block.blockPointer);
-			
-			Utilities::PrintBuffer(block.blockPointer, 16);
+			auto header = block.GetHeader();
+			auto blockByteSize = header->GetByteCount();
 
-			// go to next file
-			continueFile_ = false;
-			return false;
-		}
+			// Check that this is indeed a DataHeader packet
+			auto dataHeaderMask = 0x80F0;
+			uint16_t dataHeaderTest = static_cast<uint16_t>(header->ConvertToDataPacket().GetWord(2)) + (static_cast<uint16_t>(header->ConvertToDataPacket().GetWord(3)) << 8);
+			TLOG(TLVL_DEBUG + 5) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
+			if ((dataHeaderTest & dataHeaderMask) != 0x8050)
+			{
+				auto offset = file_mode_ ? (current_buffer_offset_ + current_buffer_pos_) : current_buffer_pos_;
+				TLOG(TLVL_ERROR) << "Encountered bad data at 0x" << std::hex << offset << ": expected DataHeader, got 0x" << std::hex << *reinterpret_cast<const uint64_t*>(block.blockPointer);
 
-		auto packetCountTest = header->GetPacketCount();
-		if ((packetCountTest + 1) * 16 != blockByteSize)
-		{
-			TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: 0x" << std::hex << blockByteSize;
+				Utilities::PrintBuffer(block.blockPointer, 16);
 
-			Utilities::PrintBuffer(block.blockPointer, 16);
-			// We don't have to skip to the next file, because we already know the data block integrity is fine.
-			current_buffer_pos_ += blockByteSize;
-			return false;
-		}
+				// go to next file
+				continueFile_ = false;
+				return false;
+			}
 
-		auto subsystemID = header->GetSubsystemID();
-		bool subsystemCheck = true;
-		switch (subsystemID)
-		{
+			auto packetCountTest = header->GetPacketCount();
+			if ((packetCountTest + 1) * 16 != blockByteSize)
+			{
+				TLOG(TLVL_ERROR) << "Block data packet count and byte count disagree! packetCount: " << packetCountTest << ", which implies block size of 0x" << std::hex << ((packetCountTest + 1) * 16) << ", blockSize: 0x" << std::hex << blockByteSize;
+
+				Utilities::PrintBuffer(block.blockPointer, 16);
+				// We don't have to skip to the next file, because we already know the data block integrity is fine.
+				current_buffer_pos_ += blockByteSize;
+				return false;
+			}
+
+			auto subsystemID = header->GetSubsystemID();
+			bool subsystemCheck = true;
+			switch (subsystemID)
+			{
 			case 0:  // Tracker
 				subsystemCheck = VerifyTrackerDataBlock(block);
 				break;
@@ -263,131 +274,131 @@ public:
 			default:
 				TLOG(TLVL_INFO) << "Data-level verification not implemented for subsystem ID " << subsystemID;
 				break;
-		}
-		if (!subsystemCheck)
-		{
-			auto offset = file_mode_ ? (current_buffer_offset_ + current_buffer_pos_) : current_buffer_pos_;
-			TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << offset << " is not a valid data block for subsystem ID " << static_cast<int>(subsystemID);
-
-			current_buffer_pos_ += blockByteSize;
-
-			return false;
-			// We don't have to skip to the next file, because we already know the data block integrity is fine.
-		}
-
-		current_buffer_pos_ += blockByteSize;
-		return true;
-	}
-
-	bool VerifySubEvent(DTCLib::DTC_SubEvent subevt, DTCLib::DTC_EventWindowTag eventTag)
-	{
-		if (subevt.GetEventWindowTag() != eventTag)
-		{
-			TLOG(TLVL_WARNING) << "Event Window Tag from Event does not agree with EWT from SubEvent! (" << eventTag.GetEventWindowTag(true) << " != " << subevt.GetEventWindowTag().GetEventWindowTag(true) << ")";
-		}
-		if (subevt.GetHeader()->num_rocs != subevt.GetDataBlockCount())
-		{
-			TLOG(TLVL_WARNING) << "SubEvent Header num_rocs field disagrees with number of DataBlocks! (" << subevt.GetHeader()->num_rocs << " != " << subevt.GetDataBlockCount() << ")";
-		}
-		TLOG(TLVL_DEBUG + 4) << subevt.GetHeader()->toJson();
-		current_buffer_pos_ += sizeof(DTCLib::DTC_SubEventHeader);
-
-		bool success = true;
-		for (auto& block : subevt.GetDataBlocks())
-		{
-			auto blockSuccess = VerifyBlock(block);
-			success &= blockSuccess;
-			if (!continueFile_) return false;
-		}
-		return success;
-	}
-
-	bool VerifyEvent(DTCLib::DTC_Event evt)
-	{
-		bool success = true;
-		current_buffer_pos_ = 0;
-
-		auto eventTag = evt.GetEventWindowTag();
-
-		if (evt.GetHeader()->num_dtcs != evt.GetSubEventCount())
-		{
-			TLOG(TLVL_WARNING) << "Event Header num_dtcs field disagrees with number of SubEvents! (" << evt.GetHeader()->num_dtcs << " != " << evt.GetSubEventCount() << ")";
-		}
-
-		TLOG(TLVL_DEBUG + 3) << evt.GetHeader()->toJson();
-
-		current_buffer_pos_ += sizeof(DTCLib::DTC_EventHeader);
-
-		for (auto& subevt : evt.GetSubEvents())
-		{
-			auto subevtSuccess = VerifySubEvent(subevt, eventTag);
-			success &= subevtSuccess;
-			if (!continueFile_) return false;
-		}
-		return success;
-	}
-
-	bool VerifyFile(std::string file)
-	{
-		std::ifstream is(file);
-		if (is.bad() || !is)
-		{
-			TLOG(TLVL_ERROR) << "Cannot read file " << file;
-			return false;
-		}
-		TLOG(TLVL_INFO) << "Reading binary file " << file;
-		size_t total_size_read = 0;
-		file_mode_ = true;
-
-		mu2e_databuff_t buf;
-
-		bool success = true;
-		continueFile_ = true;
-		while (is && continueFile_)
-		{
-			uint64_t dmaWriteSize;  // DMA Write buffer size
-			is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
-			total_size_read += sizeof(dmaWriteSize);
-
-			uint64_t dmaSize;
-			is.read((char*)&dmaSize, sizeof(dmaSize));
-			total_size_read += sizeof(dmaSize);
-
-			// Check that DMA Write Buffer Size = DMA Buffer Size + 16
-			if (dmaSize + 16 != dmaWriteSize)
+			}
+			if (!subsystemCheck)
 			{
-				TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
-				success = false;
-				break;
+				auto offset = file_mode_ ? (current_buffer_offset_ + current_buffer_pos_) : current_buffer_pos_;
+				TLOG(TLVL_ERROR) << "Data block at 0x" << std::hex << offset << " is not a valid data block for subsystem ID " << static_cast<int>(subsystemID);
+
+				current_buffer_pos_ += blockByteSize;
+
+				return false;
+				// We don't have to skip to the next file, because we already know the data block integrity is fine.
 			}
 
-			// Check that size of all DataBlocks = DMA Buffer Size
-			is.read((char*)buf, dmaSize);
-			current_buffer_offset_ = total_size_read;
-			total_size_read += dmaSize;
-
-			TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << current_buffer_offset_;
-			DTCLib::DTC_Event thisEvent(buf);
-			success = VerifyEvent(thisEvent);
+			current_buffer_pos_ += blockByteSize;
+			return true;
 		}
 
-		if (success)
+		bool VerifySubEvent(DTCLib::DTC_SubEvent subevt, DTCLib::DTC_EventWindowTag eventTag)
 		{
-			TLOG(TLVL_INFO) << "File " << file << " verified successfully!";
+			if (subevt.GetEventWindowTag() != eventTag)
+			{
+				TLOG(TLVL_WARNING) << "Event Window Tag from Event does not agree with EWT from SubEvent! (" << eventTag.GetEventWindowTag(true) << " != " << subevt.GetEventWindowTag().GetEventWindowTag(true) << ")";
+			}
+			if (subevt.GetHeader()->num_rocs != subevt.GetDataBlockCount())
+			{
+				TLOG(TLVL_WARNING) << "SubEvent Header num_rocs field disagrees with number of DataBlocks! (" << subevt.GetHeader()->num_rocs << " != " << subevt.GetDataBlockCount() << ")";
+			}
+			TLOG(TLVL_DEBUG + 4) << subevt.GetHeader()->toJson();
+			current_buffer_pos_ += sizeof(DTCLib::DTC_SubEventHeader);
+
+			bool success = true;
+			for (auto& block : subevt.GetDataBlocks())
+			{
+				auto blockSuccess = VerifyBlock(block);
+				success &= blockSuccess;
+				if (!continueFile_) return false;
+			}
+			return success;
 		}
-		else
+
+		bool VerifyEvent(DTCLib::DTC_Event evt)
 		{
-			TLOG(TLVL_WARNING) << "File " << file << " had verification errors, see TRACE output for details";
+			bool success = true;
+			current_buffer_pos_ = 0;
+
+			auto eventTag = evt.GetEventWindowTag();
+
+			if (evt.GetHeader()->num_dtcs != evt.GetSubEventCount())
+			{
+				TLOG(TLVL_WARNING) << "Event Header num_dtcs field disagrees with number of SubEvents! (" << evt.GetHeader()->num_dtcs << " != " << evt.GetSubEventCount() << ")";
+			}
+
+			TLOG(TLVL_DEBUG + 3) << evt.GetHeader()->toJson();
+
+			current_buffer_pos_ += sizeof(DTCLib::DTC_EventHeader);
+
+			for (auto& subevt : evt.GetSubEvents())
+			{
+				auto subevtSuccess = VerifySubEvent(subevt, eventTag);
+				success &= subevtSuccess;
+				if (!continueFile_) return false;
+			}
+			return success;
 		}
 
-		return success;
-	}
+		bool VerifyFile(std::string file)
+		{
+			std::ifstream is(file);
+			if (is.bad() || !is)
+			{
+				TLOG(TLVL_ERROR) << "Cannot read file " << file;
+				return false;
+			}
+			TLOG(TLVL_INFO) << "Reading binary file " << file;
+			size_t total_size_read = 0;
+			file_mode_ = true;
 
-private:
-	bool continueFile_{true};
-	bool file_mode_{false};
-	uint64_t current_buffer_offset_{0};
-	uint64_t current_buffer_pos_{0};
-	std::unordered_map<DTCLib::DTC_Link_ID, uint32_t> roc_emulator_packet_counters_;
-};
+			mu2e_databuff_t buf;
+
+			bool success = true;
+			continueFile_ = true;
+			while (is && continueFile_)
+			{
+				uint64_t dmaWriteSize;  // DMA Write buffer size
+				is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
+				total_size_read += sizeof(dmaWriteSize);
+
+				uint64_t dmaSize;
+				is.read((char*)&dmaSize, sizeof(dmaSize));
+				total_size_read += sizeof(dmaSize);
+
+				// Check that DMA Write Buffer Size = DMA Buffer Size + 16
+				if (dmaSize + 16 != dmaWriteSize)
+				{
+					TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
+					success = false;
+					break;
+				}
+
+				// Check that size of all DataBlocks = DMA Buffer Size
+				is.read((char*)buf, dmaSize);
+				current_buffer_offset_ = total_size_read;
+				total_size_read += dmaSize;
+
+				TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << current_buffer_offset_;
+				DTCLib::DTC_Event thisEvent(buf);
+				success = VerifyEvent(thisEvent);
+			}
+
+			if (success)
+			{
+				TLOG(TLVL_INFO) << "File " << file << " verified successfully!";
+			}
+			else
+			{
+				TLOG(TLVL_WARNING) << "File " << file << " had verification errors, see TRACE output for details";
+			}
+
+			return success;
+		}
+
+	private:
+		bool continueFile_{ true };
+		bool file_mode_{ false };
+		uint64_t current_buffer_offset_{ 0 };
+		uint64_t current_buffer_pos_{ 0 };
+		std::unordered_map<DTCLib::DTC_Link_ID, uint32_t> roc_emulator_packet_counters_;
+	};
 }  // namespace DTCLib
