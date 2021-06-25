@@ -264,7 +264,7 @@ int main(int argc, char* argv[])
 
 	auto dtc_link = static_cast<DTC_Link_ID>(link);
 	link_mask |= 1 << (link * 4); // Always enable the link being tested
-	auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, link_mask, "", true /*skipInit*/);  // rocMask is in hex, not binary
+	auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, link_mask);  // rocMask is in hex, not binary
 	auto device = thisDTC->GetDevice();
 
 	if (op == "read_register")
