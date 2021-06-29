@@ -809,7 +809,11 @@ int main(int argc, char* argv[])
 					readPtr = &buffer[0];
 					bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
 					readPtr = static_cast<uint8_t*>(readPtr) + 8;
-					memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(newEvt.GetRawBufferPointer()) + newEvtSize), readPtr, bufSize - 8);
+
+					size_t bytes_to_read = bufSize - 8;
+					if(newEvtSize + bufSize - 8 > eventByteCount) { bytes_to_read = eventByteCount - newEvtSize; }
+
+					memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(newEvt.GetRawBufferPointer()) + newEvtSize), readPtr, bytes_to_read);
 					newEvtSize += bufSize - 8;
 				}
 				if (!readSuccess || timeout) break;
