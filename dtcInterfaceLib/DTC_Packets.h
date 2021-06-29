@@ -1022,8 +1022,6 @@ struct DTC_DataBlock
 	}
 };
 
-std::ostream& operator<<(std::ostream& o, DTC_DataBlock const& blk);
-
 struct DTC_SubEventHeader
 {
 	uint64_t inclusive_subevent_byte_count : 25;
@@ -1121,10 +1119,7 @@ public:
 private:
 	DTC_SubEventHeader header_;
 	std::vector<DTC_DataBlock> data_blocks_;
-	friend std::ostream& operator<<(std::ostream& o, DTC_SubEvent const& subEvt);
 };
-
-std::ostream& operator<<(std::ostream& o, DTC_SubEvent const& subEvt);
 
 struct DTC_EventHeader
 {
@@ -1245,10 +1240,7 @@ private:
 	DTC_EventHeader header_;
 	std::vector<DTC_SubEvent> sub_events_;
 	const void* buffer_ptr_;
-	friend std::ostream& operator<<(std::ostream& o, DTC_Event const& evt);
 };
-
-std::ostream& operator<<(std::ostream& o, DTC_Event const& evt);
 
 }  // namespace DTCLib
 

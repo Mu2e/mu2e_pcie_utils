@@ -187,7 +187,7 @@ int mu2esim::read_data(int chn, void** buffer, int tmo_ms)
 								<< (void*)dmaData_[chn][swIdx_[chn]];
 			memcpy(dmaData_[chn][swIdx_[chn]], &size, sizeof(uint64_t));
 			ddrFile_->read(reinterpret_cast<char*>(dmaData_[chn][swIdx_[chn]]) + sizeof(uint64_t), size);
-			bytesReturned = size + sizeof(uint64_t);
+			bytesReturned = size;
 		}
 		else if (chn == 1)
 		{

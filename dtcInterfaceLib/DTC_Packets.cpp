@@ -152,7 +152,7 @@ DTCLib::DTC_DMAPacket::DTC_DMAPacket(const DTC_DataPacket in)
 	linkID_ = static_cast<DTC_Link_ID>(linkID);
 	packetType_ = static_cast<DTC_PacketType>(packetType);
 
-// This TRACE can be time-consuming!
+	// This TRACE can be time-consuming!
 #ifndef __OPTIMIZE__
 	TLOG(TLVL_TRACE + 10, "DTC_DMAPacket") << headerJSON();
 #endif
@@ -177,10 +177,10 @@ std::string DTCLib::DTC_DMAPacket::headerPacketFormat() const
 	std::stringstream ss;
 	ss << std::setfill('0') << std::hex;
 	ss << "0x" << std::setw(6) << ((byteCount_ & 0xFF00) >> 8) << "\t"
-	   << "0x" << std::setw(6) << (byteCount_ & 0xFF) << std::endl;
+		<< "0x" << std::setw(6) << (byteCount_ & 0xFF) << std::endl;
 	ss << std::setw(1) << static_cast<int>(valid_) << " "
-	   << std::setw(2) << std::dec << static_cast<int>(subsystemID_) << std::hex << " "
-	   << "0x" << std::setw(2) << linkID_ << "\t";
+		<< std::setw(2) << std::dec << static_cast<int>(subsystemID_) << std::hex << " "
+		<< "0x" << std::setw(2) << linkID_ << "\t";
 	ss << "0x" << std::setw(2) << packetType_ << "0x" << std::setw(2) << 0 << std::endl;
 	return ss.str();
 }
@@ -203,8 +203,10 @@ DTCLib::DTC_DCSRequestPacket::DTC_DCSRequestPacket(DTC_Link_ID link)
 	: DTC_DMAPacket(DTC_PacketType_DCSRequest, link), type_(DTC_DCSOperationType_Unknown), packetCount_(0), address1_(0), data1_(0), address2_(0), data2_(0) {}
 
 DTCLib::DTC_DCSRequestPacket::DTC_DCSRequestPacket(DTC_Link_ID link, DTC_DCSOperationType type, bool requestAck, bool incrementAddress,
-												   uint16_t address, uint16_t data, uint16_t address2, uint16_t data2)
-	: DTC_DMAPacket(DTC_PacketType_DCSRequest, link), type_(type), requestAck_(requestAck), incrementAddress_(incrementAddress), packetCount_(0), address1_(address), data1_(data), address2_(address2), data2_(data2) { UpdatePacketAndWordCounts(); }
+	uint16_t address, uint16_t data, uint16_t address2, uint16_t data2)
+	: DTC_DMAPacket(DTC_PacketType_DCSRequest, link), type_(type), requestAck_(requestAck), incrementAddress_(incrementAddress), packetCount_(0), address1_(address), data1_(data), address2_(address2), data2_(data2) {
+	UpdatePacketAndWordCounts();
+}
 
 DTCLib::DTC_DCSRequestPacket::DTC_DCSRequestPacket(DTC_DataPacket in)
 	: DTC_DMAPacket(in)
@@ -261,7 +263,7 @@ std::string DTCLib::DTC_DCSRequestPacket::toJSON()
 		for (auto& word : blockWriteData_)
 		{
 			ss << ", "
-			   << "\"Block Write word " << counter << "\":" << static_cast<int>(word);
+				<< "\"Block Write word " << counter << "\":" << static_cast<int>(word);
 			counter++;
 		}
 	}
@@ -459,11 +461,11 @@ std::string DTCLib::DTC_HeartbeatPacket::toPacketFormat()
 	ss << headerPacketFormat() << std::setfill('0') << std::hex;
 	ss << event_tag_.toPacketFormat();
 	ss << "0x" << std::setw(6) << static_cast<int>(eventMode_.mode1) << "\t0x" << std::setw(6)
-	   << static_cast<int>(eventMode_.mode0) << "\n";
+		<< static_cast<int>(eventMode_.mode0) << "\n";
 	ss << "0x" << std::setw(6) << static_cast<int>(eventMode_.mode3) << "\t0x" << std::setw(6)
-	   << static_cast<int>(eventMode_.mode2) << "\n";
+		<< static_cast<int>(eventMode_.mode2) << "\n";
 	ss << "0x" << std::setw(6) << static_cast<int>(deliveryRingTDC_) << "\t0x" << std::setw(6)
-	   << static_cast<int>(eventMode_.mode4) << "\n";
+		<< static_cast<int>(eventMode_.mode4) << "\n";
 	return ss.str();
 }
 
@@ -477,11 +479,11 @@ DTCLib::DTC_DataPacket DTCLib::DTC_HeartbeatPacket::ConvertToDataPacket() const
 }
 
 DTCLib::DTC_DataRequestPacket::DTC_DataRequestPacket(DTC_Link_ID link, bool debug, uint16_t debugPacketCount,
-													 DTC_DebugType type)
+	DTC_DebugType type)
 	: DTC_DMAPacket(DTC_PacketType_DataRequest, link), event_tag_(), debug_(debug), debugPacketCount_(debugPacketCount), type_(type) {}
 
 DTCLib::DTC_DataRequestPacket::DTC_DataRequestPacket(DTC_Link_ID link, DTC_EventWindowTag event_tag, bool debug,
-													 uint16_t debugPacketCount, DTC_DebugType type)
+	uint16_t debugPacketCount, DTC_DebugType type)
 	: DTC_DMAPacket(DTC_PacketType_DataRequest, link), event_tag_(event_tag), debug_(debug), debugPacketCount_(debugPacketCount), type_(type) {}
 
 DTCLib::DTC_DataRequestPacket::DTC_DataRequestPacket(DTC_DataPacket in)
@@ -519,9 +521,9 @@ std::string DTCLib::DTC_DataRequestPacket::toPacketFormat()
 	ss << event_tag_.toPacketFormat();
 	ss << "        \t        \n";
 	ss << "        \t0x" << std::setw(2) << static_cast<int>(type_) << "   " << std::setw(1) << static_cast<int>(debug_)
-	   << "\n";
+		<< "\n";
 	ss << "0x" << std::setw(6) << ((debugPacketCount_ & 0xFF00) >> 8) << "\t"
-	   << "0x" << std::setw(6) << (debugPacketCount_ & 0xFF) << "\n";
+		<< "0x" << std::setw(6) << (debugPacketCount_ & 0xFF) << "\n";
 	return ss.str();
 }
 
@@ -627,7 +629,7 @@ std::string DTCLib::DTC_DCSReplyPacket::toJSON()
 		for (auto& word : blockReadData_)
 		{
 			ss << ", "
-			   << "\"Block Read word " << counter << "\":" << static_cast<int>(word);
+				<< "\"Block Read word " << counter << "\":" << static_cast<int>(word);
 			counter++;
 		}
 	}
@@ -642,7 +644,7 @@ std::string DTCLib::DTC_DCSReplyPacket::toPacketFormat()
 
 	auto firstWord = (packetCount_ & 0x3FC) >> 2;
 	auto secondWord = ((packetCount_ & 0x3) << 6) + (corruptFlag_ ? 0x20 : 0) + (dcsReceiveFIFOEmpty_ ? 0x10 : 0) +
-					  (requestAck_ ? 0x8 : 0) + (doubleOp_ ? 0x4 : 0) + static_cast<int>(type_);
+		(requestAck_ ? 0x8 : 0) + (doubleOp_ ? 0x4 : 0) + static_cast<int>(type_);
 	ss << std::setw(8) << firstWord << "\t" << secondWord << std::endl;
 
 	ss << std::setw(8) << ((address1_ & 0xFF00) >> 8) << "\t" << (address1_ & 0xFF) << std::endl;
@@ -689,7 +691,7 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DCSReplyPacket::ConvertToDataPacket() const
 
 	auto firstWord = (packetCount_ & 0x3FC) >> 2;
 	auto secondWord = ((packetCount_ & 0x3) << 6) + (corruptFlag_ ? 0x20 : 0) + (dcsReceiveFIFOEmpty_ ? 0x10 : 0) +
-					  (requestAck_ ? 0x8 : 0) + (doubleOp_ ? 0x4 : 0) + static_cast<int>(type_);
+		(requestAck_ ? 0x8 : 0) + (doubleOp_ ? 0x4 : 0) + static_cast<int>(type_);
 	output.SetWord(4, static_cast<uint8_t>(secondWord));
 	output.SetWord(5, static_cast<uint8_t>(firstWord));
 
@@ -720,8 +722,8 @@ DTCLib::DTC_DataPacket DTCLib::DTC_DCSReplyPacket::ConvertToDataPacket() const
 }
 
 DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_Link_ID link, uint16_t packetCount, DTC_DataStatus status,
-												   uint8_t dtcid, DTC_Subsystem subsystemid, uint8_t packetVersion, DTC_EventWindowTag event_tag,
-												   uint8_t evbMode)
+	uint8_t dtcid, DTC_Subsystem subsystemid, uint8_t packetVersion, DTC_EventWindowTag event_tag,
+	uint8_t evbMode)
 	: DTC_DMAPacket(DTC_PacketType_DataHeader, link, (1 + packetCount) * 16, true, subsystemid), packetCount_(packetCount), event_tag_(event_tag), status_(status), dataPacketVersion_(packetVersion), dtcId_(dtcid), evbMode_(evbMode) {}
 
 DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_DataPacket in)
@@ -731,7 +733,7 @@ DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_DataPacket in)
 	{
 		auto ex = DTC_WrongPacketTypeException(DTC_PacketType_DataHeader, packetType_);
 		TLOG(TLVL_ERROR) << "Unexpected packet type encountered: " + std::to_string(packetType_) + " != " + std::to_string(DTC_PacketType_DataHeader) +
-								" (expected)";
+			" (expected)";
 		TLOG(TLVL_DEBUG) << "Packet contents: " << in.toJSON();
 		throw ex;
 	}
@@ -763,10 +765,10 @@ std::string DTCLib::DTC_DataHeaderPacket::toPacketFormat()
 	std::stringstream ss;
 	ss << headerPacketFormat() << std::setfill('0') << std::hex;
 	ss << "     0x" << std::setw(1) << ((packetCount_ & 0x0700) >> 8) << "\t"
-	   << "0x" << std::setw(6) << (packetCount_ & 0xFF) << "\n";
+		<< "0x" << std::setw(6) << (packetCount_ & 0xFF) << "\n";
 	ss << event_tag_.toPacketFormat();
 	ss << "0x" << std::setw(6) << static_cast<int>(dataPacketVersion_) << "\t"
-	   << "0x" << std::setw(6) << static_cast<int>(status_) << "\n";
+		<< "0x" << std::setw(6) << static_cast<int>(status_) << "\n";
 	ss << "0x" << std::setw(6) << static_cast<int>(evbMode_) << "\t" << std::dec << std::setw(8) << static_cast<int>(dtcId_) << "\n";
 	return ss.str();
 }
@@ -842,6 +844,7 @@ void DTCLib::DTC_SubEvent::UpdateHeader()
 	{
 		header_.inclusive_subevent_byte_count += block.byteSize;
 	}
+	TLOG(TLVL_TRACE) << "Inclusive SubEvent Byte Count is now " << header_.inclusive_subevent_byte_count;
 }
 
 DTCLib::DTC_Event::DTC_Event(const void* data)
@@ -903,71 +906,81 @@ void DTCLib::DTC_Event::UpdateHeader()
 		sub_evt.UpdateHeader();
 		header_.inclusive_event_byte_count += sub_evt.GetSubEventByteCount();
 	}
+	TLOG(TLVL_TRACE) << "Inclusive Event Byte Count is now " << header_.inclusive_event_byte_count;
 }
 
-void DTCLib::DTC_Event::WriteEvent(std::ostream& output, bool includeDMAWriteSize)
+size_t WriteDMABufferSizeWords(std::ostream& output, bool includeDMAWriteSize, size_t buffer_size, std::streampos& pos, bool restore_pos)
 {
-	UpdateHeader();
-
-	// Set up an extra event, in case we need it
-	DTC_Event overflow;
-	memcpy(overflow.GetHeader(), &header_, sizeof(DTC_EventHeader));
-
-	size_t current_size = sizeof(uint64_t) + sizeof(uint64_t) + sizeof(DTC_EventHeader);
-	bool over_size = false;
-	for (auto it = sub_events_.begin(); it != sub_events_.end(); ++it)
-	{
-		current_size += it->GetSubEventByteCount();
-		if (current_size > sizeof(mu2e_databuff_t))
-		{
-			over_size = true;
-			overflow.AddSubEvent(*it);
-			overflow.GetHeader()->num_dtcs--;
-			it = sub_events_.erase(it);
-			--it;
-		}
-	}
-
-	UpdateHeader();
-
+	auto pos_save = output.tellp();
+	size_t size_written = 0;
+	output.seekp(pos);
 	if (includeDMAWriteSize)
 	{
-		uint64_t dmaWriteSize = header_.inclusive_event_byte_count + sizeof(uint64_t) + sizeof(uint64_t);
+		uint64_t dmaWriteSize = buffer_size + sizeof(uint64_t);
 		output.write(reinterpret_cast<const char*>(&dmaWriteSize), sizeof(uint64_t));
+		size_written += sizeof(uint64_t);
 	}
 
-	uint64_t dmaSize = header_.inclusive_event_byte_count;
+	uint64_t dmaSize = buffer_size;
 	output.write(reinterpret_cast<const char*>(&dmaSize), sizeof(uint64_t));
-	output << *this;
-
-	// Recursion
-	if (over_size) overflow.WriteEvent(output);
-}
-
-std::ostream& DTCLib::operator<<(std::ostream& o, DTC_DataBlock const& blk)
-{
-	o.write(static_cast<const char*>(blk.blockPointer), blk.byteSize);
-	return o;
-}
-
-std::ostream& DTCLib::operator<<(std::ostream& o, DTC_SubEvent const& subEvt)
-{
-	o.write(reinterpret_cast<const char*>(&subEvt.header_), sizeof(DTC_SubEventHeader));
-	for (auto& blk : subEvt.data_blocks_)
-	{
-		o << blk;
+	size_written += sizeof(uint64_t);
+	if(restore_pos) {
+	output.seekp(pos_save);
 	}
-	return o;
+	return size_written;
 }
 
-std::ostream& DTCLib::operator<<(std::ostream& o, DTC_Event const& evt)
+void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 {
-	o.write(reinterpret_cast<const char*>(&evt.header_), sizeof(DTC_EventHeader));
-	for (auto& subevt : evt.sub_events_)
-	{
-		o << subevt;
+	UpdateHeader();
+
+	if (header_.inclusive_event_byte_count + sizeof(uint64_t) < sizeof(mu2e_databuff_t)) {
+		TLOG(TLVL_TRACE) << "Event fits into one buffer, writing";
+		auto pos = o.tellp();
+		WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), pos, false);
+		
+		o.write(reinterpret_cast<const char*>(&header_), sizeof(DTC_EventHeader));
+
+		for (auto& subevt : sub_events_)
+		{
+			o.write(reinterpret_cast<const char*>(subevt.GetHeader()), sizeof(DTC_SubEventHeader));
+			for (auto& blk : subevt.GetDataBlocks())
+			{
+				o.write(static_cast<const char*>(blk.blockPointer), blk.byteSize);
+			}
+		}
 	}
-	return o;
+	else {
+		TLOG(TLVL_TRACE) << "Event spans multiple buffers, beginning write";
+		auto buffer_start = o.tellp();
+		size_t bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), buffer_start, false);
+
+		o.write(reinterpret_cast<const char*>(&header_), sizeof(DTC_EventHeader));
+		bytes_written += sizeof(DTC_EventHeader);
+
+		for (auto& subevt : sub_events_)
+		{
+			if(bytes_written + sizeof(DTC_SubEventHeader) > sizeof(mu2e_databuff_t)) {
+				TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << bytes_written;
+				WriteDMABufferSizeWords(o, includeDMAWriteSize, bytes_written, buffer_start, true);
+				buffer_start = o.tellp(); 
+				bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), buffer_start, false);
+			}
+			o.write(reinterpret_cast<const char*>(subevt.GetHeader()), sizeof(DTC_SubEventHeader));
+			bytes_written += sizeof(DTC_SubEventHeader);
+			for (auto& blk : subevt.GetDataBlocks())
+			{
+				if (bytes_written + blk.byteSize > sizeof(mu2e_databuff_t)) {
+					TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << bytes_written;
+					WriteDMABufferSizeWords(o, includeDMAWriteSize, bytes_written, buffer_start, true);
+					buffer_start = o.tellp();
+					bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), buffer_start,false);
+				}
+				o.write(static_cast<const char*>(blk.blockPointer), blk.byteSize);
+				bytes_written += blk.byteSize;
+			}
+		}
+	}
 }
 
 std::string DTCLib::DTC_SubEventHeader::toJson() const
