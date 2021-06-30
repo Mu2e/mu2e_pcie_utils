@@ -183,10 +183,10 @@ int mu2esim::read_data(int chn, void** buffer, int tmo_ms)
 					return -1;
 				}
 			}
-			TLOG(TLVL_ReadData) << "Size of data is " << size << ", reading into buffer " << swIdx_[chn] << ", at "
+			TLOG(TLVL_ReadData) << "Size of data is " << size - sizeof(uint64_t) << ", reading into buffer " << swIdx_[chn] << ", at "
 								<< (void*)dmaData_[chn][swIdx_[chn]];
 			memcpy(dmaData_[chn][swIdx_[chn]], &size, sizeof(uint64_t));
-			ddrFile_->read(reinterpret_cast<char*>(dmaData_[chn][swIdx_[chn]]) + sizeof(uint64_t), size);
+			ddrFile_->read(reinterpret_cast<char*>(dmaData_[chn][swIdx_[chn]]) + sizeof(uint64_t), size - sizeof(uint64_t));
 			bytesReturned = size;
 		}
 		else if (chn == 1)

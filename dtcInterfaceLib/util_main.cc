@@ -819,11 +819,50 @@ int main(int argc, char* argv[])
 				if (!readSuccess || timeout) break;
 
 				newEvt.SetupEvent();
+
+				if(thisDTC->ReadSimMode() == DTC_SimMode_ROCEmulator || 
+					thisDTC->ReadSimMode() == DTC_SimMode_Performance) {
+					auto roc_mask_tmp = rocMask;
+					size_t num_rocs = 0;
+
+					while (roc_mask_tmp != 0) {
+						if ((roc_mask_tmp & 0x1) == 1) {
+							num_rocs++;
+						}
+						roc_mask_tmp = roc_mask_tmp >> 4;
+					}
+
+					size_t expectedEventSize = sizeof(DTC_EventHeader) + num_rocs * (sizeof(DTC_SubEventHeader) + (packetCount + 1) * 16);
+					if (newEvt.GetEventByteCount() != expectedEventSize)
+					{
+						TLOG(TLVL_WARNING) << "DTC_Event size mismatch! Expected size was " << expectedEventSize << ", actual " << newEvt.GetEventByteCount();
+					}
+				}
+					
+
 				verified = verifier.VerifyEvent(newEvt);
 			}
 			else
 			{
 				evt.SetupEvent();
+				if (thisDTC->ReadSimMode() == DTC_SimMode_ROCEmulator ||
+					thisDTC->ReadSimMode() == DTC_SimMode_Performance) {
+					auto roc_mask_tmp = rocMask;
+					size_t num_rocs = 0;
+
+					while (roc_mask_tmp != 0) {
+						if ((roc_mask_tmp & 0x1) == 1) {
+							num_rocs++;
+						}
+						roc_mask_tmp = roc_mask_tmp >> 4;
+					}
+
+					size_t expectedEventSize = sizeof(DTC_EventHeader) + num_rocs * (sizeof(DTC_SubEventHeader) + (packetCount + 1) * 16);
+					if (evt.GetEventByteCount() != expectedEventSize)
+					{
+						TLOG(TLVL_WARNING) << "DTC_Event size mismatch! Expected size was " << expectedEventSize << ", actual " << evt.GetEventByteCount();
+					}
+				}
 				verified = verifier.VerifyEvent(evt);
 				device->read_release(DTC_DMA_Engine_DAQ, 1);
 			}
