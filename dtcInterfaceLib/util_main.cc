@@ -676,6 +676,7 @@ int main(int argc, char* argv[])
 
 			DTC_Event evt(readPtr);
 			size_t eventByteCount = evt.GetEventByteCount();
+			size_t subEventCount = 0;
 			if (eventByteCount > bufSize - 8U)
 			{
 				DTC_Event newEvt(eventByteCount);
@@ -683,7 +684,7 @@ int main(int argc, char* argv[])
 				size_t newEvtSize = bufSize - 8;
 				while (newEvtSize < eventByteCount)
 				{
-					device->read_release(DTC_DMA_Engine_DAQ, 1);
+					TLOG(TLVL_TRACE) << "Reading continued DMA, current size " << newEvtSize << " / " << eventByteCount;
 					buffer = readDTCBuffer(device, readSuccess, timeout,sts);
 					if (!readSuccess || timeout)
 					{
@@ -703,7 +704,8 @@ int main(int argc, char* argv[])
 				}
 				if (!readSuccess || timeout) break;
 
-				newEvt.SetupEvent();
+				newEvt.SetupEvent(); 
+				subEventCount = newEvt.GetSubEventCount();
 
 				if(thisDTC->ReadSimMode() == DTC_SimMode_ROCEmulator || 
 					thisDTC->ReadSimMode() == DTC_SimMode_Performance) {
@@ -730,6 +732,7 @@ int main(int argc, char* argv[])
 			else
 			{
 				evt.SetupEvent();
+				subEventCount = evt.GetSubEventCount();
 				if (thisDTC->ReadSimMode() == DTC_SimMode_ROCEmulator ||
 					thisDTC->ReadSimMode() == DTC_SimMode_Performance) {
 					auto roc_mask_tmp = rocMask;
@@ -754,7 +757,7 @@ int main(int argc, char* argv[])
 			{
 				if (verified)
 				{
-					TLOG(TLVL_INFO) << "Event verified successfully, " << evt.GetSubEventCount() << " sub-events";
+					TLOG(TLVL_INFO) << "Event verified successfully, " << subEventCount << " sub-events";
 				}
 				else
 				{
