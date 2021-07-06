@@ -254,7 +254,7 @@ void printHelpMsg()
 	exit(0);
 }
 
-mu2e_databuff_t* readDTCBuffer(mu2edev* device, bool& readSuccess, bool& timeout, size_t& sts)
+mu2e_databuff_t* readDTCBuffer(mu2edev* device, bool& readSuccess, bool& timeout, size_t& sts, bool continuedMode)
 {
 	mu2e_databuff_t* buffer;
 	auto tmo_ms = 1500;
@@ -282,6 +282,7 @@ mu2e_databuff_t* readDTCBuffer(mu2edev* device, bool& readSuccess, bool& timeout
 		else if (rawOutput)
 			outputStream.write(static_cast<char*>(readPtr), sts - 8);
 
+		if(!continuedMode) {
 		timeout = false;
 		// Check for dead or cafe in first packet
 		std::vector<size_t> wordsToCheck{1, 2, 3, 7, 8};
@@ -301,6 +302,7 @@ mu2e_databuff_t* readDTCBuffer(mu2edev* device, bool& readSuccess, bool& timeout
 				timeout = true;
 				break;
 			}
+		}
 		}
 	}
 	return buffer;
@@ -657,7 +659,7 @@ int main(int argc, char* argv[])
 			bool verified = false;
 			size_t sts = 0;
 			unsigned buffers_read = 1;
-			mu2e_databuff_t* buffer = readDTCBuffer(device, readSuccess, timeout,sts);
+			mu2e_databuff_t* buffer = readDTCBuffer(device, readSuccess, timeout,sts, false);
 
 			if (!readSuccess && checkSERDES)
 				break;
@@ -685,7 +687,7 @@ int main(int argc, char* argv[])
 				while (newEvtSize < eventByteCount)
 				{
 					TLOG(TLVL_TRACE) << "Reading continued DMA, current size " << newEvtSize << " / " << eventByteCount;
-					buffer = readDTCBuffer(device, readSuccess, timeout,sts);
+					buffer = readDTCBuffer(device, readSuccess, timeout,sts, true);
 					if (!readSuccess || timeout)
 					{
 						TLOG(TLVL_ERROR) << "Unable to receive continued DMA! Aborting!";
@@ -881,7 +883,7 @@ int main(int argc, char* argv[])
 			bool readSuccess = false;
 			bool timeout = false;
 			size_t sts = 0;
-			mu2e_databuff_t* buffer = readDTCBuffer(device, readSuccess, timeout, sts);
+			mu2e_databuff_t* buffer = readDTCBuffer(device, readSuccess, timeout, sts, false);
 
 			if (!readSuccess && checkSERDES)
 				break;
