@@ -209,14 +209,14 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 					outputStream.write(reinterpret_cast<char*>(buf) + 16, sz - 16);
 				}
 
-				auto exclusiveByteCount = *(reinterpret_cast<uint64_t*>(buf) + 1);
-				TLOG(TLVL_WriteSimFileToDTC3) << "WriteSimFileToDTC: Inclusive byte count: " << sz
-											  << ", Exclusive byte count: " << exclusiveByteCount;
-				if (sz - 16 != exclusiveByteCount)
+				auto dmaByteCount = *(reinterpret_cast<uint64_t*>(buf) + 1);
+				TLOG(TLVL_WriteSimFileToDTC3) << "WriteSimFileToDTC: Inclusive write byte count: " << sz
+											  << ", DMA Byte count: " << dmaByteCount;
+				if (sz - 8 != dmaByteCount)
 				{
-					TLOG(TLVL_ERROR) << "WriteSimFileToDTC: ERROR: Inclusive Byte count " << sz
-									 << " is inconsistent with exclusive byte count " << exclusiveByteCount << " for DMA at 0x"
-									 << std::hex << totalSize << " (" << sz - 16 << " != " << exclusiveByteCount << ")";
+					TLOG(TLVL_ERROR) << "WriteSimFileToDTC: ERROR: Inclusive write Byte count " << sz
+									 << " is inconsistent with DMA byte count " << dmaByteCount << " for DMA at 0x"
+									 << std::hex << totalSize << " (" << sz - 16 << " != " << dmaByteCount << ")";
 					sizeCheck = false;
 				}
 

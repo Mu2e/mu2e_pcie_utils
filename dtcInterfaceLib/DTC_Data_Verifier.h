@@ -198,7 +198,7 @@ namespace DTCLib {
 				roc_packet_counter_test = (*dataPtr << 16);
 				++dataPtr;
 				roc_packet_counter_test += *dataPtr;
-				success &= roc_packet_counter_test == roc_emulator_packet_counters_[roc];
+				success &= (roc_packet_counter_test == roc_emulator_packet_counters_[roc]);
 				++dataPtr;
 
 				roc_emulator_packet_counters_[roc]++;
@@ -358,14 +358,15 @@ namespace DTCLib {
 			{
 				uint64_t dmaWriteSize;  // DMA Write buffer size
 				is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
+				if (!is || is.eof()) break;
+
 				total_size_read += sizeof(dmaWriteSize);
 
 				uint64_t dmaSize;
 				is.read((char*)&dmaSize, sizeof(dmaSize));
-				total_size_read += sizeof(dmaSize);
 
-				// Check that DMA Write Buffer Size = DMA Buffer Size + 16
-				if (dmaSize + 16 != dmaWriteSize)
+				// Check that DMA Write Buffer Size = DMA Buffer Size + 8
+				if (dmaSize + 8 != dmaWriteSize)
 				{
 					TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
 					success = false;
@@ -373,12 +374,13 @@ namespace DTCLib {
 				}
 
 				// Check that size of all DataBlocks = DMA Buffer Size
-				is.read((char*)buf, dmaSize);
+				is.read((char*)buf, dmaSize - 8);
 				current_buffer_offset_ = total_size_read;
 				total_size_read += dmaSize;
 
 				TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << current_buffer_offset_;
 				DTCLib::DTC_Event thisEvent(buf);
+				thisEvent.SetupEvent();
 				success = VerifyEvent(thisEvent);
 			}
 

@@ -39,7 +39,6 @@ bool stopOnTimeout = false;
 bool writeDMAHeadersToOutput = false;
 bool useCFOEmulator = true;
 bool forceNoDebug = false;
-unsigned genDMABlocks = 0;
 std::string rawOutputFile = "/tmp/mu2eUtil.raw";
 std::string expectedDesignVersion = "";
 std::string simFile = "";
@@ -202,113 +201,6 @@ std::string getLongOptionString(int* index, char** argv[])
 	}
 }
 
-void WriteGeneratedData(DTC* thisDTC)
-{
-	TLOG(TLVL_INFO) << "Sending data to DTC" << std::endl;
-	thisDTC->DisableDetectorEmulator();
-	thisDTC->DisableDetectorEmulatorMode();
-	thisDTC->SetDDRDataLocalStartAddress(0);
-	thisDTC->ResetDDRReadAddress();
-	thisDTC->ResetDDRWriteAddress();
-	thisDTC->EnableDetectorEmulatorMode();
-	thisDTC->SetDDRDataLocalEndAddress(0xFFFFFFFF);
-	uint64_t total_size_written = 0;
-	uint32_t end_address = 0;
-	unsigned ii = 0;
-	uint32_t packetCounter = 0;
-	uint64_t ts = timestampOffset;
-	for (; ii < genDMABlocks; ++ii)
-	{
-		auto blockByteCount = static_cast<uint16_t>((1 + packetCount) * 16 * sizeof(uint8_t));
-		auto eventByteCount = static_cast<uint64_t>(blockCount * blockByteCount);             // Exclusive byte count
-		auto eventWriteByteCount = static_cast<uint64_t>(eventByteCount + sizeof(uint64_t));  // Inclusive byte count
-		auto dmaByteCount = static_cast<uint64_t>(eventWriteByteCount * eventCount);          // Exclusive byte count
-		auto dmaWriteByteCount = dmaByteCount + sizeof(uint64_t);                             // Inclusive byte count
-
-		if (dmaWriteByteCount > 0x7FFF)
-		{
-			TLOG(TLVL_ERROR) << "Requested DMA write is larger than the allowed size! Reduce event/block/packet counts!"
-							 << std::endl;
-			TLOG(TLVL_ERROR) << "Block Byte Count: " << std::hex << std::showbase << blockByteCount
-							 << ", Event Byte Count: " << eventByteCount << ", DMA Write Count: " << dmaWriteByteCount
-							 << ", MAX: 0x7FFF" << std::endl;
-			exit(1);
-		}
-
-		auto buf = reinterpret_cast<mu2e_databuff_t*>(new char[0x10000]);
-		memcpy(buf, &dmaWriteByteCount, sizeof(uint64_t));
-		if (rawOutput && writeDMAHeadersToOutput)
-			outputStream.write(reinterpret_cast<char*>(&dmaWriteByteCount), sizeof(uint64_t));
-		auto currentOffset = sizeof(uint64_t);
-
-		for (unsigned ll = 0; ll < eventCount; ++ll)
-		{
-			memcpy(reinterpret_cast<uint8_t*>(buf) + currentOffset, &eventByteCount, sizeof(uint64_t));
-			if (rawOutput && writeDMAHeadersToOutput)
-				outputStream.write(reinterpret_cast<char*>(&eventByteCount), sizeof(uint64_t));
-			currentOffset += sizeof(uint64_t);
-
-			if (incrementTimestamp) ++ts;
-
-			for (unsigned kk = 0; kk < blockCount; ++kk)
-			{
-				auto index = kk % DTC_Links.size();
-				DTC_DataHeaderPacket header(DTC_Links[index], static_cast<uint16_t>(packetCount), DTC_DataStatus_Valid,
-											static_cast<uint8_t>(kk / DTC_Links.size()), DTC_Subsystem_Other, 0, DTC_EventWindowTag(ts));
-				auto packet = header.ConvertToDataPacket();
-				memcpy(reinterpret_cast<uint8_t*>(buf) + currentOffset, packet.GetData(), sizeof(uint8_t) * 16);
-				if (rawOutput) outputStream << packet;
-				currentOffset += 16;
-
-				uint16_t dataPacket[8];
-				for (unsigned jj = 0; jj < packetCount; ++jj)
-				{
-					if (currentOffset + 16 > sizeof(mu2e_databuff_t))
-					{
-						break;
-					}
-
-					dataPacket[0] = 0x4144;
-					dataPacket[1] = 0x4154;
-					dataPacket[2] = 0x4144;
-					dataPacket[3] = 0x4154;
-					packetCounter += 1;
-					memcpy(&dataPacket[4], &packetCounter, sizeof(uint32_t));
-					uint32_t tmp = jj + 1;
-					memcpy(&dataPacket[6], &tmp, sizeof(uint32_t));
-
-					memcpy(reinterpret_cast<uint8_t*>(buf) + currentOffset, &dataPacket[0], sizeof(uint8_t) * 16);
-					if (rawOutput) outputStream.write(reinterpret_cast<char*>(&dataPacket[0]), 16);
-					currentOffset += 16;
-				}
-			}
-		}
-
-		total_size_written += dmaWriteByteCount;
-		end_address += static_cast<uint32_t>(dmaByteCount);
-
-		if (!reallyQuiet)
-		{
-			TLOG(TLVL_INFO) << "Buffer " << ii << ":" << std::endl;
-			DTCLib::Utilities::PrintBuffer(buf, dmaWriteByteCount, quietCount);
-		}
-
-		thisDTC->GetDevice()->write_data(DTC_DMA_Engine_DAQ, buf, static_cast<size_t>(dmaWriteByteCount));
-		delete[] buf;
-	}
-
-	TLOG(TLVL_INFO) << "Total bytes written: " << std::dec << total_size_written << std::hex << "( 0x" << total_size_written
-					<< " )" << std::endl;
-	thisDTC->SetDDRDataLocalEndAddress(end_address - 1);
-	if (readGenerated)
-	{
-		if (rawOutput) outputStream.close();
-		exit(0);
-	}
-	thisDTC->SetDetectorEmulationDMACount(number);
-	thisDTC->EnableDetectorEmulator();
-}
-
 void printHelpMsg()
 {
 	std::cout << "Usage: mu2eUtil [options] "
@@ -342,8 +234,7 @@ void printHelpMsg()
 		<< "    -H: Write DMA headers to raw output file (when -f is used with -g)" << std::endl
 		<< "    -p: Send DTCLIB_SIM_FILE to DTC and enable Detector Emulator mode" << std::endl
 		<< "    -P: Send <file> to DTC and enable Detector Emulator mode (Default: \"\")" << std::endl
-		<< "    -g: Generate (and send) N DMA blocks for testing the Detector Emulator (Default: 0)" << std::endl
-		<< "    -G: Read out generated data, but don't write new. With -g, will exit after writing data" << std::endl
+		<< "    -G: Enable Detector Emulator Mode" << std::endl
 		<< "    -r: # of rocs to enable. Hexadecimal, each digit corresponds to a link. ROC_0: 1, ROC_1: 3, ROC_2: 5, "
 		   "ROC_3: 7, ROC_4: 9, ROC_5: B (Default 0x1, All possible: 0xBBBBBB)"
 		<< std::endl
@@ -467,9 +358,6 @@ int main(int argc, char* argv[])
 					useSimFile = true;
 					simFile = getOptionValue(&optind, &argv);
 					break;
-				case 'g':
-					genDMABlocks = getOptionValue(&optind, &argv);
-					break;
 				case 'G':
 					readGenerated = true;
 					break;
@@ -586,7 +474,7 @@ int main(int argc, char* argv[])
 					 << ", Synchronous Request Mode: " << syncRequests << ", Use DTC CFO Emulator: " << useCFOEmulator << (useCFODRP ? " (CFO Emulator DRPs)" : " (DTC DRPs)")
 					 << ", Increment TS: " << incrementTimestamp << ", Quiet Mode: " << quiet << " (" << quietCount << ")"
 					 << ", Really Quiet Mode: " << reallyQuiet << ", Check SERDES Error Status: " << checkSERDES;
-	TLOG(TLVL_DEBUG) << std::boolalpha << ", Generate DMA Blocks: " << genDMABlocks << ", Read Data from DDR: " << readGenerated
+	TLOG(TLVL_DEBUG) << std::boolalpha << ", Read Data from DDR: " << readGenerated
 					 << ", Use Sim File: " << useSimFile << ", Skip Verify: " << skipVerify << ", ROC Mask: " << std::hex
 					 << rocMask << ", Debug Type: " << DTC_DebugTypeConverter(debugType).toString()
 					 << ", Target Frequency: " << std::dec << targetFrequency;
@@ -703,11 +591,7 @@ int main(int argc, char* argv[])
 
 		DTCSoftwareCFO cfo(thisDTC, useCFOEmulator, packetCount, debugType, stickyDebugType, quiet, false, forceNoDebug, useCFODRP);
 
-		if (genDMABlocks > 0)
-		{
-			WriteGeneratedData(thisDTC);
-		}
-		else if (useSimFile)
+		if (useSimFile)
 		{
 			auto overwrite = false;
 			if (simFile.size() > 0) overwrite = true;
@@ -931,11 +815,7 @@ int main(int argc, char* argv[])
 
 		DTCSoftwareCFO cfo(thisDTC, useCFOEmulator, packetCount, debugType, stickyDebugType, quiet, false, forceNoDebug, useCFODRP);
 
-		if (genDMABlocks > 0)
-		{
-			WriteGeneratedData(thisDTC);
-		}
-		else if (useSimFile)
+		if (useSimFile)
 		{
 			auto overwrite = false;
 			if (simFile.size() > 0) overwrite = true;
