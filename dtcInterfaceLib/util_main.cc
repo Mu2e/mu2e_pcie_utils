@@ -642,7 +642,6 @@ int main(int argc, char* argv[])
 
 		for (unsigned ii = 0; ii < number + extraReads; ++ii)
 		{
-			device->release_all(DTC_DMA_Engine_DAQ);
 			if (syncRequests && ii < number)
 			{
 				auto startRequest = std::chrono::steady_clock::now();
@@ -657,6 +656,7 @@ int main(int argc, char* argv[])
 			bool timeout = false;
 			bool verified = false;
 			size_t sts = 0;
+			unsigned buffers_read = 1;
 			mu2e_databuff_t* buffer = readDTCBuffer(device, readSuccess, timeout,sts);
 
 			if (!readSuccess && checkSERDES)
@@ -693,6 +693,7 @@ int main(int argc, char* argv[])
 					readPtr = &buffer[0];
 					bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
 					readPtr = static_cast<uint8_t*>(readPtr) + 8;
+					buffers_read++;
 
 					size_t bytes_to_read = bufSize - 8;
 					if(newEvtSize + bufSize - 8 > eventByteCount) { bytes_to_read = eventByteCount - newEvtSize; }
@@ -768,6 +769,7 @@ int main(int argc, char* argv[])
 				break;
 			}
 
+			device->read_release(DTC_DMA_Engine_DAQ, buffers_read);
 			if (delay > 0) usleep(delay);
 		}
 		device->release_all(DTC_DMA_Engine_DAQ);
