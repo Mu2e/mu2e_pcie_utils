@@ -749,7 +749,6 @@ int main(int argc, char* argv[])
 					}
 				}
 				verified = verifier.VerifyEvent(evt);
-				device->read_release(DTC_DMA_Engine_DAQ, 1);
 			}
 			if (!reallyQuiet)
 			{
