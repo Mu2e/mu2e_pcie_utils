@@ -20,7 +20,7 @@ cet_make_exec(rocUtil SOURCE dcs_main.cc LIBRARIES DTCInterface)
 
 cet_make_exec(data_file_verifier SOURCE data_file_verifier.cc LIBRARIES ${MF_MESSAGELOGGER} DTCInterface)
 
-cet_make_exec(DTC_binary_file_comapre SOURCE DTC_binary_file_compare.cc LIBRARIES ${MF_MESSAGELOGGER})
+cet_make_exec(DTC_binary_file_compare SOURCE DTC_binary_file_compare.cc LIBRARIES ${MF_MESSAGELOGGER})
 
 cet_make_exec(mu2eRequestSender SOURCE requestSender.cc LIBRARIES DTCInterface)
 

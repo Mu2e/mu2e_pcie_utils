@@ -832,7 +832,7 @@ int main(int argc, char* argv[])
 						roc_mask_tmp = roc_mask_tmp >> 4;
 					}
 
-					size_t expectedEventSize = sizeof(DTC_EventHeader) + num_rocs * (sizeof(DTC_SubEventHeader) + (packetCount + 1) * 16);
+					size_t expectedEventSize = sizeof(DTC_EventHeader) +sizeof(DTC_SubEventHeader) + num_rocs * ( (packetCount + 1) * 16);
 					if (newEvt.GetEventByteCount() != expectedEventSize)
 					{
 						TLOG(TLVL_WARNING) << "DTC_Event size mismatch! Expected size was " << expectedEventSize << ", actual " << newEvt.GetEventByteCount();
@@ -857,7 +857,7 @@ int main(int argc, char* argv[])
 						roc_mask_tmp = roc_mask_tmp >> 4;
 					}
 
-					size_t expectedEventSize = sizeof(DTC_EventHeader) + num_rocs * (sizeof(DTC_SubEventHeader) + (packetCount + 1) * 16);
+					size_t expectedEventSize = sizeof(DTC_EventHeader) +sizeof(DTC_SubEventHeader) +  num_rocs * ((packetCount + 1) * 16);
 					if (evt.GetEventByteCount() != expectedEventSize)
 					{
 						TLOG(TLVL_WARNING) << "DTC_Event size mismatch! Expected size was " << expectedEventSize << ", actual " << evt.GetEventByteCount();
