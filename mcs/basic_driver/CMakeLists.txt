@@ -32,7 +32,7 @@ add_custom_command(
 )
 
 add_custom_target(pci_devel_module ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}/pci_devel_main.ko)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../../drivers DESTINATION ${${product}_inc_dir}/../)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../../drivers DESTINATION .)
 
 install_headers()
 install_source()
