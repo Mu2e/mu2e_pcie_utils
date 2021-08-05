@@ -279,10 +279,11 @@ mu2e_databuff_t* readDTCBuffer(mu2edev* device, bool& readSuccess, bool& timeout
 			outputStream.write(reinterpret_cast<char*>(&dmaWriteSize), sizeof(dmaWriteSize));
 			outputStream.write(reinterpret_cast<char*>(&buffer[0]), sts);
 		}
-		else if (rawOutput)
+		else if (rawOutput) {
 			outputStream.write(static_cast<char*>(readPtr), sts - 8);
+		}
 
-			timeout = false;
+		timeout = false;
 		if (!continuedMode) {
 			// Check for dead or cafe in first packet
 			std::vector<size_t> wordsToCheck{ 1, 2, 3, 7, 8 };
