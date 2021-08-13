@@ -308,7 +308,7 @@ namespace DTCLib {
 			{
 				auto blockSuccess = VerifyBlock(block);
 				success &= blockSuccess;
-				if (!continueFile_) return false;
+				if (file_mode_ && !continueFile_) return false;
 			}
 			return success;
 		}
@@ -333,7 +333,7 @@ namespace DTCLib {
 			{
 				auto subevtSuccess = VerifySubEvent(subevt, eventTag);
 				success &= subevtSuccess;
-				if (!continueFile_) return false;
+				if (file_mode_ && !continueFile_) return false;
 			}
 			return success;
 		}

@@ -23,106 +23,6 @@
 
 using namespace DTCLib;
 
-unsigned getLongOptionValue(int* index, char** argv[])
-{
-	auto arg = std::string((*argv)[*index]);
-	auto pos = arg.find('=');
-
-	if (pos == std::string::npos)
-	{
-		(*index)++;
-		unsigned ret = strtoul((*argv)[*index], nullptr, 0);
-		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
-		{
-			(*index)--;
-		}
-		return ret;
-	}
-
-	return strtoul(&arg[++pos], nullptr, 0);
-}
-unsigned long long getLongOptionValueLong(int* index, char** argv[])
-{
-	auto arg = std::string((*argv)[*index]);
-	auto pos = arg.find('=');
-
-	if (pos == std::string::npos)
-	{
-		(*index)++;
-		unsigned long long ret = strtoull((*argv)[*index], nullptr, 0);
-		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
-		{
-			(*index)--;
-		}
-		return ret;
-	}
-
-	return strtoull(&arg[++pos], nullptr, 0);
-}
-
-std::string getLongOptionOption(int* index, char** argv[])
-{
-	auto arg = std::string((*argv)[*index]);
-	auto pos = arg.find('=');
-
-	if (pos == std::string::npos)
-	{
-		return arg;
-	}
-	else
-	{
-		return arg.substr(0, pos - 1);
-	}
-}
-
-std::string getLongOptionString(int* index, char** argv[])
-{
-	auto arg = std::string((*argv)[*index]);
-
-	if (arg.find('=') == std::string::npos)
-	{
-		return std::string((*argv)[++(*index)]);
-	}
-	else
-	{
-		return arg.substr(arg.find('='));
-	}
-}
-
-unsigned getOptionValue(int* index, char** argv[])
-{
-	auto arg = (*argv)[*index];
-	if (arg[2] == '\0')
-	{
-		(*index)++;
-		return strtoul((*argv)[*index], nullptr, 0);
-	}
-	auto offset = 2;
-	if (arg[2] == '=')
-	{
-		offset = 3;
-	}
-
-	return strtoul(&arg[offset], nullptr, 0);
-}
-
-std::string getOptionString(int* index, char** argv[])
-{
-	auto arg = (*argv)[*index];
-	if (arg[2] == '\0')
-	{
-		(*index)++;
-		return std::string((*argv)[*index]);
-	}
-	auto offset = 2;
-	if (arg[2] == '=')
-	{
-		offset = 3;
-	}
-
-	return std::string(&arg[offset]);
-}
-
 void printHelpMsg()
 {
 	std::cout << "Usage: rocUtil [options] "
@@ -175,25 +75,25 @@ int main(int argc, char* argv[])
 			switch (argv[optind][1])
 			{
 			case 'l':
-				link = getOptionValue(&optind, &argv);
+				link = DTCLib::Utilities::getOptionValue(&optind, &argv);
 				break;
 			case 'd':
-				delay = getOptionValue(&optind, &argv);
+				delay = DTCLib::Utilities::getOptionValue(&optind, &argv);
 				break;
 			case 'n':
-				number = getOptionValue(&optind, &argv);
+				number = DTCLib::Utilities::getOptionValue(&optind, &argv);
 				break;
 			case 'w':
-				data = getOptionValue(&optind, &argv);
+				data = DTCLib::Utilities::getOptionValue(&optind, &argv);
 				break;
 			case 'a':
-				address = getOptionValue(&optind, &argv);
+				address = DTCLib::Utilities::getOptionValue(&optind, &argv);
 				break;
 			case 'b':
-				block = getOptionValue(&optind, &argv);
+				block = DTCLib::Utilities::getOptionValue(&optind, &argv);
 				break;
 			case 'c':
-				count = getOptionValue(&optind, &argv);
+				count = DTCLib::Utilities::getOptionValue(&optind, &argv);
 				break;
 			case 'i':
 				incrementAddress = !incrementAddress;
@@ -207,10 +107,10 @@ int main(int argc, char* argv[])
 				break;
 			case '-':  // Long option
 			{
-				auto option = getLongOptionOption(&optind, &argv);
+				auto option = DTCLib::Utilities::getLongOptionOption(&optind, &argv);
 				if (option == "--dtc")
 				{
-					dtc = getLongOptionValue(&optind, &argv);
+					dtc = DTCLib::Utilities::getLongOptionValue(&optind, &argv);
 				}
 				else if (option == "--stop-on-error")
 				{
@@ -218,10 +118,10 @@ int main(int argc, char* argv[])
 				}
 				else if (option == "--timeout-ms")
 				{
-					tmo_ms = getLongOptionValue(&optind, &argv);
+					tmo_ms = DTCLib::Utilities::getLongOptionValue(&optind, &argv);
 				}
 				else if (option == "--link-mask") {
-					link_mask = getLongOptionValue(&optind, &argv);
+					link_mask = DTCLib::Utilities::getLongOptionValue(&optind, &argv);
 				}
 				else if (option == "--help")
 				{

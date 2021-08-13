@@ -22,45 +22,6 @@ void printHelpMsg()
 	exit(0);
 }
 
-unsigned getOptionValue(int* index, char** argv[])
-{
-	auto arg = (*argv)[*index];
-	if (arg[2] == '\0')
-	{
-		(*index)++;
-		unsigned ret = strtoul((*argv)[*index], nullptr, 0);
-		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
-		{
-			(*index)--;
-		}
-		return ret;
-	}
-	auto offset = 2;
-	if (arg[2] == '=')
-	{
-		offset = 3;
-	}
-
-	return strtoul(&arg[offset], nullptr, 0);
-}
-
-std::string getOptionString(int* index, char** argv[])
-{
-	auto arg = (*argv)[*index];
-	if (arg[2] == '\0')
-	{
-		(*index)++;
-		return std::string((*argv)[*index]);
-	}
-	auto offset = 2;
-	if (arg[2] == '=')
-	{
-		offset = 3;
-	}
-
-	return std::string(&arg[offset]);
-}
-
 int main(int argc, char* argv[])
 {
 	auto printSERDESCounters = false;
@@ -81,10 +42,10 @@ int main(int argc, char* argv[])
 					printRegisterDump = false;
 					break;
 				case 'd':
-					dtc = getOptionValue(&optind, &argv);
+					dtc = DTCLib::Utilities::getOptionValue(&optind, &argv);
 					break;
 				case 'm':
-					memFileName = getOptionString(&optind, &argv);
+					memFileName = DTCLib::Utilities::getOptionString(&optind, &argv);
 					break;
 				default:
 					std::cout << "Unknown option: " << argv[optind] << std::endl;

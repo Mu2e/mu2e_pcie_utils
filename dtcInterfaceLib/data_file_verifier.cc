@@ -10,21 +10,6 @@
 #include "TRACE/tracemf.h"
 #define TRACE_NAME "data_file_verifier"
 
-std::string getLongOptionOption(int* index, char** argv[])
-{
-	auto arg = std::string((*argv)[*index]);
-	auto pos = arg.find('=');
-
-	if (pos == std::string::npos)
-	{
-		return arg;
-	}
-	else
-	{
-		return arg.substr(0, pos - 1);
-	}
-}
-
 void printHelpMsg()
 {
 	std::cout << "Verifies the DMA and Data block content of DTC binary file(s)" << std::endl;
@@ -49,7 +34,7 @@ int main(int argc, char* argv[])
 			{
 				case '-':  // Long option
 				{
-					auto option = getLongOptionOption(&optind, &argv);
+					auto option = DTCLib::Utilities::getLongOptionOption(&optind, &argv);
 					if (option == "--help")
 					{
 						printHelpMsg();

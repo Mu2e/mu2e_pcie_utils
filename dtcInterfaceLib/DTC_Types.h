@@ -1228,6 +1228,17 @@ struct Utilities
 	/// <param name="quietCount">Number of lines to print at the begin/end. Default is 0, which prints entire buffer</param>
 	/// <param name="tlvl">TLVL to use for printing (Default TLVL_INFO)</param>
 	static void PrintBuffer(const void* ptr, size_t sz, size_t quietCount = 0, int tlvl = TLVL_INFO);
+
+	static unsigned getOptionValue(int* index, char** argv[]);
+	static unsigned long long getOptionValueLong(int* index, char** argv[]);
+
+	static std::string getOptionString(int* index, char** argv[]);
+
+	static unsigned getLongOptionValue(int* index, char** argv[]);
+	static unsigned long long getLongOptionValueLong(int* index, char** argv[]);
+
+	static std::string getLongOptionOption(int* index, char** argv[]);
+	static std::string getLongOptionString(int* index, char** argv[]);
 };
 }  // namespace DTCLib
 

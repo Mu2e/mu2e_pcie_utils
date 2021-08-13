@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "mu2e_driver/mu2e_mmap_ioctl.h"
+#include "dtcInterfaceLib/DTC_Types.h"
 
 #include "TRACE/tracemf.h"
 #define TRACE_NAME "binary_file_compare"
@@ -15,21 +16,6 @@ typedef std::map<uint8_t, std::list<std::vector<uint8_t>>> roc_map;
 typedef std::map<uint8_t, roc_map> dtc_map;
 typedef std::map<uint8_t, dtc_map> subsystem_map;
 typedef std::map<uint64_t, subsystem_map> event_map;
-
-std::string getLongOptionOption(int* index, char** argv[])
-{
-	auto arg = std::string((*argv)[*index]);
-	auto pos = arg.find('=');
-
-	if (pos == std::string::npos)
-	{
-		return arg;
-	}
-	else
-	{
-		return arg.substr(0, pos - 1);
-	}
-}
 
 void printHelpMsg()
 {
@@ -77,7 +63,7 @@ int main(int argc, char* argv[])
 			{
 				case '-':  // Long option
 				{
-					auto option = getLongOptionOption(&optind, &argv);
+					auto option = DTCLib::Utilities::getLongOptionOption(&optind, &argv);
 					if (option == "--help")
 					{
 						printHelpMsg();

@@ -8,23 +8,6 @@
 
 #include "TRACE/tracemf.h"
 
-unsigned getOptionValue(int* index, char** argv[])
-{
-	auto arg = (*argv)[*index];
-	if (arg[2] == '\0')
-	{
-		(*index)++;
-		return strtoul((*argv)[*index], nullptr, 0);
-	}
-	auto offset = 2;
-	if (arg[2] == '=')
-	{
-		offset = 3;
-	}
-
-	return strtoul(&arg[offset], nullptr, 0);
-}
-
 void printHelpMsg()
 {
 	std::cout << "Usage: requestSender [options]" << std::endl;
@@ -61,16 +44,16 @@ int main(int argc, char* argv[])
 					incrementTimestamp = false;
 					break;
 				case 'd':
-					delay = getOptionValue(&optind, &argv);
+					delay = DTCLib::Utilities::getOptionValue(&optind, &argv);
 					break;
 				case 'n':
-					number = getOptionValue(&optind, &argv);
+					number = DTCLib::Utilities::getOptionValue(&optind, &argv);
 					break;
 				case 'o':
-					timestampOffset = getOptionValue(&optind, &argv);
+					timestampOffset = DTCLib::Utilities::getOptionValue(&optind, &argv);
 					break;
 				case 'c':
-					packetCount = getOptionValue(&optind, &argv);
+					packetCount = DTCLib::Utilities::getOptionValue(&optind, &argv);
 					break;
 				case 'q':
 					quiet = true;

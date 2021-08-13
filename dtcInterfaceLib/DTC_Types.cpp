@@ -350,3 +350,129 @@ void DTCLib::Utilities::PrintBuffer(const void* ptr, size_t sz, size_t quietCoun
 		}
 	}
 }
+
+unsigned DTCLib::Utilities::getOptionValue(int* index, char** argv[])
+{
+	auto arg = (*argv)[*index];
+	if (arg[2] == '\0')
+	{
+		(*index)++;
+		unsigned ret = strtoul((*argv)[*index], nullptr, 0);
+		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
+		{
+			(*index)--;
+		}
+		return ret;
+	}
+	auto offset = 2;
+	if (arg[2] == '=')
+	{
+		offset = 3;
+	}
+
+	return strtoul(&arg[offset], nullptr, 0);
+}
+unsigned long long DTCLib::Utilities::getOptionValueLong(int* index, char** argv[])
+{
+	auto arg = (*argv)[*index];
+	if (arg[2] == '\0')
+	{
+		(*index)++;
+		unsigned long long ret = strtoull((*argv)[*index], nullptr, 0);
+		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
+		{
+			(*index)--;
+		}
+		return ret;
+	}
+	auto offset = 2;
+	if (arg[2] == '=')
+	{
+		offset = 3;
+	}
+
+	return strtoull(&arg[offset], nullptr, 0);
+}
+
+std::string DTCLib::Utilities::getOptionString(int* index, char** argv[])
+{
+	auto arg = (*argv)[*index];
+	if (arg[2] == '\0')
+	{
+		(*index)++;
+		return std::string((*argv)[*index]);
+	}
+	auto offset = 2;
+	if (arg[2] == '=')
+	{
+		offset = 3;
+	}
+
+	return std::string(&arg[offset]);
+}
+
+unsigned DTCLib::Utilities::getLongOptionValue(int* index, char** argv[])
+{
+	auto arg = std::string((*argv)[*index]);
+	auto pos = arg.find('=');
+
+	if (pos == std::string::npos)
+	{
+		(*index)++;
+		unsigned ret = strtoul((*argv)[*index], nullptr, 0);
+		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
+		{
+			(*index)--;
+		}
+		return ret;
+	}
+
+	return strtoul(&arg[++pos], nullptr, 0);
+}
+unsigned long long DTCLib::Utilities::getLongOptionValueLong(int* index, char** argv[])
+{
+	auto arg = std::string((*argv)[*index]);
+	auto pos = arg.find('=');
+
+	if (pos == std::string::npos)
+	{
+		(*index)++;
+		unsigned long long ret = strtoull((*argv)[*index], nullptr, 0);
+		if (ret == 0 && (*argv)[*index][0] != '0')  // No option given
+		{
+			(*index)--;
+		}
+		return ret;
+	}
+
+	return strtoull(&arg[++pos], nullptr, 0);
+}
+
+std::string DTCLib::Utilities::getLongOptionOption(int* index, char** argv[])
+{
+	auto arg = std::string((*argv)[*index]);
+	auto pos = arg.find('=');
+
+	if (pos == std::string::npos)
+	{
+		return arg;
+	}
+	else
+	{
+		return arg.substr(0, pos - 1);
+	}
+}
+
+std::string DTCLib::Utilities::getLongOptionString(int* index, char** argv[])
+{
+	auto arg = std::string((*argv)[*index]);
+
+	if (arg.find('=') == std::string::npos)
+	{
+		return std::string((*argv)[++(*index)]);
+	}
+	else
+	{
+		return arg.substr(arg.find('='));
+	}
+}
