@@ -310,14 +310,14 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 		if (sz > 0 && (sz + totalSize < 0xFFFFFFFF || simMode_ == DTC_SimMode_LargeFile))
 		{
 			TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC Expected Size is " << sz << ", reading from device";
-			auto exclusiveByteCount = *(reinterpret_cast<uint64_t*>(buf) + 1);
+			auto inclusiveByteCount = *(reinterpret_cast<uint64_t*>(buf) + 1);
 			TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC: Inclusive byte count: " << sz
-										   << ", Exclusive byte count: " << exclusiveByteCount;
-			if (sz - 16 != exclusiveByteCount)
+										   << ", Inclusive byte count: " << inclusiveByteCount;
+			if (sz - 8 != inclusiveByteCount)
 			{
 				TLOG(TLVL_ERROR) << "VerifySimFileInDTC: ERROR: Inclusive Byte count " << sz
-								 << " is inconsistent with exclusive byte count " << exclusiveByteCount << " for DMA at 0x"
-								 << std::hex << totalSize << " (" << sz - 16 << " != " << exclusiveByteCount << ")";
+								 << " is inconsistent with exclusive byte count " << inclusiveByteCount << " for DMA at 0x"
+								 << std::hex << totalSize << " (" << sz - 8 << " != " << inclusiveByteCount << ")";
 				sizeCheck = false;
 			}
 
