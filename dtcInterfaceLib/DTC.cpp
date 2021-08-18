@@ -848,7 +848,7 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		auto bytes_read = remainingBufferSize;
 		while (bytes_read < eventByteCount)
 		{
-			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA Obtaining new DAQ Buffer";
+			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA Obtaining new DAQ Buffer, bytes_read=" << bytes_read << ", eventByteCount=" << eventByteCount;
 
 			void* oldBufferPtr = nullptr;
 			if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
@@ -1165,8 +1165,8 @@ int DTCLib::DTC::GetCurrentBuffer(DMAInfo* info)
 		auto bufferptr = *info->buffer[ii];
 		uint16_t bufferSize = *reinterpret_cast<uint16_t*>(bufferptr);
 		if (info->currentReadPtr > bufferptr &&
-			info->currentReadPtr < bufferptr + bufferSize + 8)
-		{  // +8 because first 8 bytes are not included in byte count
+			info->currentReadPtr < bufferptr + bufferSize)
+		{
 			TLOG(TLVL_GetCurrentBuffer) << "Found matching buffer at index " << ii << ".";
 			return ii;
 		}
