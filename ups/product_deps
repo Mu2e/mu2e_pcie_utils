@@ -18,11 +18,6 @@ fcldir      -
 
 #
 product			version		optional
-messagefacility	v2_07_02	s106
-messagefacility	v2_08_01	s108
-messagefacility	v2_08_02	s109
-messagefacility	v2_07_02	s110
-messagefacility	v2_08_03	s111
 messagefacility	v2_08_04	s112
 TRACE			v3_17_01
 cetbuildtools	v8_13_04	-	only_for_build
@@ -35,45 +30,6 @@ qualifier     messagefacility   TRACE   notes
 
 e20:s112:debug e20:debug         -nq-    -std=c++17
 e20:s112:prof  e20:prof          -nq-    -std=c++17
-e19:s112:debug e19:debug         -nq-    -std=c++17
-e19:s112:prof  e19:prof          -nq-    -std=c++17
-c7:s112:debug  c7:debug          -nq-    -std=c++17
-c7:s112:prof   c7:prof           -nq-    -std=c++17
-
-e20:s111:debug e20:debug         -nq-    -std=c++17
-e20:s111:prof  e20:prof          -nq-    -std=c++17
-e19:s111:debug e19:debug         -nq-    -std=c++17
-e19:s111:prof  e19:prof          -nq-    -std=c++17
-c7:s111:debug  c7:debug          -nq-    -std=c++17
-c7:s111:prof   c7:prof           -nq-    -std=c++17
-
-e20:s110:debug e20:debug         -nq-    -std=c++17
-e20:s110:prof  e20:prof          -nq-    -std=c++17
-e19:s110:debug e19:debug         -nq-    -std=c++17
-e19:s110:prof  e19:prof          -nq-    -std=c++17
-c7:s110:debug  c7:debug          -nq-    -std=c++17
-c7:s110:prof   c7:prof           -nq-    -std=c++17
-
-e20:s109:debug e20:debug         -nq-    -std=c++17
-e20:s109:prof  e20:prof          -nq-    -std=c++17
-e19:s109:debug e19:debug         -nq-    -std=c++17
-e19:s109:prof  e19:prof          -nq-    -std=c++17
-c7:s109:debug  c7:debug          -nq-    -std=c++17
-c7:s109:prof   c7:prof           -nq-    -std=c++17
-
-e20:s108:debug e20:debug         -nq-    -std=c++17
-e20:s108:prof  e20:prof          -nq-    -std=c++17
-e19:s108:debug e19:debug         -nq-    -std=c++17
-e19:s108:prof  e19:prof          -nq-    -std=c++17
-c7:s108:debug  c7:debug          -nq-    -std=c++17
-c7:s108:prof   c7:prof           -nq-    -std=c++17
-
-e20:s106:debug e20:debug         -nq-    -std=c++17
-e20:s106:prof  e20:prof          -nq-    -std=c++17
-e19:s106:debug e19:debug         -nq-    -std=c++17
-e19:s106:prof  e19:prof          -nq-    -std=c++17
-c7:s106:debug  c7:debug          -nq-    -std=c++17
-c7:s106:prof   c7:prof           -nq-    -std=c++17
 
 end_qualifier_list
 
