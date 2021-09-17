@@ -801,10 +801,16 @@ DTCLib::DTC_SubEvent::DTC_SubEvent(const uint8_t*& ptr)
 	while (byte_count < header_.inclusive_subevent_byte_count)
 	{
 		TLOG(TLVL_TRACE + 5) << "Current byte_count is " << byte_count << " / " << header_.inclusive_subevent_byte_count << ", creating block";
-		data_blocks_.emplace_back(static_cast<const void*>(ptr));
-		auto data_block_byte_count = data_blocks_.back().byteSize;
-		byte_count += data_block_byte_count;
-		ptr += data_block_byte_count;
+		try {
+			data_blocks_.emplace_back(static_cast<const void*>(ptr));
+			auto data_block_byte_count = data_blocks_.back().byteSize;
+			byte_count += data_block_byte_count;
+			ptr += data_block_byte_count;
+		}
+		catch (DTC_WrongPacketTypeException const& ex) {
+			TLOG(TLVL_ERROR) << "A DTC_WrongPacketTypeException occurred while setting up the sub event at location 0x" << std::hex << byte_count;
+			throw;
+		}
 	}
 }
 
@@ -870,8 +876,14 @@ void DTCLib::DTC_Event::SetupEvent()
 	while (byte_count < header_.inclusive_event_byte_count)
 	{
 		TLOG(TLVL_TRACE + 5) << "Current byte_count is " << byte_count << " / " << header_.inclusive_event_byte_count << ", creating sub event";
-		sub_events_.emplace_back(ptr);
-		byte_count += sub_events_.back().GetSubEventByteCount();
+		try {
+			sub_events_.emplace_back(ptr);
+			byte_count += sub_events_.back().GetSubEventByteCount();
+		}
+		catch (DTC_WrongPacketTypeException const& ex) {
+			TLOG(TLVL_ERROR) << "A DTC_WrongPacketTypeException occurred while setting up the event at location 0x" << std::hex << byte_count;
+			TLOG(TLVL_ERROR) << "This event has been truncated.";
+		}
 	}
 }
 
@@ -924,8 +936,8 @@ size_t WriteDMABufferSizeWords(std::ostream& output, bool includeDMAWriteSize, s
 	uint64_t dmaSize = buffer_size;
 	output.write(reinterpret_cast<const char*>(&dmaSize), sizeof(uint64_t));
 	size_written += sizeof(uint64_t);
-	if(restore_pos) {
-	output.seekp(pos_save);
+	if (restore_pos) {
+		output.seekp(pos_save);
 	}
 	return size_written;
 }
@@ -938,7 +950,7 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 		TLOG(TLVL_TRACE) << "Event fits into one buffer, writing";
 		auto pos = o.tellp();
 		WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), pos, false);
-		
+
 		o.write(reinterpret_cast<const char*>(&header_), sizeof(DTC_EventHeader));
 
 		for (auto& subevt : sub_events_)
@@ -960,10 +972,10 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 
 		for (auto& subevt : sub_events_)
 		{
-			if(bytes_written + sizeof(DTC_SubEventHeader) > sizeof(mu2e_databuff_t)) {
+			if (bytes_written + sizeof(DTC_SubEventHeader) > sizeof(mu2e_databuff_t)) {
 				TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << bytes_written;
 				WriteDMABufferSizeWords(o, includeDMAWriteSize, bytes_written, buffer_start, true);
-				buffer_start = o.tellp(); 
+				buffer_start = o.tellp();
 				bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), buffer_start, false);
 			}
 			o.write(reinterpret_cast<const char*>(subevt.GetHeader()), sizeof(DTC_SubEventHeader));
@@ -974,7 +986,7 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 					TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << bytes_written;
 					WriteDMABufferSizeWords(o, includeDMAWriteSize, bytes_written, buffer_start, true);
 					buffer_start = o.tellp();
-					bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), buffer_start,false);
+					bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), buffer_start, false);
 				}
 				o.write(static_cast<const char*>(blk.blockPointer), blk.byteSize);
 				bytes_written += blk.byteSize;
