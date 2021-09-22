@@ -11,7 +11,7 @@ cet_make_exec(mu2eCompiler SOURCE mu2eCompiler.cc LIBRARIES CFOInterface)
 cet_make_exec(cfoUtil SOURCE util_main.cc LIBRARIES CFOInterface)
 
 	# install any documentation text files
-	FILE(INSTALL Commands.txt DESTINATION ${product}/${version}/doc)
+	FILE(INSTALL Commands.txt DESTINATION ${CMAKE_INSTALL_DATADIR}/doc)
 
 # Install_headers MUST BE FIRST...for some reason
 install_headers()

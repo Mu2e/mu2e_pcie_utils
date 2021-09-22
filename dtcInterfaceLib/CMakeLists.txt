@@ -35,6 +35,6 @@ cet_make_exec(rick_clock_test SOURCE rick_clock_test.cc LIBRARIES DTCInterface)
 install_headers()
 install_source()
 
-cet_script(updateMu2e.sh Setup_DTC.sh JAConfig.sh)
+cet_script( ALWAYS_COPY updateMu2e.sh Setup_DTC.sh JAConfig.sh)
 
 add_subdirectory(test)
