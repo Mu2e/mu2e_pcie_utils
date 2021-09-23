@@ -376,10 +376,15 @@ void DTCLib::Mu2eUtil::verify_stream()
 		uint16_t bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
 		readPtr = static_cast<uint8_t*>(readPtr) + 8;
 
-		if (stopOnTimeout && timeout)
+		if (timeout)
 		{
-			TLOG(TLVL_ERROR) << "Timeout detected and stop-on-timeout mode enabled. Stopping after " << ii << " events!";
-			break;
+			if (stopOnTimeout) {
+				TLOG(TLVL_ERROR) << "Timeout detected and stop-on-timeout mode enabled. Stopping after " << ii << " events!";
+				break;
+			}
+
+			TLOG(TLVL_WARNING) << "Timeout detected, moving to next read";
+			continue;
 		}
 
 		DTC_Event evt(readPtr);
@@ -833,8 +838,9 @@ mu2e_databuff_t* DTCLib::Mu2eUtil::readDTCBuffer(mu2edev* device, bool& readSucc
 		}
 
 		timeout = false;
-		if (!continuedMode) {
+		if (!continuedMode && sts > sizeof(DTC_EventHeader) + sizeof(DTC_SubEventHeader) + 8) {
 			// Check for dead or cafe in first packet
+			readPtr = static_cast<uint8_t*>(readPtr) + sizeof(DTC_EventHeader) + sizeof(DTC_SubEventHeader);
 			std::vector<size_t> wordsToCheck{ 1, 2, 3, 7, 8 };
 			for (auto& word : wordsToCheck)
 			{
