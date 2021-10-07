@@ -921,35 +921,35 @@ void DTCLib::DTC_Event::UpdateHeader()
 	TLOG(TLVL_TRACE) << "Inclusive Event Byte Count is now " << header_.inclusive_event_byte_count;
 }
 
-size_t WriteDMABufferSizeWords(std::ostream& output, bool includeDMAWriteSize, size_t buffer_size, std::streampos& pos, bool restore_pos)
+size_t WriteDMABufferSizeWords(std::ostream& output, bool includeDMAWriteSize, size_t data_size, std::streampos& pos, bool restore_pos)
 {
 	auto pos_save = output.tellp();
-	size_t size_written = 0;
 	output.seekp(pos);
+	size_t bytes_written = 0;
 	if (includeDMAWriteSize)
 	{
-		uint64_t dmaWriteSize = buffer_size + sizeof(uint64_t);
+		uint64_t dmaWriteSize = data_size + sizeof(uint64_t) + sizeof(uint64_t);
 		output.write(reinterpret_cast<const char*>(&dmaWriteSize), sizeof(uint64_t));
-		size_written += sizeof(uint64_t);
+		bytes_written += sizeof(uint64_t);
 	}
 
-	uint64_t dmaSize = buffer_size;
+	uint64_t dmaSize = data_size + sizeof(uint64_t);
 	output.write(reinterpret_cast<const char*>(&dmaSize), sizeof(uint64_t));
-	size_written += sizeof(uint64_t);
+	bytes_written += sizeof(uint64_t);
 	if (restore_pos) {
 		output.seekp(pos_save);
 	}
-	return size_written;
+	return bytes_written;
 }
 
 void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 {
 	UpdateHeader();
 
-	if (header_.inclusive_event_byte_count + sizeof(uint64_t) < sizeof(mu2e_databuff_t)) {
+	if (header_.inclusive_event_byte_count + sizeof(uint64_t) + (includeDMAWriteSize ? sizeof(uint64_t) : 0) < sizeof(mu2e_databuff_t)) {
 		TLOG(TLVL_TRACE) << "Event fits into one buffer, writing";
 		auto pos = o.tellp();
-		WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), pos, false);
+		WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count, pos, false);
 
 		o.write(reinterpret_cast<const char*>(&header_), sizeof(DTC_EventHeader));
 
@@ -965,31 +965,33 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 	else {
 		TLOG(TLVL_TRACE) << "Event spans multiple buffers, beginning write";
 		auto buffer_start = o.tellp();
-		size_t bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), buffer_start, false);
+		size_t bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count, buffer_start, false);
 
 		o.write(reinterpret_cast<const char*>(&header_), sizeof(DTC_EventHeader));
-		bytes_written += sizeof(DTC_EventHeader);
+		size_t buffer_data_size = sizeof(DTC_EventHeader);
 
 		for (auto& subevt : sub_events_)
 		{
-			if (bytes_written + sizeof(DTC_SubEventHeader) > sizeof(mu2e_databuff_t)) {
-				TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << bytes_written;
-				WriteDMABufferSizeWords(o, includeDMAWriteSize, bytes_written, buffer_start, true);
+			if (bytes_written + buffer_data_size + sizeof(DTC_SubEventHeader) > sizeof(mu2e_databuff_t)) {
+				TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << buffer_data_size;
+				WriteDMABufferSizeWords(o, includeDMAWriteSize, buffer_data_size, buffer_start, true);
 				buffer_start = o.tellp();
-				bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), buffer_start, false);
+				bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count - buffer_data_size, buffer_start, false);
+				buffer_data_size = 0;
 			}
 			o.write(reinterpret_cast<const char*>(subevt.GetHeader()), sizeof(DTC_SubEventHeader));
-			bytes_written += sizeof(DTC_SubEventHeader);
+			buffer_data_size += sizeof(DTC_SubEventHeader);
 			for (auto& blk : subevt.GetDataBlocks())
 			{
-				if (bytes_written + blk.byteSize > sizeof(mu2e_databuff_t)) {
-					TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << bytes_written;
-					WriteDMABufferSizeWords(o, includeDMAWriteSize, bytes_written, buffer_start, true);
+				if (bytes_written + buffer_data_size + blk.byteSize > sizeof(mu2e_databuff_t)) {
+					TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << buffer_data_size;
+					WriteDMABufferSizeWords(o, includeDMAWriteSize, buffer_data_size, buffer_start, true);
 					buffer_start = o.tellp();
-					bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count + sizeof(uint64_t), buffer_start, false);
+					bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count - buffer_data_size, buffer_start, false);
+					buffer_data_size = 0;
 				}
 				o.write(static_cast<const char*>(blk.blockPointer), blk.byteSize);
-				bytes_written += blk.byteSize;
+				buffer_data_size += blk.byteSize;
 			}
 		}
 	}

@@ -1123,8 +1123,8 @@ private:
 
 struct DTC_EventHeader
 {
-	uint64_t inclusive_event_byte_count : 25;
-	uint64_t reserved1 : 7;
+	uint64_t inclusive_event_byte_count : 24;
+	uint64_t reserved1 : 8;
 	uint64_t event_tag_low : 32;
 
 	uint64_t event_tag_high : 16;

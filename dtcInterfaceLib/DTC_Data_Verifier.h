@@ -368,7 +368,7 @@ namespace DTCLib {
 				// Check that DMA Write Buffer Size = DMA Buffer Size + 8
 				if (dmaSize + 8 != dmaWriteSize)
 				{
-					TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at 0x" << std::hex << total_size_read << ". Write size: " << dmaWriteSize << ", DMA Size: " << dmaSize;
+					TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at " << std::showbase << std::hex << total_size_read << ". Write size: " << static_cast<size_t>(dmaWriteSize) << ", DMA Size: " << static_cast<size_t>(dmaSize);
 					success = false;
 					break;
 				}
@@ -378,10 +378,55 @@ namespace DTCLib {
 				current_buffer_offset_ = total_size_read;
 				total_size_read += dmaSize;
 
-				TLOG(TLVL_DEBUG + 1) << "Verifying event at offset 0x" << std::hex << current_buffer_offset_;
+				TLOG(TLVL_DEBUG + 1) << "Verifying event at offset " << std::showbase << std::hex << current_buffer_offset_;
 				DTCLib::DTC_Event thisEvent(buf);
-				thisEvent.SetupEvent();
-				success = VerifyEvent(thisEvent);
+
+				size_t eventByteCount = thisEvent.GetEventByteCount();
+				if (eventByteCount > dmaSize - 8U)
+				{
+					TLOG(TLVL_DEBUG + 1) << "Event is continued in next DMA!";
+					DTC_Event newEvt(eventByteCount);
+					memcpy(const_cast<void*>(newEvt.GetRawBufferPointer()), thisEvent.GetRawBufferPointer(), dmaSize - 8);
+					size_t newEvtSize = dmaSize - 8;
+					while (newEvtSize < eventByteCount)
+					{
+						is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
+						if (!is || is.eof()) {
+							TLOG(TLVL_ERROR) << "File ended while reading continued DMA!";
+							break;
+						}
+
+						total_size_read += sizeof(dmaWriteSize);
+
+						is.read((char*)&dmaSize, sizeof(dmaSize));
+
+						// Check that DMA Write Buffer Size = DMA Buffer Size + 8
+						if (dmaSize + 8 != dmaWriteSize)
+						{
+							TLOG(TLVL_ERROR) << "Buffer error detected: DMA Size mismatch at " << std::showbase << std::hex << total_size_read << ". Write size: " << static_cast<size_t>(dmaWriteSize) << ", DMA Size: " << static_cast<size_t>(dmaSize);
+							success = false;
+							break;
+						}
+
+						// Check that size of all DataBlocks = DMA Buffer Size
+						is.read((char*)buf, dmaSize - 8);
+						current_buffer_offset_ = total_size_read;
+						total_size_read += dmaSize;
+
+						size_t bytes_to_read = dmaSize - 8;
+						if (newEvtSize + dmaSize - 8 > eventByteCount) { bytes_to_read = eventByteCount - newEvtSize; }
+
+						memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(newEvt.GetRawBufferPointer()) + newEvtSize), buf, bytes_to_read);
+						newEvtSize += dmaSize - 8;
+					}
+
+					newEvt.SetupEvent();
+					success = VerifyEvent(newEvt);
+				}
+				else {
+					thisEvent.SetupEvent();
+					success = VerifyEvent(thisEvent);
+				}
 			}
 
 			if (success)
