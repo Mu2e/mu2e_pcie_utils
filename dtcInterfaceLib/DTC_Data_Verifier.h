@@ -384,7 +384,7 @@ namespace DTCLib {
 				size_t eventByteCount = thisEvent.GetEventByteCount();
 				if (eventByteCount > dmaSize - 8U)
 				{
-					TLOG(TLVL_DEBUG + 1) << "Event is continued in next DMA!";
+					TLOG(TLVL_DEBUG + 1) << "Event is continued in next DMA! (Event size " << std::showbase << std::hex << eventByteCount << ", first DMA size " << dmaSize - 8U << ")";
 					DTC_Event newEvt(eventByteCount);
 					memcpy(const_cast<void*>(newEvt.GetRawBufferPointer()), thisEvent.GetRawBufferPointer(), dmaSize - 8);
 					size_t newEvtSize = dmaSize - 8;
@@ -409,6 +409,7 @@ namespace DTCLib {
 						}
 
 						// Check that size of all DataBlocks = DMA Buffer Size
+						TLOG(TLVL_DEBUG + 1) << "Reading continued DMA at offset " << std::showbase << std::hex << total_size_read << " of size " << dmaSize - 8 << " into event";
 						is.read((char*)buf, dmaSize - 8);
 						current_buffer_offset_ = total_size_read;
 						total_size_read += dmaSize;

@@ -969,14 +969,17 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 
 		o.write(reinterpret_cast<const char*>(&header_), sizeof(DTC_EventHeader));
 		size_t buffer_data_size = sizeof(DTC_EventHeader);
+		size_t total_data_size = 0;
 
 		for (auto& subevt : sub_events_)
 		{
 			if (bytes_written + buffer_data_size + sizeof(DTC_SubEventHeader) > sizeof(mu2e_databuff_t)) {
-				TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << buffer_data_size;
+				TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << buffer_data_size << " to old buffer";
 				WriteDMABufferSizeWords(o, includeDMAWriteSize, buffer_data_size, buffer_start, true);
 				buffer_start = o.tellp();
-				bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count - buffer_data_size, buffer_start, false);
+				total_data_size += buffer_data_size;
+				TLOG(TLVL_TRACE) << "Writing anticipated data size " << header_.inclusive_event_byte_count - total_data_size << " to new buffer.";
+				bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count - total_data_size, buffer_start, false);
 				buffer_data_size = 0;
 			}
 			o.write(reinterpret_cast<const char*>(subevt.GetHeader()), sizeof(DTC_SubEventHeader));
@@ -984,10 +987,12 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 			for (auto& blk : subevt.GetDataBlocks())
 			{
 				if (bytes_written + buffer_data_size + blk.byteSize > sizeof(mu2e_databuff_t)) {
-					TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << buffer_data_size;
+					TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << buffer_data_size << " to old buffer";
 					WriteDMABufferSizeWords(o, includeDMAWriteSize, buffer_data_size, buffer_start, true);
 					buffer_start = o.tellp();
-					bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count - buffer_data_size, buffer_start, false);
+					total_data_size += buffer_data_size;
+					TLOG(TLVL_TRACE) << "Writing anticipated data size " << header_.inclusive_event_byte_count - total_data_size << " to new buffer.";
+					bytes_written = WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count - total_data_size, buffer_start, false);
 					buffer_data_size = 0;
 				}
 				o.write(static_cast<const char*>(blk.blockPointer), blk.byteSize);
