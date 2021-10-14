@@ -5,6 +5,8 @@
 // $RCSfile: .emacs.gnu,v $
 // rev="$Revision: 1.23 $$Date: 2012/01/23 15:32:40 $";
 
+#include <filesystem>
+
 #include "dtcInterfaceLib/DTC_Data_Verifier.h"
 
 #include "TRACE/tracemf.h"
@@ -59,7 +61,8 @@ int main(int argc, char* argv[])
 	for (auto& file : binaryFiles)
 	{
 		std::ifstream is(file);
-		std::string ofilename = "DTC_packets_" + file;
+		std::filesystem::path p(file);
+		std::string ofilename = p.parent_path().string()+"/DTC_packets_"+p.filename().string();
 		std::ofstream of(ofilename, std::ios::trunc | std::ios::binary);
 		DTCLib::DTC_Data_Verifier verifier;
 
