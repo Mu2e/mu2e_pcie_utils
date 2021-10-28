@@ -837,7 +837,7 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	if (eventByteCount == 0) {
 		throw std::runtime_error("Event inclusive byte count cannot be zero!");
 	}
-	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index);
+	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index) - sizeof(uint64_t);
 	TLOG(TLVL_ReadNextDAQPacket) << "eventByteCount: " << eventByteCount << ", remainingBufferSize: " << remainingBufferSize;
 	// Check for continued DMA
 	if (eventByteCount > remainingBufferSize)
