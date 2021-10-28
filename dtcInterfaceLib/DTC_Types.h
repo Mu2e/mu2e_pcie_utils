@@ -485,6 +485,31 @@ private:
 };
 
 /// <summary>
+/// A DTC_WrongPacketSizeException is thrown when an attempt to decode a DataHeaderPacket and the packet count does not agree with the block size
+/// </summary>
+class DTC_WrongPacketSizeException : public std::exception
+{
+public:
+	/// <summary>
+	/// A DTC_WrongPacketSizeException is thrown when an attempt is made to construct a DataHeaderPacket with inconsistent sizes
+	/// </summary>
+	/// <param name="expected">Expected block size</param>
+	/// <param name="encountered">Encountered block size</param>
+	DTC_WrongPacketSizeException(int expected, int encountered)
+		: what_("DTC_WrongPacketSizeException: Unexpected block size encountered: " + std::to_string(encountered) + " != " + std::to_string(expected) + " (expected)") {}
+	/// <summary>
+	/// Describe the exception
+	/// </summary>
+	/// <returns>String describing the exception</returns>
+	const char* what() const throw()
+	{
+		return what_.c_str();
+	}
+
+private:
+	std::string what_;
+};
+/// <summary>
 /// A DTC_IOErrorException is thrown when the DTC is not communicating when communication is expected
 /// </summary>
 class DTC_IOErrorException : public std::exception

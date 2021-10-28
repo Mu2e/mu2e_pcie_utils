@@ -744,6 +744,14 @@ DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_DataPacket in)
 	dataPacketVersion_ = arr[13];
 	dtcId_ = arr[14];
 	evbMode_ = arr[15];
+
+	if ((packetCount_ + 1) * 16 != byteCount_) {
+		auto ex = DTC_WrongPacketSizeException((packetCount_ + 1) * 16, byteCount_);
+		TLOG(TLVL_ERROR) << "Unexpected packet size encountered: " + std::to_string((packetCount_ + 1) * 16) + " != " + std::to_string(byteCount_) +
+			" (expected)";
+		TLOG(TLVL_DEBUG) << "Packet contents: " << in.toJSON();
+		throw ex;
+	}
 }
 
 std::string DTCLib::DTC_DataHeaderPacket::toJSON()
@@ -809,6 +817,10 @@ DTCLib::DTC_SubEvent::DTC_SubEvent(const uint8_t*& ptr)
 		}
 		catch (DTC_WrongPacketTypeException const& ex) {
 			TLOG(TLVL_ERROR) << "A DTC_WrongPacketTypeException occurred while setting up the sub event at location 0x" << std::hex << byte_count;
+			throw;
+		}
+		catch (DTC_WrongPacketSizeException const& ex) {
+			TLOG(TLVL_ERROR) << "A DTC_WrongPacketSizeException occurred while setting up the sub event at location 0x" << std::hex << byte_count;
 			throw;
 		}
 	}
@@ -883,6 +895,12 @@ void DTCLib::DTC_Event::SetupEvent()
 		catch (DTC_WrongPacketTypeException const& ex) {
 			TLOG(TLVL_ERROR) << "A DTC_WrongPacketTypeException occurred while setting up the event at location 0x" << std::hex << byte_count;
 			TLOG(TLVL_ERROR) << "This event has been truncated.";
+			break;
+		}
+		catch (DTC_WrongPacketSizeException const& ex) {
+			TLOG(TLVL_ERROR) << "A DTC_WrongPacketSizeException occurred while setting up the event at location 0x" << std::hex << byte_count;
+			TLOG(TLVL_ERROR) << "This event has been truncated.";
+			break;
 		}
 	}
 }

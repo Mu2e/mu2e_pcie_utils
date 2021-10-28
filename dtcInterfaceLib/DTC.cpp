@@ -842,6 +842,9 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	// Check for continued DMA
 	if (eventByteCount > remainingBufferSize)
 	{
+		// We're going to set lastReadPtr here, so that if this buffer isn't used by GetData, we start at the beginning of this event next time
+		daqDMAInfo_.lastReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) - 8;
+
 		auto inmem = std::make_unique<DTC_Event>(eventByteCount);
 		memcpy(const_cast<void*>(inmem->GetRawBufferPointer()), res->GetRawBufferPointer(), remainingBufferSize);
 
@@ -885,20 +888,24 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 			size_t copySize = remainingEventSize < buffer_size - 8 ? remainingEventSize : buffer_size - 8;
 			memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(inmem->GetRawBufferPointer()) + bytes_read), daqDMAInfo_.currentReadPtr, copySize);
 			bytes_read += buffer_size - 8;
+
+			// Increment by the size of the data block
+			daqDMAInfo_.currentReadPtr = reinterpret_cast<char*>(daqDMAInfo_.currentReadPtr) + copySize;
 		}
 
 		res.swap(inmem);
 	}
+	else {
+		// Update the packet pointers
+
+		// lastReadPtr_ is easy...
+		daqDMAInfo_.lastReadPtr = daqDMAInfo_.currentReadPtr;
+
+		// Increment by the size of the data block
+		daqDMAInfo_.currentReadPtr = reinterpret_cast<char*>(daqDMAInfo_.currentReadPtr) + res->GetEventByteCount();
+	}
 	res->SetupEvent();
-
-	// Update the packet pointers
-
-	// lastReadPtr_ is easy...
-	daqDMAInfo_.lastReadPtr = daqDMAInfo_.currentReadPtr;
-
-	// Increment by the size of the data block
-	daqDMAInfo_.currentReadPtr = reinterpret_cast<char*>(daqDMAInfo_.currentReadPtr) + res->GetEventByteCount();
-
+	
 	TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA: RETURN";
 	return res;
 }
