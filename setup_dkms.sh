@@ -8,6 +8,7 @@
 # cd /usr/src
 # git clone https://cdcvs.fnal.gov/projects/pcie_linux_kernel_module pcie_linux_kernel_module-version
 # echo mu2e >/etc/modules-load.d/mu2e.conf
+# echo 'KERNEL=="mu2e*", MODE="0666"' >/etc/udev/rules.d/98-mu2e.rules
 # dkms add -m pcie_linux_kernel_module -v VERSION
 # dkms autoinstall
 
