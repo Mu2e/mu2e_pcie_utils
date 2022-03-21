@@ -964,7 +964,7 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 {
 	UpdateHeader();
 
-	if (header_.inclusive_event_byte_count + sizeof(uint64_t) + (includeDMAWriteSize ? sizeof(uint64_t) : 0) < sizeof(mu2e_databuff_t)) {
+	if (header_.inclusive_event_byte_count + sizeof(uint64_t) + (includeDMAWriteSize ? sizeof(uint64_t) : 0) < MAX_DMA_SIZE) {
 		TLOG(TLVL_TRACE) << "Event fits into one buffer, writing";
 		auto pos = o.tellp();
 		WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count, pos, false);
@@ -991,7 +991,7 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 
 		for (auto& subevt : sub_events_)
 		{
-			if (bytes_written + buffer_data_size + sizeof(DTC_SubEventHeader) > sizeof(mu2e_databuff_t)) {
+			if (bytes_written + buffer_data_size + sizeof(DTC_SubEventHeader) > MAX_DMA_SIZE) {
 				TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << buffer_data_size << " to old buffer";
 				WriteDMABufferSizeWords(o, includeDMAWriteSize, buffer_data_size, buffer_start, true);
 				buffer_start = o.tellp();
@@ -1004,7 +1004,7 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 			buffer_data_size += sizeof(DTC_SubEventHeader);
 			for (auto& blk : subevt.GetDataBlocks())
 			{
-				if (bytes_written + buffer_data_size + blk.byteSize > sizeof(mu2e_databuff_t)) {
+				if (bytes_written + buffer_data_size + blk.byteSize > MAX_DMA_SIZE) {
 					TLOG(TLVL_TRACE) << "Starting new buffer, writing size words " << buffer_data_size << " to old buffer";
 					WriteDMABufferSizeWords(o, includeDMAWriteSize, buffer_data_size, buffer_start, true);
 					buffer_start = o.tellp();
