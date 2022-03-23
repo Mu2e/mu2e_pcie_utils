@@ -373,6 +373,10 @@ namespace DTCLib {
 					break;
 				}
 
+				if (dmaSize > 0x8000) {
+					TLOG(TLVL_WARNING) << "Over-size block detected! DTC has a limit of 0x8000, dma size is " << std::showbase << std::hex << dmaSize << "!";
+				}
+
 				// Check that size of all DataBlocks = DMA Buffer Size
 				is.read((char*)buf, dmaSize - 8);
 				current_buffer_offset_ = total_size_read;
