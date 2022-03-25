@@ -15,7 +15,7 @@ set(CET_CETBUILDTOOLS_COMPAT TRUE)
 include(Compatibility)
 set(CET_WARN_DEPRECATED)
 
-project(pcie_linux_kernel_module VERSION 2.05.14)
+project(pcie_linux_kernel_module VERSION 2.05.15)
 
 include(CetCMakeEnv)
 cet_cmake_env()
