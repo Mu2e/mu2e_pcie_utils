@@ -803,9 +803,7 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	if (index < 0)
 	{
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA Obtaining new DAQ Buffer";
-
-		void* oldBufferPtr = nullptr;
-		if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
+		
 		auto sts = ReadBuffer(DTC_DMA_Engine_DAQ, tmo_ms);  // does return code
 		if (sts <= 0)
 		{
@@ -817,22 +815,18 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
 									 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
 									 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
-		void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
-		if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
-		{
-			TLOG(TLVL_ReadNextDAQPacket)
-				<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
-			daqDMAInfo_.currentReadPtr = nullptr;
-			// We didn't actually get a new buffer...this probably means there's no more data
-			// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
-			device_.read_release(DTC_DMA_Engine_DAQ, 1);
-			return nullptr;
+		for (size_t it = 0; it < daqDMAInfo_.buffer.size() - 1; ++it) {
+			if (daqDMAInfo_.currentReadPtr == &daqDMAInfo_.buffer[it][0])
+			{
+				TLOG(TLVL_ReadNextDAQPacket)
+					<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
+				daqDMAInfo_.currentReadPtr = nullptr;
+				// We didn't actually get a new buffer...this probably means there's no more data
+				// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
+				device_.read_release(DTC_DMA_Engine_DAQ, 1);
+				return nullptr;
+			}
 		}
-		daqDMAInfo_.bufferIndex++;
-
-		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
-		*static_cast<uint32_t*>(daqDMAInfo_.currentReadPtr) = daqDMAInfo_.bufferIndex;
-		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
 
 		index = daqDMAInfo_.buffer.size() - 1;
 	}
@@ -861,8 +855,6 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		{
 			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA Obtaining new DAQ Buffer, bytes_read=" << bytes_read << ", eventByteCount=" << eventByteCount;
 
-			void* oldBufferPtr = nullptr;
-			if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
 			auto sts = ReadBuffer(DTC_DMA_Engine_DAQ, tmo_ms);  // does return code
 			if (sts <= 0)
 			{
@@ -874,23 +866,20 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
 										 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
 										 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
-			void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
-			if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
-			{
-				TLOG(TLVL_ReadNextDAQPacket)
-					<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
-				daqDMAInfo_.currentReadPtr = nullptr;
-				// We didn't actually get a new buffer...this probably means there's no more data
-				// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
-				device_.read_release(DTC_DMA_Engine_DAQ, 1);
-				return nullptr;
+			for (size_t it = 0; it < daqDMAInfo_.buffer.size() - 1; ++it) {
+				if (daqDMAInfo_.currentReadPtr == &daqDMAInfo_.buffer[it][0])
+				{
+					TLOG(TLVL_ReadNextDAQPacket)
+						<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
+					daqDMAInfo_.currentReadPtr = nullptr;
+					// We didn't actually get a new buffer...this probably means there's no more data
+					// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
+					device_.read_release(DTC_DMA_Engine_DAQ, 1);
+					return nullptr;
+				}
 			}
-			daqDMAInfo_.bufferIndex++;
 
 			size_t buffer_size = *static_cast<uint16_t*>(daqDMAInfo_.currentReadPtr);
-			daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
-			*static_cast<uint32_t*>(daqDMAInfo_.currentReadPtr) = daqDMAInfo_.bufferIndex;
-			daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
 
 			size_t remainingEventSize = eventByteCount - bytes_read;
 			size_t copySize = remainingEventSize < buffer_size - 8 ? remainingEventSize : buffer_size - 8;
@@ -961,8 +950,6 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket Obtaining new " << (engine == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS")
 									 << " Buffer";
 
-		void* oldBufferPtr = nullptr;
-		if (info->buffer.size() > 0) oldBufferPtr = &info->buffer.back()[0];
 		auto sts = ReadBuffer(engine, tmo_ms);  // does return code
 		if (sts <= 0)
 		{
@@ -974,22 +961,19 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket info->currentReadPtr=" << (void*)info->currentReadPtr
 									 << " *info->currentReadPtr=0x" << std::hex << *(unsigned*)info->currentReadPtr
 									 << " lastReadPtr_=" << (void*)info->lastReadPtr;
-		void* bufferIndexPointer = static_cast<uint8_t*>(info->currentReadPtr) + 2;
-		if (info->currentReadPtr == oldBufferPtr && info->bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
-		{
-			TLOG(TLVL_ReadNextDAQPacket)
-				<< "ReadNextPacket: New buffer is the same as old. Releasing buffer and returning nullptr";
-			info->currentReadPtr = nullptr;
-			// We didn't actually get a new buffer...this probably means there's no more data
-			// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
-			device_.read_release(engine, 1);
-			return nullptr;
-		}
-		info->bufferIndex++;
 
-		info->currentReadPtr = reinterpret_cast<uint8_t*>(info->currentReadPtr) + 2;
-		*static_cast<uint32_t*>(info->currentReadPtr) = info->bufferIndex;
-		info->currentReadPtr = reinterpret_cast<uint8_t*>(info->currentReadPtr) + 6;
+		for (size_t it = 0; it < info->buffer.size() - 1; ++it) {
+			if (info->currentReadPtr == &info->buffer[it][0])
+			{
+				TLOG(TLVL_ReadNextDAQPacket)
+					<< "ReadNextPacket: New buffer is the same as old. Releasing buffer and returning nullptr";
+				info->currentReadPtr = nullptr;
+				// We didn't actually get a new buffer...this probably means there's no more data
+				// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
+				device_.read_release(engine, 1);
+				return nullptr;
+			}
+		}
 
 		index = info->buffer.size() - 1;
 	}

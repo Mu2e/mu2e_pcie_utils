@@ -75,7 +75,7 @@ namespace DTCLib {
 		unsigned delay = 0;
 		unsigned cfodelay = 1000;
 		unsigned number = 1;
-		unsigned extraReads = 1;
+		unsigned extraReads = 0;
 		unsigned long timestampOffset = 1;
 		unsigned eventCount = 1;
 		unsigned blockCount = 1;
