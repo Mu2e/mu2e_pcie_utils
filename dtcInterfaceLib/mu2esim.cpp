@@ -185,9 +185,8 @@ int mu2esim::read_data(int chn, void** buffer, int tmo_ms)
 			}
 			TLOG(TLVL_ReadData) << "Size of data is " << size - sizeof(uint64_t) << ", reading into buffer " << swIdx_[chn] << ", at "
 								<< (void*)dmaData_[chn][swIdx_[chn]];
-			memcpy(dmaData_[chn][swIdx_[chn]], &size, sizeof(uint64_t));
-			ddrFile_->read(reinterpret_cast<char*>(dmaData_[chn][swIdx_[chn]]) + sizeof(uint64_t), size - sizeof(uint64_t));
-			bytesReturned = size;
+			ddrFile_->read(reinterpret_cast<char*>(dmaData_[chn][swIdx_[chn]]), size - sizeof(uint64_t));
+			bytesReturned = size - sizeof(uint64_t);
 		}
 		else if (chn == 1)
 		{
@@ -216,11 +215,8 @@ int mu2esim::write_data(int chn, void* buffer, size_t bytes)
 		{
 			if (event_) closeEvent_();
 
-			// Strip off first 64-bit word
-			auto writeBytes = *reinterpret_cast<uint64_t*>(buffer) - sizeof(uint64_t);
-			auto ptr = reinterpret_cast<char*>(buffer) + (sizeof(uint64_t) / sizeof(char));
-			ddrFile_->write(ptr, writeBytes);
-			registers_[DTCLib::DTC_Register_DetEmulationDataEndAddress] += static_cast<uint32_t>(writeBytes);
+			ddrFile_->write(reinterpret_cast<const char*>(buffer), bytes);
+			registers_[DTCLib::DTC_Register_DetEmulationDataEndAddress] += static_cast<uint32_t>(bytes);
 			ddrFile_->flush();
 			return 0;
 		}
@@ -561,7 +557,7 @@ void mu2esim::closeEvent_()
 	if (sub_event_) closeSubEvent_();
 	if (event_ && ddrFile_)
 	{
-		event_->WriteEvent(*ddrFile_, false);
+		event_->WriteEvent(*ddrFile_, true);
 		ddrFile_->flush();
 
 		event_.reset(nullptr);

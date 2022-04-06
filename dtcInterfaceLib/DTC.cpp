@@ -194,9 +194,9 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 				auto oldSize = sz;
 				sz = 80;
 				memcpy(buf, &sz, sizeof(uint64_t));
-				uint64_t sixtyFour = 64;
-				memcpy(reinterpret_cast<uint64_t*>(buf) + 1, &sixtyFour, sizeof(uint64_t));
-				bzero(reinterpret_cast<uint64_t*>(buf) + 2, sz - oldSize);
+				uint16_t sixtyFour = 64;
+				memcpy(reinterpret_cast<uint16_t*>(buf) + 1, &sixtyFour, sizeof(uint16_t));
+				bzero(reinterpret_cast<uint64_t*>(buf) + oldSize / sizeof(uint64_t), sz - oldSize);
 			}
 			// is.read((char*)buf + 8, sz - sizeof(uint64_t));
 			if (sz > 0 && (sz + totalSize < 0xFFFFFFFF || simMode_ == DTC_SimMode_LargeFile))
@@ -206,10 +206,10 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 				{
 					TLOG(TLVL_WriteSimFileToDTC3)
 						<< "WriteSimFileToDTC: Stripping off DMA header words and writing to binary file";
-					outputStream.write(reinterpret_cast<char*>(buf) + 16, sz - 16);
+					outputStream.write(reinterpret_cast<char*>(buf) + 8, sz - 8);
 				}
 
-				auto dmaByteCount = *(reinterpret_cast<uint64_t*>(buf) + 1);
+				auto dmaByteCount = *(reinterpret_cast<uint64_t*>(buf) + 1) & 0xFFFFFF;
 				TLOG(TLVL_WriteSimFileToDTC3) << "WriteSimFileToDTC: Inclusive write byte count: " << sz
 											  << ", DMA Byte count: " << dmaByteCount;
 				if (sz - 8 != dmaByteCount)
@@ -288,37 +288,28 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 	{
 		TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC Reading a DMA from file..." << file;
 		uint64_t file_buffer_size;
-		auto buf = reinterpret_cast<mu2e_databuff_t*>(new char[0x10000]);
+		auto buffer_from_file = reinterpret_cast<mu2e_databuff_t*>(new char[0x10000]);
 		is.read(reinterpret_cast<char*>(&file_buffer_size), sizeof(uint64_t));
 		if (is.eof())
 		{
 			TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC End of file reached.";
-			delete[] buf;
+			delete[] buffer_from_file;
 			break;
 		}
-		is.read(reinterpret_cast<char*>(buf), file_buffer_size - sizeof(uint64_t));
+		is.read(reinterpret_cast<char*>(buffer_from_file), file_buffer_size - sizeof(uint64_t));
 		if (file_buffer_size < 80 && file_buffer_size > 0)
 		{
 			//auto oldSize = file_buffer_size;
 			file_buffer_size = 80;
 			uint64_t sixtyFour = 64;
-			memcpy(reinterpret_cast<uint64_t*>(buf), &sixtyFour, sizeof(uint64_t));
+			memcpy(reinterpret_cast<uint64_t*>(buffer_from_file), &sixtyFour, sizeof(uint64_t));
 			//bzero(reinterpret_cast<uint64_t*>(buf) + 2, sz - oldSize);
 		}
 
 		if (file_buffer_size > 0 && (file_buffer_size + totalSize < 0xFFFFFFFF || simMode_ == DTC_SimMode_LargeFile))
 		{
 		  TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC Expected Size is " << file_buffer_size - sizeof(uint64_t) << ", reading from device";
-			auto inclusiveByteCount = *(reinterpret_cast<uint64_t*>(buf));
-			TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC: DMA Write size: " << file_buffer_size
-										   << ", Inclusive byte count: " << inclusiveByteCount;
-			if (file_buffer_size - 8 != inclusiveByteCount)
-			{
-				TLOG(TLVL_ERROR) << "VerifySimFileInDTC: ERROR: DMA Write size " << file_buffer_size
-								 << " is inconsistent with DMA byte count " << inclusiveByteCount << " for DMA at 0x"
-								 << std::hex << totalSize << " (" << file_buffer_size - 8 << " != " << inclusiveByteCount << ")";
-				sizeCheck = false;
-			}
+			TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC: DMA Write size: " << file_buffer_size;
 
 			totalSize += file_buffer_size;
 			n++;
@@ -328,37 +319,35 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 			SetDetectorEmulationDMACount(1);
 			EnableDetectorEmulator();
 
-			mu2e_databuff_t* buffer;
+			mu2e_databuff_t* buffer_from_dtc;
 			auto tmo_ms = 1500;
 			TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC - before read for DAQ ";
-			auto sts = device_.read_data(DTC_DMA_Engine_DAQ, reinterpret_cast<void**>(&buffer), tmo_ms);
+			auto sts = device_.read_data(DTC_DMA_Engine_DAQ, reinterpret_cast<void**>(&buffer_from_dtc), tmo_ms);
 			if (writeOutput && sts > 8)
 			{
 				TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC: Writing to binary file";
-				outputStream.write(reinterpret_cast<char*>(*buffer), sts);
+				outputStream.write(reinterpret_cast<char*>(*buffer_from_dtc), sts);
 			}
 
 			if(sts == 0) {
 			  TLOG(TLVL_ERROR) << "VerifySimFileInDTC Error reading buffer " << n << ", aborting!";
-			  delete[] buf;
+			  delete[] buffer_from_file;
 			  is.close();
 			  if(writeOutput) outputStream.close();
 			  return false;
 			}
-			size_t readSz = *(reinterpret_cast<uint64_t*>(buffer));
-			TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC - after read, bc=" << inclusiveByteCount << " sts=" << sts
-										  << " rdSz=" << readSz;
+			TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC - after read, sts=" << sts << " file_buffer_size=" << file_buffer_size;
 
 			// DMA engine strips off leading 64-bit word
 			TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC - Checking buffer size";
-			if (static_cast<size_t>(sts) != inclusiveByteCount)
+			if (static_cast<size_t>(sts) != file_buffer_size)
 			{
 				TLOG(TLVL_ERROR) << "VerifySimFileInDTC Buffer " << n << " has size 0x" << std::hex << sts
-								 << " but the input file has size 0x" << std::hex << inclusiveByteCount
+						 << " but the input file has size 0x" << std::hex << file_buffer_size 
 								 << " for that buffer!";
 
 				device_.read_release(DTC_DMA_Engine_DAQ, 1);
-				delete[] buf;
+				delete[] buffer_from_file;
 				is.close();
 				if (writeOutput) outputStream.close();
 				return false;
@@ -369,8 +358,8 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 
 			for (size_t ii = 0; ii < cnt; ++ii)
 			{
-				auto l = *(reinterpret_cast<uint64_t*>(*buffer) + ii);
-				auto r = *(reinterpret_cast<uint64_t*>(*buf) + ii); 
+			  auto l = *(reinterpret_cast<uint64_t*>(*buffer_from_dtc) + ii);
+			auto r = *(reinterpret_cast<uint64_t*>(*buffer_from_file) + ii); 
 				if (l != r)
 				{
 					size_t address = totalSize - file_buffer_size + ((ii + 1) * sizeof(uint64_t));
@@ -378,8 +367,8 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 									 << address << "):"
 									 << " Expected 0x" << std::hex << r << ", but got 0x" << std::hex << l
 									 << ". Returning False!";
-					TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC Next words: Expected 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buf) + ii + 1) << ", DTC: 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buffer) + ii + 1);
-					delete[] buf;
+					TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC Next words: Expected 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buffer_from_file) + ii + 1) << ", DTC: 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buffer_from_dtc) + ii + 1);
+					delete[] buffer_from_file;
 					is.close();
 					if (writeOutput) outputStream.close();
 					device_.read_release(DTC_DMA_Engine_DAQ, 1);
@@ -393,7 +382,7 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 			TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC DTC memory is now full. Closing file.";
 			sizeCheck = false;
 		}
-		delete[] buf;
+		delete[] buffer_from_file;
 	}
 
 	TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC Closing file. sizecheck=" << sizeCheck << ", eof=" << is.eof()
@@ -803,9 +792,7 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	if (index < 0)
 	{
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA Obtaining new DAQ Buffer";
-
-		void* oldBufferPtr = nullptr;
-		if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
+		
 		auto sts = ReadBuffer(DTC_DMA_Engine_DAQ, tmo_ms);  // does return code
 		if (sts <= 0)
 		{
@@ -817,22 +804,18 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
 									 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
 									 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
-		void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
-		if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
-		{
-			TLOG(TLVL_ReadNextDAQPacket)
-				<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
-			daqDMAInfo_.currentReadPtr = nullptr;
-			// We didn't actually get a new buffer...this probably means there's no more data
-			// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
-			device_.read_release(DTC_DMA_Engine_DAQ, 1);
-			return nullptr;
+		for (size_t it = 0; it < daqDMAInfo_.buffer.size() - 1; ++it) {
+			if (daqDMAInfo_.currentReadPtr == &daqDMAInfo_.buffer[it][0])
+			{
+				TLOG(TLVL_ReadNextDAQPacket)
+					<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
+				daqDMAInfo_.currentReadPtr = nullptr;
+				// We didn't actually get a new buffer...this probably means there's no more data
+				// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
+				device_.read_release(DTC_DMA_Engine_DAQ, 1);
+				return nullptr;
+			}
 		}
-		daqDMAInfo_.bufferIndex++;
-
-		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
-		*static_cast<uint32_t*>(daqDMAInfo_.currentReadPtr) = daqDMAInfo_.bufferIndex;
-		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
 
 		index = daqDMAInfo_.buffer.size() - 1;
 	}
@@ -861,8 +844,6 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		{
 			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA Obtaining new DAQ Buffer, bytes_read=" << bytes_read << ", eventByteCount=" << eventByteCount;
 
-			void* oldBufferPtr = nullptr;
-			if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
 			auto sts = ReadBuffer(DTC_DMA_Engine_DAQ, tmo_ms);  // does return code
 			if (sts <= 0)
 			{
@@ -874,23 +855,20 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 			TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
 										 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
 										 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
-			void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
-			if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
-			{
-				TLOG(TLVL_ReadNextDAQPacket)
-					<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
-				daqDMAInfo_.currentReadPtr = nullptr;
-				// We didn't actually get a new buffer...this probably means there's no more data
-				// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
-				device_.read_release(DTC_DMA_Engine_DAQ, 1);
-				return nullptr;
+			for (size_t it = 0; it < daqDMAInfo_.buffer.size() - 1; ++it) {
+				if (daqDMAInfo_.currentReadPtr == &daqDMAInfo_.buffer[it][0])
+				{
+					TLOG(TLVL_ReadNextDAQPacket)
+						<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
+					daqDMAInfo_.currentReadPtr = nullptr;
+					// We didn't actually get a new buffer...this probably means there's no more data
+					// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
+					device_.read_release(DTC_DMA_Engine_DAQ, 1);
+					return nullptr;
+				}
 			}
-			daqDMAInfo_.bufferIndex++;
 
 			size_t buffer_size = *static_cast<uint16_t*>(daqDMAInfo_.currentReadPtr);
-			daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
-			*static_cast<uint32_t*>(daqDMAInfo_.currentReadPtr) = daqDMAInfo_.bufferIndex;
-			daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 6;
 
 			size_t remainingEventSize = eventByteCount - bytes_read;
 			size_t copySize = remainingEventSize < buffer_size - 8 ? remainingEventSize : buffer_size - 8;
@@ -961,8 +939,6 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket Obtaining new " << (engine == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS")
 									 << " Buffer";
 
-		void* oldBufferPtr = nullptr;
-		if (info->buffer.size() > 0) oldBufferPtr = &info->buffer.back()[0];
 		auto sts = ReadBuffer(engine, tmo_ms);  // does return code
 		if (sts <= 0)
 		{
@@ -974,22 +950,19 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 		TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket info->currentReadPtr=" << (void*)info->currentReadPtr
 									 << " *info->currentReadPtr=0x" << std::hex << *(unsigned*)info->currentReadPtr
 									 << " lastReadPtr_=" << (void*)info->lastReadPtr;
-		void* bufferIndexPointer = static_cast<uint8_t*>(info->currentReadPtr) + 2;
-		if (info->currentReadPtr == oldBufferPtr && info->bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
-		{
-			TLOG(TLVL_ReadNextDAQPacket)
-				<< "ReadNextPacket: New buffer is the same as old. Releasing buffer and returning nullptr";
-			info->currentReadPtr = nullptr;
-			// We didn't actually get a new buffer...this probably means there's no more data
-			// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
-			device_.read_release(engine, 1);
-			return nullptr;
-		}
-		info->bufferIndex++;
 
-		info->currentReadPtr = reinterpret_cast<uint8_t*>(info->currentReadPtr) + 2;
-		*static_cast<uint32_t*>(info->currentReadPtr) = info->bufferIndex;
-		info->currentReadPtr = reinterpret_cast<uint8_t*>(info->currentReadPtr) + 6;
+		for (size_t it = 0; it < info->buffer.size() - 1; ++it) {
+			if (info->currentReadPtr == &info->buffer[it][0])
+			{
+				TLOG(TLVL_ReadNextDAQPacket)
+					<< "ReadNextPacket: New buffer is the same as old. Releasing buffer and returning nullptr";
+				info->currentReadPtr = nullptr;
+				// We didn't actually get a new buffer...this probably means there's no more data
+				// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
+				device_.read_release(engine, 1);
+				return nullptr;
+			}
+		}
 
 		index = info->buffer.size() - 1;
 	}

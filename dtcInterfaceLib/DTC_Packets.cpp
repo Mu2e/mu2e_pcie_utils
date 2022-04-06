@@ -946,14 +946,15 @@ size_t WriteDMABufferSizeWords(std::ostream& output, bool includeDMAWriteSize, s
 	size_t bytes_written = 0;
 	if (includeDMAWriteSize)
 	{
-		uint64_t dmaWriteSize = data_size + sizeof(uint64_t) + sizeof(uint64_t);
+		uint64_t dmaWriteSize = data_size + sizeof(uint64_t);
 		output.write(reinterpret_cast<const char*>(&dmaWriteSize), sizeof(uint64_t));
 		bytes_written += sizeof(uint64_t);
 	}
 
-	uint64_t dmaSize = data_size + sizeof(uint64_t);
-	output.write(reinterpret_cast<const char*>(&dmaSize), sizeof(uint64_t));
-	bytes_written += sizeof(uint64_t);
+	// DTC now uses size from Event Header directly!
+	//uint64_t dmaSize = data_size + sizeof(uint64_t);
+	//output.write(reinterpret_cast<const char*>(&dmaSize), sizeof(uint64_t));
+	//bytes_written += sizeof(uint64_t);
 	if (restore_pos) {
 		output.seekp(pos_save);
 	}
@@ -964,7 +965,7 @@ void DTCLib::DTC_Event::WriteEvent(std::ostream& o, bool includeDMAWriteSize)
 {
 	UpdateHeader();
 
-	if (header_.inclusive_event_byte_count + sizeof(uint64_t) + (includeDMAWriteSize ? sizeof(uint64_t) : 0) < MAX_DMA_SIZE) {
+	if (header_.inclusive_event_byte_count + (includeDMAWriteSize ? sizeof(uint64_t) : 0) < MAX_DMA_SIZE) {
 		TLOG(TLVL_TRACE) << "Event fits into one buffer, writing";
 		auto pos = o.tellp();
 		WriteDMABufferSizeWords(o, includeDMAWriteSize, header_.inclusive_event_byte_count, pos, false);
