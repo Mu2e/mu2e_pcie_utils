@@ -373,6 +373,8 @@ void DTCLib::Mu2eUtil::verify_stream()
 			continue;
 
 		void* readPtr = &buffer[0];
+		uint16_t bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
+		readPtr = static_cast<uint8_t*>(readPtr) + 8;
 
 		if (timeout)
 		{
@@ -388,11 +390,11 @@ void DTCLib::Mu2eUtil::verify_stream()
 		DTC_Event evt(readPtr);
 		size_t eventByteCount = evt.GetEventByteCount();
 		size_t subEventCount = 0;
-		if (eventByteCount > sts)
+		if (eventByteCount > bufSize - 8U)
 		{
 			DTC_Event newEvt(eventByteCount);
-			memcpy(const_cast<void*>(newEvt.GetRawBufferPointer()), evt.GetRawBufferPointer(), sts);
-			size_t newEvtSize = sts;
+			memcpy(const_cast<void*>(newEvt.GetRawBufferPointer()), evt.GetRawBufferPointer(), bufSize - 8);
+			size_t newEvtSize = bufSize - 8;
 			while (newEvtSize < eventByteCount)
 			{
 				TLOG(TLVL_TRACE) << "Reading continued DMA, current size " << newEvtSize << " / " << eventByteCount;
@@ -403,13 +405,15 @@ void DTCLib::Mu2eUtil::verify_stream()
 					break;
 				}
 				readPtr = &buffer[0];
+				bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
+				readPtr = static_cast<uint8_t*>(readPtr) + 8;
 				buffers_read++;
 
-				size_t bytes_to_read = sts;
-				if (newEvtSize + sts > eventByteCount) { bytes_to_read = eventByteCount - newEvtSize; }
+				size_t bytes_to_read = bufSize - 8;
+				if (newEvtSize + bufSize - 8 > eventByteCount) { bytes_to_read = eventByteCount - newEvtSize; }
 
 				memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(newEvt.GetRawBufferPointer()) + newEvtSize), readPtr, bytes_to_read);
-				newEvtSize += sts;
+				newEvtSize += bufSize - 8;
 			}
 
 			if (!readSuccess && checkSERDES)
@@ -818,6 +822,7 @@ mu2e_databuff_t* DTCLib::Mu2eUtil::readDTCBuffer(mu2edev* device, bool& readSucc
 		readSuccess = true;
 		void* readPtr = &buffer[0];
 		uint16_t bufSize = static_cast<uint16_t>(*static_cast<uint64_t*>(readPtr));
+		readPtr = static_cast<uint8_t*>(readPtr) + 8;
 		TLOG((reallyQuiet ? TLVL_DEBUG + 4 : TLVL_INFO)) << "Buffer reports DMA size of " << std::dec << bufSize << " bytes. Device driver reports read of "
 			<< sts << " bytes," << std::endl;
 
@@ -829,7 +834,7 @@ mu2e_databuff_t* DTCLib::Mu2eUtil::readDTCBuffer(mu2edev* device, bool& readSucc
 			outputStream.write(reinterpret_cast<char*>(&buffer[0]), sts);
 		}
 		else if (rawOutput) {
-			outputStream.write(static_cast<char*>(readPtr), sts );
+			outputStream.write(static_cast<char*>(readPtr), sts - 8);
 		}
 
 		timeout = false;

@@ -113,12 +113,16 @@ int main(int argc, char* argv[])
 		is.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
 		total_size_read += sizeof(dmaWriteSize);
 
+		uint64_t dmaSize;  // DMA buffer size
+		is.read((char*)&dmaSize, sizeof(dmaSize));
+		total_size_read += sizeof(dmaSize);
+
 		// Check that size of all DataBlocks = DMA Buffer Size
-		is.read((char*)buf, dmaWriteSize - 8);
-		total_size_read += dmaWriteSize - 8;
+		is.read((char*)buf, dmaSize);
+		total_size_read += dmaSize;
 
 		size_t offset = 0;
-		while (offset < dmaWriteSize - 8)
+		while (offset < dmaSize)
 		{
 			offset += add_to_map(first_file_contents, buf, offset);
 		}
@@ -139,12 +143,16 @@ int main(int argc, char* argv[])
 		is2.read((char*)&dmaWriteSize, sizeof(dmaWriteSize));
 		total_size_read += sizeof(dmaWriteSize);
 
+		uint64_t dmaSize;  // DMA buffer size
+		is2.read((char*)&dmaSize, sizeof(dmaSize));
+		total_size_read += sizeof(dmaSize);
+
 		// Check that size of all DataBlocks = DMA Buffer Size
-		is2.read((char*)buf, dmaWriteSize - 8);
-		total_size_read += dmaWriteSize - 8;
+		is2.read((char*)buf, dmaSize);
+		total_size_read += dmaSize;
 
 		size_t offset = 0;
-		while (offset < dmaWriteSize - 8)
+		while (offset < dmaSize)
 		{
 			auto header = *reinterpret_cast<DataHeaderPacket*>(buf + offset);
 			size_t blockByteSize = header.s.TransferByteCount;
