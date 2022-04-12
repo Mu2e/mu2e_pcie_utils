@@ -194,9 +194,9 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 				auto oldSize = sz;
 				sz = 80;
 				memcpy(buf, &sz, sizeof(uint64_t));
-				uint16_t sixtyFour = 64;
-				memcpy(reinterpret_cast<uint16_t*>(buf) + 1, &sixtyFour, sizeof(uint16_t));
-				bzero(reinterpret_cast<uint64_t*>(buf) + oldSize / sizeof(uint64_t), sz - oldSize);
+				uint64_t sixtyFour = 64;
+				memcpy(reinterpret_cast<uint64_t*>(buf) + 1, &sixtyFour, sizeof(uint64_t));
+				bzero(reinterpret_cast<uint64_t*>(buf) + 2, sz - oldSize);
 			}
 			// is.read((char*)buf + 8, sz - sizeof(uint64_t));
 			if (sz > 0 && (sz + totalSize < 0xFFFFFFFF || simMode_ == DTC_SimMode_LargeFile))
@@ -206,10 +206,10 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 				{
 					TLOG(TLVL_WriteSimFileToDTC3)
 						<< "WriteSimFileToDTC: Stripping off DMA header words and writing to binary file";
-					outputStream.write(reinterpret_cast<char*>(buf) + 8, sz - 8);
+					outputStream.write(reinterpret_cast<char*>(buf) + 16, sz - 16);
 				}
 
-				auto dmaByteCount = *(reinterpret_cast<uint64_t*>(buf) + 1) & 0xFFFFFF;
+				auto dmaByteCount = *(reinterpret_cast<uint64_t*>(buf) + 1);
 				TLOG(TLVL_WriteSimFileToDTC3) << "WriteSimFileToDTC: Inclusive write byte count: " << sz
 											  << ", DMA Byte count: " << dmaByteCount;
 				if (sz - 8 != dmaByteCount)
@@ -288,28 +288,37 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 	{
 		TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC Reading a DMA from file..." << file;
 		uint64_t file_buffer_size;
-		auto buffer_from_file = reinterpret_cast<mu2e_databuff_t*>(new char[0x10000]);
+		auto buf = reinterpret_cast<mu2e_databuff_t*>(new char[0x10000]);
 		is.read(reinterpret_cast<char*>(&file_buffer_size), sizeof(uint64_t));
 		if (is.eof())
 		{
 			TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC End of file reached.";
-			delete[] buffer_from_file;
+			delete[] buf;
 			break;
 		}
-		is.read(reinterpret_cast<char*>(buffer_from_file), file_buffer_size - sizeof(uint64_t));
+		is.read(reinterpret_cast<char*>(buf), file_buffer_size - sizeof(uint64_t));
 		if (file_buffer_size < 80 && file_buffer_size > 0)
 		{
 			//auto oldSize = file_buffer_size;
 			file_buffer_size = 80;
 			uint64_t sixtyFour = 64;
-			memcpy(reinterpret_cast<uint64_t*>(buffer_from_file), &sixtyFour, sizeof(uint64_t));
+			memcpy(reinterpret_cast<uint64_t*>(buf), &sixtyFour, sizeof(uint64_t));
 			//bzero(reinterpret_cast<uint64_t*>(buf) + 2, sz - oldSize);
 		}
 
 		if (file_buffer_size > 0 && (file_buffer_size + totalSize < 0xFFFFFFFF || simMode_ == DTC_SimMode_LargeFile))
 		{
 		  TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC Expected Size is " << file_buffer_size - sizeof(uint64_t) << ", reading from device";
-			TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC: DMA Write size: " << file_buffer_size;
+			auto inclusiveByteCount = *(reinterpret_cast<uint64_t*>(buf));
+			TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC: DMA Write size: " << file_buffer_size
+										   << ", Inclusive byte count: " << inclusiveByteCount;
+			if (file_buffer_size - 8 != inclusiveByteCount)
+			{
+				TLOG(TLVL_ERROR) << "VerifySimFileInDTC: ERROR: DMA Write size " << file_buffer_size
+								 << " is inconsistent with DMA byte count " << inclusiveByteCount << " for DMA at 0x"
+								 << std::hex << totalSize << " (" << file_buffer_size - 8 << " != " << inclusiveByteCount << ")";
+				sizeCheck = false;
+			}
 
 			totalSize += file_buffer_size;
 			n++;
@@ -319,35 +328,37 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 			SetDetectorEmulationDMACount(1);
 			EnableDetectorEmulator();
 
-			mu2e_databuff_t* buffer_from_dtc;
+			mu2e_databuff_t* buffer;
 			auto tmo_ms = 1500;
 			TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC - before read for DAQ ";
-			auto sts = device_.read_data(DTC_DMA_Engine_DAQ, reinterpret_cast<void**>(&buffer_from_dtc), tmo_ms);
+			auto sts = device_.read_data(DTC_DMA_Engine_DAQ, reinterpret_cast<void**>(&buffer), tmo_ms);
 			if (writeOutput && sts > 8)
 			{
 				TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC: Writing to binary file";
-				outputStream.write(reinterpret_cast<char*>(*buffer_from_dtc), sts);
+				outputStream.write(reinterpret_cast<char*>(*buffer), sts);
 			}
 
 			if(sts == 0) {
 			  TLOG(TLVL_ERROR) << "VerifySimFileInDTC Error reading buffer " << n << ", aborting!";
-			  delete[] buffer_from_file;
+			  delete[] buf;
 			  is.close();
 			  if(writeOutput) outputStream.close();
 			  return false;
 			}
-			TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC - after read, sts=" << sts << " file_buffer_size=" << file_buffer_size;
+			size_t readSz = *(reinterpret_cast<uint64_t*>(buffer));
+			TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC - after read, bc=" << inclusiveByteCount << " sts=" << sts
+										  << " rdSz=" << readSz;
 
 			// DMA engine strips off leading 64-bit word
 			TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC - Checking buffer size";
-			if (static_cast<size_t>(sts) != file_buffer_size)
+			if (static_cast<size_t>(sts) != inclusiveByteCount)
 			{
 				TLOG(TLVL_ERROR) << "VerifySimFileInDTC Buffer " << n << " has size 0x" << std::hex << sts
-						 << " but the input file has size 0x" << std::hex << file_buffer_size 
+								 << " but the input file has size 0x" << std::hex << inclusiveByteCount
 								 << " for that buffer!";
 
 				device_.read_release(DTC_DMA_Engine_DAQ, 1);
-				delete[] buffer_from_file;
+				delete[] buf;
 				is.close();
 				if (writeOutput) outputStream.close();
 				return false;
@@ -358,8 +369,8 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 
 			for (size_t ii = 0; ii < cnt; ++ii)
 			{
-			  auto l = *(reinterpret_cast<uint64_t*>(*buffer_from_dtc) + ii);
-			auto r = *(reinterpret_cast<uint64_t*>(*buffer_from_file) + ii); 
+				auto l = *(reinterpret_cast<uint64_t*>(*buffer) + ii);
+				auto r = *(reinterpret_cast<uint64_t*>(*buf) + ii); 
 				if (l != r)
 				{
 					size_t address = totalSize - file_buffer_size + ((ii + 1) * sizeof(uint64_t));
@@ -367,8 +378,8 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 									 << address << "):"
 									 << " Expected 0x" << std::hex << r << ", but got 0x" << std::hex << l
 									 << ". Returning False!";
-					TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC Next words: Expected 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buffer_from_file) + ii + 1) << ", DTC: 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buffer_from_dtc) + ii + 1);
-					delete[] buffer_from_file;
+					TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC Next words: Expected 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buf) + ii + 1) << ", DTC: 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buffer) + ii + 1);
+					delete[] buf;
 					is.close();
 					if (writeOutput) outputStream.close();
 					device_.read_release(DTC_DMA_Engine_DAQ, 1);
@@ -382,7 +393,7 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 			TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC DTC memory is now full. Closing file.";
 			sizeCheck = false;
 		}
-		delete[] buffer_from_file;
+		delete[] buf;
 	}
 
 	TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC Closing file. sizecheck=" << sizeCheck << ", eof=" << is.eof()
