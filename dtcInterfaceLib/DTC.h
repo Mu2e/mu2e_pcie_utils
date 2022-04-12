@@ -236,10 +236,11 @@ private:
 	struct DMAInfo
 	{
 		std::deque<mu2e_databuff_t*> buffer;
+		uint32_t bufferIndex;
 		void* currentReadPtr;
 		void* lastReadPtr;
 		DMAInfo()
-			: buffer(), currentReadPtr(nullptr), lastReadPtr(nullptr) {}
+			: buffer(), bufferIndex(0), currentReadPtr(nullptr), lastReadPtr(nullptr) {}
 		~DMAInfo()
 		{
 			buffer.clear();
