@@ -251,11 +251,15 @@ void DTCLib::Mu2eUtil::toggle_serdes()
 	delete thisDTC;
 }
 
-void DTCLib::Mu2eUtil::reset_ddr_read()
+void DTCLib::Mu2eUtil::reset_ddr()
 {
-	TLOG(TLVL_DEBUG) << "Resetting DDR Read Address" << std::endl;
+	TLOG(TLVL_DEBUG) << "Resetting DDR Address" << std::endl;
 	auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
+
+	thisDTC->ResetDDRInterface();
 	thisDTC->ResetDDRReadAddress();
+	thisDTC->ResetDDRWriteAddress();
+	thisDTC->ResetDDR();
 	delete thisDTC;
 }
 
@@ -710,9 +714,9 @@ void DTCLib::Mu2eUtil::run()
 	{
 		toggle_serdes();
 	}
-	else if (op == "reset_ddrread")
+	else if (op == "reset_ddr")
 	{
-		reset_ddr_read();
+		reset_ddr();
 	}
 	else if (op == "reset_detemu")
 	{

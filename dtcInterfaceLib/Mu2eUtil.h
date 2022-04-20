@@ -32,7 +32,7 @@ namespace DTCLib {
 		void read_data();
 
 		void toggle_serdes();
-		void reset_ddr_read();
+		void reset_ddr();
 
 		void reset_detector_emulator();
 
