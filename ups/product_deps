@@ -22,8 +22,8 @@ messagefacility	v2_08_07	s116
 messagefacility	v2_08_06	s115
 messagefacility	v2_08_05	s114
 messagefacility	v2_08_04	s112
-TRACE			v3_17_03
-cetmodules		v2_26_00	-	only_for_build
+TRACE			v3_17_04
+cetmodules		v3_08_00	-	only_for_build
 end_product_list
 
 # e6  - with gcc 4.9.1 and -std=c++1y
@@ -33,9 +33,6 @@ qualifier     messagefacility   TRACE   notes
 
 e20:s116:debug e20:debug         -nq-    -std=c++17
 e20:s116:prof  e20:prof          -nq-    -std=c++17
-
-e20:s115:debug e20:debug         -nq-    -std=c++17
-e20:s115:prof  e20:prof          -nq-    -std=c++17
 
 e20:s114:debug e20:debug         -nq-    -std=c++17
 e20:s114:prof  e20:prof          -nq-    -std=c++17
