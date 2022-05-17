@@ -859,6 +859,7 @@ mu2e_databuff_t* DTCLib::Mu2eUtil::readDTCBuffer(mu2edev* device, bool& readSucc
 						: word == 3 ? "rd"
 						: "th")
 						<< " word of buffer is 0x" << std::hex << *wordPtr;
+					DTCLib::Utilities::PrintBuffer(readPtr, 16, 0, TLVL_TRACE + 3);
 					timeout = true;
 					break;
 				}
