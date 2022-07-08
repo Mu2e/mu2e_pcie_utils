@@ -654,8 +654,8 @@ public:
 	/// <summary>
 	/// Set the Event Window Tag using the given low and high words
 	/// </summary>
-	/// <param name="event_tagLow">Lower 32 bits of the Event Window Tag</param>
-	/// <param name="event_tagHigh">Upper 16 bits of the timstamp</param>
+	/// <param name="event_tag_low">Lower 32 bits of the Event Window Tag</param>
+	/// <param name="event_tag_high">Upper 16 bits of the timstamp</param>
 	void SetEventWindowTag(uint32_t event_tag_low, uint16_t event_tag_high);
 
 	/// <summary>

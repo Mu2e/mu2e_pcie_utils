@@ -29,6 +29,7 @@ class mu2esim
 public:
 	/// <summary>
 	/// Construct the mu2esim class. Initializes register space and zeroes out memory.
+	/// <param name="ddrFileName">Name of the simulated DDR memory file</param>
 	/// </summary>
 	mu2esim(std::string ddrFileName);
 	~mu2esim();

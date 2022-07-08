@@ -47,6 +47,7 @@ public:
 	/// Send a Heartbeat Packet and data request for a given timestamp
 	/// </summary>
 	/// <param name="ts">Timestamp for requests</param>
+	/// <param name="heartbeatsAfter">Number of heartbeats after reqeust to drive DTC state machine</param>
 	void SendRequestForTimestamp(DTC_EventWindowTag ts = DTC_EventWindowTag(static_cast<uint64_t>(0)), uint32_t heartbeatsAfter = 16);
 	/// <summary>
 	/// Send Heartbeat Packets and Data Requests for a range of timestamps.
@@ -65,6 +66,7 @@ public:
 	/// </summary>
 	/// <param name="timestamps">List of timestamps to send</param>
 	/// <param name="delayBetweenDataRequests">Number of microseconds to wait between requests</param>
+	/// <param name="heartbeatsAfter">Number of heartbeats after reqeust to drive DTC state machine</param>
 	void SendRequestsForList(std::set<DTC_EventWindowTag> timestamps, uint32_t delayBetweenDataRequests = 0, uint32_t heartbeatsAfter = 16);
 
 	/// <summary>

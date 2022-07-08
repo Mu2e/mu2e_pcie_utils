@@ -26,6 +26,7 @@ public:
 	/// how many ROCs are active on that link. (Default: 0x1)</param> <param name="expectedDesignVersion">Expected DTC
 	/// Firmware Design Version. If set, will throw an exception if the DTC firmware does not match (Default: "")</param>
 	/// <param name="skipInit">Whether to skip full initialization of the DTC</param>
+	/// <param name="simMemoryFile">Name of the simulated DDR memory file if mu2esim is used</param>
 	explicit DTC(DTC_SimMode mode = DTC_SimMode_Disabled, int dtc = -1, unsigned rocMask = 0x1,
 				 std::string expectedDesignVersion = "", bool skipInit = false, std::string simMemoryFile = "mu2esim.bin");
 	virtual ~DTC();
@@ -68,7 +69,7 @@ public:
 	/// </summary>
 	/// <param name="link">Link of the ROC to read</param>
 	/// <param name="address">Address of the register</param>
-	/// <param name="retries">Numberof times to retry when packet address or link does not match request</param>
+	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Value of the ROC register from a DCS Reply packet</returns>
 	roc_data_t ReadROCRegister(const DTC_Link_ID& link, const roc_address_t address, int tmo_ms );
 	/// <summary>
@@ -80,6 +81,7 @@ public:
 	/// <param name="address">Address of the register</param>
 	/// <param name="data">Value to write</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
+	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
 	bool WriteROCRegister(const DTC_Link_ID& link, const roc_address_t address, const roc_data_t data, bool requestAck, int ack_tmo_ms );
 
 	/// <summary>
@@ -88,7 +90,7 @@ public:
 	/// <param name="link">Link of the ROC to read</param>
 	/// <param name="address1">First address to read</param>
 	/// <param name="address2">Second address to read</param>
-	/// <param name="retries">Numberof times to retry when packet address or link does not match request</param>
+	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Pair of register values, first is from the first address, second from the second</returns>
 	std::pair<roc_data_t, roc_data_t> ReadROCRegisters(const DTC_Link_ID& link, const roc_address_t address1,
 													   const roc_address_t address2, int tmo_ms );
@@ -101,6 +103,7 @@ public:
 	/// <param name="address2">Second address to write</param>
 	/// <param name="data2">Value to write to second register</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
+	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
 	bool WriteROCRegisters(const DTC_Link_ID& link, const roc_address_t address1, const roc_data_t data1,
 						   const roc_address_t address2, const roc_data_t data2, bool requestAck, int ack_tmo_ms );
 	/// <summary>
@@ -112,6 +115,7 @@ public:
 	/// <param name="wordCount">Number of words to read</param>
 	/// <returns>Vector of words returned by block read</returns>
 	/// <param name="incrementAddress">Whether to increment the address pointer for block reads/writes</param>
+	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	void ReadROCBlock(std::vector<roc_data_t>& data, const DTC_Link_ID& link, const roc_address_t address, const uint16_t wordCount, bool incrementAddress, int tmo_ms);
 	/// <summary>
 	/// Perform a ROC block write
@@ -121,6 +125,7 @@ public:
 	/// <param name="blockData">Vector of words to write</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="incrementAddress">Whether to increment the address pointer for block reads/writes</param>
+	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
 	bool WriteROCBlock(const DTC_Link_ID& link, const roc_address_t address, const std::vector<roc_data_t>& blockData, bool requestAck, bool incrementAddress, int ack_tmo_ms );
 
 	/// <summary>
@@ -130,7 +135,7 @@ public:
 	/// <param name="link">Link of the ROC to read</param>
 	/// <param name="block">Block ID to read from</param>
 	/// <param name="address">Address of the register</param>
-	/// <param name="retries">Numberof times to retry when packet address or link does not match request</param>
+	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Value of the ROC register from a DCS Reply packet</returns>
 	uint16_t ReadExtROCRegister(const DTC_Link_ID& link, const roc_address_t block, const roc_address_t address, int tmo_ms = 0);
 	/// <summary>
@@ -142,6 +147,7 @@ public:
 	/// <param name="address">Address of the register</param>
 	/// <param name="data">Value to write</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
+	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
 	bool WriteExtROCRegister(const DTC_Link_ID& link, const roc_address_t block, const roc_address_t address, const roc_data_t data, bool requestAck, int ack_tmo_ms);
 	/// <summary>
 	/// Dump all known registers from the given ROC, via DCS Request packets.
@@ -197,6 +203,7 @@ public:
 	/// <summary>
 	/// DCS packets are read one-at-a-time, this function reads the next one from the DTC
 	/// </summary>
+	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Pointer to read DCSReplyPacket. Will be nullptr if no data available.</returns>
 	std::unique_ptr<DTC_DCSReplyPacket> ReadNextDCSPacket(int tmo_ms );
 

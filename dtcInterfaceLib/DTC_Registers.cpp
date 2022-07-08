@@ -29,10 +29,11 @@
 /// </summary>
 /// <param name="mode">Default: DTC_SimMode_Disabled; The simulation mode of the DTC</param>
 /// <param name="dtc">DTC card index to use</param>
-/// <param name="linkMask">Default 0x1; The initially-enabled links. Each digit corresponds to a link, so all links =
-/// 0x111111</param> <param name="skipInit">Default: false; Whether to skip initializing the DTC using the SimMode.
-/// Used to read state.</param> <param name="expectedDesignVersion">Expected DTC Firmware Design Version. If set, will
+/// <param name="simFileName">Name to use for simulated DTC memory file, if needed</param>
+/// <param name="rocMask">Nibble-mask for enabled ROCs. Ex. 0x1011 enables ROC0, 1, and 3</param>
+/// <param name="expectedDesignVersion">Expected DTC Firmware Design Version. If set, will
 /// throw an exception if the DTC firmware does not match (Default: "")</param>
+/// <param name="skipInit">Whether to skip initialization phase for reading DTC out in current state</param>
 DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simFileName, unsigned rocMask, std::string expectedDesignVersion,
 									 bool skipInit)
 	: device_(), simMode_(mode), usingDetectorEmulator_(false), dmaSize_(64)
@@ -75,11 +76,13 @@ DTCLib::DTC_Registers::~DTC_Registers()
 /// <summary>
 /// Initialize the DTC in the given SimMode.
 /// </summary>
-/// <param name="expectedDesignVersion">Expected DTC Firmware Design Version. If set, will throw an exception if the
-/// DTC firmware does not match</param> <param name="mode">Mode to set</param> <param name="dtc">DTC card index to
-/// use</param> <param name="linkMask">Default 0x1; The initially-enabled links. Each digit corresponds to a link, so
-/// all links = 0x111111</param> <param name="skipInit">Whether to skip initializing the DTC using the SimMode. Used
-/// to read state.</param> <returns></returns>
+/// <param name="expectedDesignVersion">Expected DTC Firmware Design Version. If set, will throw an exception if the DTC firmware does not match</param> 
+/// <param name="mode">Mode to set</param>
+/// <param name="dtc">DTC card index to use</param> 
+/// <param name="simMemoryFile">Name to use for simulated DTC memory file, if needed</param>
+/// <param name="rocMask">Default 0x1; The initially-enabled links. Each digit corresponds to a link, so all links = 0x111111</param> 
+/// <param name="skipInit">Whether to skip initializing the DTC using the SimMode. Used to read state.</param> 
+/// <returns></returns>
 DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int dtc, std::string simMemoryFile,
 													  unsigned rocMask, bool skipInit)
 {
@@ -1781,7 +1784,7 @@ bool DTCLib::DTC_Registers::ReadSERDESCDRUnlockError(const DTC_Link_ID& link)
 /// <summary>
 /// Read whether the SERDES PLL Unlock Error bit is set
 /// </summary>
-/// <param name="link">Link to check</param>
+/// <param name="pll">PLL to check</param>
 /// <returns>True if the SERDES PLL Unlock Error bit is set for the given PLL</returns>
 bool DTCLib::DTC_Registers::ReadSERDESPLLUnlockError(const DTC_PLL_ID& pll)
 {
@@ -2051,17 +2054,17 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatDMATimeoutPreset()
 
 // ROC Timeout Preset Register
 /// <summary>
-/// Set the timeout between the reception of a Data Header packet from a ROC and receiving all of the associated Data
-/// Packets. If a timeout occurrs, the ROCTimeoutError flag will be set. Timeout is in SERDES clock ticks
-/// </summary>
-/// <param name="preset">Timeout value. Default: 0x200000</param>
-uint32_t DTCLib::DTC_Registers::ReadROCTimeoutPreset() { return ReadRegister_(DTC_Register_ROCReplyTimeout); }
-
-/// <summary>
 /// Read the timeout between the reception of a Data Header packet from a ROC and receiving all of the associated Data
 /// Packets. If a timeout occurrs, the ROCTimeoutError flag will be set. Timeout is in SERDES clock ticks
 /// </summary>
 /// <returns>Timeout value</returns>
+uint32_t DTCLib::DTC_Registers::ReadROCTimeoutPreset() { return ReadRegister_(DTC_Register_ROCReplyTimeout); }
+
+/// <summary>
+/// Set the timeout between the reception of a Data Header packet from a ROC and receiving all of the associated Data
+/// Packets. If a timeout occurrs, the ROCTimeoutError flag will be set. Timeout is in SERDES clock ticks
+/// </summary>
+/// <param name="preset">Timeout value. Default: 0x200000</param>
 void DTCLib::DTC_Registers::SetROCTimeoutPreset(uint32_t preset)
 {
 	WriteRegister_(preset, DTC_Register_ROCReplyTimeout);
@@ -5230,6 +5233,7 @@ uint32_t DTCLib::DTC_Registers::ReadMissedCFOPacketCount(const DTC_Link_ID& link
 /// <summary>
 /// Clears the Missed CFO Packet Count for the given link
 /// </summary>
+/// <param name="link">Link to clear</param>
 void DTCLib::DTC_Registers::ClearMissedCFOPacketCount(const DTC_Link_ID& link)
 {
 	switch (link)

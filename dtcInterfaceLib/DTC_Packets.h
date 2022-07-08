@@ -305,7 +305,8 @@ public:
 	/// <param name="link">Link ID</param>
 	/// <param name="byteCount">Block byte count. Default is one packet, 16 bytes</param>
 	/// <param name="valid">Valid flag for packet, default true</param>
-	/// <param name="hopCount">Hop count (Subsystem ID) for packet, default 0</param>
+	/// <param name="subsystemID">Subsystem ID for packet</param>
+	/// <param name="hopCount">Hop count for packet, default 0</param>
 	DTC_DMAPacket(DTC_PacketType type, DTC_Link_ID link, uint16_t byteCount = 16, bool valid = true, uint8_t subsystemID = 0, uint8_t hopCount = 0);
 
 	/// <summary>
@@ -588,8 +589,9 @@ public:
 	/// Construct a DTC_HeartbeatPacket
 	/// </summary>
 	/// <param name="link">Destination Link</param>
-	/// <param name="timestamp">Timestamp of request</param>
+	/// <param name="event_tag">Timestamp of request</param>
 	/// <param name="eventMode">Debug event mode bytes (Default: nullptr) If not null, must be 6 bytes long</param>
+	/// <param name="deliveryRingTDC">TDC value from Delivery Ring</param>
 	DTC_HeartbeatPacket(DTC_Link_ID link, DTC_EventWindowTag event_tag, DTC_EventMode eventMode = DTC_EventMode(), uint8_t deliveryRingTDC = 0);
 	/// <summary>
 	/// Default Copy Constructor
@@ -665,7 +667,7 @@ public:
 	/// Construct a DTC_DataRequestPacket
 	/// </summary>
 	/// <param name="link">Destination Link</param>
-	/// <param name="timestamp">Timestamp to request data for</param>
+	/// <param name="event_tag">Timestamp to request data for</param>
 	/// <param name="debug">Debug Mode flag (Default: true)</param>
 	/// <param name="debugPacketCount">Debug Packet Count (Default: 0)</param>
 	/// <param name="type">Debug Type (Default: DTC_DebugType_SpecialSequence</param>
@@ -860,7 +862,7 @@ public:
 	/// <param name="dtcid">DTC ID from which packet came</param>
 	/// <param name="subsystemid">Subsystem ID from which packet came</param>
 	/// <param name="packetVersion">Version of data format</param>
-	/// <param name="timestamp">Timestamp of Data Packet (Default: DTC_Timetstamp())</param>
+	/// <param name="event_tag">Timestamp of Data Packet (Default: DTC_Timetstamp())</param>
 	/// <param name="evbMode">EVB Mode byte (Default: 0)</param>
 	DTC_DataHeaderPacket(DTC_Link_ID link, uint16_t packetCount, DTC_DataStatus status, uint8_t dtcid, DTC_Subsystem subsystemid,
 						 uint8_t packetVersion, DTC_EventWindowTag event_tag = DTC_EventWindowTag(), uint8_t evbMode = 0);
