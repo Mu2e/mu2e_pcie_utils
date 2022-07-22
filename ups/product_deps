@@ -19,11 +19,10 @@ fcldir      -
 #
 product			version		optional
 messagefacility	v2_08_07	s116
-messagefacility	v2_08_06	s115
 messagefacility	v2_08_05	s114
 messagefacility	v2_08_04	s112
-TRACE			v3_17_04
-cetmodules		v3_08_00	-	only_for_build
+TRACE			v3_17_05
+cetmodules		v3_16_00	-	only_for_build
 end_product_list
 
 # e6  - with gcc 4.9.1 and -std=c++1y

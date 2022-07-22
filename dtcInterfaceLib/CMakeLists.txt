@@ -9,27 +9,27 @@ cet_make_library(LIBRARY_NAME DTCInterface SOURCE
             DTC_Types.cpp
             mu2edev.cpp
 	    mu2esim.cpp
-        LIBRARIES
-        pthread
-		MF_MessageLogger
+        LIBRARIES PUBLIC
+        TRACE::MF
+        
 )
 
-cet_make_exec(mu2eUtil SOURCE util_main.cc Mu2eUtil.cpp LIBRARIES DTCInterface)
+cet_make_exec(NAME mu2eUtil SOURCE util_main.cc Mu2eUtil.cpp LIBRARIES pcie_linux_kernel_module::DTCInterface)
 
-cet_make_exec(rocUtil SOURCE dcs_main.cc LIBRARIES DTCInterface)
+cet_make_exec(NAME rocUtil SOURCE dcs_main.cc LIBRARIES pcie_linux_kernel_module::DTCInterface)
 
-cet_make_exec(data_file_verifier SOURCE data_file_verifier.cc LIBRARIES MF_MessageLogger DTCInterface)
+cet_make_exec(NAME data_file_verifier SOURCE data_file_verifier.cc LIBRARIES  pcie_linux_kernel_module::DTCInterface)
 
-cet_make_exec(binary_dump_to_DTC_file SOURCE binary_dump_to_DTC_file.cc LIBRARIES MF_MessageLogger DTCInterface)
+cet_make_exec(NAME binary_dump_to_DTC_file SOURCE binary_dump_to_DTC_file.cc LIBRARIES  pcie_linux_kernel_module::DTCInterface)
 
-cet_make_exec(DTC_binary_file_compare SOURCE DTC_binary_file_compare.cc LIBRARIES MF_MessageLogger DTCInterface)
+cet_make_exec(NAME DTC_binary_file_compare SOURCE DTC_binary_file_compare.cc LIBRARIES  pcie_linux_kernel_module::DTCInterface)
 
-cet_make_exec(mu2eRequestSender SOURCE requestSender.cc LIBRARIES DTCInterface)
+cet_make_exec(NAME mu2eRequestSender SOURCE requestSender.cc LIBRARIES pcie_linux_kernel_module::DTCInterface)
 
-cet_make_exec(DTCRegDump SOURCE dtcRegDump.cc LIBRARIES DTCInterface)
+cet_make_exec(NAME DTCRegDump SOURCE dtcRegDump.cc LIBRARIES pcie_linux_kernel_module::DTCInterface)
 
-cet_make_exec(my_cntl SOURCE my_cntl.cc LIBRARIES DTCInterface)
-cet_make_exec(rick_clock_test SOURCE rick_clock_test.cc LIBRARIES DTCInterface)
+cet_make_exec(NAME my_cntl SOURCE my_cntl.cc LIBRARIES pcie_linux_kernel_module::DTCInterface)
+cet_make_exec(NAME rick_clock_test SOURCE rick_clock_test.cc LIBRARIES pcie_linux_kernel_module::DTCInterface)
 
 # Install_headers MUST BE FIRST...for some reason
 install_headers()
