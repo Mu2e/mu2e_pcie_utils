@@ -7,15 +7,11 @@
 # ======================================================================
 
 
-# use cmake 3.16 or later
-cmake_minimum_required (VERSION 3.16)
+cmake_minimum_required (VERSION 3.19 FATAL_ERROR)
 
-find_package(cetmodules)
-set(CET_CETBUILDTOOLS_COMPAT TRUE)
-include(Compatibility)
-set(CET_WARN_DEPRECATED)
+find_package(cetmodules 3.16.00 REQUIRED)
 
-project(pcie_linux_kernel_module VERSION 2.05.20)
+project(pcie_linux_kernel_module VERSION 2.06.00)
 
 include(CetCMakeEnv)
 cet_cmake_env()
@@ -34,13 +30,8 @@ string(TOUPPER ${CMAKE_BUILD_TYPE} BTYPE_UC )
 
 #cet_report_compiler_flags()
 
-# these are minimum required versions, not the actual product versions
-find_ups_product( cetpkgsupport v1_08_03 )
-find_ups_product( messagefacility v1_00_00 )
-find_ups_product( TRACE v3_03_00 )
-
-# macros for art_dictionary and simple_plugin
-include(CetTest)
+find_package(TRACE 3.17.05 REQUIRED)
+find_package(messagefacility REQUIRED)
 
 # source
 add_subdirectory(mu2e_driver)
