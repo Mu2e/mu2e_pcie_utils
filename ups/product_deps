@@ -18,6 +18,7 @@ fcldir      -
 
 #
 product			version		optional
+messagefacility v2_09_00    s118
 messagefacility	v2_08_07	s116
 messagefacility	v2_08_05	s114
 messagefacility	v2_08_04	s112
@@ -29,6 +30,10 @@ end_product_list
 # -nq- here means there is no qualifier
 # a "-" here means the dependent product is not required by the parent and will not be setup
 qualifier     messagefacility   TRACE   notes
+e26:s118:debug e26:debug         -nq-    -std=c++17
+e26:s118:prof  e26:prof          -nq-    -std=c++17
+e20:s118:debug e20:debug         -nq-    -std=c++17
+e20:s118:prof  e20:prof          -nq-    -std=c++17
 
 e20:s116:debug e20:debug         -nq-    -std=c++17
 e20:s116:prof  e20:prof          -nq-    -std=c++17

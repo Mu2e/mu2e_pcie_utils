@@ -168,7 +168,7 @@ std::string DTCLib::DTC_EventWindowTag::toJSON(bool arrayMode) const
 
 std::string DTCLib::DTC_EventWindowTag::toPacketFormat() const
 {
-	uint8_t ts[6];
+	uint8_t ts[6]{0,0,0,0,0,0};
 	GetEventWindowTag(ts, 0);
 	std::stringstream ss;
 	ss << std::setfill('0') << std::hex;
