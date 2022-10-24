@@ -9,9 +9,9 @@
 
 cmake_minimum_required (VERSION 3.19 FATAL_ERROR)
 
-find_package(cetmodules 3.16.00 REQUIRED)
+find_package(cetmodules 3.19.02 REQUIRED)
 
-project(pcie_linux_kernel_module VERSION 2.06.01)
+project(pcie_linux_kernel_module VERSION 2.07.00)
 
 include(CetCMakeEnv)
 cet_cmake_env()
