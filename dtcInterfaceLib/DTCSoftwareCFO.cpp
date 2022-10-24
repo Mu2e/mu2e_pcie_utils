@@ -45,8 +45,8 @@ DTCLib::DTCSoftwareCFO::DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t d
 DTCLib::DTCSoftwareCFO::~DTCSoftwareCFO()
 {
 	TLOG(TLVL_TRACE) << "~DTCSoftwareCFO BEGIN";
-	//theDTC_->DisableAutogenDRP();
-	//theDTC_->DisableCFOEmulatorDRP();
+	// theDTC_->DisableAutogenDRP();
+	// theDTC_->DisableCFOEmulatorDRP();
 	abort_ = true;
 	if (theThread_ && theThread_->joinable()) theThread_->join();
 	TLOG(TLVL_TRACE) << "~DTCSoftwareCFO END";
@@ -75,7 +75,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 	{
 		for (auto link : DTC_Links)
 		{
-			if (!linkMode_[link].TimingEnable && linkMode_[link].TransmitEnable)
+			if (linkMode_[link].TransmitEnable)
 			{
 				TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp before SendReadoutRequestPacket";
 				theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
@@ -108,13 +108,13 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 		theDTC_->SetCFOEmulationTimestamp(ts);
 		for (auto link : DTC_Links)
 		{
-			if (!linkMode_[link].TimingEnable && linkMode_[link].TransmitEnable)
+			if (linkMode_[link].TransmitEnable)
 			{
 				theDTC_->SetCFOEmulationNumPackets(link, debugPacketCount_);
 			}
 		}
-		theDTC_->SetCFOEmulationNumRequests(1);
-		theDTC_->SetCFOEmulationRequestInterval(20000);
+		theDTC_->SetCFOEmulationNumHeartbeats(1);
+		theDTC_->SetCFOEmulationHeartbeatInterval(20000);
 		theDTC_->SetCFOEmulationDebugType(debugType_);
 		theDTC_->SetCFOEmulationModeByte(5, 1);
 		theDTC_->SetCFOEmulationNumNullHeartbeats(heartbeatsAfter);
@@ -180,12 +180,12 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 		theDTC_->SetCFOEmulationTimestamp(start);
 		for (auto link : DTC_Links)
 		{
-			if (!linkMode_[link].TimingEnable && linkMode_[link].TransmitEnable)
+			if (linkMode_[link].TransmitEnable)
 			{
 				theDTC_->SetCFOEmulationNumPackets(link, debugPacketCount_);
 			}
 		}
-		theDTC_->SetCFOEmulationNumRequests(count);
+		theDTC_->SetCFOEmulationNumHeartbeats(count);
 		theDTC_->SetCFOEmulationDebugType(debugType_);
 		theDTC_->SetCFOEmulationModeByte(5, 1);
 		theDTC_->SetCFOEmulationNumNullHeartbeats(heartbeatsAfter);
@@ -193,7 +193,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 			theDTC_->EnableDebugPacketMode();
 		else
 			theDTC_->DisableDebugPacketMode();
-		theDTC_->SetCFOEmulationRequestInterval(delayBetweenDataRequests);
+		theDTC_->SetCFOEmulationHeartbeatInterval(delayBetweenDataRequests);
 		TLOG(TLVL_SendRequestsForRange) << "SendRequestsForRange enabling DTC CFO Emulator";
 		theDTC_->EnableCFOEmulation();
 		TLOG(TLVL_SendRequestsForRange) << "SendRequestsForRange done";
@@ -245,12 +245,12 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_EventWind
 		theDTC_->SetCFOEmulationTimestamp(thisTimestamp);
 		for (auto link : DTC_Links)
 		{
-			if (!linkMode_[link].TimingEnable && linkMode_[link].TransmitEnable)
+			if (linkMode_[link].TransmitEnable)
 			{
 				theDTC_->SetCFOEmulationNumPackets(link, debugPacketCount_);
 			}
 		}
-		theDTC_->SetCFOEmulationNumRequests(1);
+		theDTC_->SetCFOEmulationNumHeartbeats(1);
 		theDTC_->SetCFOEmulationNumNullHeartbeats(heartbeatsAfter);
 		theDTC_->SetCFOEmulationDebugType(debugType_);
 		theDTC_->SetCFOEmulationModeByte(5, 1);
@@ -258,7 +258,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_EventWind
 			theDTC_->EnableDebugPacketMode();
 		else
 			theDTC_->DisableDebugPacketMode();
-		theDTC_->SetCFOEmulationRequestInterval(delayBetweenDataRequests);
+		theDTC_->SetCFOEmulationHeartbeatInterval(delayBetweenDataRequests);
 		TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRange enabling DTC CFO Emulator";
 		theDTC_->EnableCFOEmulation();
 		TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRange done";
@@ -295,13 +295,10 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag st
 		auto ts = start + (increment ? ii : 0);
 		for (auto link : DTC_Links)
 		{
-			if (!linkMode_[link].TimingEnable)
+			if (linkMode_[link].TransmitEnable)
 			{
-				if (linkMode_[link].TransmitEnable)
-				{
-					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
-					theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
-				}
+				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
+				theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
 			}
 			if (abort_) return;
 		}
@@ -315,30 +312,19 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag st
 		auto ts = start + (increment ? ii : 0);
 		for (auto link : DTC_Links)
 		{
-			if (!linkMode_[link].TimingEnable)
+			if (linkMode_[link].TransmitEnable)
 			{
-				if (linkMode_[link].TransmitEnable)
+				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before DTC_DataRequestPacket req";
+				DTC_DataRequestPacket req(link, ts, !forceNoDebug_, static_cast<uint16_t>(debugPacketCount_), debugType_);
+				if (debugType_ == DTC_DebugType_ExternalSerialWithReset && !stickyDebugType_)
 				{
-					int maxRoc;
-					if ((maxRoc = theDTC_->ReadLinkROCCount(link)) != 0)
-					{
-						for (uint8_t roc = 0; roc <= maxRoc; ++roc)
-						{
-							TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before DTC_DataRequestPacket req";
-							DTC_DataRequestPacket req(link, ts, !forceNoDebug_, static_cast<uint16_t>(debugPacketCount_), debugType_);
-							if (debugType_ == DTC_DebugType_ExternalSerialWithReset && !stickyDebugType_)
-							{
-								debugType_ = DTC_DebugType_ExternalSerial;
-							}
-							TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before WriteDMADAQPacket - DTC_DataRequestPacket";
-							if (!quiet_) std::cout << req.toJSON() << std::endl;
-							theDTC_->WriteDMAPacket(req);
-							TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl after  WriteDMADAQPacket - DTC_DataRequestPacket";
-							if (abort_) return;
-						}
-					}
-					// usleep(2000);
+					debugType_ = DTC_DebugType_ExternalSerial;
 				}
+				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before WriteDMADAQPacket - DTC_DataRequestPacket";
+				if (!quiet_) std::cout << req.toJSON() << std::endl;
+				theDTC_->WriteDMAPacket(req);
+				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl after  WriteDMADAQPacket - DTC_DataRequestPacket";
+				if (abort_) return;
 			}
 			if (abort_) return;
 		}
@@ -350,13 +336,10 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag st
 		auto ts = start + (increment ? count + ii : 0);
 		for (auto link : DTC_Links)
 		{
-			if (!linkMode_[link].TimingEnable)
+			if (linkMode_[link].TransmitEnable)
 			{
-				if (linkMode_[link].TransmitEnable)
-				{
-					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
-					theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
-				}
+				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
+				theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
 			}
 			if (abort_) return;
 		}

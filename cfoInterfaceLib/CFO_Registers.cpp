@@ -93,7 +93,7 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 		else
 		{
 			int rocCount = (maxDTCs_ >> (link * 4)) & 0xF;
-			EnableLink(link, DTC_LinkEnableMode(true, true, false), rocCount);
+			EnableLink(link, DTC_LinkEnableMode(true, true), rocCount);
 		}
 		if (!LinkEnabled) SetSERDESLoopbackMode(link, DTC_SERDESLoopbackMode_Disabled);
 	}
@@ -511,7 +511,7 @@ void CFOLib::CFO_Registers::DisableLink(const CFO_Link_ID& link, const DTC_LinkE
 DTCLib::DTC_LinkEnableMode CFOLib::CFO_Registers::ReadLinkEnabled(const CFO_Link_ID& link)
 {
 	std::bitset<32> dataSet = ReadRegister_(CFO_Register_LinkEnable);
-	return DTC_LinkEnableMode(dataSet[link], dataSet[link + 8], false);
+	return DTC_LinkEnableMode(dataSet[link], dataSet[link + 8]);
 }
 
 DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatLinkEnable()

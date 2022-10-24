@@ -120,7 +120,7 @@ void DTCLib::DTCLibTest::doTests()
 	std::cout << "DEBUG 1" << std::endl;
 	running_ = true;
 	// Make sure that the link is enabled before the tests.
-	thisDTC_->EnableLink(DTC_Link_0, DTC_LinkEnableMode(true, true, false));
+	thisDTC_->EnableLink(DTC_Link_0, DTC_LinkEnableMode(true, true));
 
 	auto testCount = 0;
 	while (testCount < nTests_ || nTests_ < 0)
@@ -366,7 +366,7 @@ void DTCLib::DTCLibTest::doRegTest()
 			std::cout << "Value after: " << link0New << std::endl;
 		}
 		// Make sure that the link is enabled after the test.
-		thisDTC_->EnableLink(DTC_Link_0, DTC_LinkEnableMode(true, true, false));
+		thisDTC_->EnableLink(DTC_Link_0, DTC_LinkEnableMode(true, true));
 		if (link0New != link0Value)
 		{
 			if (printMessages_)
@@ -458,9 +458,7 @@ void DTCLib::DTCLibTest::doDAQTest()
 	}
 	try
 	{
-		thisDTC_->EnableLink(DTC_Link_0, DTC_LinkEnableMode(true, true, false));
-		thisDTC_->DisableTiming();
-		thisDTC_->SetMaxROCNumber(DTC_Link_0, 1);
+		thisDTC_->EnableLink(DTC_Link_0, DTC_LinkEnableMode(true, true));
 
 		DTCSoftwareCFO theCFO(thisDTC_, true, 0, DTC_DebugType_SpecialSequence, true, !printMessages_);
 		theCFO.SendRequestForTimestamp();

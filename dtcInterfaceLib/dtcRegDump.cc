@@ -17,6 +17,9 @@ void printHelpMsg()
 			  << "    -R: DON'T Print Register Dump." << std::endl
 			  << "    -s: Print SERDES Byte and Packet Counters." << std::endl
 			  << "    -p: Print Performance Counters." << std::endl
+			  << "    -e: Print SERDES Error Counters" << std::endl
+			  << "    -c: Print Mu2e protocol packet Counters" << std::endl
+			  << "    -m: Use <file> as the emulated DTC memory area" << std::endl
 			  << "    -d: DTC instance to use (defaults to DTCLIB_DTC if set, 0 otherwise)" << std::endl;
 
 	exit(0);
@@ -26,6 +29,9 @@ int main(int argc, char* argv[])
 {
 	auto printSERDESCounters = false;
 	auto printRegisterDump = true;
+	auto printSERDESErrors = false;
+	auto printProtocolCounters = false;
+	auto printPerformanceCounters = false;
 	int dtc = -1;
 	std::string memFileName = "mu2esim.bin";
 
@@ -46,6 +52,15 @@ int main(int argc, char* argv[])
 					break;
 				case 'm':
 					memFileName = DTCLib::Utilities::getOptionString(&optind, &argv);
+					break;
+				case 'p':
+					printPerformanceCounters = true;
+					break;
+				case 'e':
+					printSERDESErrors = true;
+					break;
+				case 'c':
+					printProtocolCounters = true;
 					break;
 				default:
 					std::cout << "Unknown option: " << argv[optind] << std::endl;
@@ -92,6 +107,27 @@ int main(int argc, char* argv[])
 		std::cout << std::endl
 				  << std::endl;
 		std::cout << thisDTC->LinkCountersRegDump(cols);
+	}
+
+	if (printPerformanceCounters)
+	{
+		std::cout << std::endl
+				  << std::endl;
+		std::cout << thisDTC->PerformanceCountersRegDump(cols);
+	}
+
+	if (printSERDESErrors)
+	{
+		std::cout << std::endl
+				  << std::endl;
+		std::cout << thisDTC->SERDESErrorsRegDump(cols);
+	}
+
+	if (printProtocolCounters)
+	{
+		std::cout << std::endl
+				  << std::endl;
+		std::cout << thisDTC->PacketCountersRegDump(cols);
 	}
 
 	delete thisDTC;

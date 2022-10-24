@@ -124,7 +124,7 @@ int mu2esim::init(DTCLib::DTC_SimMode mode)
 	registers_[DTCLib::DTC_Register_DTCControl] = 0x00000003;              // System Clock, Timing Enable
 	registers_[DTCLib::DTC_Register_DMATransferLength] = 0x80000010;       // Default value from HWUG
 	registers_[DTCLib::DTC_Register_SERDESLoopbackEnable] = 0x00000000;    // SERDES Loopback Disabled
-	registers_[DTCLib::DTC_Register_ClockOscillatorStatus] = 0x20002;      // Initialization Complete, no IIC Error
+	registers_[DTCLib::DTC_Register_SERDESDDRClockStatus] = 0x20002;       // Initialization Complete, no IIC Error
 	registers_[DTCLib::DTC_Register_ROCEmulationEnable] = 0x3F;            // ROC Emulators enabled (of course!)
 	registers_[DTCLib::DTC_Register_LinkEnable] = 0x3F3F;                  // All links Tx/Rx enabled, CFO and timing disabled
 	registers_[DTCLib::DTC_Register_SERDES_PLLLocked] = 0x7F;              // SERDES PLL Locked
@@ -132,14 +132,12 @@ int mu2esim::init(DTCLib::DTC_SimMode mode)
 	registers_[DTCLib::DTC_Register_SERDES_RXCDRLockStatus] = 0x7F00007F;  // RX CDR Locked
 	registers_[DTCLib::DTC_Register_DMATimeoutPreset] = 0x800;             // DMA Timeout Preset
 	registers_[DTCLib::DTC_Register_ROCReplyTimeout] = 0x200000;           // ROC Timeout Preset
-	registers_[DTCLib::DTC_Register_LinkPacketLength] = 0x10;
-	registers_[DTCLib::DTC_Register_SERDESOscillatorIICBusLow] = 0xFFFFFFFF;
-	registers_[DTCLib::DTC_Register_SERDESOscillatorIICBusHigh] = 0x77f3f;
-	registers_[DTCLib::DTC_Register_DDROscillatorReferenceFrequency] = 0xbebc200;
-	registers_[DTCLib::DTC_Register_DDROscillatorIICBusLow] = 0x1074f43b;
-	registers_[DTCLib::DTC_Register_DDROscillatorIICBusHigh] = 0x30303;
+	registers_[DTCLib::DTC_Register_SERDESClock_IICBusLow] = 0xFFFFFFFF;
+	registers_[DTCLib::DTC_Register_SERDESClock_IICBusHigh] = 0x77f3f;
+	registers_[DTCLib::DTC_Register_DDRReferenceClockFrequency] = 0xbebc200;
+	registers_[DTCLib::DTC_Register_DDRClock_IICBusLow] = 0x1074f43b;
+	registers_[DTCLib::DTC_Register_DDRClock_IICBusHigh] = 0x30303;
 	registers_[DTCLib::DTC_Register_DataPendingTimer] = 0x00002000;  // Data pending timeout preset
-	registers_[DTCLib::DTC_Register_NUMROCs] = 0x1;                  // NUMROCs 0 for all links,except Link 0 which has 1
 	registers_[DTCLib::DTC_Register_EthernetFramePayloadSize] = 0x5D4;
 	registers_[DTCLib::DTC_Register_FPGAPROMProgramStatus] = 0x1;
 
@@ -220,7 +218,7 @@ int mu2esim::write_data(int chn, void* buffer, size_t bytes)
 			auto writeBytes = *reinterpret_cast<uint64_t*>(buffer) - sizeof(uint64_t);
 			auto ptr = reinterpret_cast<char*>(buffer) + (sizeof(uint64_t) / sizeof(char));
 			ddrFile_->write(ptr, writeBytes);
-			registers_[DTCLib::DTC_Register_DetEmulationDataEndAddress] += static_cast<uint32_t>(writeBytes);
+			registers_[DTCLib::DTC_Register_DetEmulation_DataEndAddress] += static_cast<uint32_t>(writeBytes);
 			ddrFile_->flush();
 			return 0;
 		}
@@ -350,7 +348,7 @@ int mu2esim::write_register(uint16_t address, int tmo_ms, uint32_t data)
 	std::bitset<32> dataBS(data);
 	if (address == DTCLib::DTC_Register_DTCControl)
 	{
-		auto detectorEmulationMode = (registers_[DTCLib::DTC_Register_DetEmulationControl0] & 0x3) != 0;
+		auto detectorEmulationMode = (registers_[DTCLib::DTC_Register_DetEmulation_Control0] & 0x3) != 0;
 		if (dataBS[30] == 1 && !detectorEmulationMode)
 		{
 			TLOG(TLVL_WriteRegister2) << "mu2esim::write_register: CFO Emulator Enable Detected!";
@@ -379,14 +377,14 @@ int mu2esim::write_register(uint16_t address, int tmo_ms, uint32_t data)
 			reopenDDRFile_();
 		}
 	}
-	if (address == DTCLib::DTC_Register_DetEmulationControl0)
+	if (address == DTCLib::DTC_Register_DetEmulation_Control0)
 	{
 		if (dataBS[0] == 0)
 		{
 			reopenDDRFile_();
 		}
 	}
-	if (address == DTCLib::DTC_Register_DetEmulationDataStartAddress)
+	if (address == DTCLib::DTC_Register_DetEmulation_DataStartAddress)
 	{
 		ddrFile_->seekg(data);
 	}
@@ -402,17 +400,17 @@ void mu2esim::CFOEmulator_()
 		registers_[0x9100] = ctrlReg.to_ulong();
 		return;
 	}
-	DTCLib::DTC_EventWindowTag start(registers_[DTCLib::DTC_Register_CFOEmulationTimestampLow],
-									 static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulationTimestampHigh]));
-	auto count = registers_[DTCLib::DTC_Register_CFOEmulationNumRequests];
-	auto ticksToWait = static_cast<long long>(registers_[DTCLib::DTC_Register_CFOEmulationRequestInterval] * 0.0064);
+	DTCLib::DTC_EventWindowTag start(registers_[DTCLib::DTC_Register_CFOEmulation_TimestampLow],
+									 static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_TimestampHigh]));
+	auto count = registers_[DTCLib::DTC_Register_CFOEmulation_NumHeartbeats];
+	auto ticksToWait = static_cast<long long>(registers_[DTCLib::DTC_Register_CFOEmulation_HeartbeatInterval] * 0.0064);
 	TLOG(TLVL_CFOEmulator) << "mu2esim::CFOEmulator_ start timestamp=" << start.GetEventWindowTag(true) << ", count=" << count
 						   << ", delayBetween=" << ticksToWait;
 	bool linkEnabled[6];
 	for (auto link : DTCLib::DTC_Links)
 	{
-		std::bitset<32> linkRocs(registers_[DTCLib::DTC_Register_NUMROCs]);
-		auto number = linkRocs[link * 3] + (linkRocs[link * 3 + 1] << 1) + (linkRocs[link * 3 + 2] << 2);
+		std::bitset<32> linkRocs(registers_[DTCLib::DTC_Register_LinkEnable]);
+		auto number = linkRocs[link] + linkRocs[link + 8];
 		TLOG(TLVL_CFOEmulator) << "mu2esim::CFOEmulator_ linkRocs[" << static_cast<int>(link) << "]=" << number;
 		linkEnabled[link] = number != 0;
 	}
@@ -434,22 +432,22 @@ void mu2esim::CFOEmulator_()
 				switch (link)
 				{
 					case DTCLib::DTC_Link_0:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulationNumPacketsLinks10]);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks10]);
 						break;
 					case DTCLib::DTC_Link_1:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulationNumPacketsLinks10] >> 16);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks10] >> 16);
 						break;
 					case DTCLib::DTC_Link_2:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulationNumPacketsLinks32]);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks32]);
 						break;
 					case DTCLib::DTC_Link_3:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulationNumPacketsLinks32] >> 16);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks32] >> 16);
 						break;
 					case DTCLib::DTC_Link_4:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulationNumPacketsLinks54]);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks54]);
 						break;
 					case DTCLib::DTC_Link_5:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulationNumPacketsLinks54] >> 16);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks54] >> 16);
 						break;
 					default:
 						packetCount = 0;
@@ -546,11 +544,11 @@ DTCLib::DTC_EventMode mu2esim::getEventMode_()
 {
 	DTCLib::DTC_EventMode event_mode;
 
-	event_mode.mode0 = static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF);
-	event_mode.mode1 = static_cast<uint8_t>((registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF00) >> 8);
-	event_mode.mode2 = static_cast<uint8_t>((registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF0000) >> 16);
-	event_mode.mode3 = static_cast<uint8_t>((registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF000000) >> 24);
-	event_mode.mode4 = static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulationEventMode2] & 0xFF);
+	event_mode.mode0 = static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF);
+	event_mode.mode1 = static_cast<uint8_t>((registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF00) >> 8);
+	event_mode.mode2 = static_cast<uint8_t>((registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF0000) >> 16);
+	event_mode.mode3 = static_cast<uint8_t>((registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF000000) >> 24);
+	event_mode.mode4 = static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulation_EventMode2] & 0xFF);
 
 	return event_mode;
 }
@@ -683,7 +681,7 @@ void mu2esim::trackerBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_
 	uint16_t buffer[24];
 
 	size_t nPackets = 2;
-	DTCLib::DTC_DataHeaderPacket header(link, nPackets, DTCLib::DTC_DataStatus_Valid, DTCID, DTCLib::DTC_Subsystem_Tracker, CURRENT_EMULATED_TRACKER_VERSION, ts, static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF));
+	DTCLib::DTC_DataHeaderPacket header(link, nPackets, DTCLib::DTC_DataStatus_Valid, DTCID, DTCLib::DTC_Subsystem_Tracker, CURRENT_EMULATED_TRACKER_VERSION, ts, static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF));
 	memcpy(&buffer[0], header.ConvertToDataPacket().GetData(), 16);
 
 	uint16_t strawID = ((static_cast<int>(link) + (DTCID * 6)) << 7) + 1;
@@ -759,7 +757,7 @@ void mu2esim::calorimeterBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::
 	}
 
 	size_t nPackets = (buffer.size() / 8) - 1;
-	DTCLib::DTC_DataHeaderPacket header(link, nPackets, DTCLib::DTC_DataStatus_Valid, DTCID, DTCLib::DTC_Subsystem_Calorimeter, CURRENT_EMULATED_CALORIMETER_VERSION, ts, static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF));
+	DTCLib::DTC_DataHeaderPacket header(link, nPackets, DTCLib::DTC_DataStatus_Valid, DTCID, DTCLib::DTC_Subsystem_Calorimeter, CURRENT_EMULATED_CALORIMETER_VERSION, ts, static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF));
 	memcpy(&buffer[0], header.ConvertToDataPacket().GetData(), 16);
 
 	DTCLib::DTC_DataBlock block(buffer.size() * sizeof(uint16_t));
@@ -772,7 +770,7 @@ void mu2esim::crvBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_Link
 	uint16_t buffer[24];
 
 	size_t nPackets = 2;
-	DTCLib::DTC_DataHeaderPacket header(link, nPackets, DTCLib::DTC_DataStatus_Valid, DTCID, DTCLib::DTC_Subsystem_CRV, CURRENT_EMULATED_CRV_VERSION, ts, static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF));
+	DTCLib::DTC_DataHeaderPacket header(link, nPackets, DTCLib::DTC_DataStatus_Valid, DTCID, DTCLib::DTC_Subsystem_CRV, CURRENT_EMULATED_CRV_VERSION, ts, static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF));
 	memcpy(&buffer[0], header.ConvertToDataPacket().GetData(), 16);
 
 	// ROC Status packet
@@ -784,7 +782,7 @@ void mu2esim::crvBlockSimulator_(DTCLib::DTC_EventWindowTag ts, DTCLib::DTC_Link
 	buffer[12] = 0;
 	buffer[13] = 1;
 	buffer[14] = 0;
-	buffer[15] = static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulationEventMode1] & 0xFF) << 8;
+	buffer[15] = static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF) << 8;
 
 	// Hit Readout
 	buffer[16] = 0;

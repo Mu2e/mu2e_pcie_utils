@@ -272,6 +272,63 @@ struct DTC_RXStatusConverter
 	}
 };
 
+enum DTC_PRBSMode
+{
+	DTC_PRBSMode_Normal = 0,
+	DTC_PRBSMode_7 = 1,
+	DTC_PRBSMode_15 = 2,
+	DTC_PRBSMode_23 = 3,
+	DTC_PRBSMode_31 = 4,
+	DTC_PRBSMode_PCIExpress = 5,
+	DTC_PRBSMode_2UISquare = 6,
+	DTC_PRBSMode_20UISquare = 7,
+};
+
+struct DTC_PRBSModeConverter
+{
+	DTC_PRBSMode mode_;  ///< DTC_PRBSMode to convert
+
+	/// <summary>
+	/// Construct a DTC_RXStatusConverter instance using the given DTC_RXStatus
+	/// </summary>
+	/// <param name="status">DTC_RXStatus to convert</param>
+	explicit DTC_PRBSModeConverter(DTC_PRBSMode status)
+		: mode_(status) {}
+
+	/// <summary>
+	/// Convert the DTC_RXStatus to its string representation
+	/// </summary>
+	/// <returns>String representation of DTC_RXStatus</returns>
+	std::string toString() const
+	{
+		switch (mode_)
+		{
+			case DTC_PRBSMode_Normal:
+				return "Normal";
+			case DTC_PRBSMode_7:
+				return "PRBS-7";
+			case DTC_PRBSMode_15:
+				return "PRBS-15";
+			case DTC_PRBSMode_23:
+				return "PRBS-23";
+			case DTC_PRBSMode_31:
+				return "PRBS-31";
+			case DTC_PRBSMode_PCIExpress:
+				return "PCIExpress";
+			case DTC_PRBSMode_2UISquare:
+				return "2UISquare";
+			case DTC_PRBSMode_20UISquare:
+				return "20UISquare";
+		}
+		return "Unknown";
+	}
+
+	friend std::ostream& operator<<(std::ostream& stream, const DTC_PRBSModeConverter& mode)
+	{
+		stream << "\"DTC_PRBSMode\":\"" << mode.toString() << "\"";
+		return stream;
+	}
+};
 enum DTC_SERDESLoopbackMode
 {
 	DTC_SERDESLoopbackMode_Disabled = 0,
@@ -879,13 +936,12 @@ struct DTC_LinkEnableMode
 {
 	bool TransmitEnable;  ///< Whether transmit is enabled on this link
 	bool ReceiveEnable;   ///< Whether receive is enabled on this link
-	bool TimingEnable;    ///< Whether timing is enabled on this link
 
 	/// <summary>
 	/// Default constructor. Sets all enable bits to true.
 	/// </summary>
 	DTC_LinkEnableMode()
-		: TransmitEnable(true), ReceiveEnable(true), TimingEnable(true) {}
+		: TransmitEnable(true), ReceiveEnable(true) {}
 
 	/// <summary>
 	/// Construct a DTC_LinkEnableMode instance with the given flags
@@ -893,8 +949,8 @@ struct DTC_LinkEnableMode
 	/// <param name="transmit">Enable TX</param>
 	/// <param name="receive">Enable RX</param>
 	/// <param name="timing">Enable CFO</param>
-	DTC_LinkEnableMode(bool transmit, bool receive, bool timing)
-		: TransmitEnable(transmit), ReceiveEnable(receive), TimingEnable(timing) {}
+	DTC_LinkEnableMode(bool transmit, bool receive)
+		: TransmitEnable(transmit), ReceiveEnable(receive) {}
 
 	/// <summary>
 	/// Write the DTC_LinkEnableMode to stream in JSON format.
@@ -907,8 +963,7 @@ struct DTC_LinkEnableMode
 	{
 		auto formatSet = (stream.flags() & std::ios_base::boolalpha) != 0;
 		stream.setf(std::ios_base::boolalpha);
-		stream << "{\"TransmitEnable\":" << mode.TransmitEnable << ",\"ReceiveEnable\":" << mode.ReceiveEnable
-			   << ",\"TimingEnable\":" << mode.TimingEnable << "}";
+		stream << "{\"TransmitEnable\":" << mode.TransmitEnable << ",\"ReceiveEnable\":" << mode.ReceiveEnable << "}";
 		if (!formatSet) stream.unsetf(std::ios_base::boolalpha);
 		return stream;
 	}
@@ -922,8 +977,7 @@ struct DTC_LinkEnableMode
 	/// <returns>Whether all three bits of both sides are equal</returns>
 	friend bool operator==(const DTC_LinkEnableMode& left, const DTC_LinkEnableMode& right)
 	{
-		return left.TransmitEnable == right.TransmitEnable && left.ReceiveEnable == right.ReceiveEnable &&
-			   left.TimingEnable == right.TimingEnable;
+		return left.TransmitEnable == right.TransmitEnable && left.ReceiveEnable == right.ReceiveEnable;
 	}
 
 	/// <summary>
