@@ -5,6 +5,11 @@ else()
   execute_process(COMMAND uname -r OUTPUT_VARIABLE KVERS OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
+get_cmake_property(_variableNames VARIABLES)
+foreach(_variableName ${_variableNames})
+	message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()
+
 if(EXISTS "$ENV{TRACE_DIR}/module/${KVERS}/TRACE.ko")
   # Using a UPS product version of TRACE
   set(TRACE_KO "$ENV{TRACE_DIR}/module/${KVERS}/TRACE.ko")
