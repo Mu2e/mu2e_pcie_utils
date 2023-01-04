@@ -12,8 +12,8 @@ endif()
 
 if(EXISTS "${TRACE_BIN_DIR}/../module/${KVERS}/TRACE.ko")
   # Using a UPS product version of TRACE
-  set(TRACE_KO "${TRACE_BIN_DIR}/module/${KVERS}/TRACE.ko")
-  set(ESYMS "${TRACE_BIN_DIR}/module/${KVERS}/Module.symvers")
+  set(TRACE_KO "${TRACE_BIN_DIR}/../module/${KVERS}/TRACE.ko")
+  set(ESYMS "${TRACE_BIN_DIR}/../module/${KVERS}/Module.symvers")
 else()
   # MRB Build or TRACE not available. WILL FAIL if not available!
   #set(TRACE_KO "${CMAKE_BINARY_DIR}/TRACE/module/${KVERS}/TRACE.ko")
@@ -56,7 +56,7 @@ add_custom_command(
             ${TRACE_KO}
 )
 
-add_custom_target(mymodule2 ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/../drivers/${KVERS}/mu2e.ko)
+add_custom_target(mu2e_driver ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/../drivers/${KVERS}/mu2e.ko)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../drivers DESTINATION .)
 
 install_headers()
