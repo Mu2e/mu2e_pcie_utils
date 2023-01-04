@@ -5,15 +5,15 @@ else()
   execute_process(COMMAND uname -r OUTPUT_VARIABLE KVERS OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
-get_cmake_property(_variableNames VARIABLES)
-foreach(_variableName ${_variableNames})
-	message(STATUS "${_variableName}=${${_variableName}}")
-endforeach()
+#get_cmake_property(_variableNames VARIABLES)
+#foreach(_variableName ${_variableNames})
+#	message(STATUS "${_variableName}=${${_variableName}}")
+#endforeach()
 
-if(EXISTS "$ENV{TRACE_DIR}/module/${KVERS}/TRACE.ko")
+if(EXISTS "${TRACE_BIN_DIR}/../module/${KVERS}/TRACE.ko")
   # Using a UPS product version of TRACE
-  set(TRACE_KO "$ENV{TRACE_DIR}/module/${KVERS}/TRACE.ko")
-  set(ESYMS "$ENV{TRACE_DIR}/module/${KVERS}/Module.symvers")
+  set(TRACE_KO "${TRACE_BIN_DIR}/module/${KVERS}/TRACE.ko")
+  set(ESYMS "${TRACE_BIN_DIR}/module/${KVERS}/Module.symvers")
 else()
   # MRB Build or TRACE not available. WILL FAIL if not available!
   #set(TRACE_KO "${CMAKE_BINARY_DIR}/TRACE/module/${KVERS}/TRACE.ko")
