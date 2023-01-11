@@ -5,7 +5,7 @@ function do_rate_test() {
 source /mu2e/ups/setup
 source /cvmfs/mu2e.opensciencegrid.org/artexternals/setups
 
-setup pcie_linux_kernel_module v2_05_11 -qe20:s112:prof
+setup mu2e_pcie_utils v2_08_00 -qe20:s112:prof
 source Setup_DTC.sh
 
 # Configure DTC Library

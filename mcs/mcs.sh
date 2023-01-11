@@ -11,7 +11,7 @@ file=$1; shift
 
 # find the mcs and devl executables
 if type mcs >/dev/null;then :;else
-    echo "ERROR - mcs and devl executables not found - setup pcie_linux_kernel_driver"
+    echo "ERROR - mcs and devl executables not found - setup mu2e_pcie_utils"
     exit
 fi
 
