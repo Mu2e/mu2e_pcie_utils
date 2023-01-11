@@ -1,5 +1,5 @@
 # ======================================================================
-#  pcie_linux_kernel_module main build file
+#  mu2e_pcie_utils main build file
 #
 #  cd .../path/to/build/directory
 #  source .../path/to/artdaq-demo/ups/setup_for_development
@@ -11,7 +11,7 @@ cmake_minimum_required (VERSION 3.19 FATAL_ERROR)
 
 find_package(cetmodules 3.19.02 REQUIRED)
 
-project(pcie_linux_kernel_module VERSION 2.07.00)
+project(mu2e_pcie_utils VERSION 2.08.00)
 
 include(CetCMakeEnv)
 cet_cmake_env()
