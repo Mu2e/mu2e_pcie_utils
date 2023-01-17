@@ -5,10 +5,15 @@ else()
   execute_process(COMMAND uname -r OUTPUT_VARIABLE KVERS OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
-if(EXISTS "$ENV{TRACE_DIR}/module/${KVERS}/TRACE.ko")
+#get_cmake_property(_variableNames VARIABLES)
+#foreach(_variableName ${_variableNames})
+#	message(STATUS "${_variableName}=${${_variableName}}")
+#endforeach()
+
+if(EXISTS "${TRACE_BIN_DIR}/../module/${KVERS}/TRACE.ko")
   # Using a UPS product version of TRACE
-  set(TRACE_KO "$ENV{TRACE_DIR}/module/${KVERS}/TRACE.ko")
-  set(ESYMS "$ENV{TRACE_DIR}/module/${KVERS}/Module.symvers")
+  set(TRACE_KO "${TRACE_BIN_DIR}/../module/${KVERS}/TRACE.ko")
+  set(ESYMS "${TRACE_BIN_DIR}/../module/${KVERS}/Module.symvers")
 else()
   # MRB Build or TRACE not available. WILL FAIL if not available!
   #set(TRACE_KO "${CMAKE_BINARY_DIR}/TRACE/module/${KVERS}/TRACE.ko")
@@ -32,7 +37,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/mu2e_pci.h ${CMAKE_CURRENT_BINARY_DIR}
 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/mu2e_proto_globals.h ${CMAKE_CURRENT_BINARY_DIR}
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/xdma_hw.h ${CMAKE_CURRENT_BINARY_DIR}
-    COMMAND make CC=/usr/bin/gcc EXTRA_SYMBOLS="KBUILD_EXTRA_SYMBOLS=${ESYMS}" TRACE_INC="$ENV{TRACE_DIR}/include"
+    COMMAND make CC=/usr/bin/gcc EXTRA_SYMBOLS="KBUILD_EXTRA_SYMBOLS=${ESYMS}" TRACE_INC="${TRACE_INCLUDE_DIR}"
 	COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/../drivers/${KVERS}
     COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_CURRENT_BINARY_DIR}/mu2e.ko ${CMAKE_CURRENT_BINARY_DIR}/../drivers/${KVERS}/mu2e.ko
     COMMAND make clean
@@ -51,7 +56,7 @@ add_custom_command(
             ${TRACE_KO}
 )
 
-add_custom_target(mymodule2 ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/../drivers/${KVERS}/mu2e.ko)
+add_custom_target(mu2e_driver ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/../drivers/${KVERS}/mu2e.ko)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../drivers DESTINATION .)
 
 install_headers()
