@@ -18,16 +18,22 @@ fcldir      -
 
 #
 product			version		optional
+messagefacility v2_10_01    s122
 messagefacility v2_09_00    s118
 messagefacility	v2_08_04	s112
 TRACE			v3_17_07
-cetmodules		v3_19_02	-	only_for_build
+cetmodules		v3_21_00	-	only_for_build
 end_product_list
 
 # e6  - with gcc 4.9.1 and -std=c++1y
 # -nq- here means there is no qualifier
 # a "-" here means the dependent product is not required by the parent and will not be setup
 qualifier     messagefacility   TRACE   notes
+e26:s122:debug e26:debug         -nq-    -std=c++17
+e26:s122:prof  e26:prof          -nq-    -std=c++17
+e20:s122:debug e20:debug         -nq-    -std=c++17
+e20:s122:prof  e20:prof          -nq-    -std=c++17
+
 e26:s118:debug e26:debug         -nq-    -std=c++17
 e26:s118:prof  e26:prof          -nq-    -std=c++17
 e20:s118:debug e20:debug         -nq-    -std=c++17
