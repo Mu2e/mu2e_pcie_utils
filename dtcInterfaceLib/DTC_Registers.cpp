@@ -94,7 +94,11 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 		throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
 	}
 
-	if (skipInit) return simMode_;
+	if (skipInit || true) 
+	{
+		TLOG(TLVL_INFO) << "SKIPPING Initializing device";
+		return simMode_;
+	}
 
 	TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	for (auto link : DTC_Links)
