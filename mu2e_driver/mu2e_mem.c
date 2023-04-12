@@ -112,6 +112,7 @@ int alloc_mem(int dtc)
 		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_BUFF] = mu2e_pci_recver[dtc][chn].databuffs;
 		va = kmalloc(MU2E_NUM_RECV_BUFFS * sizeof(int), GFP_KERNEL);
 		if (va == NULL) goto out;
+		mu2e_pci_recver[dtc][chn].buffer_sizes = va;
 		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META] = va;
 
 		TRACE(1, "alloc_mem mu2e_pci_recver[%d][%u].meta@%p", dtc, chn, mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META]);
@@ -181,6 +182,7 @@ int alloc_mem(int dtc)
 		mu2e_pci_sender[dtc][chn].buffdesc_ring = va;
 		va = kmalloc(MU2E_NUM_SEND_BUFFS * sizeof(int), GFP_KERNEL);
 		if (va == NULL) goto out;
+		mu2e_pci_sender[dtc][chn].buffer_sizes = va;
 		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META] = va;
 
 		TRACE(1,
@@ -265,7 +267,7 @@ void free_mem(int dtc)
 		kfree(mu2e_pci_recver[dtc][chn].buffdesc_ring);
 		kfree(mu2e_pci_recver[dtc][chn].databuffs_dma);
 		kfree(mu2e_pci_recver[dtc][chn].buffdesc_ring_dma);
-		kfree(mu2e_mmap_ptrs[dtc][chn][C2S][MU2E_MAP_META]);
+		kfree(mu2e_pci_recver[dtc][chn].buffer_sizes);
 	}
 	for (chn = 0; chn < MU2E_NUM_SEND_CHANNELS; ++chn)
 	{
@@ -275,6 +277,6 @@ void free_mem(int dtc)
 		if (mu2e_pci_sender[dtc][chn].buffdesc_ring)
 			dma_free_coherent(&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_buffdesc_S2C_t) * MU2E_NUM_SEND_BUFFS,
 							  mu2e_pci_sender[dtc][chn].buffdesc_ring, mu2e_pci_sender[dtc][chn].buffdesc_ring_dma);
-		kfree(mu2e_mmap_ptrs[dtc][chn][S2C][MU2E_MAP_META]);
+		kfree(mu2e_pci_sender[dtc][chn].buffer_sizes);
 	}
 }  // free_mem
