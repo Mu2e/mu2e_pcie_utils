@@ -85,7 +85,7 @@ static void poll_packets(
 )
 {
 	unsigned long base;
-	int error, did_work;
+	int error, did_work, offset;
 	int chn, dir;
 	unsigned nxtCachedCmpltIdx;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
@@ -185,7 +185,7 @@ static void poll_packets(
 	// Reschedule poll routine.
 	packets_timer_guard[dtc] = 1;
 	offset = HZ / PACKET_POLL_HZ + (error ? 5 * HZ : 0);
-	packets_timer[dtc].expires = jiffies + offset;
+	packets_timer[dtc].timer.expires = jiffies + offset;
 	add_timer(&packets_timer[dtc].timer);
 	TRACE(21, "poll_packets: After reschedule, offset=%i", offset);
 #endif
