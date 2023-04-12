@@ -72,7 +72,7 @@ void mu2e_fs_down()
 {
 	cdev_del(&mu2e_cdev);
 	class_destroy(mu2e_dev_class);
-	unregister_chrdev_region(mu2e_dev_number, 1);
+	unregister_chrdev_region(mu2e_dev_number, MU2E_MAX_NUM_DTCS);
 }
 
 int mu2e_open(struct inode *inode, struct file *filp)
