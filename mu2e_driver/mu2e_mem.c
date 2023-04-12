@@ -93,15 +93,14 @@ int alloc_mem(int dtc)
 		mu2e_pci_recver[dtc][chn].databuffs_dma = va;
 		mu2e_pci_recver[dtc][chn].buffdesc_ring_dma = vb;
 
-
-
 		for (ii = 0; ii < MU2E_NUM_RECV_BUFFS; ++ii)
 		{
-			mu2e_pci_recver[dtc][chn].databuffs[ii] = dma_alloc_coherent(
-				&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_databuff_t), &(mu2e_pci_recver[dtc][chn].databuffs_dma[ii]), GFP_KERNEL);
-			mu2e_pci_recver[dtc][chn].buffdesc_ring[ii] =
-				dma_alloc_coherent(&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_buffdesc_C2S_t),
-								   &(mu2e_pci_recver[dtc][chn].buffdesc_ring_dma[ii]), GFP_KERNEL);
+			va = dma_alloc_coherent(&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_databuff_t), &(mu2e_pci_recver[dtc][chn].databuffs_dma[ii]), GFP_KERNEL);
+			if (va == NULL) goto out;
+			mu2e_pci_recver[dtc][chn].databuffs[ii] = va;
+			va = dma_alloc_coherent(&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_buffdesc_C2S_t), &(mu2e_pci_recver[dtc][chn].buffdesc_ring_dma[ii]), GFP_KERNEL);
+			if (va == NULL) goto out;
+			mu2e_pci_recver[dtc][chn].buffdesc_ring[ii] = va;
 			TRACE(1,
 				  "alloc_mem mu2e_pci_recver[%d][%u][%u].databuffs=%p databuffs_dma=0x%llx "
 				  "buffdesc_ring=%p buffdesc_ring_dma=0x%llx",
@@ -180,6 +179,7 @@ int alloc_mem(int dtc)
 								GFP_KERNEL);
 		if (va == NULL) goto out;
 		mu2e_pci_sender[dtc][chn].buffdesc_ring = va;
+
 		va = kmalloc(MU2E_NUM_SEND_BUFFS * sizeof(int), GFP_KERNEL);
 		if (va == NULL) goto out;
 		mu2e_pci_sender[dtc][chn].buffer_sizes = va;
@@ -228,6 +228,7 @@ int alloc_mem(int dtc)
 
 	return ret;
 out:
+	TRACE(0, "alloc_mem, failed to allocate, aborting!");
 	free_mem(dtc);
 	return -1;
 }

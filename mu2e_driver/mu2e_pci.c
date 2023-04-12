@@ -234,7 +234,7 @@ static void mu2e_pci_remove(struct pci_dev *pdev)
 #endif
 	printk("mu2e_pci_remove dtc=%d destroying device\n", dtc);
 	device_destroy(mu2e_dev_class, pdev->dev.devt);
-#if 1
+
 	printk("mu2e_pci_remove dtc=%d disabling interrupts\n", dtc);
 	Dma_mIntDisable((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr);
 
@@ -245,7 +245,7 @@ static void mu2e_pci_remove(struct pci_dev *pdev)
 	printk("mu2e_pci_remove dtc=%d disabling MSI (enabled=%d)\n", dtc, MSIEnabled[dtc]);
 	if (MSIEnabled[dtc]) pci_disable_msi(pdev);
 #endif
-#endif
+
 	pci_release_regions(pdev);
 	printk("mu2e_pci_remove dtc=%d after release_regions, before disable_device\n", dtc);
 	pci_disable_device(pdev);
