@@ -189,7 +189,7 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	device_create(mu2e_dev_class, NULL, pdev->dev.devt, NULL, MU2E_DEV_FILE, dtc);
-#if 0
+#if 1
 	mu2e_event_up(dtc);
 #endif
 #if MU2E_RECV_INTER_ENABLED
@@ -224,17 +224,7 @@ static void mu2e_pci_remove(struct pci_dev *pdev)
 
 	if (mu2e_pci_dev[dtc] == 0) return;
 	printk("mu2e_pci_remove start dtc=%d\n ", dtc);
-#if 0
-	printk("mu2e_pci_remove dtc=%d disabling events\n", dtc);
-	mu2e_event_down(dtc);
-#endif
-#if 1
-	printk("mu2e_pci_remove dtc=%d freeing memory\n", dtc);
-	free_mem(dtc);
-#endif
-	printk("mu2e_pci_remove dtc=%d destroying device\n", dtc);
-	device_destroy(mu2e_dev_class, pdev->dev.devt);
-
+		
 	printk("mu2e_pci_remove dtc=%d disabling interrupts\n", dtc);
 	Dma_mIntDisable((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr);
 
@@ -245,6 +235,20 @@ static void mu2e_pci_remove(struct pci_dev *pdev)
 	printk("mu2e_pci_remove dtc=%d disabling MSI (enabled=%d)\n", dtc, MSIEnabled[dtc]);
 	if (MSIEnabled[dtc]) pci_disable_msi(pdev);
 #endif
+
+#if 1
+	printk("mu2e_pci_remove dtc=%d disabling events\n", dtc);
+	mu2e_event_down(dtc);
+#endif
+
+	printk("mu2e_pci_remove dtc=%d destroying device\n", dtc);
+	device_destroy(mu2e_dev_class, pdev->dev.devt);
+
+#if 1
+	printk("mu2e_pci_remove dtc=%d freeing memory\n", dtc);
+	free_mem(dtc);
+#endif
+
 
 	pci_release_regions(pdev);
 	printk("mu2e_pci_remove dtc=%d after release_regions, before disable_device\n", dtc);
