@@ -194,6 +194,7 @@ int alloc_mem(int dtc)
 		mu2e_channel_info_[dtc][chn][dir].dir = dir;
 		mu2e_channel_info_[dtc][chn][dir].buff_size = sizeof(mu2e_databuff_t);
 		mu2e_channel_info_[dtc][chn][dir].num_buffs = MU2E_NUM_SEND_BUFFS;
+
 		for (jj = 0; jj < MU2E_NUM_SEND_BUFFS; ++jj)
 		{ /* ring -> link to next (and last to 1st via modulus) */
 			mu2e_pci_sender[dtc][chn].buffdesc_ring[jj].NextDescPtr =
@@ -218,14 +219,17 @@ int alloc_mem(int dtc)
 		// reset HW_Completed register
 		Dma_mWriteChnReg(dtc, chn, dir, REG_HW_CMPLT_BD, 0);
 
+		TRACE(1, "alloc_mem enabling DMA engine");
 		Dma_mWriteChnReg(dtc, chn, dir, REG_DMA_ENG_CTRL_STATUS, DMA_ENG_ENABLE);
 	}
 
+	TRACE(1, "alloc_mem setting DTC DMA registers");
 	/* Now, finish up with some more mu2e fpga user application stuff... */
 	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9104,
 				  0x80000040);                                                            // write max and min DMA xfer sizes
 	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9150, 0x00000010);  // set ring packet size
 
+	TRACE(1, "alloc_mem complete");
 	return ret;
 out:
 	TRACE(0, "alloc_mem, failed to allocate, aborting!");
