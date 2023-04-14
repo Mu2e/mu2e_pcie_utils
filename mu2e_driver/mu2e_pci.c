@@ -198,6 +198,7 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mu2e_event_up(dtc);
 
 #if MU2E_RECV_INTER_ENABLED
+	TRACE(1, "mu2e_pci_probe calling pci_enable_msi");
 	/* Now enable interrupts using MSI mode */
 	if (!pci_enable_msi(mu2e_pci_dev[dtc]))
 	{
