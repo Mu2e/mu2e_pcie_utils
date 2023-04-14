@@ -14,6 +14,7 @@ extern wait_queue_head_t get_info_wait_queue;
 
 irqreturn_t DmaInterrupt(int irq, void *dev_id);
 
+int mu2e_sched_poll(int dtc);
 int mu2e_force_poll(int dtc);
 int mu2e_event_up(int dtc);
 void mu2e_event_down(int dtc);
