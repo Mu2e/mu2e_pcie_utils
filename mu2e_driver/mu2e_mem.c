@@ -241,6 +241,7 @@ void free_mem(int dtc)
 {
 	unsigned chn, jj, ii;
 
+	TRACE(1, "free_mem reset DTC");
 	// stop "app"
 	Dma_mWriteReg(mu2e_pcie_bar_info[dtc].baseVAddr, 0x9100, 0x80000000);  // DTC reset, Clear Latched Errors
 	msleep(10);
@@ -250,6 +251,7 @@ void free_mem(int dtc)
 		// stop engines (both C2S and S2C channels)
 		for (jj = 0; jj < 2; ++jj)  // this is "direction"
 		{
+			TRACE(1, "free_mem Shutting down dma engine dtc=%d, chn=%d, dir=%d", dtc, chn, jj);
 			Dma_mWriteChnReg(dtc, chn, jj, REG_DMA_ENG_CTRL_STATUS, DMA_ENG_USER_RESET);
 			msleep(10);
 			Dma_mWriteChnReg(dtc, chn, jj, REG_DMA_ENG_CTRL_STATUS, DMA_ENG_RESET);
@@ -257,6 +259,7 @@ void free_mem(int dtc)
 		}
 	}
 
+	TRACE(1, "free_mem Freeing RECV buffers");
 	for (chn = 0; chn < MU2E_NUM_RECV_CHANNELS; ++chn)
 	{
 		for (ii = 0; ii < MU2E_NUM_RECV_BUFFS; ++ii)
@@ -274,6 +277,7 @@ void free_mem(int dtc)
 		kfree(mu2e_pci_recver[dtc][chn].buffdesc_ring_dma);
 		kfree(mu2e_pci_recver[dtc][chn].buffer_sizes);
 	}
+	TRACE(1, "free_mem Freeing SEND buffers");
 	for (chn = 0; chn < MU2E_NUM_SEND_CHANNELS; ++chn)
 	{
 		if (mu2e_pci_sender[dtc][chn].databuffs)

@@ -198,6 +198,7 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mu2e_event_up(dtc);
 
 #if MU2E_RECV_INTER_ENABLED
+	#if 0
 	TRACE(1, "mu2e_pci_probe calling pci_enable_msi");
 	/* Now enable interrupts using MSI mode */
 	if (!pci_enable_msi(mu2e_pci_dev[dtc]))
@@ -205,6 +206,7 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		TRACE(1, "MSI enabled");
 		MSIEnabled[dtc] = 1;
 	}
+	#endif
 
 	TRACE(1, "mu2e_pci_probe enable_irq");
 	pciRet = request_irq(mu2e_pci_dev[dtc]->irq, DmaInterrupt, IRQF_SHARED, "mu2e", mu2e_pci_dev[dtc]);
@@ -256,7 +258,7 @@ static void mu2e_pci_remove(struct pci_dev *pdev)
 	free_mem(dtc);
 #endif
 
-
+	printk("mu2e_pci_remove dtc=%d releasing pci regions\n", dtc);
 	pci_release_regions(pdev);
 	printk("mu2e_pci_remove dtc=%d after release_regions, before disable_device\n", dtc);
 	pci_disable_device(pdev);
