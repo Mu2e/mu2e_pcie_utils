@@ -194,10 +194,9 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	devptr = device_create(mu2e_dev_class, NULL, pdev->dev.devt, NULL, MU2E_DEV_FILE, dtc);
 	if ((void*)devptr == ERR_PTR) goto out2;
 
-#if 0
 	TRACE(1, "mu2e_pci_probe enabling events");
 	mu2e_event_up(dtc);
-#endif
+
 #if MU2E_RECV_INTER_ENABLED
 	/* Now enable interrupts using MSI mode */
 	if (!pci_enable_msi(mu2e_pci_dev[dtc]))
@@ -245,10 +244,8 @@ static void mu2e_pci_remove(struct pci_dev *pdev)
 	if (MSIEnabled[dtc]) pci_disable_msi(pdev);
 #endif
 
-#if 0
 	printk("mu2e_pci_remove dtc=%d disabling events\n", dtc);
 	mu2e_event_down(dtc);
-#endif
 
 	printk("mu2e_pci_remove dtc=%d destroying device\n", dtc);
 	device_destroy(mu2e_dev_class, pdev->dev.devt);

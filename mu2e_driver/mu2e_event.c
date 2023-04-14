@@ -159,20 +159,20 @@ static void poll_packets(struct timer_list *t)
 	}
 
 #if MU2E_RECV_INTER_ENABLED == 1
+	packets_timer_guard[dtc] = 1;
 	if (did_work)
 	{
 		// Reschedule immediately
-#if 1
+#if MU2E_EVENT_TIMER_ENABLED
 		packets_timer[dtc].timer.expires = jiffies + 1;
 		add_timer(&packets_timer[dtc].timer);
 #else
-		poll_packets(__opaque);
+		mu2e_force_poll(dtc);
 #endif
 	}
 	else
 	{
 		// Re-enable interrupts.
-		packets_timer_guard[dtc] = 1;
 		Dma_mIntEnable(base);
 	}
 #else
@@ -192,6 +192,7 @@ static void poll_packets(struct timer_list *t)
 
 int mu2e_event_up(int dtc)
 {
+#if MU2E_EVENT_TIMER_ENABLED
 	TRACE(1, "mu2e_event_up dtc=%d", dtc);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 	TRACE(1, "mu2e_event_up calling init_timer");
@@ -201,6 +202,7 @@ int mu2e_event_up(int dtc)
 #else
 	TRACE(1, "mu2e_event_up calling timer_setup");
 	timer_setup(&packets_timer[dtc].timer, poll_packets, 0);
+#endif
 #endif
 	packets_timer_guard[dtc] = 1;
 	return 0;
@@ -221,4 +223,8 @@ int mu2e_force_poll(int dtc)
 	return 0;
 }
 
-void mu2e_event_down(int dtc) { del_timer_sync(&packets_timer[dtc].timer); }
+void mu2e_event_down(int dtc) {
+	#if MU2E_EVENT_TIMER_ENABLED
+	del_timer_sync(&packets_timer[dtc].timer); 
+	#endif
+}

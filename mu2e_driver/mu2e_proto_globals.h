@@ -17,6 +17,7 @@
 #define MU2E_NUM_RECV_BUFFS 100 /*4*/ /*20*/
 #define MU2E_NUM_RECV_CHANNELS 2
 #define MU2E_RECV_INTER_ENABLED 1
+#deinfe MU2E_EVENT_TIMER_ENABLED 0
 
 extern mu2e_databuff_t *mu2e_recv_databuff_rings[MU2E_MAX_NUM_DTCS][MU2E_NUM_RECV_CHANNELS];
 extern mu2e_buffdesc_C2S_t *mu2e_recv_buffdesc_rings[MU2E_MAX_NUM_DTCS][MU2E_NUM_RECV_CHANNELS];
