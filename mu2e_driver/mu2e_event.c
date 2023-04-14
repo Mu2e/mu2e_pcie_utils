@@ -204,12 +204,13 @@ int mu2e_event_up(int dtc)
 	timer_setup(&packets_timer[dtc].timer, poll_packets, 0);
 #endif
 	packets_timer_guard[dtc] = 1;
+	TRACE(1, "mu2e_event_up complete, calling mu2e_sched_poll");
        return mu2e_sched_poll(dtc);
 }
 
 int mu2e_sched_poll(int dtc)
 {
-       TRACE(21, "mu2e_sched_poll dtc=%d packets_timer_guard[dtc]=%d", dtc, packets_timer_guard[dtc]);
+       TRACE(1, "mu2e_sched_poll dtc=%d packets_timer_guard[dtc]=%d", dtc, packets_timer_guard[dtc]);
        if (packets_timer_guard[dtc])
        {
                packets_timer_guard[dtc] = 0;
@@ -219,6 +220,7 @@ int mu2e_sched_poll(int dtc)
 #endif
                      ;
                // timer->data=(unsigned long) pdev;
+			   TRACE(1, "Adding poll_packets timer for dtc %d", dtc);
                add_timer(&packets_timer[dtc].timer);
        }
        return (0);
