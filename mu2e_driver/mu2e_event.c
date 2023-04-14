@@ -96,7 +96,7 @@ static void poll_packets(struct timer_list *t)
 	error = 0;
 	did_work = 0;
 
-	TRACE(20, "poll_packets: begin");
+	TRACE(20, "poll_packets: begin dtc=%d", dtc);
 	/* DMA registers are offset from BAR0 */
 	base = (unsigned long)(mu2e_pcie_bar_info[dtc].baseVAddr);
 	TRACE(21, "poll_packets: After reading BAR0=0x%lx", base);
@@ -220,7 +220,7 @@ int mu2e_sched_poll(int dtc)
 #endif
                      ;
                // timer->data=(unsigned long) pdev;
-			   TRACE(1, "Adding poll_packets timer for dtc %d", dtc);
+			   TRACE(1, "Adding poll_packets timer for dtc %d=%d", dtc, packets_timer[dtc].dtc);
                add_timer(&packets_timer[dtc].timer);
        }
        return (0);
@@ -242,5 +242,7 @@ int mu2e_force_poll(int dtc)
 }
 
 void mu2e_event_down(int dtc) {
+	while(packets_timer_guard[dtc] == 0) {}
+	packets_timer_guard[dtc] = 0; // Ensure that mu2e_force_poll won't call poll_packets again
 	del_timer_sync(&packets_timer[dtc].timer); 
 }
