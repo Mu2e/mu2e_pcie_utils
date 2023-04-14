@@ -192,7 +192,7 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	TRACE(1, "mu2e_pci_probe creating device");
 	devptr = device_create(mu2e_dev_class, NULL, pdev->dev.devt, NULL, MU2E_DEV_FILE, dtc);
-	if (devptr == ERR_PTR) goto out2;
+	if ((void*)devptr == ERR_PTR) goto out2;
 
 #if 1
 	TRACE(1, "mu2e_pci_probe enabling events");

@@ -55,7 +55,7 @@ int mu2e_fs_up()
 	}
 
 	mu2e_dev_class = class_create(THIS_MODULE, "mu2e_dev");
-	if(mu2e_dev_class = ERR_PTR) {
+	if((void*)mu2e_dev_class == ERR_PTR) {
 		TRACE(0, "mu2e_fs_up failed to create device class");
 		return -1;
 	}
