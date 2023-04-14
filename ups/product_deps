@@ -23,7 +23,7 @@ messagefacility v2_10_01    s122
 messagefacility v2_09_00    s118
 messagefacility	v2_08_04	s112
 TRACE			v3_17_07
-cetmodules		v3_21_00	-	only_for_build
+cetmodules		v3_21_01	-	only_for_build
 end_product_list
 
 # e6  - with gcc 4.9.1 and -std=c++1y
