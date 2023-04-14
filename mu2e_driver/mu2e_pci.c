@@ -208,7 +208,7 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	#endif
 
-	TRACE(1, "mu2e_pci_probe enable_irq");
+	TRACE(1, "mu2e_pci_probe request_irq");
 	pciRet = request_irq(mu2e_pci_dev[dtc]->irq, DmaInterrupt, IRQF_SHARED, "mu2e", mu2e_pci_dev[dtc]);
 	if (pciRet)
 	{
