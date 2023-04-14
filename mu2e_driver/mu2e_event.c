@@ -204,7 +204,24 @@ int mu2e_event_up(int dtc)
 	timer_setup(&packets_timer[dtc].timer, poll_packets, 0);
 #endif
 	packets_timer_guard[dtc] = 1;
-	return 0;
+       return mu2e_sched_poll(dtc);
+}
+
+int mu2e_sched_poll(int dtc)
+{
+       TRACE(21, "mu2e_sched_poll dtc=%d packets_timer_guard[dtc]=%d", dtc, packets_timer_guard[dtc]);
+       if (packets_timer_guard[dtc])
+       {
+               packets_timer_guard[dtc] = 0;
+               packets_timer[dtc].timer.expires = jiffies
+#if MU2E_RECV_INTER_ENABLED == 0
+                                                                                  + (HZ / PACKET_POLL_HZ)
+#endif
+                     ;
+               // timer->data=(unsigned long) pdev;
+               add_timer(&packets_timer[dtc].timer);
+       }
+       return (0);
 }
 
 int mu2e_force_poll(int dtc)
