@@ -4,7 +4,7 @@ make clean
 make
 
 #insmod trace/src_module/TRACE.ko
-insmod trace/src_module/TRACE.ko trace_allow_printk=1 trace_lvlS=0xFFFFFF trace_print="%T %i %n %L %M"
+insmod trace/src_module/TRACE.ko trace_allow_printk=1 trace_lvlS=0xFFFFFF trace_print='"%T %i %n %L %M"'
 
 set -x
 
