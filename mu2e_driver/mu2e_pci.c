@@ -99,6 +99,8 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int bar = 0;
 	u32 size;
 	int dtc;
+	struct device *devptr;
+
 	for (dtc = 0; dtc < MU2E_MAX_NUM_DTCS;)
 	{
 		if (!mu2e_pci_dev[dtc]) break;
@@ -189,7 +191,9 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	TRACE(1, "mu2e_pci_probe creating device");
-	device_create(mu2e_dev_class, NULL, pdev->dev.devt, NULL, MU2E_DEV_FILE, dtc);
+	devptr = device_create(mu2e_dev_class, NULL, pdev->dev.devt, NULL, MU2E_DEV_FILE, dtc);
+	if (devptr == ERR_PTR) goto out2;
+
 #if 1
 	TRACE(1, "mu2e_pci_probe enabling events");
 	mu2e_event_up(dtc);
