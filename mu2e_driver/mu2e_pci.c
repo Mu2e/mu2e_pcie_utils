@@ -258,6 +258,9 @@ static void mu2e_pci_remove(struct pci_dev *pdev)
 	free_mem(dtc);
 #endif
 
+	printk("mu2e_pci_remove dtc=%d calling iounmap\n", dtc);
+	iounmap(mu2e_pcie_bar_info[dtc].baseVAddr);
+
 	printk("mu2e_pci_remove dtc=%d releasing pci regions\n", dtc);
 	pci_release_regions(pdev);
 	printk("mu2e_pci_remove dtc=%d after release_regions, before disable_device\n", dtc);
