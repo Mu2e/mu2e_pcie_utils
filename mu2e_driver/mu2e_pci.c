@@ -188,8 +188,10 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (alloc_mem(dtc) != 0) goto out2;
 #endif
 
+	TRACE(1, "mu2e_pci_probe creating device");
 	device_create(mu2e_dev_class, NULL, pdev->dev.devt, NULL, MU2E_DEV_FILE, dtc);
 #if 1
+	TRACE(1, "mu2e_pci_probe enabling events");
 	mu2e_event_up(dtc);
 #endif
 #if MU2E_RECV_INTER_ENABLED
@@ -200,6 +202,7 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		MSIEnabled[dtc] = 1;
 	}
 
+	TRACE(1, "mu2e_pci_probe enable_irq");
 	pciRet = request_irq(mu2e_pci_dev[dtc]->irq, DmaInterrupt, IRQF_SHARED, "mu2e", mu2e_pci_dev[dtc]);
 	if (pciRet)
 	{
@@ -209,6 +212,8 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	Dma_mIntEnable((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr);
 #endif
+
+	TRACE(1, "mu2e_pci_probe complete");
 	return (0); /* SUCCESS */
 
 out2:
