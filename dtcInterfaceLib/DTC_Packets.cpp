@@ -348,7 +348,7 @@ void DTCLib::DTC_DCSRequestPacket::UpdatePacketAndWordCounts()
 		data1_ = blockWriteData_.size();
 	}
 
-	if (type_ == DTC_DCSOperationType_BlockWrite)
+	if (type_ == DTC_DCSOperationType_BlockWrite && data1_ > 3)
 	{
 		packetCount_ = (data1_ - 3) / 8 + ((data1_ - 3) % 8 ? 1 : 0);
 	}
