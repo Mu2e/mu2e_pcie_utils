@@ -55,6 +55,10 @@ int mu2e_fs_up()
 	}
 
 	mu2e_dev_class = class_create(THIS_MODULE, "mu2e_dev");
+	if((void*)mu2e_dev_class == ERR_PTR) {
+		TRACE(0, "mu2e_fs_up failed to create device class");
+		return -1;
+	}
 
 	cdev_init(&mu2e_cdev, &mu2e_file_ops);
 
@@ -72,7 +76,7 @@ void mu2e_fs_down()
 {
 	cdev_del(&mu2e_cdev);
 	class_destroy(mu2e_dev_class);
-	unregister_chrdev_region(mu2e_dev_number, 1);
+	unregister_chrdev_region(mu2e_dev_number, MU2E_MAX_NUM_DTCS);
 }
 
 int mu2e_open(struct inode *inode, struct file *filp)

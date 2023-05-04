@@ -55,11 +55,7 @@ irqreturn_t DmaInterrupt(int irq, void *dev_id)
 
 	TRACE(20, "DmaInterrupt: Calling poll routine");
 	/* Handle DMA and any user interrupts */
-#if 0
-	if (mu2e_sched_poll(dtc) == 0)
-#else
 	if (mu2e_force_poll(dtc) == 0)
-#endif
 	{
 		TRACE(20, "DMAInterrupt: Marking Interrupt as acked");
 		Dma_mIntAck(base, DMA_ENG_ALLINT_MASK);
@@ -76,18 +72,19 @@ irqreturn_t DmaInterrupt(int irq, void *dev_id)
 /* Poll for completed "read dma (C2S)" buffers.
    Called from timer or interrupt (indirectly via mu2e_force_poll).
  */
-static void poll_packets(
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
-	unsigned long dc
+void poll_packets(unsigned long dc)
 #else
-	struct timer_list *t
+void poll_packets(struct timer_list *t)
 #endif
-)
 {
 	unsigned long base;
 	int error, did_work;
 	int chn, dir;
 	unsigned nxtCachedCmpltIdx;
+#if MU2E_RECV_INTER_ENABLED == 0
+	int offset;
+#endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 	int dtc = (int)dc;
 #else
@@ -99,7 +96,7 @@ static void poll_packets(
 	error = 0;
 	did_work = 0;
 
-	TRACE(20, "poll_packets: begin");
+	TRACE(20, "poll_packets: begin dtc=%d", dtc);
 	/* DMA registers are offset from BAR0 */
 	base = (unsigned long)(mu2e_pcie_bar_info[dtc].baseVAddr);
 	TRACE(21, "poll_packets: After reading BAR0=0x%lx", base);
@@ -162,6 +159,7 @@ static void poll_packets(
 	}
 
 #if MU2E_RECV_INTER_ENABLED == 1
+	packets_timer_guard[dtc] = 1;
 	if (did_work)
 	{
 		// Reschedule immediately
@@ -169,13 +167,12 @@ static void poll_packets(
 		packets_timer[dtc].timer.expires = jiffies + 1;
 		add_timer(&packets_timer[dtc].timer);
 #else
-		poll_packets(__opaque);
+		mu2e_force_poll(dtc);
 #endif
 	}
 	else
 	{
 		// Re-enable interrupts.
-		packets_timer_guard[dtc] = 1;
 		Dma_mIntEnable(base);
 	}
 #else
@@ -185,7 +182,7 @@ static void poll_packets(
 	// Reschedule poll routine.
 	packets_timer_guard[dtc] = 1;
 	offset = HZ / PACKET_POLL_HZ + (error ? 5 * HZ : 0);
-	packets_timer[dtc].expires = jiffies + offset;
+	packets_timer[dtc].timer.expires = jiffies + offset;
 	add_timer(&packets_timer[dtc].timer);
 	TRACE(21, "poll_packets: After reschedule, offset=%i", offset);
 #endif
@@ -195,32 +192,38 @@ static void poll_packets(
 
 int mu2e_event_up(int dtc)
 {
+	TRACE(1, "mu2e_event_up dtc=%d", dtc);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+	TRACE(1, "mu2e_event_up calling init_timer");
 	init_timer(&(packets_timer[dtc].timer));
 	packets_timer[dtc].timer.function = poll_packets;
 	packets_timer[dtc].timer.data = dtc;
 #else
+	TRACE(1, "mu2e_event_up calling timer_setup");
+	packets_timer[dtc].dtc = dtc;
 	timer_setup(&packets_timer[dtc].timer, poll_packets, 0);
 #endif
 	packets_timer_guard[dtc] = 1;
-	return mu2e_sched_poll(dtc);
+	TRACE(1, "mu2e_event_up complete, calling mu2e_sched_poll");
+       return mu2e_sched_poll(dtc);
 }
 
 int mu2e_sched_poll(int dtc)
 {
-	TRACE(21, "mu2e_sched_poll dtc=%d packets_timer_guard[dtc]=%d", dtc, packets_timer_guard[dtc]);
-	if (packets_timer_guard[dtc])
-	{
-		packets_timer_guard[dtc] = 0;
-		packets_timer[dtc].timer.expires = jiffies
+       TRACE(1, "mu2e_sched_poll dtc=%d packets_timer_guard[dtc]=%d", dtc, packets_timer_guard[dtc]);
+       if (packets_timer_guard[dtc])
+       {
+               packets_timer_guard[dtc] = 0;
+               packets_timer[dtc].timer.expires = jiffies
 #if MU2E_RECV_INTER_ENABLED == 0
-										   + (HZ / PACKET_POLL_HZ)
+                                                                                  + (HZ / PACKET_POLL_HZ)
 #endif
-			;
-		// timer->data=(unsigned long) pdev;
-		add_timer(&packets_timer[dtc].timer);
-	}
-	return (0);
+                     ;
+               // timer->data=(unsigned long) pdev;
+			   TRACE(1, "Adding poll_packets timer for dtc %d=%d", dtc, packets_timer[dtc].dtc);
+               add_timer(&packets_timer[dtc].timer);
+       }
+       return (0);
 }
 
 int mu2e_force_poll(int dtc)
@@ -238,4 +241,8 @@ int mu2e_force_poll(int dtc)
 	return 0;
 }
 
-void mu2e_event_down(int dtc) { del_timer_sync(&packets_timer[dtc].timer); }
+void mu2e_event_down(int dtc) {
+	while(packets_timer_guard[dtc] == 0) {}
+	packets_timer_guard[dtc] = 0; // Ensure that mu2e_force_poll won't call poll_packets again
+	del_timer_sync(&packets_timer[dtc].timer); 
+}
