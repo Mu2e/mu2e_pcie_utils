@@ -1218,6 +1218,7 @@ public:
 		if (idx >= sub_events_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(sub_events_.size() - 1) + ")");
 		return &sub_events_[idx];
 	}
+
 	void AddSubEvent(DTC_SubEvent subEvt)
 	{
 		sub_events_.push_back(subEvt);
@@ -1232,6 +1233,19 @@ public:
 			if (sub_events_[ii].GetDTCID() == dtcid) return &sub_events_[ii];
 		}
 		return nullptr;
+	}
+
+	std::vector<DTC_DataBlock> GetSubsystemDataBlocks(DTC_Subsystem subsys) const {
+		std::vector<DTC_DataBlock> output;
+
+		for(auto& subevt : sub_events_) {
+			if(subevt.GetSubsystem() == subsys) {
+				auto subevtblocks = subevt.GetDataBlocks();
+				output.insert(output.end(), subevtblocks.begin(), subevtblocks.end());
+			}
+		}
+
+		return output;
 	}
 
 	DTC_EventHeader* GetHeader() { return &header_; }
