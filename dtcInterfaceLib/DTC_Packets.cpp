@@ -799,7 +799,7 @@ bool DTCLib::DTC_DataHeaderPacket::Equals(const DTC_DataHeaderPacket& other) con
 	return ConvertToDataPacket() == other.ConvertToDataPacket();
 }
 
-DTCLib::DTC_SubEvent::DTC_SubEvent(const uint8_t*& ptr)
+DTCLib::DTC_SubEvent::DTC_SubEvent(const uint8_t* ptr)
 	: header_(), data_blocks_()
 {
 	memcpy(&header_, ptr, sizeof(header_));
