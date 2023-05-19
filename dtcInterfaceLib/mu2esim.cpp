@@ -630,8 +630,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 	for (auto ii = 0; ii < num_trk_dtcs; ++ii, ++DTCID)
 	{
 		TLOG(TLVL_EventSimulator) << "Generating Tracker data, DTCID " << DTCID << ", TRK DTC " << ii + 1 << "/" << num_trk_dtcs;
-		auto subEvtHdr = sub_event_->GetHeader();
-		subEvtHdr->dtc_mac = DTCID;
+		sub_event_->SetDTCMAC( DTCID);
 		sub_event_->SetSourceDTC(DTCID, DTCLib::DTC_Subsystem_Tracker);
 
 		for (auto link : DTCLib::DTC_Links)
@@ -645,8 +644,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 	for (auto ii = 0; ii < num_calo_dtcs; ++ii, ++DTCID)
 	{
 		TLOG(TLVL_EventSimulator) << "Generating Calorimeter data, DTCID " << DTCID << ", Calo DTC " << ii + 1 << "/" << num_calo_dtcs;
-		auto subEvtHdr = sub_event_->GetHeader();
-		subEvtHdr->dtc_mac = DTCID;
+		sub_event_->SetDTCMAC( DTCID);
 		sub_event_->SetSourceDTC(DTCID, DTCLib::DTC_Subsystem_Calorimeter);
 
 		for (auto link : DTCLib::DTC_Links)
@@ -660,8 +658,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 	for (auto ii = 0; ii < num_crv_dtcs; ++ii, ++DTCID)
 	{
 		TLOG(TLVL_EventSimulator) << "Generating CRV data, DTCID " << DTCID << ", CRV DTC " << ii + 1 << "/" << num_crv_dtcs;
-		auto subEvtHdr = sub_event_->GetHeader();
-		subEvtHdr->dtc_mac = DTCID;
+		sub_event_->SetDTCMAC( DTCID);
 		sub_event_->SetSourceDTC(DTCID, DTCLib::DTC_Subsystem_CRV);
 
 		for (auto link : DTCLib::DTC_Links)

@@ -1081,12 +1081,12 @@ public:
 	/// Construct a DTC_SubEvent using a pointer to data. Flag will be set that the packet is read-only.
 	/// </summary>
 	/// <param name="ptr">Pointer to data</param>
-	explicit DTC_SubEvent(const uint8_t*& ptr);
+	explicit DTC_SubEvent(const uint8_t* ptr);
 
 	DTC_SubEvent()
 		: header_(), data_blocks_() {}
 
-	size_t GetSubEventByteCount() { return header_.inclusive_subevent_byte_count; }
+	size_t GetSubEventByteCount() const { return header_.inclusive_subevent_byte_count; }
 
 	DTC_EventWindowTag GetEventWindowTag() const;
 	void SetEventWindowTag(DTC_EventWindowTag const& tag);
@@ -1098,7 +1098,7 @@ public:
 		return data_blocks_;
 	}
 	size_t GetDataBlockCount() const { return data_blocks_.size(); }
-	DTC_DataBlock* GetDataBlock(size_t idx)
+	const DTC_DataBlock* GetDataBlock(size_t idx) const
 	{
 		if (idx >= data_blocks_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(data_blocks_.size() - 1) + ")");
 		return &data_blocks_[idx];
@@ -1111,11 +1111,14 @@ public:
 	}
 
 	DTC_Subsystem GetSubsystem() const { return static_cast<DTC_Subsystem>((header_.source_dtc_id & 0x70) >> 4); }
+	void SetDTCMAC(uint8_t mac) {
+		header_.dtc_mac = mac;
+	}
 	void SetSourceDTC(uint8_t id, DTC_Subsystem subsystem = DTC_Subsystem_Other)
 	{
 		header_.source_dtc_id = (id & 0xf) + ((static_cast<int>(subsystem) & 0x7) << 4);
 	}
-	DTC_SubEventHeader* GetHeader() { return &header_; }
+	const DTC_SubEventHeader* GetHeader() const { return &header_; }
 	void UpdateHeader();
 
 private:
@@ -1235,13 +1238,12 @@ public:
 		return nullptr;
 	}
 
-	std::vector<DTC_DataBlock> GetSubsystemDataBlocks(DTC_Subsystem subsys) const {
-		std::vector<DTC_DataBlock> output;
+	std::vector<DTC_SubEvent> GetSubsystemData(DTC_Subsystem subsys) const {
+		std::vector<DTC_SubEvent> output;
 
 		for(auto& subevt : sub_events_) {
 			if(subevt.GetSubsystem() == subsys) {
-				auto subevtblocks = subevt.GetDataBlocks();
-				output.insert(output.end(), subevtblocks.begin(), subevtblocks.end());
+				output.push_back(subevt);
 			}
 		}
 
