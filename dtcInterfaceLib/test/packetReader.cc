@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <math.h>
 #include <bitset>
 #include <fstream>
