@@ -95,11 +95,12 @@ int alloc_mem(int dtc)
 
 		for (ii = 0; ii < MU2E_NUM_RECV_BUFFS; ++ii)
 		{
-			mu2e_pci_recver[dtc][chn].databuffs[ii] = dma_alloc_coherent(
-				&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_databuff_t), &(mu2e_pci_recver[dtc][chn].databuffs_dma[ii]), GFP_KERNEL);
-			mu2e_pci_recver[dtc][chn].buffdesc_ring[ii] =
-				dma_alloc_coherent(&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_buffdesc_C2S_t),
-								   &(mu2e_pci_recver[dtc][chn].buffdesc_ring_dma[ii]), GFP_KERNEL);
+			va = dma_alloc_coherent(&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_databuff_t), &(mu2e_pci_recver[dtc][chn].databuffs_dma[ii]), GFP_KERNEL);
+			if (va == NULL) goto out;
+			mu2e_pci_recver[dtc][chn].databuffs[ii] = va;
+			va = dma_alloc_coherent(&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_buffdesc_C2S_t), &(mu2e_pci_recver[dtc][chn].buffdesc_ring_dma[ii]), GFP_KERNEL);
+			if (va == NULL) goto out;
+			mu2e_pci_recver[dtc][chn].buffdesc_ring[ii] = va;
 			TRACE(1,
 				  "alloc_mem mu2e_pci_recver[%d][%u][%u].databuffs=%p databuffs_dma=0x%llx "
 				  "buffdesc_ring=%p buffdesc_ring_dma=0x%llx",
@@ -108,8 +109,10 @@ int alloc_mem(int dtc)
 		}
 
 		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_BUFF] = mu2e_pci_recver[dtc][chn].databuffs;
-		// mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META] = mu2e_pci_recver[dtc][chn].buffdesc_ring;
-		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META] = (void *)__get_free_pages(GFP_KERNEL, 0);
+		va = kmalloc(MU2E_NUM_RECV_BUFFS * sizeof(int), GFP_KERNEL);
+		if (va == NULL) goto out;
+		mu2e_pci_recver[dtc][chn].buffer_sizes = va;
+		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META] = va;
 
 		TRACE(1, "alloc_mem mu2e_pci_recver[%d][%u].meta@%p", dtc, chn, mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META]);
 
@@ -176,7 +179,11 @@ int alloc_mem(int dtc)
 								GFP_KERNEL);
 		if (va == NULL) goto out;
 		mu2e_pci_sender[dtc][chn].buffdesc_ring = va;
-		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META] = (void *)__get_free_pages(GFP_KERNEL, 0);
+
+		va = kmalloc(MU2E_NUM_SEND_BUFFS * sizeof(int), GFP_KERNEL);
+		if (va == NULL) goto out;
+		mu2e_pci_sender[dtc][chn].buffer_sizes = va;
+		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META] = va;
 
 		TRACE(1,
 			  "alloc_mem mu2e_pci_sender[%d][%u].databuffs=%p databuffs_dma=0x%llx "
@@ -187,6 +194,7 @@ int alloc_mem(int dtc)
 		mu2e_channel_info_[dtc][chn][dir].dir = dir;
 		mu2e_channel_info_[dtc][chn][dir].buff_size = sizeof(mu2e_databuff_t);
 		mu2e_channel_info_[dtc][chn][dir].num_buffs = MU2E_NUM_SEND_BUFFS;
+
 		for (jj = 0; jj < MU2E_NUM_SEND_BUFFS; ++jj)
 		{ /* ring -> link to next (and last to 1st via modulus) */
 			mu2e_pci_sender[dtc][chn].buffdesc_ring[jj].NextDescPtr =
@@ -211,16 +219,20 @@ int alloc_mem(int dtc)
 		// reset HW_Completed register
 		Dma_mWriteChnReg(dtc, chn, dir, REG_HW_CMPLT_BD, 0);
 
+		TRACE(1, "alloc_mem enabling DMA engine");
 		Dma_mWriteChnReg(dtc, chn, dir, REG_DMA_ENG_CTRL_STATUS, DMA_ENG_ENABLE);
 	}
 
+	TRACE(1, "alloc_mem setting DTC DMA registers");
 	/* Now, finish up with some more mu2e fpga user application stuff... */
 	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9104,
 				  0x80000040);                                                            // write max and min DMA xfer sizes
 	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9150, 0x00000010);  // set ring packet size
 
+	TRACE(1, "alloc_mem complete");
 	return ret;
 out:
+	TRACE(0, "alloc_mem, failed to allocate, aborting!");
 	free_mem(dtc);
 	return -1;
 }
@@ -229,6 +241,7 @@ void free_mem(int dtc)
 {
 	unsigned chn, jj, ii;
 
+	TRACE(1, "free_mem reset DTC");
 	// stop "app"
 	Dma_mWriteReg(mu2e_pcie_bar_info[dtc].baseVAddr, 0x9100, 0x80000000);  // DTC reset, Clear Latched Errors
 	msleep(10);
@@ -238,6 +251,7 @@ void free_mem(int dtc)
 		// stop engines (both C2S and S2C channels)
 		for (jj = 0; jj < 2; ++jj)  // this is "direction"
 		{
+			TRACE(1, "free_mem Shutting down dma engine dtc=%d, chn=%d, dir=%d", dtc, chn, jj);
 			Dma_mWriteChnReg(dtc, chn, jj, REG_DMA_ENG_CTRL_STATUS, DMA_ENG_USER_RESET);
 			msleep(10);
 			Dma_mWriteChnReg(dtc, chn, jj, REG_DMA_ENG_CTRL_STATUS, DMA_ENG_RESET);
@@ -245,6 +259,7 @@ void free_mem(int dtc)
 		}
 	}
 
+	TRACE(1, "free_mem Freeing RECV buffers");
 	for (chn = 0; chn < MU2E_NUM_RECV_CHANNELS; ++chn)
 	{
 		for (ii = 0; ii < MU2E_NUM_RECV_BUFFS; ++ii)
@@ -260,8 +275,9 @@ void free_mem(int dtc)
 		kfree(mu2e_pci_recver[dtc][chn].buffdesc_ring);
 		kfree(mu2e_pci_recver[dtc][chn].databuffs_dma);
 		kfree(mu2e_pci_recver[dtc][chn].buffdesc_ring_dma);
-		free_pages((unsigned long)mu2e_mmap_ptrs[dtc][chn][C2S][MU2E_MAP_META], 0);
+		kfree(mu2e_pci_recver[dtc][chn].buffer_sizes);
 	}
+	TRACE(1, "free_mem Freeing SEND buffers");
 	for (chn = 0; chn < MU2E_NUM_SEND_CHANNELS; ++chn)
 	{
 		if (mu2e_pci_sender[dtc][chn].databuffs)
@@ -270,6 +286,6 @@ void free_mem(int dtc)
 		if (mu2e_pci_sender[dtc][chn].buffdesc_ring)
 			dma_free_coherent(&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_buffdesc_S2C_t) * MU2E_NUM_SEND_BUFFS,
 							  mu2e_pci_sender[dtc][chn].buffdesc_ring, mu2e_pci_sender[dtc][chn].buffdesc_ring_dma);
-		free_pages((unsigned long)mu2e_mmap_ptrs[dtc][chn][S2C][MU2E_MAP_META], 0);
+		kfree(mu2e_pci_sender[dtc][chn].buffer_sizes);
 	}
 }  // free_mem

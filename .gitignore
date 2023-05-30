@@ -13,3 +13,10 @@ obj
 *.bk
 *.tmp
 CMakePresets.json
+*.o
+*.cmd
+trace/
+*.mod*
+Module.symvers
+modules.order
+*.ko

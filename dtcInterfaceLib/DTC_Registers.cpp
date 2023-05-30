@@ -3830,7 +3830,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatROCFinishThreshold()
 	auto form = CreateFormatter(DTC_Register_ROCFinishThreshold);
 	form.description = "ROC Finish Threshold";
 	std::stringstream o;
-	o << "ROC Comma Limit: 0x" << std::hex << ReadROCCommaLimit();
+	o << "ROC Comma Limit: 0x" << std::hex << static_cast<int>(ReadROCCommaLimit());
 	form.vals.push_back(o.str());
 	return form;
 }
