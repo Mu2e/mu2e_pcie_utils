@@ -34,17 +34,17 @@ public:
 	enum class CFO_INSTR : uint8_t
 	{
 		NOOP = 0,
-		START = 1,
+		HEARTBEAT = 1,
 		DATA_REQUEST = 2,
-		INC = 3,
-		SET = 4,
-		AND = 5,
-		OR = 6,
-		LOOP = 7,
-		DO_LOOP = 8,
-		REPEAT = 9,
-		WAIT = 10,
-		END = 11,
+		SET = 3,
+		INC = 4,
+		WAIT = 5,
+		LOOP = 6,
+		DO_LOOP = 7,
+		REPEAT = 8,
+		END = 9,
+		// AND = 5,
+		// OR = 6,
 		INVALID = 0xFF,
 	};
 
@@ -87,7 +87,7 @@ private:
    ** Function Prototypes
    **********************/
 	void readLine(std::string line);
-	void transcribeIns();
+	void transcribeInstruction();
 	void transcribeMacro();
 	void errorCheck(CFO_INSTR);
 	int64_t calcParameter(CFO_INSTR);
@@ -107,6 +107,7 @@ private:
 	std::string instructionBuffer_;
 	std::string argumentBuffer_;
 	std::string identifierBuffer_;
+	std::string parameterBufferString_;
 	int64_t parameterBuffer_;
 	int64_t FPGAClock_;
 	int macroArgCount_;
