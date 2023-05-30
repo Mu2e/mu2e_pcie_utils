@@ -1,54 +1,16 @@
-//Plan X
-//By J. Berlioz
+SET 100  //set event window tag
 
-DATA_REQUEST 12
-LOOP 3 
-INC 3
-INC
-INC event_tag
-//SET
-SET 5
-LOOP 5
-DO_LOOP //Comment
-REPEAT 3
-
-START event_mode= 23
-DATA_REQUEST request_tag=15
-DATA_REQUEST CURRENT
+LOOP 16
+WAIT period=256 cycles 
+HEARTBEAT event_mode= 23
+INC //increment event window tag
 DO_LOOP
-START 22
-WAIT 202352
-WAIT period=500 cycles  //Comment
-WAIT 3000000 sec
-WAIT NEXT
-END         //Comment
-START 212514
-SLICE bitposition= 46 bitwidth=3 event_tag=5
-SLICE bitposition= 2 bitwidth=3 event_tag=5
 
-// hexdump -C Commands.bin
-// 00000000  02 00 00 00 00 00 00 0c  
-//           07 00 00 00 00 00 00 03
-// 00000010  03 00 00 00 00 00 00 03  
-//           03 00 00 00 00 00 00 01
-// 00000020  03 00 00 00 00 00 00 01
-//           04 00 00 00 00 00 00 05 
-// 00000030  07 00 00 00 00 00 00 05
-//           08 00 00 00 00 00 00 01 
-// 00000040  09 00 00 00 00 00 00 00
-//           01 00 00 00 00 00 00 17  
-// 00000050  02 00 00 00 00 00 00 0f
-//           02 00 ff ff ff ff ff ff
-// 00000060  08 00 00 00 00 00 00 0d
-//           01 00 00 00 00 00 00 16  
-// 00000070  0a 00 00 00 00 03 16 70
-//           0a 00 00 00 00 00 01 f4 
-// 00000080  0a 00 6d 23 ad 5f 80 00
-//           0a 00 ff ff ff ff ff ff
-// 00000090  0b 00 00 00 00 00 00 00
-//           01 00 00 00 00 03 3e 22 
-// 000000a0  05 00 1f ff ff ff ff ff
-//           06 00 a0 00 00 00 00 00  
-// 000000b0  05 00 ff ff ff ff ff f1
-//           06 00 00 00 00 00 00 0a 
-// 000000c0
+LOOP 16
+WAIT period=256 cycles
+HEARTBEAT event_mode= 0 //null heartbeats
+INC //increment event window tag
+DO_LOOP
+
+END
+
