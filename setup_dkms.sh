@@ -6,10 +6,13 @@
 
 # To install (as root):
 # cd /usr/src
-# git clone https://github.com/Mu2e/mu2e_pcie_utils mu2e_pcie_utils-version
+# export VERSION=<Version number, e.g. 2.08.01>
+# git clone https://github.com/Mu2e/mu2e_pcie_utils mu2e_pcie_utils-$VERSION
 # echo mu2e >/etc/modules-load.d/mu2e.conf
+# cd mu2e_pcie_utils-$VERSION
+# chmod +x setup_dkms.sh;./setup_dkms.sh
 # echo 'KERNEL=="mu2e*", MODE="0666"' >/etc/udev/rules.d/98-mu2e.rules
-# dkms add -m mu2e_pcie_utils -v VERSION
+# dkms add -m mu2e_pcie_utils -v $VERSION
 # dkms autoinstall
 
 if ! [ -d trace ]; then
