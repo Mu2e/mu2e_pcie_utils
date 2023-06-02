@@ -94,7 +94,11 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 		throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
 	}
 
-	if (skipInit) return simMode_;
+	if (skipInit || true) 
+	{
+		TLOG(TLVL_INFO) << "SKIPPING Initializing device";
+		return simMode_;
+	}
 
 	TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	for (auto link : DTC_Links)
@@ -3826,7 +3830,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatROCFinishThreshold()
 	auto form = CreateFormatter(DTC_Register_ROCFinishThreshold);
 	form.description = "ROC Finish Threshold";
 	std::stringstream o;
-	o << "ROC Comma Limit: 0x" << std::hex << ReadROCCommaLimit();
+	o << "ROC Comma Limit: 0x" << std::hex << static_cast<int>(ReadROCCommaLimit());
 	form.vals.push_back(o.str());
 	return form;
 }
