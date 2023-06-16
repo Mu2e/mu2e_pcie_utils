@@ -1,10 +1,10 @@
 /*  This file (mu2e.c) was created by Ron Rechenmacher <ron@fnal.gov> on
-        Feb  5, 2014. "TERMS AND CONDITIONS" governing this file are in the README
-        or COPYING file. If you do not have such a file, one can be obtained by
-        contacting Ron or Fermi Lab in Batavia IL, 60510, phone: 630-840-3000.
-        $RCSfile: .emacs.gnu,v $
-        rev="$Revision: 1.23 $$Date: 2012/01/23 15:32:40 $";
-        */
+		Feb  5, 2014. "TERMS AND CONDITIONS" governing this file are in the README
+		or COPYING file. If you do not have such a file, one can be obtained by
+		contacting Ron or Fermi Lab in Batavia IL, 60510, phone: 630-840-3000.
+		$RCSfile: .emacs.gnu,v $
+		rev="$Revision: 1.23 $$Date: 2012/01/23 15:32:40 $";
+		*/
 #include <linux/uaccess.h> /* access_ok, copy_to_user */
 #include <linux/delay.h>   /* msleep */
 #include <linux/fs.h>      /* struct inode */
@@ -27,7 +27,7 @@
 #include "mu2e_pci.h"           /* bar_info_t, extern mu2e_pci*  */
 #include "mu2e_proto_globals.h" /* MU2E_MAX_CHANNEL, etc. */
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4,0,0)
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4, 0, 0)
 #define ACCESS_OK_READ(addr, size) access_ok(VERIFY_READ, addr, size)
 #define ACCESS_OK_WRITE(addr, size) access_ok(VERIFY_WRITE, addr, size)
 #else
@@ -160,7 +160,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 	if (_IOC_DIR(cmd) & _IOC_READ)
 		if (!ACCESS_OK_WRITE((void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
 	if (_IOC_DIR(cmd) & _IOC_WRITE)
-		if (!ACCESS_OK_READ( (void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
+		if (!ACCESS_OK_READ((void *)arg, _IOC_SIZE(cmd))) return -EFAULT;
 
 	/* DMA registers are offset from BAR0 */
 	base = (unsigned long)(mu2e_pcie_bar_info[dtc].baseVAddr);
@@ -340,19 +340,19 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			}
 			if (reg_access.access_type)
 			{
+				if(reg_access.access_type == 2) spin_lock_bh(&DmaStatsLock); // Lock for readback
 				TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - write dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
 				Dma_mWriteReg(base, reg_access.reg_offset, reg_access.val);
+				if (reg_access.access_type == 1) return retval;
 			}
-			else
+			TRACE(18, "mu2e_ioctl: cmd=REG_ACCESS - read offset=0x%x", reg_access.reg_offset);
+			reg_access.val = Dma_mReadReg(base, reg_access.reg_offset);
+			if(reg_access.access_type == 2) spin_unlock_bh(&DmaStatsLock); // Unlock for readback
+			TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - read dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
+			if (copy_to_user((void *)arg, &reg_access, sizeof(reg_access)))
 			{
-				TRACE(18, "mu2e_ioctl: cmd=REG_ACCESS - read offset=0x%x", reg_access.reg_offset);
-				reg_access.val = Dma_mReadReg(base, reg_access.reg_offset);
-				TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - read dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
-				if (copy_to_user((void *)arg, &reg_access, sizeof(reg_access)))
-				{
-					printk("copy_to_user failed\n");
-					return (-EFAULT);
-				}
+				printk("copy_to_user failed\n");
+				return (-EFAULT);
 			}
 			break;
 		case M_IOC_GET_INFO:
@@ -530,7 +530,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			}
 
 			/* See Transmit (S2C) Descriptor Management
-         on page 56 of kc705_TRD_k7_pcie_dma_ddr3_base_Doc_13.4.pdf */
+		 on page 56 of kc705_TRD_k7_pcie_dma_ddr3_base_Doc_13.4.pdf */
 			nxtIdx = idx_add(myIdx, 1, dtc, chn, dir);
 			descDmaAdr_swNxt = idx2descDmaAdr(nxtIdx, dtc, chn, dir);
 

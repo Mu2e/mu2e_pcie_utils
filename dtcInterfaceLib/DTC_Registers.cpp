@@ -94,7 +94,7 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 		throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
 	}
 
-	if (skipInit || true) 
+	if (skipInit || true)
 	{
 		TLOG(TLVL_INFO) << "SKIPPING Initializing device";
 		return simMode_;
@@ -8736,7 +8736,7 @@ void DTCLib::DTC_Registers::SetROCEmulatorInterpacketDelay(DTC_Link_ID const& li
 		default:
 			return;
 	}
-	WriteRegister_(delay,reg);
+	WriteRegister_(delay, reg);
 }
 DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatROCEmulatorInterpacketDelayLink0()
 {
@@ -9242,12 +9242,14 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatRXDataPacketCountLink
 }
 
 // EVB Diagnostic RX Packet FIFO
-uint64_t DTCLib::DTC_Registers::ReadEVBDiagnosticFIFO() {
+uint64_t DTCLib::DTC_Registers::ReadEVBDiagnosticFIFO()
+{
 	uint64_t ret = ReadRegister_(DTC_Register_EVBDiagnosticRXPacket_High);
 	ret = (ret << 32) + ReadRegister_(DTC_Register_EVBDiagnosticRXPacket_Low);
 	return ret;
 }
-void DTCLib::DTC_Registers::ClearEVBDiagnosticFIFO() {
+void DTCLib::DTC_Registers::ClearEVBDiagnosticFIFO()
+{
 	WriteRegister_(0, DTC_Register_EVBDiagnosticRXPacket_Low);
 }
 
@@ -9447,15 +9449,21 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t data, const DTC_Register& ad
 {
 	auto retry = 3;
 	int errorCode;
+	uint32_t data_out;
 	do
 	{
-		errorCode = device_.write_register(address, 100, data);
+		errorCode = device_.write_register_checked(address, 100, data, &data_out);
 		--retry;
 	} while (retry > 0 && errorCode != 0);
 	if (errorCode != 0)
 	{
 		TLOG(TLVL_ERROR) << "Error writing register 0x" << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
 		throw DTC_IOErrorException(errorCode);
+	}
+	if (data != data_out)
+	{
+		TLOG(TLVL_ERROR) << "Readback value of register 0x" << std::hex << static_cast<uint32_t>(address) << " (" << data_out << ") does not match " << data;
+		throw DTC_IOErrorException(-10);
 	}
 }
 
