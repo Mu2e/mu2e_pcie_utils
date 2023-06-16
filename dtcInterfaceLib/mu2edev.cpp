@@ -264,6 +264,29 @@ int mu2edev::write_register(uint16_t address, int tmo_ms, uint32_t data)
 	return retsts;
 }
 
+int mu2edev::write_register_checked(uint16_t address, int tmo_ms, uint32_t data, uint32_t* output)
+{
+	auto start = std::chrono::steady_clock::now();
+	auto retsts = -1;
+	if (simulator_ != nullptr)
+	{
+		retsts = simulator_->write_register(address, tmo_ms, data);
+		*output = data;
+	}
+	else
+	{
+		m_ioc_reg_access_t reg;
+		reg.reg_offset = address;
+		reg.access_type = 2;
+		reg.val = data;
+		TRACE(TLVL_DEBUG + 17, "Writing value 0x%x to register 0x%x with readback", data, address);
+		retsts = ioctl(devfd_, M_IOC_REG_ACCESS, &reg);
+		*output = reg.val;
+	}
+	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
+	return retsts;
+}
+
 void mu2edev::meta_dump()
 {
 	TRACE(TLVL_DEBUG + 5, "mu2edev::meta_dump");

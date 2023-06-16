@@ -110,6 +110,15 @@ public:
 	/// <returns>0 on success</returns>
 	int write_register(uint16_t address, int tmo_ms, uint32_t data);
 	/// <summary>
+	/// Write to a DTC register
+	/// </summary>
+	/// <param name="address">Address to write</param>
+	/// <param name="tmo_ms">Timeout for write</param>
+	/// <param name="data">Data to write</param>
+	/// <param name="output">Pointer to output word</param>
+	/// <returns>0 on success</returns>
+	int write_register_checked(uint16_t address, int tmo_ms, uint32_t data, uint32_t* output);
+	/// <summary>
 	/// Write out the DMA metadata to screen
 	/// </summary>
 	void meta_dump();
