@@ -21,6 +21,8 @@ cet_set_compiler_flags(DIAGS VIGILANT
  NO_UNDEFINED
  EXTRA_FLAGS -pedantic -Wno-unused-function -Wno-unused-parameter
 # EXTRA_C_FLAGS -std=gnu99
+#  -g -O0 
+#  -v 
  )
 
 string(TOUPPER ${CMAKE_BUILD_TYPE} BTYPE_UC )

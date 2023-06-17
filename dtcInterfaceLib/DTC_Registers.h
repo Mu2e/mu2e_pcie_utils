@@ -765,7 +765,9 @@ public:
 	/// </summary>
 	void SetDetectorEmulatorInUse()
 	{
+#ifndef __ROOTCINT__
 		TLOG(TLVL_WARNING) << "DTC_Registers::SetDetectorEmulatorInUse: Enabling Detector Emulator!";
+#endif
 		usingDetectorEmulator_ = true;
 	}
 	void ClearDetectorEmulatorInUse();
@@ -1344,10 +1346,10 @@ public:
 	void WriteCurrentFrequency(double freq, DTC_OscillatorType oscillator);
 	void WriteCurrentProgram(uint64_t program, DTC_OscillatorType oscillator);
 
-private:
 	void WriteRegister_(uint32_t data, const DTC_Register& address);
 	uint32_t ReadRegister_(const DTC_Register& address);
 
+private:
 	bool GetBit_(const DTC_Register& address, size_t bit);
 	void SetBit_(const DTC_Register& address, size_t bit, bool value);
 	bool ToggleBit_(const DTC_Register& address, size_t bit)
