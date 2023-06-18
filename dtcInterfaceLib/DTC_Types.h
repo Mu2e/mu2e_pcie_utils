@@ -9,9 +9,9 @@
 #ifndef __CLING__
 #include "TRACE/tracemf.h"
 #else
-class TraceStreamer;
-#define TLVL_INFO    0
+class   TraceStreamer;
 #define TLVL_WARNING 1
+#define TLVL_INFO    2
 #endif
 
 
@@ -44,7 +44,7 @@ enum DTC_Link_ID : uint8_t
 	DTC_Link_ALL = 255
 };
 
-#ifndef __ROOTCINT__
+#ifndef __CLING__
 inline TraceStreamer& operator<<(TraceStreamer& ts, DTC_Link_ID const& link)
 {
 	return ts << static_cast<uint8_t>(link);
@@ -152,7 +152,7 @@ struct DTC_DebugTypeConverter
 	/// <param name="stream">Stream to write</param>
 	/// <param name="type">DTC_DebugTypeConverter to serialize</param>
 	/// <returns>Stream reference for continued streaming</returns>
-#ifndef __ROOTCINT__
+#ifndef __CLING__
 	friend std::ostream& operator<<(std::ostream& stream, const DTC_DebugTypeConverter& type)
 	{
 		stream << "\"DTC_DebugType\":\"" << type.toString() << "\"";

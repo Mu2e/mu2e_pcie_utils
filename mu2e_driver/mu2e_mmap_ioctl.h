@@ -17,7 +17,7 @@
 #include <sys/types.h>
 #include <unistd.h>  // sysconf
 
-#ifndef __ROOTCINT__
+#ifndef __CLING__
 #include "trace.h"
 #endif
 
@@ -342,7 +342,7 @@ static inline unsigned mu2e_chn_info_delta_(
 	else
 		retval = ((sw >= hw) ? (*mu2e_channel_info_)[dtc][chn][dir].num_buffs - (sw - hw) : hw - sw);
 
-#ifndef __ROOTCINT__
+#ifndef __CLING__
 	TRACE(21, "mu2e_mmap_ioctl::delta_ dtc=%d chn=%d dir=%d hw=%u sw=%u num_buffs=%u delta=%u", dtc, chn, dir, hw, sw,
 		  (*mu2e_channel_info_)[dtc][chn][dir].num_buffs, retval);
 #endif

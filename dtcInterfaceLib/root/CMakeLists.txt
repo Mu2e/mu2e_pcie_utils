@@ -19,13 +19,18 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ../
                     $ENV{CETLIB_INC}
                     $ENV{CETLIB_EXCEPT_INC}
                     )
-message(EMOE !!!! CMAKE_CURRENT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+message(Building ROOT interface: CMAKE_CURRENT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-ROOT_GENERATE_DICTIONARY(G__DTC DTC.h LINKDEF DTC_linkdef.h OPTIONS -D=__ROOTCINT__)
+# add options, say -D=XXXXX, if needed, after OPTIONS
+ROOT_GENERATE_DICTIONARY(G__DTC 
+		         DTC.h DTC_Types.h DTCSoftwareCFO.h 
+                         LINKDEF DTC_linkdef.h 
+                         OPTIONS 
+			 )
 
-#---Create a shared library with geneated dictionary
+#---Create a shared library with generated dictionary
 
-add_library(DTC SHARED G__DTC.cxx ../DTC.cpp)
+add_library(DTC SHARED G__DTC.cxx)
 
 target_link_libraries(DTC ${ROOT_LIBRARIES} DTCInterface)
 
