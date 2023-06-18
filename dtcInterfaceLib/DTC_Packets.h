@@ -5,15 +5,10 @@
 #include <cstdint>  // uint8_t, uint16_t
 #include <vector>
 #include <cassert>
-#include <cassert>
 
 #include "DTC_Types.h"
 
-#ifndef __ROOTCINT__
 #include "mu2e_driver/mu2e_mmap_ioctl.h"
-#else 
-#include <cstring>
-#endif
 
 namespace DTCLib {
 

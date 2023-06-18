@@ -11,7 +11,10 @@ cet_make_library(LIBRARY_NAME DTCInterface SOURCE
 	    DTC_Registers.cpp
 	    DTC_Packets.cpp
             DTC_Types.cpp
+<<<<<<< HEAD
 #	    DTCTest.cpp
+=======
+>>>>>>> 2bb40db (P.Murat: ROOT interface fully functional, use ROOT builtin -D=__CLING__ for protection)
             mu2edev.cpp
 	    mu2esim.cpp
             LIBRARIES PUBLIC TRACE::MF
@@ -42,12 +45,9 @@ cet_script( ALWAYS_COPY updateMu2e.sh Setup_DTC.sh JAConfig.sh)
 
 add_subdirectory(test)
 
-find_package(SWIG REQUIRED)
-include(${SWIG_USE_FILE})
-
 # Add subdirectories for each language if desired
-option(BUILD_PYTHON "Build Python SWIG module" ON)
 
+<<<<<<< HEAD
 if (BUILD_PYTHON_INTERFACE)
     add_subdirectory(python)
 endif()
@@ -59,5 +59,18 @@ set(BUILD_ROOT_INTERFACE $ENV{BUILD_ROOT_INTERFACE})
 message(BUILD_ROOT_INTERFACE=${BUILD_ROOT_INTERFACE} $ENV{BUILD_ROOT_INTERFACE})
 
 if(BUILD_ROOT_INTERFACE)
+=======
+message(EMOE!! BUILD_PYTHON_INTERFACE=$ENV{BUILD_PYTHON_INTERFACE})
+
+if ($ENV{BUILD_PYTHON_INTERFACE})
+   find_package(SWIG REQUIRED)
+   include(${SWIG_USE_FILE})
+   add_subdirectory(python)
+endif()
+
+message(EMOE_002 !! BUILD_ROOT_INTERFACE=$ENV{BUILD_ROOT_INTERFACE})
+
+if($ENV{BUILD_ROOT_INTERFACE})
+>>>>>>> 2bb40db (P.Murat: ROOT interface fully functional, use ROOT builtin -D=__CLING__ for protection)
   add_subdirectory(root)
 endif()
