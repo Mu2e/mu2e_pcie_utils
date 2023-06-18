@@ -765,7 +765,7 @@ public:
 	/// </summary>
 	void SetDetectorEmulatorInUse()
 	{
-#ifndef __ROOTCINT__
+#ifndef __CLING__
 		TLOG(TLVL_WARNING) << "DTC_Registers::SetDetectorEmulatorInUse: Enabling Detector Emulator!";
 #endif
 		usingDetectorEmulator_ = true;
