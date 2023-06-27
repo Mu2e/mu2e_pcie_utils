@@ -33,6 +33,7 @@ enum DTC_Link_ID : uint8_t
 	DTC_Link_CFO = 6,
 	DTC_Link_EVB = 7,
 	DTC_Link_Unused,
+	DTC_Link_ALL = 255
 };
 inline TraceStreamer& operator<<(TraceStreamer& ts, DTC_Link_ID const& link)
 {
@@ -579,6 +580,9 @@ public:
 	/// <param name="retcode">Return code from IO operation</param>
 	DTC_IOErrorException(int retcode)
 		: what_(std::string("DTCIOErrorException: Unable to communicate with the DTC: Error Code: ") + std::to_string(retcode)) {}
+	DTC_IOErrorException(const std::string& errorMessage)
+		: what_(std::string("DTCIOErrorException: ") + errorMessage) {}
+	
 	/// <summary>
 	/// Describe the exception
 	/// </summary>
