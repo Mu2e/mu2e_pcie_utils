@@ -27,6 +27,7 @@ enum CFO_Link_ID : uint8_t
 	CFO_Link_6 = 6,
 	CFO_Link_7 = 7,
 	CFO_Link_Unused,
+	CFO_Link_ALL = 255
 };
 
 /// <summary>
@@ -152,7 +153,7 @@ public:
 	/// Used to read state.</param> <param name="expectedDesignVersion">Expected CFO Firmware Design Version. If set, will
 	/// throw an exception if the CFO firmware does not match (Default: "")</param>
 	explicit CFO_Registers(DTC_SimMode mode, int CFO, std::string expectedDesignVersion = "",
-						   bool skipInit = false);
+						   bool skipInit = false, const std::string& uid = "");
 	/// <summary>
 	/// CFO_Registers destructor
 	/// </summary>
@@ -180,7 +181,8 @@ public:
 	/// CFO firmware does not match</param> <param name="mode">Mode to set</param> <param name="CFO">CFO/DTC card instance
 	/// to use</param> <param name="skipInit">Whether to skip initializing the CFO using the SimMode. Used to read
 	/// state.</param> <returns></returns>
-	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO, bool skipInit = false);
+	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO, 
+							bool skipInit = false, const std::string& uid = "");
 
 	//
 	// CFO Register Dumps
@@ -283,6 +285,20 @@ public:
 	/// </summary>
 	/// <returns>True if the CFO is currently resetting, false otherwise</returns>
 	bool ReadResetCFO();
+	// CFO Control Register
+	/// <summary>
+	/// Clear CFO Control Register
+	/// </summary>
+	void ClearCFOControlRegister();
+	/// <summary>
+	/// Perform a CFO Run Plan Reset
+	/// </summary>
+	void ResetCFORunPlan();
+	/// <summary>
+	/// Read the Reset CFO Run Plan Bit
+	/// </summary>
+	/// <returns>True if the CFO is currently resetting, false otherwise</returns>
+	bool ReadResetCFORunPlan();
 	/// <summary>
 	/// Enable automatically generating Data Request packets from the CFO CFO Emulator
 	/// </summary>
@@ -425,6 +441,7 @@ public:
 	/// <param name="dtcCount">Number of DTCs in the Link (Default: 0)</param>
 	void EnableLink(const CFO_Link_ID& link, const DTC_LinkEnableMode& mode = DTC_LinkEnableMode(),
 					const uint8_t& dtcCount = 0);
+
 	/// <summary>
 	/// Disable a SERDES Link
 	/// The given mode bits will be UNSET
@@ -452,6 +469,14 @@ public:
 	/// <param name="link">Link to reset</param>
 	/// <param name="interval">Pollint interval, in microseconds</param>
 	void ResetSERDES(const CFO_Link_ID& link, int interval = 100);
+	/// <summary>
+	/// Reset all SERDES PLLs
+	/// </summary>
+	void ResetAllSERDESPlls();
+	/// <summary>
+	/// Reset all SERDES Tx
+	/// </summary>
+	void ResetAllSERDESTx();
 	/// <summary>
 	/// Read if a SERDES reset is currently in progress
 	/// </summary>
@@ -1545,6 +1570,11 @@ public:
 	/// <param name="targetFrequency">New frequency to program, in Hz</param>
 	/// <returns>Whether the oscillator frequency was changed</returns>
 	bool SetNewOscillatorFrequency(double targetFrequency);
+
+	/// <summary>
+	/// Disable all CFO outputs
+	/// </summary>
+	void DisableAllOutputs();
 
 private:
 	void WriteRegister_(uint32_t data, const CFO_Register& address);

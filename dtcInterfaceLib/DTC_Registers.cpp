@@ -9,20 +9,12 @@
 
 #include "TRACE/tracemf.h"
 
-#define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << device_.getDTCID() << ": "
+#define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << device_.getDeviceUID() << ": "
 #define TLVL_ResetDTC TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
 #define TLVL_SERDESReset TLVL_DEBUG + 7
 #define TLVL_CalculateFreq TLVL_DEBUG + 8
 #define TLVL_ReadRegister TLVL_DEBUG + 20
-
-#define __SHORTFILE__ \
-	(strstr(&__FILE__[0], "/srcs/") ? strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
-#define __COUT__ std::cout << __SHORTFILE__ << " [" << std::dec << __LINE__ << "]\t"
-#define __E__ std::endl
-#define Q(X) #X
-#define QUOTE(X) Q(X)
-#define __COUTV__(X) __COUT__ << QUOTE(X) << " = " << X << __E__
 
 /// <summary>
 /// Construct an instance of the DTC register map
@@ -35,7 +27,7 @@
 /// throw an exception if the DTC firmware does not match (Default: "")</param>
 /// <param name="skipInit">Whether to skip initialization phase for reading DTC out in current state</param>
 DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simFileName, unsigned rocMask, std::string expectedDesignVersion,
-									 bool skipInit)
+									 bool skipInit, const std::string& uid)
 	: device_(), simMode_(mode), usingDetectorEmulator_(false), dmaSize_(64)
 {
 	auto sim = getenv("DTCLIB_SIM_ENABLE");
@@ -44,7 +36,7 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 		auto simstr = std::string(sim);
 		simMode_ = DTC_SimModeConverter::ConvertToSimMode(simstr);
 	}
-	TLOG(TLVL_INFO) << "Sim Mode is " << DTC_SimModeConverter(simMode_).toString();
+	TLOG(TLVL_INFO) << "DTC Sim Mode is " << DTC_SimModeConverter(simMode_).toString();
 
 	if (dtc == -1)
 	{
@@ -58,7 +50,7 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 	}
 	TLOG(TLVL_INFO) << "DTC ID is " << dtc;
 
-	SetSimMode(expectedDesignVersion, simMode_, dtc, simFileName, rocMask, skipInit);
+	SetSimMode(expectedDesignVersion, simMode_, dtc, simFileName, rocMask, skipInit, (uid == ""? ("DTC"+std::to_string(dtc)):uid));
 }
 
 /// <summary>
@@ -84,23 +76,24 @@ DTCLib::DTC_Registers::~DTC_Registers()
 /// <param name="skipInit">Whether to skip initializing the DTC using the SimMode. Used to read state.</param>
 /// <returns></returns>
 DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int dtc, std::string simMemoryFile,
-													  unsigned rocMask, bool skipInit)
+													  unsigned rocMask, bool skipInit, const std::string& uid)
 {
 	simMode_ = mode;
 	TLOG(TLVL_INFO) << "Initializing device, sim mode is " << DTC_SimModeConverter(simMode_).toString();
-	device_.init(simMode_, dtc, simMemoryFile);
+	device_.init(simMode_, dtc, simMemoryFile, uid);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
 		throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
 	}
 
-	if (skipInit || true)
+	//if (skipInit || true)
+	if (skipInit) 
 	{
-		TLOG(TLVL_INFO) << "SKIPPING Initializing device";
+		DTC_TLOG(TLVL_INFO) << "SKIPPING Initializing device";
 		return simMode_;
 	}
 
-	TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
+	DTC_TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	for (auto link : DTC_Links)
 	{
 		bool linkEnabled = ((rocMask >> (link * 4)) & 0x1) != 0;
@@ -150,7 +143,7 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 	}
 	ReadMinDMATransferLength();
 
-	TLOG(TLVL_DEBUG) << "Done setting device registers";
+	DTC_TLOG(TLVL_DEBUG) << "Done setting device registers";
 	return simMode_;
 }
 
@@ -305,23 +298,31 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatDesignVersion()
 /// <summary>
 /// Read the modification date of the DTC firmware
 /// </summary>
-/// <returns>Design date in 20YY-MM-DD-HH format</returns>
+/// <returns>Design date in MON/DD/20YY HH:00 format</returns>
 std::string DTCLib::DTC_Registers::ReadDesignDate()
 {
-	auto data = ReadRegister_(DTC_Register_DesignDate);
+	auto readData = ReadRegister_(DTC_Register_DesignDate);
 	std::ostringstream o;
-	int yearHex = (data & 0xFF000000) >> 24;
-	auto year = ((yearHex & 0xF0) >> 4) * 10 + (yearHex & 0xF);
-	int monthHex = (data & 0xFF0000) >> 16;
-	auto month = ((monthHex & 0xF0) >> 4) * 10 + (monthHex & 0xF);
-	int dayHex = (data & 0xFF00) >> 8;
-	auto day = ((dayHex & 0xF0) >> 4) * 10 + (dayHex & 0xF);
-	int hour = ((data & 0xF0) >> 4) * 10 + (data & 0xF);
-	o << "20" << std::setfill('0') << std::setw(2) << year << "-";
-	o << std::setfill('0') << std::setw(2) << month << "-";
-	o << std::setfill('0') << std::setw(2) << day << "-";
-	o << std::setfill('0') << std::setw(2) << hour;
-	// std::cout << o.str() << std::endl;
+	std::vector<std::string> months({"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"});
+	int mon =  ((readData>>20)&0xF)*10 + ((readData>>16)&0xF);
+	o << months[mon-1] << "/" << 
+		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
+		((readData>>28)&0xF) << ((readData>>24)&0xF) << " " <<
+		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData << std::endl;
+	
+	//Design date in 20YY-MM-DD-HH format
+	// int yearHex = (data & 0xFF000000) >> 24;
+	// auto year = ((yearHex & 0xF0) >> 4) * 10 + (yearHex & 0xF);
+	// int monthHex = (data & 0xFF0000) >> 16;
+	// auto month = ((monthHex & 0xF0) >> 4) * 10 + (monthHex & 0xF);
+	// int dayHex = (data & 0xFF00) >> 8;
+	// auto day = ((dayHex & 0xF0) >> 4) * 10 + (dayHex & 0xF);
+	// int hour = ((data & 0xF0) >> 4) * 10 + (data & 0xF);
+	// o << "20" << std::setfill('0') << std::setw(2) << year << "-";
+	// o << std::setfill('0') << std::setw(2) << month << "-";
+	// o << std::setfill('0') << std::setw(2) << day << "-";
+	// o << std::setfill('0') << std::setw(2) << hour;
+	// // std::cout << o.str() << std::endl;
 	return o.str();
 }
 
@@ -663,7 +664,16 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatFPGAAlarms()
 	return form;
 }
 
+
 // DTC Control Register
+/// <summary>
+/// Clear the the DTC Control Register
+/// </summary>
+void DTCLib::DTC_Registers::ClearDTCControlRegister()
+{
+	WriteRegister_(0, DTC_Register_DTCControl);
+}
+
 /// <summary>
 /// Perform a DTC Reset
 /// </summary>
@@ -672,6 +682,8 @@ void DTCLib::DTC_Registers::ResetDTC()
 	DTC_TLOG(TLVL_ResetDTC) << "ResetDTC start";
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	data[31] = 1;  // DTC Reset bit
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+	data[31] = 0;  // DTC Reset bit
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
 }
 
@@ -913,6 +925,47 @@ bool DTCLib::DTC_Registers::ReadSoftwareDRP()
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	return data[22];
+}
+
+
+/// <summary>
+/// Enable the All LED bits in Control register
+/// </summary>
+void DTCLib::DTC_Registers::EnableLEDs()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[16] = 1;
+	data[17] = 1;
+	data[18] = 1;
+	data[19] = 1;
+	data[20] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+/// <summary>
+/// Disable the All LED bits in Control register
+/// </summary>
+void DTCLib::DTC_Registers::DisableLEDs()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[16] = 0;
+	data[17] = 0;
+	data[18] = 0;
+	data[19] = 0;
+	data[20] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+/// <summary>
+/// Enable the All LED bits in Control register
+/// </summary>
+void DTCLib::DTC_Registers::FlashLEDs()
+{
+	DisableLEDs();
+	sleep(1);
+	EnableLEDs();
+	sleep(1);
+	DisableLEDs();
 }
 
 /// <summary>
@@ -1485,6 +1538,14 @@ bool DTCLib::DTC_Registers::ReadROCEmulator(DTC_Link_ID const& link)
 	std::bitset<32> dataSet = ReadRegister_(DTC_Register_ROCEmulationEnable);
 	return dataSet[link];
 }
+void DTCLib::DTC_Registers::SetROCEmulatorMask(uint32_t rocEnableMask)
+{	
+	WriteRegister_(rocEnableMask, DTC_Register_ROCEmulationEnable);
+}
+uint32_t DTCLib::DTC_Registers::ReadROCEmulatorMask()
+{	
+	return ReadRegister_(DTC_Register_ROCEmulationEnable);
+}
 
 /// <summary>
 /// Formats the register's current value for register dumps
@@ -1577,24 +1638,52 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatLinkEnable()
 /// <param name="interval">Polling interval, in microseconds</param>
 void DTCLib::DTC_Registers::ResetSERDESTX(DTC_Link_ID const& link, int interval)
 {
-	auto resetDone = false;
-	while (!resetDone)
-	{
-		DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
-		std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
+	DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES TX Reset Loop for Link " << link;
+	std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
+	if(link == DTC_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+			data[i + 24] = 1;
+	}
+	else
 		data[link + 24] = 1;
-		WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
+	WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
 
-		usleep(interval);
+	usleep(interval);
 
-		data = ReadRegister_(DTC_Register_SERDES_Reset);
+	data = ReadRegister_(DTC_Register_SERDES_Reset);
+	if(link == DTC_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+			data[i + 24] = 0;
+	}
+	else
 		data[link + 24] = 0;
-		WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
+	WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
 
+	auto resetDone = false;
+	uint32_t loops = 0;
+	while (!resetDone && ++loops < 10)
+	{
 		usleep(interval);
 
-		resetDone = ReadResetTXSERDESDone(link);
-		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
+		//DO NOT CHECK until bit 7-0 resets, that seems to update all reset done bits
+		resetDone = true;
+		// if(link == DTC_Link_ALL)
+		// {	
+		// 	//Ignore CFO link reset since it depends on CFO emulation mode and/or CFO presence
+		// 	resetDone = (ReadRegister_(DTC_Register_SERDES_ResetDone) & 0xBF) == 0xBF;			
+		// }
+		// else
+		// 	resetDone = ReadResetTXSERDESDone(link);
+		
+		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES TX Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
+	}
+
+	if(loops >= 10)
+	{
+		DTC_TLOG(TLVL_ERROR) << "Timeout waiting for SERDES TX Reset loop.";
+		throw DTC_IOErrorException("Timeout waiting for SERDES TX Reset loop.");
 	}
 }
 
@@ -1617,24 +1706,53 @@ bool DTCLib::DTC_Registers::ReadResetSERDESTX(DTC_Link_ID const& link)
 /// <param name="interval">Polling interval, in microseconds</param>
 void DTCLib::DTC_Registers::ResetSERDESRX(DTC_Link_ID const& link, int interval)
 {
-	auto resetDone = false;
-	while (!resetDone)
-	{
-		DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
-		std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
+
+	DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES RX Reset Loop for Link " << link;
+	std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
+	if(link == DTC_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+			data[i + 16] = 1;
+	}
+	else
 		data[link + 16] = 1;
-		WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
+	WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
 
-		usleep(interval);
+	usleep(interval);
 
-		data = ReadRegister_(DTC_Register_SERDES_Reset);
+	data = ReadRegister_(DTC_Register_SERDES_Reset);
+	if(link == DTC_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+			data[i + 16] = 0;
+	}
+	else
 		data[link + 16] = 0;
-		WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
+	WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
 
+	auto resetDone = false;
+	uint32_t loops = 0;
+	while (!resetDone && ++loops < 10)
+	{
 		usleep(interval);
 
-		resetDone = ReadResetRXSERDESDone(link);
-		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
+		//DO NOT CHECK until bit 7-0 resets, that seems to update all reset done bits
+		resetDone = true;
+		// if(link == DTC_Link_ALL)
+		// {	
+		// 	//Ignore CFO link reset since it depends on CFO emulation mode and/or CFO presence
+		// 	resetDone = ((ReadRegister_(DTC_Register_SERDES_ResetDone) >> 16) & 0xBF) == 0xBF;						
+		// }
+		// else
+		// 	resetDone = ReadResetRXSERDESDone(link);
+
+		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES RX Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
+	}
+
+	if(loops >= 10)
+	{
+		DTC_TLOG(TLVL_ERROR) << "Timeout waiting for SERDES RX Reset loop.";
+		throw DTC_IOErrorException("Timeout waiting for SERDES RX Reset loop.");
 	}
 }
 
@@ -1687,26 +1805,148 @@ bool DTCLib::DTC_Registers::ReadResetSERDESPLL(const DTC_PLL_ID& pll)
 /// <param name="interval">Polling interval, in microseconds</param>
 void DTCLib::DTC_Registers::ResetSERDES(DTC_Link_ID const& link, int interval)
 {
-	auto resetDone = false;
-	while (!resetDone)
-	{
-		DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
-		std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
-		data[link] = 1;
-		WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
-
-		usleep(interval);
-
-		data = ReadRegister_(DTC_Register_SERDES_Reset);
-		data[link] = 0;
-		WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
-
-		usleep(interval);
-
-		resetDone = ReadResetRXSERDESDone(link);
-		resetDone = resetDone && ReadResetTXSERDESDone(link);
-		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
+	
+	DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
+	std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
+	if(link == DTC_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+			data[i] = 1;
 	}
+	else
+		data[link] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
+
+	// usleep(interval);
+
+	data = ReadRegister_(DTC_Register_SERDES_Reset);
+	if(link == DTC_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+			data[i] = 0;
+	}
+	else
+		data[link] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_SERDES_Reset);
+
+
+	auto resetDone = false;
+	uint32_t loops = 0;
+	while (!resetDone && ++loops < 100) 
+	{
+		usleep(interval);
+
+		if(link == DTC_Link_ALL)
+		{	
+			//Ignore CFO link reset since it depends on CFO emulation mode and/or CFO presence
+			resetDone = (ReadRegister_(DTC_Register_SERDES_ResetDone) & 0xBF) == 0xBF;						
+			resetDone = resetDone &&
+				( ((ReadRegister_(DTC_Register_SERDES_ResetDone) >> 16) & 0xBF) == 0xBF);								
+		}
+		else
+		{
+			resetDone = ReadResetRXSERDESDone(link);
+			resetDone = resetDone && ReadResetTXSERDESDone(link);
+		}
+		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
+	}
+
+	if(loops >= 100)
+	{
+		DTC_TLOG(TLVL_ERROR) << "Timeout waiting for SERDES Reset loop=" << loops;
+		throw DTC_IOErrorException("Timeout waiting for SERDES Reset loop.");
+	}
+}
+
+DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatRXDiagFifo(DTC_Link_ID const& link)
+{
+	DTC_TLOG(TLVL_DEBUG) << "FormatRXDiagFifo.";
+	DTC_Register reg;
+	switch (link)
+	{
+		case DTC_Link_0:
+			reg = DTC_Register_RXDataDiagnosticFIFO_Link0;
+			break;
+		case DTC_Link_1:
+			reg = DTC_Register_RXDataDiagnosticFIFO_Link1;
+			break;
+		case DTC_Link_2:
+			reg = DTC_Register_RXDataDiagnosticFIFO_Link2;
+			break;
+		case DTC_Link_3:
+			reg = DTC_Register_RXDataDiagnosticFIFO_Link3;
+			break;
+		case DTC_Link_4:
+			reg = DTC_Register_RXDataDiagnosticFIFO_Link4;
+			break;
+		case DTC_Link_5:
+			reg = DTC_Register_RXDataDiagnosticFIFO_Link5;
+			break;
+		case DTC_Link_CFO:
+			reg = DTC_Register_RXDataDiagnosticFIFO_LinkCFO;
+			break;
+		default:
+			throw std::runtime_error("Invalid DTC Link");
+	}
+
+	auto form = CreateFormatter(reg);
+	form.description = "Rx Diag FIFO";
+	for(uint8_t i=0;i<100;++i)
+	{	
+	 	DTC_TLOG(TLVL_DEBUG) << "FormatRXDiagFifo loop." << i;
+		std::ostringstream o; 
+		o << std::hex << std::setfill('0');
+		o << "    0x" << std::setw(4) << static_cast<int>(form.address) << "  | 0x" << std::setw(8)
+						<< static_cast<int>(ReadRegister_(reg)) << " | ";
+		form.vals.push_back(o.str());
+	}
+
+	DTC_TLOG(TLVL_DEBUG) << "FormatRXDiagFifo loop done.";
+	return form;
+}
+
+DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatTXDiagFifo(DTC_Link_ID const& link)
+{
+	DTC_Register reg;
+	switch (link)
+	{
+		case DTC_Link_0:
+			reg = DTC_Register_TXDataDiagnosticFIFO_Link0;
+			break;
+		case DTC_Link_1:
+			reg = DTC_Register_TXDataDiagnosticFIFO_Link1;
+			break;
+		case DTC_Link_2:
+			reg = DTC_Register_TXDataDiagnosticFIFO_Link2;
+			break;
+		case DTC_Link_3:
+			reg = DTC_Register_TXDataDiagnosticFIFO_Link3;
+			break;
+		case DTC_Link_4:
+			reg = DTC_Register_TXDataDiagnosticFIFO_Link4;
+			break;
+		case DTC_Link_5:
+			reg = DTC_Register_TXDataDiagnosticFIFO_Link5;
+			break;
+		case DTC_Link_CFO:
+			reg = DTC_Register_TXDataDiagnosticFIFO_LinkCFO;
+			break;
+		default:
+			throw std::runtime_error("Invalid DTC Link");
+	}
+	auto form = CreateFormatter(reg);
+	form.description = "Tx Diag FIFO";
+	for(uint8_t i=0;i<100;++i)
+	{	
+		std::ostringstream o; 
+		o << std::hex << std::setfill('0');
+		o << "    0x" << std::setw(4) << static_cast<int>(form.address) << "  | 0x" << std::setw(8)
+						<< static_cast<int>(ReadRegister_(reg)) << " | ";
+		form.vals.push_back(o.str());
+	}
+			
+
+	return form;
 }
 
 /// <summary>
@@ -2022,10 +2262,10 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatSERDESResetDone()
 	form.vals.push_back("       ([RX FSM, RX, TX FSM, TX])");
 	for (auto r : DTC_Links)
 	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadResetRXFSMSERDESDone(r) ? "x" : " ") + (ReadResetRXSERDESDone(r) ? "x" : " ") + (ReadResetTXFSMSERDESDone(r) ? "x" : " ") + (ReadResetTXSERDESDone(r) ? "x" : " ") + "]");
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadResetRXFSMSERDESDone(r) ? "x" : ".") + (ReadResetRXSERDESDone(r) ? "x" : ".") + (ReadResetTXFSMSERDESDone(r) ? "x" : ".") + (ReadResetTXSERDESDone(r) ? "x" : ".") + "]");
 	}
-	form.vals.push_back(std::string("CFO:    [") + (ReadResetRXFSMSERDESDone(DTC_Link_CFO) ? "x" : " ") + (ReadResetRXSERDESDone(DTC_Link_CFO) ? "x" : " ") + (ReadResetTXFSMSERDESDone(DTC_Link_CFO) ? "x" : " ") + (ReadResetTXSERDESDone(DTC_Link_CFO) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("EVB:    [") + (ReadResetRXFSMSERDESDone(DTC_Link_EVB) ? "x" : " ") + (ReadResetRXSERDESDone(DTC_Link_EVB) ? "x" : " ") + (ReadResetTXFSMSERDESDone(DTC_Link_EVB) ? "x" : " ") + (ReadResetTXSERDESDone(DTC_Link_EVB) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("CFO:    [") + (ReadResetRXFSMSERDESDone(DTC_Link_CFO) ? "x" : ".") + (ReadResetRXSERDESDone(DTC_Link_CFO) ? "x" : ".") + (ReadResetTXFSMSERDESDone(DTC_Link_CFO) ? "x" : ".") + (ReadResetTXSERDESDone(DTC_Link_CFO) ? "x" : ".") + "]");
+	form.vals.push_back(std::string("EVB:    [") + (ReadResetRXFSMSERDESDone(DTC_Link_EVB) ? "x" : ".") + (ReadResetRXSERDESDone(DTC_Link_EVB) ? "x" : ".") + (ReadResetTXFSMSERDESDone(DTC_Link_EVB) ? "x" : ".") + (ReadResetTXSERDESDone(DTC_Link_EVB) ? "x" : ".") + "]");
 	return form;
 }
 
@@ -2162,6 +2402,23 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatROCReplyTimeoutError(
 	return form;
 }
 
+void DTCLib::DTC_Registers::SetEVBInfo(uint8_t dtcid,uint8_t mode,
+	uint8_t partitionId, uint8_t macByte)
+{
+	uint32_t regVal = dtcid << 24;
+	regVal |= mode << 16;
+	regVal |= (partitionId & 0x3) << 8;
+	regVal |= (macByte & 0x3F);
+	WriteRegister_(regVal, DTC_Register_EVBPartitionID);
+}
+
+void DTCLib::DTC_Registers::SetDTCID(uint8_t dtcid)
+{
+	auto regVal = ReadRegister_(DTC_Register_EVBPartitionID) & 0x00FFFFFF;
+	regVal += dtcid << 24;
+	WriteRegister_(regVal, DTC_Register_EVBPartitionID);
+}
+
 // EVB Network Partition ID / EVB Network Local MAC Index Register
 uint8_t DTCLib::DTC_Registers::ReadDTCID()
 {
@@ -2194,10 +2451,10 @@ uint8_t DTCLib::DTC_Registers::ReadEVBMode()
 /// Set the local partition ID
 /// </summary>
 /// <param name="id">Local partition ID</param>
-void DTCLib::DTC_Registers::SetEVBLocalParitionID(uint8_t id)
+void DTCLib::DTC_Registers::SetEVBLocalParitionID(uint8_t partitionId)
 {
 	auto regVal = ReadRegister_(DTC_Register_EVBPartitionID) & 0xFFFFFCFF;
-	regVal += (id & 0x3) << 8;
+	regVal += (partitionId & 0x3) << 8;
 	WriteRegister_(regVal, DTC_Register_EVBPartitionID);
 }
 
@@ -2255,11 +2512,19 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatEVBLocalParitionIDMAC
 }
 
 // EVB Number of Destination Nodes Register
+void DTCLib::DTC_Registers::SetEVBBufferInfo(uint8_t bufferCount,
+	uint8_t startNode, uint8_t numOfNodes)
+{
+	uint32_t regVal = (bufferCount & 0xFF) << 16;
+	regVal |= (startNode & 0x3F) << 8;
+	regVal |= (numOfNodes & 0x3F);
+	WriteRegister_(regVal, DTC_Register_EVBConfiguration);
+}
 
-void DTCLib::DTC_Registers::SetEVBNumberInputBuffers(uint8_t count)
+void DTCLib::DTC_Registers::SetEVBNumberInputBuffers(uint8_t bufferCount)
 {
 	auto regVal = ReadRegister_(DTC_Register_EVBConfiguration) & 0xFF00FFFF;
-	regVal += (count & 0xFF) << 16;
+	regVal += (bufferCount & 0xFF) << 16;
 	WriteRegister_(regVal, DTC_Register_EVBConfiguration);
 }
 uint8_t DTCLib::DTC_Registers::ReadEVBNumberInputBuffers()
@@ -2271,10 +2536,10 @@ uint8_t DTCLib::DTC_Registers::ReadEVBNumberInputBuffers()
 /// Set the start node in the EVB cluster
 /// </summary>
 /// <param name="node">Node ID (MAC Address)</param>
-void DTCLib::DTC_Registers::SetEVBStartNode(uint8_t node)
+void DTCLib::DTC_Registers::SetEVBStartNode(uint8_t startNode)
 {
 	auto regVal = ReadRegister_(DTC_Register_EVBConfiguration) & 0xFFFFC0FF;
-	regVal += (node & 0x3F) << 8;
+	regVal += (startNode & 0x3F) << 8;
 	WriteRegister_(regVal, DTC_Register_EVBConfiguration);
 }
 
@@ -2291,10 +2556,10 @@ uint8_t DTCLib::DTC_Registers::ReadEVBStartNode()
 /// Set the number of destination nodes in the EVB cluster
 /// </summary>
 /// <param name="number">Number of nodes</param>
-void DTCLib::DTC_Registers::SetEVBNumberOfDestinationNodes(uint8_t number)
+void DTCLib::DTC_Registers::SetEVBNumberOfDestinationNodes(uint8_t numOfNodes)
 {
 	auto regVal = ReadRegister_(DTC_Register_EVBConfiguration) & 0xFFFFFFC0;
-	regVal += (number & 0x3F);
+	regVal += (numOfNodes & 0x3F);
 	WriteRegister_(regVal, DTC_Register_EVBConfiguration);
 }
 
@@ -3206,6 +3471,22 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumNullHe
 }
 
 // CFO Emulation Event Mode Bytes Registers
+/// <summary>
+/// Set the CFO Emulation Event Mode 48 bits
+/// </summary>
+void DTCLib::DTC_Registers::SetCFOEmulationEventMode(const uint64_t& eventMode)
+{
+	WriteRegister_(eventMode, DTC_Register_CFOEmulation_EventMode1);
+	WriteRegister_(eventMode >> 32, DTC_Register_CFOEmulation_EventMode2);
+}
+uint64_t DTCLib::DTC_Registers::ReadCFOEmulationEventMode()
+{
+	uint64_t eventMode = ReadRegister_(DTC_Register_CFOEmulation_EventMode2);
+	eventMode = ReadRegister_(DTC_Register_CFOEmulation_EventMode1) | 
+		(eventMode << 32);
+	return eventMode;
+}
+	
 /// <summary>
 /// Set the given CFO Emulation Mode byte to the given value
 /// </summary>
@@ -5061,6 +5342,7 @@ void DTCLib::DTC_Registers::ResetJitterAttenuator()
 	regdata[0] = 0;
 	WriteRegister_(regdata.to_ulong(), DTC_Register_JitterAttenuatorCSR);
 }
+
 /// <summary>
 /// Formats the register's current value for register dumps
 /// </summary>
@@ -5068,12 +5350,1357 @@ void DTCLib::DTC_Registers::ResetJitterAttenuator()
 DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatJitterAttenuatorCSR()
 {
 	auto form = CreateFormatter(DTC_Register_JitterAttenuatorCSR);
+	std::bitset<32> data = ReadRegister_(DTC_Register_JitterAttenuatorCSR);
+	std::bitset<2> JAinputSelect;
+	JAinputSelect[0] = data[4];
+	JAinputSelect[1] = data[5];
 	form.description = "Jitter Attenuator CSR";
-	form.vals.push_back(std::string("Select Low: [") + (ReadJitterAttenuatorSelect()[0] ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Select High: [") + (ReadJitterAttenuatorSelect()[1] ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Reset:   [") + (ReadJitterAttenuatorReset() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("JA Input Select: [") + 
+		(JAinputSelect.to_ulong() == 0 ? "Upstream Control Link Rx Recovered Clock"
+	             : (JAinputSelect.to_ulong() == 1 ? "RJ45 Upstream Clock"
+	                         : "Timing Card Selectable (SFP+ or FPGA) Input Clock")) + "]");	
+	form.vals.push_back(std::string("JA in Reset:   [") + (data[0] ? "YES" : "No") + "]");
+	form.vals.push_back(std::string("JA Loss-of-Lock:   [") + (data[8] ? "Not Locked" : "LOCKED") + "]");
+	form.vals.push_back(std::string("JA Input-0 Upstream Control Link Rx Recovered Clock:   [") + (data[9] ? "Missing" : "OK") + "]");
+	form.vals.push_back(std::string("JA Input-1 RJ45 Upstream Rx Clock:   [") + (data[10] ? "Missing" : "OK") + "]");
+	form.vals.push_back(std::string("JA Input-2 Timing Card Selectable, SFP+ or FPGA, Input Clock:   [") + (data[11] ? "Missing" : "OK") + "]");
 	return form;
 }
+
+/// <summary>
+/// Configure the Jitter Attenuator
+/// </summary>
+void DTCLib::DTC_Registers::ConfigureJitterAttenuator()
+{
+		// Start configuration preamble
+	// set page B
+	WriteRegister_(0x68010B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page B registers
+	WriteRegister_(0x6824C000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68250000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 5
+	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 5 registers
+	WriteRegister_(0x68400100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// End configuration preamble
+	//
+	// Delay 300 msec
+	usleep(300000 /*300ms*/); 
+
+	// Delay is worst case time for device to complete any calibration
+	// that is running due to device state change previous to this script
+	// being processed.
+	//
+	// Start configuration registers
+	// set page 0
+	WriteRegister_(0x68010000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 0 registers
+	WriteRegister_(0x68060000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68070000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68080000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B6800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6817DC00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6819DD00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681ADF00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682B0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682C0F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682D5500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682E3700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68303700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68310000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68323700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68330000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68343700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68363700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68383700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68390000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683A3700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C3700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683FFF00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68400400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68410E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68420E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68430E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68440E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68450C00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68463200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68473200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68483200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68493200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684A3200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684B3200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684C3200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684D3200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684E5500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684F5500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68500F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68510300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68520300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68530300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68540300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68550300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68560300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68570300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68580300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68595500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685AAA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685BAA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685C0A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685D0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685EAA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685FAA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68600A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68610100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6862AA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6863AA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68640A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68650100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6866AA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6867AA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68680A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68690100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68920200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6893A000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68950000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68968000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68986000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689A0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689B6000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689D0800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689E4000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A02000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A20000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A98A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AA6100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AB0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AC0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68E52100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68EA0A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68EB6000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68EC0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68ED0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 1
+	WriteRegister_(0x68010100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 1 registers
+	WriteRegister_(0x68020100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68120600, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68130900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68143B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68152800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170600, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68193B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A2800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683F1000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68414000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6842FF00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 2
+	WriteRegister_(0x68010200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 2 registers
+	WriteRegister_(0x68060000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68086400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68090000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680E0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68100000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68110000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68126400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68130000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68190000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681C6400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68200000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68210000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68220100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68230000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68240000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68250000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68266400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68270000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68280000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68290000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682C0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68310B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68320B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68330B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68340B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68360000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68388000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6839D400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683EC000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68500000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68510000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68520000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68530000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68540000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68550000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686B5200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686C6500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686D7600, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686E3100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686F2000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68702000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68712000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68722000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68900000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68910000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6894B000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68960200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68970200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68990200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689DFA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689E0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A9CC00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AA0400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AB0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68B7FF00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 3
+	WriteRegister_(0x68010300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 3 registers
+	WriteRegister_(0x68020000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68030000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68040000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68050000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68061100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68070000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68080000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68090000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B8000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68100000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68110000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68120000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68130000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68380000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68391F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68410000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68420000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68430000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68440000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68450000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68460000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68590000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 4
+	WriteRegister_(0x68010400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 4 registers
+	WriteRegister_(0x68870100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 5
+	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 5 registers
+	WriteRegister_(0x68081000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68091F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680A0C00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B0B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680C3F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680D3F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680E1300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680F2700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68100900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68110800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68123F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68133F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6819A800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681F8000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68212B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682B0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682C8700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682D0300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682E1900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682F1900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68310000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68324200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68330300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68340000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68360000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68380000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68390000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683A0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D1100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683E0600, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68890D00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689BFA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689D1000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689E2100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689F0C00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A00B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A13F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A23F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A60300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 8
+	WriteRegister_(0x68010800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 8 registers
+	WriteRegister_(0x68023500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68030500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68040000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68050000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68060000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68070000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68080000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68090000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68100000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68110000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68120000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68130000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68190000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68200000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68210000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68220000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68230000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68240000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68250000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68260000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68270000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68280000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68290000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68300000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68310000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68320000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68330000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68340000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68360000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68380000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68390000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68410000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68420000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68430000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68440000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68450000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68460000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68470000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68480000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68490000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68500000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68510000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68520000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68530000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68540000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68550000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68560000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68570000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68580000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68590000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68600000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68610000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 9
+	WriteRegister_(0x68010900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 9 registers
+	WriteRegister_(0x680E0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68430100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68490F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684A0F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684E4900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684F0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page A
+	WriteRegister_(0x68010A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page A registers
+	WriteRegister_(0x68020000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68030100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68040100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68050100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page B
+	WriteRegister_(0x68010B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page B registers
+	WriteRegister_(0x68442F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68460000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68470000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68480000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684A0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68570E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68580100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// End configuration registers
+	//
+	// Start configuration postamble
+	// set page 5
+	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 5 registers
+	WriteRegister_(0x68140100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 0
+	WriteRegister_(0x68010000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 0 registers
+	WriteRegister_(0x681C0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 5
+	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 5 registers
+	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page B
+	WriteRegister_(0x68010B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page B registers
+	WriteRegister_(0x6824C300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68250200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+}
+
+
 
 // SFP IIC Registers
 
@@ -6694,7 +8321,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatRXCDRUnlockCountCFOLi
 	return form;
 }
 
-uint32_t DTCLib::DTC_Registers::ReadJitterAttenuatorUnlockCuont()
+uint32_t DTCLib::DTC_Registers::ReadJitterAttenuatorUnlockCount()
 {
 	return ReadRegister_(DTC_Register_JitterAttenuatorLossOfLockCount);
 }
@@ -6709,7 +8336,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatJitterAttenuatorUnloc
 	auto form = CreateFormatter(DTC_Register_JitterAttenuatorLossOfLockCount);
 	form.description = "RX Jitter Attenuator Unlock Count";
 	std::stringstream o;
-	o << std::dec << ReadJitterAttenuatorUnlockCuont();
+	o << std::dec << ReadJitterAttenuatorUnlockCount();
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -9272,7 +10899,7 @@ void DTCLib::DTC_Registers::SetAllEventModeWords(uint32_t data)
 		} while (retry > 0 && errorCode != 0);
 		if (errorCode != 0)
 		{
-			TLOG(TLVL_ERROR) << "Error writing register " << address;
+			DTC_TLOG(TLVL_ERROR) << "Error writing register " << address;
 			throw DTC_IOErrorException(errorCode);
 		}
 	}
@@ -9297,7 +10924,7 @@ void DTCLib::DTC_Registers::SetEventModeWord(uint8_t which, uint32_t data)
 		} while (retry > 0 && errorCode != 0);
 		if (errorCode != 0)
 		{
-			TLOG(TLVL_ERROR) << "Error writing register " << address;
+			DTC_TLOG(TLVL_ERROR) << "Error writing register " << address;
 			throw DTC_IOErrorException(errorCode);
 		}
 	}
@@ -9323,7 +10950,7 @@ uint32_t DTCLib::DTC_Registers::ReadEventModeWord(uint8_t which)
 		} while (retry > 0 && errorCode != 0);
 		if (errorCode != 0)
 		{
-			TLOG(TLVL_ERROR) << "Error writing register " << address;
+			DTC_TLOG(TLVL_ERROR) << "Error writing register " << address;
 			throw DTC_IOErrorException(errorCode);
 		}
 
@@ -9445,26 +11072,97 @@ void DTCLib::DTC_Registers::WriteCurrentProgram(uint64_t program, DTC_Oscillator
 }
 
 // Private Functions
-void DTCLib::DTC_Registers::WriteRegister_(uint32_t data, const DTC_Register& address)
+void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Register& address)
 {
 	auto retry = 3;
 	int errorCode;
-	uint32_t data_out;
+	uint32_t readbackValue;
 	do
 	{
-		errorCode = device_.write_register_checked(address, 100, data, &data_out);
+		errorCode = device_.write_register_checked(address, 100, dataToWrite, &readbackValue);
 		--retry;
 	} while (retry > 0 && errorCode != 0);
 	if (errorCode != 0)
 	{
-		TLOG(TLVL_ERROR) << "Error writing register 0x" << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
+		DTC_TLOG(TLVL_ERROR) << "Error writing register 0x" << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
 		throw DTC_IOErrorException(errorCode);
 	}
-	if (data != data_out)
+
+	//verify register readback
+	if(1)
 	{
-		TLOG(TLVL_ERROR) << "Readback value of register 0x" << std::hex << static_cast<uint32_t>(address) << " (" << data_out << ") does not match " << data;
-		throw DTC_IOErrorException(-10);
-	}
+		uint32_t readbackValue = ReadRegister_(address);
+		int i = -1;  // used for counters
+		switch(address) //handle special register checks by masking of DONT-CARE bits, or else check full 32 bits
+		{
+			//---------- CFO and DTC registers
+			case DTC_Register_SERDESClock_IICBusLow: // lowest 16-bits are the I2C read value. So ignore in write validation			
+			case DTC_Register_FireflyRX_IICBusConfigLow:
+				dataToWrite		&= 0xffff0000; 
+				readbackValue 	&= 0xffff0000; 
+				break;
+			case DTC_Register_FireFlyControlStatus: // upper 16-bits are part of I2C operation. So ignore in write validation			
+				dataToWrite		&= 0x0000ffff; 
+				readbackValue 	&= 0x0000ffff; 
+				break;
+			case DTC_Register_DTCControl: //bit 31 is reset bit, which is write only 
+				dataToWrite		&= 0x7fffffff;
+				readbackValue   &= 0x7fffffff; 
+				break;
+
+			//---------- DTC only registers
+			case DTC_Register_SERDESClock_IICBusHigh:  // this is a DTC-only I2C register, it clears bit-0 when transaction
+	              // finishes
+				while((dataToWrite & 0x1) && (readbackValue & 0x1))  // wait for I2C to clear...
+				{
+					readbackValue = ReadRegister_(address);
+					usleep(100);
+					if((++i % 10) == 9)
+						DTC_TLOG(TLVL_DEBUG) << "I2C waited " << i + 1 << " times..." << std::endl;
+				}
+				dataToWrite &= ~1;
+				readbackValue &= ~1;
+				break;
+			case DTC_Register_CFOMarkerEnables:  // CFO emulator marker enables: 5:0 enables clock marker, 13:8 is event
+						// marker per ROC link for some reason, now event marker is not returned
+						// (FIXME?)
+				dataToWrite &= 0x03f;
+				readbackValue &= 0x03f;
+				break;
+			case DTC_Register_RXCDRUnlockCount_CFOLink:  // write clears 32-bit CDR unlock counter, but can read back errors
+						// immediately, so don't check
+				return;
+			case DTC_Register_JitterAttenuatorCSR:  // 0x9308 bit-0 is reset, input select bit-5:4, bit-8 is LOL, bit-11:9
+						// (input LOS).. only check input select bits
+				dataToWrite &= (3 << 4);
+				readbackValue &= (3 << 4);
+				break;
+			case DTC_Register_CFOEmulation_EventMode2: //only lower 16-bits are R/W
+				dataToWrite		&= 0x0000ffff; 
+				readbackValue 	&= 0x0000ffff; 
+				break;
+			case DTC_Register_DetEmulation_Control1: //self clearing bit-1, so return immediately
+				return;
+
+				
+
+			default:; // do direct comparison of each bit
+		} //end readback verification address case handling
+
+		if(readbackValue != dataToWrite)
+		{
+			std::stringstream ss;
+			ss << device_.getDeviceUID() << " - " << 
+					"write value 0x"	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+					<< " to register 0x" 	<< std::setw(4) << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+					"... read back 0x"	 	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) <<
+					std::endl;
+			DTC_TLOG(TLVL_ERROR) << ss.str();
+			throw DTC_IOErrorException(ss.str());
+			// __FE_COUT_ERR__ << ss.str(); 
+		}
+
+	} //end verify register readback
 }
 
 uint32_t DTCLib::DTC_Registers::ReadRegister_(const DTC_Register& address)
@@ -9479,7 +11177,7 @@ uint32_t DTCLib::DTC_Registers::ReadRegister_(const DTC_Register& address)
 	} while (retry > 0 && errorCode != 0);
 	if (errorCode != 0)
 	{
-		TLOG(TLVL_ERROR) << "Error reading register 0x" << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
+		DTC_TLOG(TLVL_ERROR) << "Error reading register 0x" << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
 		throw DTC_IOErrorException(errorCode);
 	}
 
@@ -9491,7 +11189,7 @@ bool DTCLib::DTC_Registers::GetBit_(const DTC_Register& address, size_t bit)
 {
 	if (bit > 31)
 	{
-		TLOG(TLVL_ERROR) << "Cannot read bit " << bit << ", as it is out of range";
+		DTC_TLOG(TLVL_ERROR) << "Cannot read bit " << bit << ", as it is out of range";
 		throw std::out_of_range("Cannot read bit " + std::to_string(bit) + ", as it is out of range");
 	}
 	return std::bitset<32>(ReadRegister_(address))[bit];
@@ -9501,7 +11199,7 @@ void DTCLib::DTC_Registers::SetBit_(const DTC_Register& address, size_t bit, boo
 {
 	if (bit > 31)
 	{
-		TLOG(TLVL_ERROR) << "Cannot set bit " << bit << ", as it is out of range";
+		DTC_TLOG(TLVL_ERROR) << "Cannot set bit " << bit << ", as it is out of range";
 		throw std::out_of_range("Cannot set bit " + std::to_string(bit) + ", as it is out of range");
 	}
 	auto regVal = std::bitset<32>(ReadRegister_(address));

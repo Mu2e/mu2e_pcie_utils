@@ -69,7 +69,7 @@ public:
 	/// <param name="dtc">Desired DTC card to use (/dev/mu2eX)</param>
 	/// <param name="simMemoryFileName">If using simulated DTC, name of the memory file ("mu2esim.bin")</param>
 	/// <returns>0 on success</returns>
-	int init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFileName = "mu2esim.bin");
+	int init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFileName = "mu2esim.bin", const std::string& uid = "");
 
 	/// <summary>
 	/// Reads data from the DTC.
@@ -142,16 +142,23 @@ public:
 	int get_devfd_() const { return devfd_; }
 
 	/// <summary>
-	/// Get the current DTC ID for this instance
+	/// Get the current Device Index for this instance
 	/// </summary>
-	/// <returns>The current DTC ID for this instance</returns>
-	int getDTCID() { return activeDTC_; }
+	/// <returns>The current Device Index for this instance</returns>
+	int getDeviceIndex() { return activeDeviceIndex_; }
 	// int  read_pcie_state(m_ioc_pcistate_t *output);
 	// int  read_dma_state(int chn, int dir, m_ioc_engstate_t *output);
 	// int  read_dma_stats(m_ioc_engstats_t *output);
 	// int  read_trn_stats(TRNStatsArray *output);
 	// int  read_test_command(m_ioc_cmd_t *output);
 	// int  write_test_command(m_ioc_cmd_t input, bool start);
+
+
+	/// <summary>
+	/// Get the current DTC UID for this instance
+	/// </summary>
+	/// <returns>The current DTC UID for this instance</returns>
+	std::string getDeviceUID() { return UID_; }
 
 private:
 	// unsigned delta_(int chn, int dir);
@@ -161,10 +168,14 @@ private:
 	m_ioc_get_info_t mu2e_channel_info_[MU2E_MAX_NUM_DTCS][MU2E_MAX_CHANNELS][2];
 	unsigned buffers_held_;
 	mu2esim* simulator_;
-	int activeDTC_;
+	int activeDeviceIndex_;
 	std::atomic<long long> deviceTime_;
 	std::atomic<size_t> writeSize_;
 	std::atomic<size_t> readSize_;
+
+	std::string			UID_;
+	FILE*				debugFp_ = 0;
+	std::chrono::_V2::steady_clock::time_point lastWriteTime_;
 };
 
 #endif

@@ -8,14 +8,14 @@
 #include <sstream>  // Convert uint to hex stLink
 
 #include "TRACE/tracemf.h"
-#define CFO_TLOG(lvl) TLOG(lvl) << "CFO " << device_.getDTCID() << ": "
+#define CFO_TLOG(lvl) TLOG(lvl) << "CFO " << device_.getDeviceUID() << ": "
 #define TLVL_ResetCFO TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
 #define TLVL_SERDESReset TLVL_DEBUG + 7
 #define TLVL_CalculateFreq TLVL_DEBUG + 8
 
-CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int CFO, std::string expectedDesignVersion,
-									 bool skipInit)
+CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int cfo, std::string expectedDesignVersion,
+									 bool skipInit, const std::string& uid)
 	: device_(), simMode_(mode), dmaSize_(16)
 {
 	auto sim = getenv("CFOLIB_SIM_ENABLE");
@@ -44,45 +44,52 @@ CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int CFO, std::string expe
 				break;
 		}
 	}
+	TLOG(TLVL_INFO) << "CFO Sim Mode is " << DTC_SimModeConverter(simMode_).toString();
 
-	if (CFO == -1)
+	if (cfo == -1)
 	{
 		auto CFOE = getenv("CFOLIB_CFO");
 		if (CFOE != nullptr)
 		{
-			CFO = atoi(CFOE);
+			cfo = atoi(CFOE);
 		}
 		else
 		{
 			CFOE = getenv("DTCLIB_DTC");  // Check both environment variables for CFO
 			if (CFOE != nullptr)
 			{
-				CFO = atoi(CFOE);
+				cfo = atoi(CFOE);
 			}
 			else
 			{
-				CFO = 0;
+				cfo = 0;
 			}
 		}
 	}
+	TLOG(TLVL_INFO) << "CFO ID is " << cfo;
 
-	SetSimMode(expectedDesignVersion, simMode_, CFO, skipInit);
+	SetSimMode(expectedDesignVersion, simMode_, cfo, skipInit, (uid == ""? ("CFO"+std::to_string(cfo)):uid));
 }
 
 CFOLib::CFO_Registers::~CFO_Registers() { device_.close(); }
 
-DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO,
-													  bool skipInit)
+DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int cfo,
+													  bool skipInit, const std::string& uid)
 {
 	simMode_ = mode;
-	device_.init(simMode_, CFO);
+	device_.init(simMode_, cfo, /* simMemoryFile */ "", uid);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
 		throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
 	}
 
-	if (skipInit) return simMode_;
+	if (skipInit)
+	{
+		CFO_TLOG(TLVL_INFO) << "SKIPPING Initializing device";
+		return simMode_;
+	} 
 
+	CFO_TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	for (auto link : CFO_Links)
 	{
 		bool LinkEnabled = ((maxDTCs_ >> (link * 4)) & 0xF) != 0;
@@ -115,6 +122,7 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 	}
 	ReadMinDMATransferLength();
 
+	CFO_TLOG(TLVL_DEBUG) << "Done setting device registers";
 	return simMode_;
 }
 
@@ -196,22 +204,37 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDesignVersion()
 	return form;
 }
 
+
+/// <summary>
+/// Read the modification date of the CFO firmware
+/// </summary>
+/// <returns>Design date in MON/DD/20YY HH:00 format</returns>
 std::string CFOLib::CFO_Registers::ReadDesignDate()
 {
-	auto data = ReadRegister_(CFO_Register_DesignDate);
+	auto readData = ReadRegister_(CFO_Register_DesignDate);
 	std::ostringstream o;
-	int yearHex = (data & 0xFF000000) >> 24;
-	auto year = ((yearHex & 0xF0) >> 4) * 10 + (yearHex & 0xF);
-	int monthHex = (data & 0xFF0000) >> 16;
-	auto month = ((monthHex & 0xF0) >> 4) * 10 + (monthHex & 0xF);
-	int dayHex = (data & 0xFF00) >> 8;
-	auto day = ((dayHex & 0xF0) >> 4) * 10 + (dayHex & 0xF);
-	int hour = ((data & 0xF0) >> 4) * 10 + (data & 0xF);
-	o << "20" << std::setfill('0') << std::setw(2) << year << "-";
-	o << std::setfill('0') << std::setw(2) << month << "-";
-	o << std::setfill('0') << std::setw(2) << day << "-";
-	o << std::setfill('0') << std::setw(2) << hour;
-	// std::cout << o.str() << std::endl;
+	std::vector<std::string> months({"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"});
+	int mon =  ((readData>>20)&0xF)*10 + ((readData>>16)&0xF);
+	o << months[mon-1] << "/" << 
+		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
+		((readData>>28)&0xF) << ((readData>>24)&0xF) << " " <<
+		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData << std::endl;
+	
+
+	// auto data = ReadRegister_(CFO_Register_DesignDate);
+	// std::ostringstream o;
+	// int yearHex = (data & 0xFF000000) >> 24;
+	// auto year = ((yearHex & 0xF0) >> 4) * 10 + (yearHex & 0xF);
+	// int monthHex = (data & 0xFF0000) >> 16;
+	// auto month = ((monthHex & 0xF0) >> 4) * 10 + (monthHex & 0xF);
+	// int dayHex = (data & 0xFF00) >> 8;
+	// auto day = ((dayHex & 0xF0) >> 4) * 10 + (dayHex & 0xF);
+	// int hour = ((data & 0xF0) >> 4) * 10 + (data & 0xF);
+	// o << "20" << std::setfill('0') << std::setw(2) << year << "-";
+	// o << std::setfill('0') << std::setw(2) << month << "-";
+	// o << std::setfill('0') << std::setw(2) << day << "-";
+	// o << std::setfill('0') << std::setw(2) << hour;
+	// // std::cout << o.str() << std::endl;
 	return o.str();
 }
 
@@ -279,6 +302,27 @@ bool CFOLib::CFO_Registers::ReadResetCFO()
 {
 	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CFOControl);
 	return dataSet[31];
+}
+
+void CFOLib::CFO_Registers::ClearCFOControlRegister()
+{
+	WriteRegister_(0, CFO_Register_CFOControl);
+}
+
+void CFOLib::CFO_Registers::ResetCFORunPlan()
+{
+	CFO_TLOG(TLVL_ResetCFO) << "ResetCFO Run Plan start";
+	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	data[27] = 1;  // CFO Run Plan Reset bit
+	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	data[27] = 0;  // Restore CFO Run Plan Reset bit
+	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+}
+
+bool CFOLib::CFO_Registers::ReadResetCFORunPlan()
+{
+	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CFOControl);
+	return dataSet[27];
 }
 
 void CFOLib::CFO_Registers::EnableAutogenDRP()
@@ -494,8 +538,19 @@ void CFOLib::CFO_Registers::EnableLink(const CFO_Link_ID& link, const DTC_LinkEn
 									   const uint8_t& dtcCount)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_LinkEnable);
-	data[link] = mode.TransmitEnable;
-	data[link + 8] = mode.ReceiveEnable;
+	if(link == CFO_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+		{
+			data[i] = mode.TransmitEnable;
+			data[i + 8] = mode.ReceiveEnable;
+		}
+	}
+	else
+	{
+		data[link] = mode.TransmitEnable;
+		data[link + 8] = mode.ReceiveEnable;
+	}
 	WriteRegister_(data.to_ulong(), CFO_Register_LinkEnable);
 	SetMaxDTCNumber(link, dtcCount);
 }
@@ -536,20 +591,51 @@ void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 	{
 		CFO_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
 		std::bitset<32> data = ReadRegister_(CFO_Register_SERDESReset);
-		data[link] = 1;
+		if(link == CFO_Link_ALL)
+		{	
+			for(uint8_t i=0;i<8;++i)
+				data[i] = 1;
+		}
+		else
+			data[link] = 1;
 		WriteRegister_(data.to_ulong(), CFO_Register_SERDESReset);
 
 		usleep(interval);
 
 		data = ReadRegister_(CFO_Register_SERDESReset);
-		data[link] = 0;
+		if(link == CFO_Link_ALL)
+		{	
+			for(uint8_t i=0;i<8;++i)
+				data[i] = 0;
+		}
+		else
+			data[link] = 0;
 		WriteRegister_(data.to_ulong(), CFO_Register_SERDESReset);
 
 		usleep(interval);
 
-		resetDone = ReadResetSERDESDone(link);
+		if(link == CFO_Link_ALL)
+		{	
+			uint32_t readData = ReadRegister_(CFO_Register_SERDESResetDone);
+			resetDone = ((readData & 0xFF) == 0xFF);
+		}
+		else
+			resetDone = ReadResetSERDESDone(link);
 		CFO_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop, done=" << std::boolalpha << resetDone;
 	}
+}
+
+void CFOLib::CFO_Registers::ResetAllSERDESPlls()
+{
+	WriteRegister_(0x0000ff00, CFO_Register_SERDESReset);
+	WriteRegister_(0x0, CFO_Register_SERDESReset);
+	sleep(3);
+}
+void CFOLib::CFO_Registers::ResetAllSERDESTx()
+{
+	WriteRegister_(0x00ff0000, CFO_Register_SERDESReset);
+	WriteRegister_(0x0, CFO_Register_SERDESReset);
+	sleep(3);
 }
 
 bool CFOLib::CFO_Registers::ReadResetSERDES(const CFO_Link_ID& link)
@@ -755,14 +841,26 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnMode()
 void CFOLib::CFO_Registers::EnableBeamOffMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
-	data[link] = 1;
+	if(link == CFO_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+			data[i] = 1;
+	}
+	else
+		data[link] = 1;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOffMode);
 }
 
 void CFOLib::CFO_Registers::DisableBeamOffMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
-	data[link] = 1;
+	if(link == CFO_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+			data[i] = 0;
+	}
+	else
+		data[link] = 0;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOffMode);
 }
 
@@ -996,22 +1094,33 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTimestampPreset1()
 }
 
 // NUMDTCs Register
-void CFOLib::CFO_Registers::SetMaxDTCNumber(const CFO_Link_ID& Link, const uint8_t& dtcCount)
+void CFOLib::CFO_Registers::SetMaxDTCNumber(const CFO_Link_ID& link, const uint8_t& dtcCount)
 {
-	ReadLinkDTCCount(Link, false);
-	uint32_t mask = ~(0xF << (Link * 4));
-	maxDTCs_ = (maxDTCs_ & mask) + ((dtcCount & 0xF) << (Link * 4));
+	ReadLinkDTCCount(link, false);
+	if(link == CFO_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+		{
+			uint32_t mask = ~(0xF << (i * 4));
+			maxDTCs_ = (maxDTCs_ & mask) + ((dtcCount & 0xF) << (i * 4));
+		}
+	}
+	else
+	{
+		uint32_t mask = ~(0xF << (link * 4));
+		maxDTCs_ = (maxDTCs_ & mask) + ((dtcCount & 0xF) << (link * 4));
+	}
 	WriteRegister_(maxDTCs_, CFO_Register_NUMDTCs);
 }
 
-uint8_t CFOLib::CFO_Registers::ReadLinkDTCCount(const CFO_Link_ID& Link, bool local)
+uint8_t CFOLib::CFO_Registers::ReadLinkDTCCount(const CFO_Link_ID& link, bool local)
 {
 	if (!local)
 	{
 		auto data = ReadRegister_(CFO_Register_NUMDTCs);
 		maxDTCs_ = data;
 	}
-	return (maxDTCs_ >> (Link * 4)) & 0xF;
+	return (maxDTCs_ >> (link * 4)) & 0xF;
 }
 
 DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatNUMDTCs()
@@ -2920,20 +3029,75 @@ bool CFOLib::CFO_Registers::SetNewOscillatorFrequency(double targetFrequency)
 	return true;
 }
 
+void CFOLib::CFO_Registers::DisableAllOutputs()
+{
+	CFO_TLOG(TLVL_INFO) << "CFO disable Event Start character output";
+	WriteRegister_(0,CFO_Register_CFOControl);
+
+	CFO_TLOG(TLVL_INFO) << "CFO disable serdes transmit and receive";
+	WriteRegister_(0,CFO_Register_LinkEnable);
+
+	CFO_TLOG(TLVL_INFO) << "CFO turn off Event Windows";
+	WriteRegister_(0,CFO_Register_EventWindowEmulatorIntervalTime);
+
+	CFO_TLOG(TLVL_INFO) << "CFO turn off 40MHz marker interval";
+	WriteRegister_(0,CFO_Register_ClockMarkerIntervalCount);
+}
+
+
 // Private Functions
-void CFOLib::CFO_Registers::WriteRegister_(uint32_t data, const CFO_Register& address)
+void CFOLib::CFO_Registers::WriteRegister_(uint32_t dataToWrite, const CFO_Register& address)
 {
 	auto retry = 3;
 	int errorCode;
 	do
 	{
-		errorCode = device_.write_register(address, 100, data);
+		errorCode = device_.write_register(address, 100, dataToWrite);
 		--retry;
 	} while (retry > 0 && errorCode != 0);
 	if (errorCode != 0)
 	{
 		throw DTC_IOErrorException(errorCode);
 	}
+
+	//verify register readback
+	if(1)
+	{
+		uint32_t readbackValue = ReadRegister_(address);
+		switch(address) //handle special register checks by masking of DONT-CARE bits, or else check full 32 bits
+		{
+			//---------- CFO and DTC registers
+			case CFO_Register_SERDESOscillatorIICBusLow: // lowest 16-bits are the I2C read value. So ignore in write validation			
+			// case 0x9298 FIXME and add CFO Firefly feature? --> DTC_Register_FireflyRX_IICBusConfigLow:
+				dataToWrite		&= 0xffff0000; 
+				readbackValue 	&= 0xffff0000; 
+				break;
+			// case 0x93a0 FIXME and add CFO Firefly feature? DTC_Register_FireFlyControlStatus: // upper 16-bits are part of I2C operation. So ignore in write validation			
+				// dataToWrite		&= 0x0000ffff; 
+				// readbackValue 	&= 0x0000ffff; 
+				// break;
+			case CFO_Register_CFOControl: //bit 31 is reset bit, which is write only 
+				dataToWrite		&= 0x7fffffff;
+				readbackValue   &= 0x7fffffff; 
+				break;
+
+			default:; // do direct comparison of each bit
+		} //end readback verification address case handling
+
+		if(readbackValue != dataToWrite)
+		{
+			std::stringstream ss;
+			ss << device_.getDeviceUID() << " - " << 
+					"write value 0x"	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+					<< " to register 0x" 	<< std::setw(4) << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+					"... read back 0x"	 	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
+					std::endl;
+			CFO_TLOG(TLVL_ERROR) << ss.str();
+			throw DTC_IOErrorException(ss.str());
+			// __FE_COUT_ERR__ << ss.str(); 
+		}
+
+	} //end verify register readback
 }
 
 uint32_t CFOLib::CFO_Registers::ReadRegister_(const CFO_Register& address)
