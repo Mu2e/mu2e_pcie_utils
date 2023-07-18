@@ -308,7 +308,7 @@ std::string DTCLib::DTC_Registers::ReadDesignDate()
 	o << months[mon-1] << "/" << 
 		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
 		((readData>>28)&0xF) << ((readData>>24)&0xF) << " " <<
-		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData << std::endl;
+		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData;
 	
 	//Design date in 20YY-MM-DD-HH format
 	// int yearHex = (data & 0xFF000000) >> 24;
@@ -5315,10 +5315,33 @@ std::bitset<2> DTCLib::DTC_Registers::ReadJitterAttenuatorSelect()
 /// <param name="data">Value to set</param>
 void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
 {
+	DTC_TLOG(TLVL_DEBUG) << "JA select " << data << " = " <<
+		(data == 0? "CFO control link":(data == 1? "RTF copper clock": (data == 2? "FPGA FMC":"undefined source!")));
+		;
 	std::bitset<32> regdata = ReadRegister_(DTC_Register_JitterAttenuatorCSR);
+
+	// detection if already locked may not work
+	// if(regdata[0] == 0 && regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
+	// {
+	// 	DTC_TLOG(TLVL_DEBUG) << "JA already locked with selected input " << data;
+	// 	return;
+	// }
 	regdata[4] = data[0];
 	regdata[5] = data[1];
 	WriteRegister_(regdata.to_ulong(), DTC_Register_JitterAttenuatorCSR);
+
+	//now reset the JA a la DTCLib::DTC_Registers::ResetJitterAttenuator()
+	
+	regdata[0] = 1;
+	WriteRegister_(regdata.to_ulong(), DTC_Register_JitterAttenuatorCSR);
+	usleep(1000);
+	regdata[0] = 0;
+	WriteRegister_(regdata.to_ulong(), DTC_Register_JitterAttenuatorCSR);
+
+	sleep(1);
+
+	ConfigureJitterAttenuator();
+	DTC_TLOG(TLVL_DEBUG) << "JA select done for input " << data;
 }
 
 /// <summary>
@@ -5350,11 +5373,12 @@ void DTCLib::DTC_Registers::ResetJitterAttenuator()
 DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatJitterAttenuatorCSR()
 {
 	auto form = CreateFormatter(DTC_Register_JitterAttenuatorCSR);
-	std::bitset<32> data = ReadRegister_(DTC_Register_JitterAttenuatorCSR);
+	std::bitset<32> data = form.value;
 	std::bitset<2> JAinputSelect;
 	JAinputSelect[0] = data[4];
 	JAinputSelect[1] = data[5];
 	form.description = "Jitter Attenuator CSR";
+	form.vals.push_back("<field> : [<value>]"); //first value describes format
 	form.vals.push_back(std::string("JA Input Select: [") + 
 		(JAinputSelect.to_ulong() == 0 ? "Upstream Control Link Rx Recovered Clock"
 	             : (JAinputSelect.to_ulong() == 1 ? "RJ45 Upstream Clock"
@@ -5365,1339 +5389,6 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatJitterAttenuatorCSR()
 	form.vals.push_back(std::string("JA Input-1 RJ45 Upstream Rx Clock:   [") + (data[10] ? "Missing" : "OK") + "]");
 	form.vals.push_back(std::string("JA Input-2 Timing Card Selectable, SFP+ or FPGA, Input Clock:   [") + (data[11] ? "Missing" : "OK") + "]");
 	return form;
-}
-
-/// <summary>
-/// Configure the Jitter Attenuator
-/// </summary>
-void DTCLib::DTC_Registers::ConfigureJitterAttenuator()
-{
-		// Start configuration preamble
-	// set page B
-	WriteRegister_(0x68010B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page B registers
-	WriteRegister_(0x6824C000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68250000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 5
-	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 5 registers
-	WriteRegister_(0x68400100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// End configuration preamble
-	//
-	// Delay 300 msec
-	usleep(300000 /*300ms*/); 
-
-	// Delay is worst case time for device to complete any calibration
-	// that is running due to device state change previous to this script
-	// being processed.
-	//
-	// Start configuration registers
-	// set page 0
-	WriteRegister_(0x68010000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 0 registers
-	WriteRegister_(0x68060000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68070000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68080000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B6800, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6817DC00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6819DD00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681ADF00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682B0200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682C0F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682D5500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682E3700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68303700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68310000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68323700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68330000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68343700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68363700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68383700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68390000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683A3700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C3700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683FFF00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68400400, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68410E00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68420E00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68430E00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68440E00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68450C00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68463200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68473200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68483200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68493200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684A3200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684B3200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684C3200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684D3200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684E5500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684F5500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68500F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68510300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68520300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68530300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68540300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68550300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68560300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68570300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68580300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68595500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685AAA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685BAA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685C0A00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685D0100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685EAA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685FAA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68600A00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68610100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6862AA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6863AA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68640A00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68650100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6866AA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6867AA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68680A00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68690100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68920200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6893A000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68950000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68968000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68986000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689A0200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689B6000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689D0800, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689E4000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A02000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A20000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A98A00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AA6100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AB0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AC0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68E52100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68EA0A00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68EB6000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68EC0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68ED0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 1
-	WriteRegister_(0x68010100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 1 registers
-	WriteRegister_(0x68020100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68120600, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68130900, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68143B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68152800, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170600, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180900, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68193B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A2800, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683F1000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68414000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6842FF00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 2
-	WriteRegister_(0x68010200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 2 registers
-	WriteRegister_(0x68060000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68086400, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68090000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680E0100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68100000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68110000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68126400, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68130000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68190000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681C6400, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68200000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68210000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68220100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68230000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68240000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68250000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68266400, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68270000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68280000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68290000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682C0100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68310B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68320B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68330B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68340B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68360000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68388000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6839D400, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683EC000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68500000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68510000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68520000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68530000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68540000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68550000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686B5200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686C6500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686D7600, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686E3100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686F2000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68702000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68712000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68722000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68900000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68910000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6894B000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68960200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68970200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68990200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689DFA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689E0100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A9CC00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AA0400, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AB0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68B7FF00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 3
-	WriteRegister_(0x68010300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 3 registers
-	WriteRegister_(0x68020000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68030000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68040000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68050000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68061100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68070000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68080000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68090000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B8000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68100000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68110000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68120000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68130000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68380000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68391F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68410000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68420000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68430000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68440000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68450000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68460000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68590000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 4
-	WriteRegister_(0x68010400, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 4 registers
-	WriteRegister_(0x68870100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 5
-	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 5 registers
-	WriteRegister_(0x68081000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68091F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680A0C00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B0B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680C3F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680D3F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680E1300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680F2700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68100900, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68110800, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68123F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68133F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6819A800, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A0200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681F8000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68212B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682B0100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682C8700, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682D0300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682E1900, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682F1900, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68310000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68324200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68330300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68340000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68360000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68380000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68390000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683A0200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D1100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683E0600, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68890D00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689BFA00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689D1000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689E2100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689F0C00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A00B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A13F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A23F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A60300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 8
-	WriteRegister_(0x68010800, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 8 registers
-	WriteRegister_(0x68023500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68030500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68040000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68050000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68060000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68070000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68080000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68090000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68100000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68110000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68120000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68130000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68190000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68200000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68210000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68220000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68230000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68240000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68250000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68260000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68270000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68280000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68290000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68300000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68310000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68320000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68330000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68340000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68360000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68380000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68390000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68410000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68420000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68430000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68440000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68450000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68460000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68470000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68480000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68490000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68500000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68510000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68520000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68530000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68540000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68550000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68560000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68570000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68580000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68590000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685B0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685C0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685D0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685F0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68600000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68610000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 9
-	WriteRegister_(0x68010900, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 9 registers
-	WriteRegister_(0x680E0200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68430100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68490F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684A0F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684E4900, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684F0200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685E0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page A
-	WriteRegister_(0x68010A00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page A registers
-	WriteRegister_(0x68020000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68030100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68040100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68050100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A0000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page B
-	WriteRegister_(0x68010B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page B registers
-	WriteRegister_(0x68442F00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68460000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68470000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68480000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684A0200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68570E00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68580100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// End configuration registers
-	//
-	// Start configuration postamble
-	// set page 5
-	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 5 registers
-	WriteRegister_(0x68140100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 0
-	WriteRegister_(0x68010000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 0 registers
-	WriteRegister_(0x681C0100, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page 5
-	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page 5 registers
-	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// set page B
-	WriteRegister_(0x68010B00, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	// page B registers
-	WriteRegister_(0x6824C300, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68250200, DTC_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
 }
 
 
@@ -11088,6 +9779,11 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 		throw DTC_IOErrorException(errorCode);
 	}
 
+	DTC_TLOG(TLVL_DEBUG) << device_.getDeviceUID() << " - " << 
+			"write value 0x"	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+			<< " to register 0x" 	<< std::setw(4) << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+			std::endl;
+
 	//verify register readback
 	if(1)
 	{
@@ -11109,9 +9805,7 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 				dataToWrite		&= 0x7fffffff;
 				readbackValue   &= 0x7fffffff; 
 				break;
-
-			//---------- DTC only registers
-			case DTC_Register_SERDESClock_IICBusHigh:  // this is a DTC-only I2C register, it clears bit-0 when transaction
+			case DTC_Register_SERDESClock_IICBusHigh:  // this is an I2C register, it clears bit-0 when transaction
 	              // finishes
 				while((dataToWrite & 0x1) && (readbackValue & 0x1))  // wait for I2C to clear...
 				{
@@ -11123,6 +9817,8 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 				dataToWrite &= ~1;
 				readbackValue &= ~1;
 				break;
+
+			//---------- DTC only registers
 			case DTC_Register_CFOMarkerEnables:  // CFO emulator marker enables: 5:0 enables clock marker, 13:8 is event
 						// marker per ROC link for some reason, now event marker is not returned
 						// (FIXME?)
@@ -11131,6 +9827,7 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 				break;
 			case DTC_Register_RXCDRUnlockCount_CFOLink:  // write clears 32-bit CDR unlock counter, but can read back errors
 						// immediately, so don't check
+			case DTC_Register_JitterAttenuatorLossOfLockCount:
 				return;
 			case DTC_Register_JitterAttenuatorCSR:  // 0x9308 bit-0 is reset, input select bit-5:4, bit-8 is LOL, bit-11:9
 						// (input LOS).. only check input select bits
@@ -11181,7 +9878,12 @@ uint32_t DTCLib::DTC_Registers::ReadRegister_(const DTC_Register& address)
 		throw DTC_IOErrorException(errorCode);
 	}
 
-	DTC_TLOG(TLVL_ReadRegister) << "ReadRegister_ returning " << std::hex << std::showbase << data << " for address " << static_cast<uint32_t>(address);
+	if(address != 0x916c)
+		DTC_TLOG(TLVL_DEBUG) << device_.getDeviceUID() << " - " << 
+			"read value 0x"	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
+			<< " from register 0x" 	<< std::setw(4) << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+			std::endl;
+
 	return data;
 }
 
@@ -11428,4 +10130,1337 @@ bool DTCLib::DTC_Registers::WaitForLinkReady_(DTC_Link_ID const& link, size_t in
 		}
 	}
 	return true;
+}
+
+/// <summary>
+/// Configure the Jitter Attenuator
+/// </summary>
+void DTCLib::DTC_Registers::ConfigureJitterAttenuator()
+{
+		// Start configuration preamble
+	// set page B
+	WriteRegister_(0x68010B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page B registers
+	WriteRegister_(0x6824C000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68250000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 5
+	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 5 registers
+	WriteRegister_(0x68400100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// End configuration preamble
+	//
+	// Delay 300 msec
+	usleep(300000 /*300ms*/); 
+
+	// Delay is worst case time for device to complete any calibration
+	// that is running due to device state change previous to this script
+	// being processed.
+	//
+	// Start configuration registers
+	// set page 0
+	WriteRegister_(0x68010000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 0 registers
+	WriteRegister_(0x68060000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68070000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68080000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B6800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6817DC00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6819DD00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681ADF00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682B0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682C0F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682D5500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682E3700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68303700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68310000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68323700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68330000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68343700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68363700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68383700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68390000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683A3700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C3700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683FFF00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68400400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68410E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68420E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68430E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68440E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68450C00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68463200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68473200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68483200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68493200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684A3200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684B3200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684C3200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684D3200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684E5500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684F5500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68500F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68510300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68520300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68530300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68540300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68550300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68560300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68570300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68580300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68595500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685AAA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685BAA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685C0A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685D0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685EAA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685FAA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68600A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68610100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6862AA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6863AA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68640A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68650100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6866AA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6867AA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68680A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68690100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68920200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6893A000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68950000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68968000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68986000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689A0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689B6000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689D0800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689E4000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A02000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A20000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A98A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AA6100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AB0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AC0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68E52100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68EA0A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68EB6000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68EC0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68ED0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 1
+	WriteRegister_(0x68010100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 1 registers
+	WriteRegister_(0x68020100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68120600, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68130900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68143B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68152800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170600, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68193B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A2800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683F1000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68414000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6842FF00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 2
+	WriteRegister_(0x68010200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 2 registers
+	WriteRegister_(0x68060000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68086400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68090000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680E0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68100000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68110000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68126400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68130000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68190000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681C6400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68200000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68210000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68220100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68230000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68240000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68250000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68266400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68270000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68280000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68290000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682C0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68310B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68320B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68330B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68340B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68360000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68388000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6839D400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683EC000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68500000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68510000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68520000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68530000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68540000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68550000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686B5200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686C6500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686D7600, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686E3100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x686F2000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68702000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68712000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68722000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68900000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68910000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6894B000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68960200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68970200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68990200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689DFA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689E0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A9CC00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AA0400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68AB0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68B7FF00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 3
+	WriteRegister_(0x68010300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 3 registers
+	WriteRegister_(0x68020000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68030000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68040000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68050000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68061100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68070000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68080000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68090000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B8000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68100000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68110000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68120000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68130000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68380000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68391F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68410000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68420000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68430000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68440000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68450000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68460000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68590000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 4
+	WriteRegister_(0x68010400, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 4 registers
+	WriteRegister_(0x68870100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 5
+	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 5 registers
+	WriteRegister_(0x68081000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68091F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680A0C00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B0B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680C3F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680D3F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680E1300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680F2700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68100900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68110800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68123F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68133F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x6819A800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681F8000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68212B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682B0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682C8700, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682D0300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682E1900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682F1900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68310000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68324200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68330300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68340000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68360000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68380000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68390000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683A0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D1100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683E0600, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68890D00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x688A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689BFA00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689D1000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689E2100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x689F0C00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A00B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A13F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A23F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68A60300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 8
+	WriteRegister_(0x68010800, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 8 registers
+	WriteRegister_(0x68023500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68030500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68040000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68050000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68060000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68070000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68080000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68090000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x680F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68100000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68110000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68120000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68130000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68150000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68160000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68170000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68180000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68190000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68200000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68210000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68220000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68230000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68240000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68250000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68260000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68270000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68280000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68290000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x682F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68300000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68310000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68320000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68330000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68340000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68350000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68360000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68370000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68380000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68390000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x683F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68410000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68420000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68430000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68440000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68450000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68460000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68470000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68480000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68490000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68500000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68510000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68520000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68530000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68540000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68550000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68560000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68570000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68580000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68590000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685B0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685C0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685D0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685F0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68600000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68610000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 9
+	WriteRegister_(0x68010900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 9 registers
+	WriteRegister_(0x680E0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68430100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68490F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684A0F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684E4900, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684F0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x685E0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page A
+	WriteRegister_(0x68010A00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page A registers
+	WriteRegister_(0x68020000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68030100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68040100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68050100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68140000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x681A0000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page B
+	WriteRegister_(0x68010B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page B registers
+	WriteRegister_(0x68442F00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68460000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68470000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68480000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x684A0200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68570E00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68580100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// End configuration registers
+	//
+	// Start configuration postamble
+	// set page 5
+	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 5 registers
+	WriteRegister_(0x68140100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 0
+	WriteRegister_(0x68010000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 0 registers
+	WriteRegister_(0x681C0100, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page 5
+	WriteRegister_(0x68010500, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page 5 registers
+	WriteRegister_(0x68400000, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// set page B
+	WriteRegister_(0x68010B00, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	// page B registers
+	WriteRegister_(0x6824C300, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
+
+	WriteRegister_(0x68250200, DTC_Register_SERDESClock_IICBusLow); 
+	WriteRegister_(0x00000001, DTC_Register_SERDESClock_IICBusHigh); 
 }

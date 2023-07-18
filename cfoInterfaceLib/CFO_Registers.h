@@ -63,9 +63,9 @@ enum CFO_Register : uint16_t
 	CFO_Register_EnableBeamOffMode = 0x914C,
 	CFO_Register_ClockMarkerIntervalCount = 0x9154,
 	CFO_Register_SERDESOscillatorFrequency = 0x9160,
-	CFO_Register_SERDESOscillatorIICBusControl = 0x9164,
-	CFO_Register_SERDESOscillatorIICBusLow = 0x9168,
-	CFO_Register_SERDESOscillatorIICBusHigh = 0x916C,
+	CFO_Register_SERDESClock_IICBusControl = 0x9164,
+	CFO_Register_SERDESClock_IICBusLow = 0x9168,
+	CFO_Register_SERDESClock_IICBusHigh = 0x916C,
 	CFO_Register_TimestampPreset0 = 0x9180,
 	CFO_Register_TimestampPreset1 = 0x9184,
 	CFO_Register_NUMDTCs = 0x918C,
@@ -133,6 +133,7 @@ enum CFO_Register : uint16_t
 	CFO_Register_FPGAProgramData = 0x9400,
 	CFO_Register_FPGAPROMProgramStatus = 0x9404,
 	CFO_Register_FPGACoreAccess = 0x9408,
+	CFO_Register_JitterAttenuatorCSR = 0x9500,
 	CFO_Register_Invalid,
 };
 
@@ -468,7 +469,7 @@ public:
 	/// </summary>
 	/// <param name="link">Link to reset</param>
 	/// <param name="interval">Pollint interval, in microseconds</param>
-	void ResetSERDES(const CFO_Link_ID& link, int interval = 100);
+	void ResetSERDES(const CFO_Link_ID& link, int interval = 100000);
 	/// <summary>
 	/// Reset all SERDES PLLs
 	/// </summary>
@@ -696,6 +697,18 @@ public:
 	/// <param name="address">Register address</param>
 	/// <returns>Value of register</returns>
 	uint8_t ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address);
+
+
+	// Jitter Attenuator CSR Register
+	std::bitset<2> ReadJitterAttenuatorSelect();
+	void SetJitterAttenuatorSelect(std::bitset<2> data);
+	bool ReadJitterAttenuatorReset();
+	void ResetJitterAttenuator();
+	DTC_RegisterFormatter FormatJitterAttenuatorCSR();
+
+	void ConfigureJitterAttenuator();
+
+
 	/// <summary>
 	/// Read the current Oscillator program for the SERDES Oscillator
 	/// </summary>
@@ -1595,7 +1608,7 @@ protected:
 	uint32_t maxDTCs_;            ///< Map of active DTCs
 	bool usingDetectorEmulator_;  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;            ///< Size of DMAs, in bytes (default 32k)
-	int formatterWidth_;          ///< Description field width, in characters
+	int formatterWidth_ = 28;     ///< Description field width, in characters (must be initialized or DTC_RegisterFormatter can resize to crazy large values!)
 
 	/// <summary>
 	/// Functions needed to print regular register map

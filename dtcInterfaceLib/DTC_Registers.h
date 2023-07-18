@@ -1417,7 +1417,7 @@ protected:
 	DTC_SimMode simMode_;                ///< Simulation mode
 	bool usingDetectorEmulator_{false};  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;                   ///< Size of DMAs, in bytes (default 32k)
-	int formatterWidth_ = 28;            ///< Description field width, in characters (must be initialized or DTC_RegisterFormatter goes very slow)
+	int formatterWidth_ = 28;            ///< Description field width, in characters (must be initialized or DTC_RegisterFormatter can resize to crazy large values!)
 
 	/// <summary>
 	/// Functions needed to print regular register map
