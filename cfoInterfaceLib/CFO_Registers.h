@@ -27,6 +27,7 @@ enum CFO_Link_ID : uint8_t
 	CFO_Link_6 = 6,
 	CFO_Link_7 = 7,
 	CFO_Link_Unused,
+	CFO_Link_ALL = 255
 };
 
 /// <summary>
@@ -62,9 +63,9 @@ enum CFO_Register : uint16_t
 	CFO_Register_EnableBeamOffMode = 0x914C,
 	CFO_Register_ClockMarkerIntervalCount = 0x9154,
 	CFO_Register_SERDESOscillatorFrequency = 0x9160,
-	CFO_Register_SERDESOscillatorIICBusControl = 0x9164,
-	CFO_Register_SERDESOscillatorIICBusLow = 0x9168,
-	CFO_Register_SERDESOscillatorIICBusHigh = 0x916C,
+	CFO_Register_SERDESClock_IICBusControl = 0x9164,
+	CFO_Register_SERDESClock_IICBusLow = 0x9168,
+	CFO_Register_SERDESClock_IICBusHigh = 0x916C,
 	CFO_Register_TimestampPreset0 = 0x9180,
 	CFO_Register_TimestampPreset1 = 0x9184,
 	CFO_Register_NUMDTCs = 0x918C,
@@ -132,6 +133,7 @@ enum CFO_Register : uint16_t
 	CFO_Register_FPGAProgramData = 0x9400,
 	CFO_Register_FPGAPROMProgramStatus = 0x9404,
 	CFO_Register_FPGACoreAccess = 0x9408,
+	CFO_Register_JitterAttenuatorCSR = 0x9500,
 	CFO_Register_Invalid,
 };
 
@@ -152,7 +154,7 @@ public:
 	/// Used to read state.</param> <param name="expectedDesignVersion">Expected CFO Firmware Design Version. If set, will
 	/// throw an exception if the CFO firmware does not match (Default: "")</param>
 	explicit CFO_Registers(DTC_SimMode mode, int CFO, std::string expectedDesignVersion = "",
-						   bool skipInit = false);
+						   bool skipInit = false, const std::string& uid = "");
 	/// <summary>
 	/// CFO_Registers destructor
 	/// </summary>
@@ -180,7 +182,8 @@ public:
 	/// CFO firmware does not match</param> <param name="mode">Mode to set</param> <param name="CFO">CFO/DTC card instance
 	/// to use</param> <param name="skipInit">Whether to skip initializing the CFO using the SimMode. Used to read
 	/// state.</param> <returns></returns>
-	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO, bool skipInit = false);
+	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO, 
+							bool skipInit = false, const std::string& uid = "");
 
 	//
 	// CFO Register Dumps
@@ -283,6 +286,20 @@ public:
 	/// </summary>
 	/// <returns>True if the CFO is currently resetting, false otherwise</returns>
 	bool ReadResetCFO();
+	// CFO Control Register
+	/// <summary>
+	/// Clear CFO Control Register
+	/// </summary>
+	void ClearCFOControlRegister();
+	/// <summary>
+	/// Perform a CFO Run Plan Reset
+	/// </summary>
+	void ResetCFORunPlan();
+	/// <summary>
+	/// Read the Reset CFO Run Plan Bit
+	/// </summary>
+	/// <returns>True if the CFO is currently resetting, false otherwise</returns>
+	bool ReadResetCFORunPlan();
 	/// <summary>
 	/// Enable automatically generating Data Request packets from the CFO CFO Emulator
 	/// </summary>
@@ -425,6 +442,7 @@ public:
 	/// <param name="dtcCount">Number of DTCs in the Link (Default: 0)</param>
 	void EnableLink(const CFO_Link_ID& link, const DTC_LinkEnableMode& mode = DTC_LinkEnableMode(),
 					const uint8_t& dtcCount = 0);
+
 	/// <summary>
 	/// Disable a SERDES Link
 	/// The given mode bits will be UNSET
@@ -451,7 +469,15 @@ public:
 	/// </summary>
 	/// <param name="link">Link to reset</param>
 	/// <param name="interval">Pollint interval, in microseconds</param>
-	void ResetSERDES(const CFO_Link_ID& link, int interval = 100);
+	void ResetSERDES(const CFO_Link_ID& link, int interval = 100000);
+	/// <summary>
+	/// Reset all SERDES PLLs
+	/// </summary>
+	void ResetAllSERDESPlls();
+	/// <summary>
+	/// Reset all SERDES Tx
+	/// </summary>
+	void ResetAllSERDESTx();
 	/// <summary>
 	/// Read if a SERDES reset is currently in progress
 	/// </summary>
@@ -671,6 +697,18 @@ public:
 	/// <param name="address">Register address</param>
 	/// <returns>Value of register</returns>
 	uint8_t ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address);
+
+
+	// Jitter Attenuator CSR Register
+	std::bitset<2> ReadJitterAttenuatorSelect();
+	void SetJitterAttenuatorSelect(std::bitset<2> data);
+	bool ReadJitterAttenuatorReset();
+	void ResetJitterAttenuator();
+	DTC_RegisterFormatter FormatJitterAttenuatorCSR();
+
+	void ConfigureJitterAttenuator();
+
+
 	/// <summary>
 	/// Read the current Oscillator program for the SERDES Oscillator
 	/// </summary>
@@ -1546,6 +1584,11 @@ public:
 	/// <returns>Whether the oscillator frequency was changed</returns>
 	bool SetNewOscillatorFrequency(double targetFrequency);
 
+	/// <summary>
+	/// Disable all CFO outputs
+	/// </summary>
+	void DisableAllOutputs();
+
 private:
 	void WriteRegister_(uint32_t data, const CFO_Register& address);
 	uint32_t ReadRegister_(const CFO_Register& address);
@@ -1565,7 +1608,7 @@ protected:
 	uint32_t maxDTCs_;            ///< Map of active DTCs
 	bool usingDetectorEmulator_;  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;            ///< Size of DMAs, in bytes (default 32k)
-	int formatterWidth_;          ///< Description field width, in characters
+	int formatterWidth_ = 28;     ///< Description field width, in characters (must be initialized or DTC_RegisterFormatter can resize to crazy large values!)
 
 	/// <summary>
 	/// Functions needed to print regular register map
