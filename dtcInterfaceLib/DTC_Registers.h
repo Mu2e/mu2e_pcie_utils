@@ -340,6 +340,23 @@ enum DTC_Register : uint16_t
 	DTC_Register_EVBDiagnosticRXPacket_High = 0x96B4,
 	DTC_Register_EventModeLookupTableStart = 0xA000,
 	DTC_Register_EventModeLookupTableEnd = 0xA3FC,
+
+	DTC_Register_RXDataDiagnosticFIFO_Link0 = 0x96D0,
+	DTC_Register_RXDataDiagnosticFIFO_Link1 = 0x96D4,
+	DTC_Register_RXDataDiagnosticFIFO_Link2 = 0x96D8,
+	DTC_Register_RXDataDiagnosticFIFO_Link3 = 0x96DC,
+	DTC_Register_RXDataDiagnosticFIFO_Link4 = 0x96E0,
+	DTC_Register_RXDataDiagnosticFIFO_Link5 = 0x96E4,
+
+	DTC_Register_TXDataDiagnosticFIFO_Link0 = 0x96E8,
+	DTC_Register_TXDataDiagnosticFIFO_Link1 = 0x96EC,
+	DTC_Register_TXDataDiagnosticFIFO_Link2 = 0x96F0,
+	DTC_Register_TXDataDiagnosticFIFO_Link3 = 0x96F4,
+	DTC_Register_TXDataDiagnosticFIFO_Link4 = 0x96F8,
+	DTC_Register_TXDataDiagnosticFIFO_Link5 = 0x96FC,
+
+	DTC_Register_RXDataDiagnosticFIFO_LinkCFO = 0x9700,
+	DTC_Register_TXDataDiagnosticFIFO_LinkCFO = 0x9708,
 	DTC_Register_Invalid,
 };
 
@@ -352,7 +369,7 @@ class DTC_Registers
 {
 public:
 	explicit DTC_Registers(DTC_SimMode mode, int dtc, std::string simFileName, unsigned linkMask = 0x1, std::string expectedDesignVersion = "",
-						   bool skipInit = false);
+						   bool skipInit = false, const std::string& uid = "");
 
 	virtual ~DTC_Registers();
 
@@ -372,7 +389,7 @@ public:
 	DTC_SimMode ReadSimMode() const { return simMode_; }
 
 	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int dtc, std::string simMemoryFile, unsigned linkMask,
-						   bool skipInit = false);
+						   bool skipInit = false, const std::string& uid = "");
 
 	//
 	// DTC Register Dumps
@@ -451,6 +468,7 @@ public:
 	DTC_RegisterFormatter FormatFPGAAlarms();
 
 	// DTC Control Register
+	void ClearDTCControlRegister();    
 	void ResetDTC();             // B31
 	bool ReadResetDTC();         // B31
 	void EnableCFOEmulation();   // B30
@@ -489,6 +507,10 @@ public:
 	void EnableLED6();             // B16
 	void DisableLED6();            // B16
 	bool ReadLED6State();          // B16
+	void EnableLEDs();
+	void DisableLEDs();
+	void FlashLEDs();
+
 	void SetCFOEmulationMode();    // B15
 	void ClearCFOEmulationMode();  // B15
 	bool ReadCFOEmulationMode();   // B15
@@ -547,6 +569,8 @@ public:
 	void EnableROCEmulator(DTC_Link_ID const& link);
 	void DisableROCEmulator(DTC_Link_ID const& link);
 	bool ReadROCEmulator(DTC_Link_ID const& link);
+	void SetROCEmulatorMask(uint32_t rocEnableMask);
+	uint32_t ReadROCEmulatorMask();
 	DTC_RegisterFormatter FormatROCEmulationEnable();
 
 	// Link Enable Register
@@ -556,15 +580,22 @@ public:
 	DTC_RegisterFormatter FormatLinkEnable();
 
 	// SERDES Reset Register
-	void ResetSERDESTX(DTC_Link_ID const& link, int interval = 100);
+	void ResetSERDESTX(DTC_Link_ID const& link, int interval = 100000);
 	bool ReadResetSERDESTX(DTC_Link_ID const& link);
-	void ResetSERDESRX(DTC_Link_ID const& link, int interval = 100);
+	void ResetSERDESRX(DTC_Link_ID const& link, int interval = 100000);
 	bool ReadResetSERDESRX(DTC_Link_ID const& link);
-	void ResetSERDESPLL(const DTC_PLL_ID& pll, int interval = 100);
+	void ResetSERDESPLL(const DTC_PLL_ID& pll, int interval = 100000);
 	bool ReadResetSERDESPLL(const DTC_PLL_ID& pll);
-	void ResetSERDES(DTC_Link_ID const& link, int interval = 100);
+	void ResetSERDES(DTC_Link_ID const& link, int interval = 100000);
 	bool ReadResetSERDES(DTC_Link_ID const& link);
 	DTC_RegisterFormatter FormatSERDESReset();
+
+	// Link Diagnostic FIFOs
+	//DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatRXDiagFifo(DTC_Link_ID const& link);
+	//DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatTXDiagFifo(DTC_Link_ID const& link);
+	DTCLib::DTC_RegisterFormatter FormatRXDiagFifo(DTC_Link_ID const& link);
+	DTCLib::DTC_RegisterFormatter FormatTXDiagFifo(DTC_Link_ID const& link);
+
 
 	// SERDES RX Disparity Error Register
 	DTC_SERDESRXDisparityError ReadSERDESRXDisparityError(DTC_Link_ID const& link);
@@ -620,6 +651,8 @@ public:
 	DTC_RegisterFormatter FormatROCReplyTimeoutError();
 
 	// EVB Network Partition ID / EVB Network Local MAC Index Register
+	void SetEVBInfo(uint8_t dtcid, uint8_t mode, uint8_t partitionId, uint8_t macByte);
+	void SetDTCID(uint8_t dtcid);
 	uint8_t ReadDTCID();
 	void SetEVBMode(uint8_t mode);
 	uint8_t ReadEVBMode();
@@ -630,6 +663,7 @@ public:
 	DTC_RegisterFormatter FormatEVBLocalParitionIDMACIndex();
 
 	// EVB Buffer Config
+	void SetEVBBufferInfo(uint8_t bufferCount, uint8_t startNode, uint8_t numOfNodes);
 	void SetEVBNumberInputBuffers(uint8_t count);
 	uint8_t ReadEVBNumberInputBuffers();
 	void SetEVBStartNode(uint8_t node);
@@ -718,6 +752,8 @@ public:
 	DTC_RegisterFormatter FormatCFOEmulationNumNullHeartbeats();
 
 	// CFO Emulation Event Mode Bytes Registers
+	void SetCFOEmulationEventMode(const uint64_t& eventMode);
+	uint64_t ReadCFOEmulationEventMode();
 	void SetCFOEmulationModeByte(const uint8_t& byteNum, uint8_t data);
 	uint8_t ReadCFOEmulationModeByte(const uint8_t& byteNum);
 	DTC_RegisterFormatter FormatCFOEmulationModeBytes03();
@@ -915,6 +951,8 @@ public:
 	void ResetJitterAttenuator();
 	DTC_RegisterFormatter FormatJitterAttenuatorCSR();
 
+	void ConfigureJitterAttenuator();
+
 	// SFP IIC Registers
 	bool ReadSFPIICInterfaceReset();
 	void ResetSFPIICInterface();
@@ -1064,7 +1102,7 @@ public:
 	DTC_RegisterFormatter FormatRXCDRUnlockCountCFOLink();
 
 	// RX Jitter Attenuator Unlock Count Register
-	uint32_t ReadJitterAttenuatorUnlockCuont();
+	uint32_t ReadJitterAttenuatorUnlockCount();
 	void ClearJitterAttenuatorUnlockCount();
 	DTC_RegisterFormatter FormatJitterAttenuatorUnlockCount();
 
@@ -1379,7 +1417,7 @@ protected:
 	DTC_SimMode simMode_;                ///< Simulation mode
 	bool usingDetectorEmulator_{false};  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;                   ///< Size of DMAs, in bytes (default 32k)
-	int formatterWidth_;                 ///< Description field width, in characters
+	int formatterWidth_ = 28;            ///< Description field width, in characters (must be initialized or DTC_RegisterFormatter can resize to crazy large values!)
 
 	/// <summary>
 	/// Functions needed to print regular register map

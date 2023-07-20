@@ -26,8 +26,8 @@
 #include <iostream>
 #include <sstream>  // Convert uint to hex string
 
-DTCLib::DTC::DTC(DTC_SimMode mode, int dtc, unsigned rocMask, std::string expectedDesignVersion, bool skipInit, std::string simMemoryFile)
-	: DTC_Registers(mode, dtc, simMemoryFile, rocMask, expectedDesignVersion, skipInit), daqDMAInfo_(), dcsDMAInfo_()
+DTCLib::DTC::DTC(DTC_SimMode mode, int dtc, unsigned rocMask, std::string expectedDesignVersion, bool skipInit, std::string simMemoryFile, const std::string& uid)
+	: DTC_Registers(mode, dtc, simMemoryFile, rocMask, expectedDesignVersion, skipInit, uid), daqDMAInfo_(), dcsDMAInfo_()
 {
 	// ELF, 05/18/2016: Rick reports that 3.125 Gbp
 	// SetSERDESOscillatorClock(DTC_SerdesClockSpeed_25Gbps); // We're going to 2.5Gbps for now
