@@ -50,15 +50,13 @@ inline TraceStreamer& operator<<(TraceStreamer& ts, DTC_Link_ID const& link)
 }
 #endif
 
- static const std::vector<DTC_Link_ID> DTC_Links {
-   DTC_Link_0,
-     DTC_Link_1,
-     DTC_Link_2,
-     DTC_Link_3,
-     DTC_Link_4,
-     DTC_Link_5
-     };
- 
+static const std::vector<DTC_Link_ID> DTC_Links{DTC_Link_0,
+												DTC_Link_1,
+												DTC_Link_2,
+												DTC_Link_3,
+												DTC_Link_4,
+												DTC_Link_5};
+
 enum DTC_PLL_ID : uint8_t
 {
 	DTC_PLL_Link_0 = 0,
