@@ -32,7 +32,7 @@ options:\n\
 int main(int argc, char* argv[])
 {
 	int sts = 0;
-	int fd;
+	int fd = -1;
 	char* cmd;
 	m_ioc_cmd_t ioc_cmd;
 	m_ioc_reg_access_t reg_access;
@@ -104,12 +104,28 @@ int main(int argc, char* argv[])
 			dtc = 0;
 	}
 
-	snprintf(devfile, 11, "/dev/" MU2E_DEV_FILE, dtc);
 
-	fd = open(devfile, O_RDONLY);
-	if (fd == -1)
+	if (strcmp(cmd, "start") == 0 || 
+		strcmp(cmd, "stop") == 0 || 
+		strcmp(cmd, "dump") == 0 || 
+		strcmp(cmd, "read") == 0 )
 	{
-		perror("open");
+		snprintf(devfile, 11, "/dev/" MU2E_DEV_FILE, dtc);
+
+		fd = open(devfile, O_RDONLY);
+		if (fd == -1)
+		{
+			perror("open");
+			return (1);
+		}
+	}
+	else if(strcmp(cmd, "write") == 0)
+	{
+		dev.init(DTCLib::DTC_SimMode_Disabled, dtc);
+	}
+	else
+	{
+		printf("unknown cmd %s\n", cmd);
 		return (1);
 	}
 
@@ -171,15 +187,24 @@ int main(int argc, char* argv[])
 			printf(USAGE);
 			return (1);
 		}
-		reg_access.reg_offset = strtoul(argv[optind++], NULL, 0);
-		reg_access.access_type = 1;
-		reg_access.val = strtoul(argv[optind++], NULL, 0);
-		sts = ioctl(fd, M_IOC_REG_ACCESS, &reg_access);
-		if (sts)
-		{
-			perror("ioctl M_IOC_REG_ACCESS write");
-			return (1);
-		}
+	
+		uint32_t writeAddress = strtoul(argv[optind++], NULL, 0);
+		uint32_t writeValue = strtoul(argv[optind++], NULL, 0);
+		uint32_t readbackValue;
+		dev.write_register_checked(writeAddress,100,writeValue,
+			&readbackValue);
+		if(writeValue != readbackValue)	
+			printf("NOTE: Write value mismatch 0x%X vs readback 0x%X\n", writeValue,readbackValue);	
+
+		// reg_access.reg_offset = strtoul(argv[optind++], NULL, 0);
+		// reg_access.access_type = 1;
+		// reg_access.val = strtoul(argv[optind++], NULL, 0);
+		// sts = ioctl(fd, M_IOC_REG_ACCESS, &reg_access);
+		// if (sts)
+		// {
+		// 	perror("ioctl M_IOC_REG_ACCESS write");
+		// 	return (1);
+		// }
 	}
 	else if (strcmp(cmd, "dump") == 0)
 	{
