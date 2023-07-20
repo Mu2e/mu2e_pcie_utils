@@ -307,25 +307,23 @@ public:
 	/// <param name="valid">Valid flag for packet, default true</param>
 	/// <param name="subsystemID">Subsystem ID for packet</param>
 	/// <param name="hopCount">Hop count for packet, default 0</param>
-	DTC_DMAPacket(DTCLib::DTC_PacketType type, 
-		      DTCLib::DTC_Link_ID    link, 
-		      uint16_t byteCount = 16, bool valid = true, uint8_t subsystemID = 0, uint8_t hopCount = 0);
+	DTC_DMAPacket(DTC_PacketType type, DTC_Link_ID link, uint16_t byteCount = 16, bool valid = true, uint8_t subsystemID = 0, uint8_t hopCount = 0);
 
 	/// <summary>
 	/// Construct a DTC_DMAPacket using the data in the given DataPacket
 	/// </summary>
 	/// <param name="in">DTC_DataPacket to interpret</param>
-	explicit DTC_DMAPacket(const DTCLib::DTC_DataPacket in);
+	explicit DTC_DMAPacket(const DTC_DataPacket in);
 	/// <summary>
 	/// Default Copy Constructor
 	/// </summary>
 	/// <param name="in">DTC_DMAPacket to copy</param>
-	DTC_DMAPacket(const DTCLib::DTC_DMAPacket& in) = default;
+	DTC_DMAPacket(const DTC_DMAPacket& in) = default;
 	/// <summary>
 	/// Default move Constructor
 	/// </summary>
 	/// <param name="in">DTC_DMAPacket rvalue</param>
-	DTC_DMAPacket(DTCLib::DTC_DMAPacket&& in) = default;
+	DTC_DMAPacket(DTC_DMAPacket&& in) = default;
 
 	virtual ~DTC_DMAPacket() = default;
 
@@ -352,7 +350,7 @@ public:
 	/// Packet Type accessor
 	/// </summary>
 	/// <returns>Packet Type of DMA Packet</returns>
-	DTCLib::DTC_PacketType GetPacketType() const { return packetType_; }
+	DTC_PacketType GetPacketType() const { return packetType_; }
 
 	/// <summary>
 	/// Gets the DMA Header in JSON
@@ -375,7 +373,7 @@ public:
 	/// Gets the Link ID of the packet
 	/// </summary>
 	/// <returns>The Link ID of the packet</returns>
-	DTCLib::DTC_Link_ID GetLinkID() const { return linkID_; }
+	DTC_Link_ID GetLinkID() const { return linkID_; }
 
 	/// <summary>
 	/// Gets the Hop Count of the packet
@@ -435,7 +433,7 @@ public:
 	/// DCSRequestPacket constructor, using given link and roc
 	/// </summary>
 	/// <param name="link">Link ID for packet</param>
-	DTC_DCSRequestPacket(DTCLib::DTC_Link_ID link);
+	DTC_DCSRequestPacket(DTC_Link_ID link);
 	/// <summary>
 	/// Create a DTC_DCSRequestPacket instance with the given fields filled in
 	/// </summary>
@@ -447,10 +445,8 @@ public:
 	/// <param name="data">Data/wordCount for operation</param>
 	/// <param name="address2">Address of ROC register</param>
 	/// <param name="data2">Data/wordCount for operation</param>
-	DTC_DCSRequestPacket(DTCLib::DTC_Link_ID link, 
-			     DTCLib::DTC_DCSOperationType type, 
-			     bool requestAck, bool incrementAddress, uint16_t address,
-			     uint16_t data = 0x0, uint16_t address2 = 0x0, uint16_t data2 = 0x0);
+	DTC_DCSRequestPacket(DTC_Link_ID link, DTC_DCSOperationType type, bool requestAck, bool incrementAddress, uint16_t address,
+						 uint16_t data = 0x0, uint16_t address2 = 0x0, uint16_t data2 = 0x0);
 	/// <summary>
 	/// Default Copy Constructor
 	/// </summary>
@@ -486,7 +482,7 @@ public:
 	/// Gets the opcode of the DCS Request Packet
 	/// </summary>
 	/// <returns>Current Opcode of the DCS Request Packet</returns>
-	DTCLib::DTC_DCSOperationType GetType() const { return type_; }
+	DTC_DCSOperationType GetType() const { return type_; }
 
 	/// <summary>
 	/// Read the double operation bit from the DCS Request packet
@@ -543,7 +539,7 @@ public:
 	/// <param name="type">Opcode to set</param>
 	/// <param name="reqAck">Whether to request acknowledgment of this operation</param>
 	/// <param name="incAddress">Whether to increment the address pointer for block reads/writes</param>
-	void SetType(DTCLib::DTC_DCSOperationType type, bool reqAck, bool incAddress)
+	void SetType(DTC_DCSOperationType type, bool reqAck, bool incAddress)
 	{
 		requestAck_ = reqAck;
 		incrementAddress_ = incAddress;
@@ -588,7 +584,7 @@ public:
 	/// Construct a DTC_HeartbeatPacket
 	/// </summary>
 	/// <param name="link">Destination Link</param>
-	explicit DTC_HeartbeatPacket(DTCLib::DTC_Link_ID link);
+	explicit DTC_HeartbeatPacket(DTC_Link_ID link);
 	/// <summary>
 	/// Construct a DTC_HeartbeatPacket
 	/// </summary>
@@ -596,10 +592,7 @@ public:
 	/// <param name="event_tag">Timestamp of request</param>
 	/// <param name="eventMode">Debug event mode bytes (Default: nullptr) If not null, must be 6 bytes long</param>
 	/// <param name="deliveryRingTDC">TDC value from Delivery Ring</param>
-	DTC_HeartbeatPacket(DTCLib::DTC_Link_ID link, 
-			    DTCLib::DTC_EventWindowTag event_tag, 
-			    DTCLib::DTC_EventMode eventMode = DTC_EventMode(), 
-			    uint8_t deliveryRingTDC = 0);
+	DTC_HeartbeatPacket(DTC_Link_ID link, DTC_EventWindowTag event_tag, DTC_EventMode eventMode = DTC_EventMode(), uint8_t deliveryRingTDC = 0);
 	/// <summary>
 	/// Default Copy Constructor
 	/// </summary>
@@ -614,7 +607,7 @@ public:
 	/// Construct a DTC_HeartbeatPacket from the given DTC_DataPacket
 	/// </summary>
 	/// <param name="in">DTC_DataPacket to overlay</param>
-	explicit DTC_HeartbeatPacket(const DTCLib::DTC_DataPacket in);
+	explicit DTC_HeartbeatPacket(const DTC_DataPacket in);
 
 	/// <summary>
 	/// Default Destructor
@@ -625,19 +618,19 @@ public:
 	/// Get the DTC_EventWindowTag stored in the HeartbeatPacket
 	/// </summary>
 	/// <returns>Timestamp of Heartbeat</returns>
-	DTCLib::DTC_EventWindowTag GetEventWindowTag() const { return event_tag_; }
+	DTC_EventWindowTag GetEventWindowTag() const { return event_tag_; }
 
 	/// <summary>
 	/// Get the Mode bytes from the Heartbeat packet
 	/// </summary>
 	/// <returns>5-byte array containing mode bytes</returns>
-	virtual DTCLib::DTC_EventMode GetData() { return eventMode_; }
+	virtual DTC_EventMode GetData() { return eventMode_; }
 
 	/// <summary>
 	/// Convert a DTC_HeartbeatPacket to DTC_DataPacket in "owner" mode
 	/// </summary>
 	/// <returns>DTC_DataPacket with DTC_HeartbeatPacket contents set</returns>
-	DTCLib::DTC_DataPacket ConvertToDataPacket() const override;
+	DTC_DataPacket ConvertToDataPacket() const override;
 	/// <summary>
 	/// Convert the DTC_HeartbeatPacket to JSON representation
 	/// </summary>
@@ -668,10 +661,8 @@ public:
 	/// <param name="debug">Debug Mode flag (Default: true)</param>
 	/// <param name="debugPacketCount">Debug Packet Count (Default: 0)</param>
 	/// <param name="type">Debug Type (Default: DTC_DebugType_SpecialSequence</param>
-	DTC_DataRequestPacket(DTCLib::DTC_Link_ID link, 
-			      bool debug = true, 
-			      uint16_t debugPacketCount = 0,
-			      DTCLib::DTC_DebugType type = DTCLib::DTC_DebugType_SpecialSequence);
+	DTC_DataRequestPacket(DTC_Link_ID link, bool debug = true, uint16_t debugPacketCount = 0,
+						  DTC_DebugType type = DTC_DebugType_SpecialSequence);
 	/// <summary>
 	/// Construct a DTC_DataRequestPacket
 	/// </summary>
@@ -680,10 +671,8 @@ public:
 	/// <param name="debug">Debug Mode flag (Default: true)</param>
 	/// <param name="debugPacketCount">Debug Packet Count (Default: 0)</param>
 	/// <param name="type">Debug Type (Default: DTC_DebugType_SpecialSequence</param>
-	DTC_DataRequestPacket(DTCLib::DTC_Link_ID link, 
-			      DTCLib::DTC_EventWindowTag event_tag, 
-			      bool debug = true, uint16_t debugPacketCount = 0,
-			      DTCLib::DTC_DebugType type = DTC_DebugType_SpecialSequence);
+	DTC_DataRequestPacket(DTC_Link_ID link, DTC_EventWindowTag event_tag, bool debug = true, uint16_t debugPacketCount = 0,
+						  DTC_DebugType type = DTC_DebugType_SpecialSequence);
 	/// <summary>
 	/// Default Copy Constructor
 	/// </summary>
@@ -710,7 +699,7 @@ public:
 	/// Get the Debug type
 	/// </summary>
 	/// <returns>DTC_DebugType enumeration value</returns>
-	DTCLib::DTC_DebugType GetDebugType() const { return type_; }
+	DTC_DebugType GetDebugType() const { return type_; }
 
 	/// <summary>
 	/// Get the Debug Packet Count
@@ -728,13 +717,13 @@ public:
 	/// Get the timestamp of the request
 	/// </summary>
 	/// <returns>DTC_EventWindowTag of reqeust</returns>
-	DTCLib::DTC_EventWindowTag GetEventWindowTag() const { return event_tag_; }
+	DTC_EventWindowTag GetEventWindowTag() const { return event_tag_; }
 
 	/// <summary>
 	/// Convert a DTC_DataRequestPacket to DTC_DataPacket in "owner" mode
 	/// </summary>
 	/// <returns>DTC_DataPacket with DTC_DataRequestPacket contents set</returns>
-	DTCLib::DTC_DataPacket ConvertToDataPacket() const override;
+	DTC_DataPacket ConvertToDataPacket() const override;
 	/// <summary>
 	/// Convert the DTC_DataRequestPacket to JSON representation
 	/// </summary>
@@ -875,14 +864,8 @@ public:
 	/// <param name="packetVersion">Version of data format</param>
 	/// <param name="event_tag">Timestamp of Data Packet (Default: DTC_Timetstamp())</param>
 	/// <param name="evbMode">EVB Mode byte (Default: 0)</param>
-	DTC_DataHeaderPacket(DTCLib::DTC_Link_ID link, 
-			     uint16_t packetCount, 
-			     DTCLib::DTC_DataStatus status, 
-			     uint8_t dtcid, 
-			     DTCLib::DTC_Subsystem subsystemid,
-			     uint8_t packetVersion, 
-			     DTCLib::DTC_EventWindowTag event_tag = DTCLib::DTC_EventWindowTag(), 
-			     uint8_t evbMode = 0);
+	DTC_DataHeaderPacket(DTC_Link_ID link, uint16_t packetCount, DTC_DataStatus status, uint8_t dtcid, DTC_Subsystem subsystemid,
+						 uint8_t packetVersion, DTC_EventWindowTag event_tag = DTC_EventWindowTag(), uint8_t evbMode = 0);
 	/// <summary>
 	/// Default Copy Constructor
 	/// </summary>
@@ -915,7 +898,7 @@ public:
 	/// Get the Subsystem ID of the Data Block
 	/// </summary>
 	/// <returns>DTC_Subsystem enumeration value</returns>
-	DTCLib::DTC_Subsystem GetSubsystem() const { return static_cast<DTCLib::DTC_Subsystem>(GetSubsystemID()); }
+	DTC_Subsystem GetSubsystem() const { return static_cast<DTC_Subsystem>(GetSubsystemID()); }
 
 	/// <summary>
 	/// Get the DTC ID of the Data Block
@@ -939,13 +922,13 @@ public:
 	/// Get the Timestamp of the Data Block
 	/// </summary>
 	/// <returns>timestamp of Data Block</returns>
-	DTCLib::DTC_EventWindowTag GetEventWindowTag() const { return event_tag_; }
+	DTC_EventWindowTag GetEventWindowTag() const { return event_tag_; }
 
 	/// <summary>
 	/// Get the Data Status of the Data Block
 	/// </summary>
 	/// <returns>DTC_DataStatus enumeration value</returns>
-	DTCLib::DTC_DataStatus GetStatus() const { return status_; }
+	DTC_DataStatus GetStatus() const { return status_; }
 
 	/// <summary>
 	/// Convert the DTC_DataHeaderPacket to JSON representation
@@ -1103,24 +1086,24 @@ public:
 	DTC_SubEvent()
 		: header_(), data_blocks_() {}
 
-	size_t GetSubEventByteCount() { return header_.inclusive_subevent_byte_count; }
+	size_t GetSubEventByteCount() const { return header_.inclusive_subevent_byte_count; }
 
-	DTCLib::DTC_EventWindowTag GetEventWindowTag() const;
-	void SetEventWindowTag(DTCLib::DTC_EventWindowTag const& tag);
-	void SetEventMode(DTCLib::DTC_EventMode const& mode);
+	DTC_EventWindowTag GetEventWindowTag() const;
+	void SetEventWindowTag(DTC_EventWindowTag const& tag);
+	void SetEventMode(DTC_EventMode const& mode);
 	uint8_t GetDTCID() const;
 
-	std::vector<DTCLib::DTC_DataBlock> const& GetDataBlocks() const
+	std::vector<DTC_DataBlock> const& GetDataBlocks() const
 	{
 		return data_blocks_;
 	}
 	size_t GetDataBlockCount() const { return data_blocks_.size(); }
-	DTCLib::DTC_DataBlock* GetDataBlock(size_t idx)
+	const DTC_DataBlock* GetDataBlock(size_t idx) const
 	{
 		if (idx >= data_blocks_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(data_blocks_.size() - 1) + ")");
 		return &data_blocks_[idx];
 	}
-	void AddDataBlock(DTCLib::DTC_DataBlock blk)
+	void AddDataBlock(DTC_DataBlock blk)
 	{
 		data_blocks_.push_back(blk);
 		header_.num_rocs++;
@@ -1199,18 +1182,18 @@ public:
 
 	void SetupEvent();
 	size_t GetEventByteCount() const { return header_.inclusive_event_byte_count; }
-	DTCLib::DTC_EventWindowTag GetEventWindowTag() const;
-	void SetEventWindowTag(DTCLib::DTC_EventWindowTag const& tag);
-	void SetEventMode(DTCLib::DTC_EventMode const& mode);
+	DTC_EventWindowTag GetEventWindowTag() const;
+	void SetEventWindowTag(DTC_EventWindowTag const& tag);
+	void SetEventMode(DTC_EventMode const& mode);
 	const void* GetRawBufferPointer() const { return buffer_ptr_; }
 
-	std::vector<DTCLib::DTC_SubEvent> const& GetSubEvents() const
+	std::vector<DTC_SubEvent> const& GetSubEvents() const
 	{
 		return sub_events_;
 	}
 	size_t GetSubEventCount() const { return sub_events_.size(); }
 
-	size_t GetSubEventCount(DTCLib::DTC_Subsystem subsys) const
+	size_t GetSubEventCount(DTC_Subsystem subsys) const
 	{
 		size_t count = 0;
 		for (size_t ii = 0; ii < sub_events_.size(); ++ii)
@@ -1220,7 +1203,7 @@ public:
 		return count;
 	}
 
-	size_t GetBlockCount(DTCLib::DTC_Subsystem subsys) const
+	size_t GetBlockCount(DTC_Subsystem subsys) const
 	{
 		size_t count = 0;
 		for (size_t ii = 0; ii < sub_events_.size(); ++ii)
@@ -1233,18 +1216,19 @@ public:
 		return count;
 	}
 
-	DTCLib::DTC_SubEvent* GetSubEvent(size_t idx)
+	DTC_SubEvent* GetSubEvent(size_t idx)
 	{
 		if (idx >= sub_events_.size()) throw std::out_of_range("Index " + std::to_string(idx) + " is out of range (max: " + std::to_string(sub_events_.size() - 1) + ")");
 		return &sub_events_[idx];
 	}
-	void AddSubEvent(DTCLib::DTC_SubEvent subEvt)
+
+	void AddSubEvent(DTC_SubEvent subEvt)
 	{
 		sub_events_.push_back(subEvt);
 		header_.num_dtcs++;
 		UpdateHeader();
 	}
-	DTCLib::DTC_SubEvent* GetSubEventByDTCID(uint8_t dtc, DTCLib::DTC_Subsystem subsys)
+	DTC_SubEvent* GetSubEventByDTCID(uint8_t dtc, DTC_Subsystem subsys)
 	{
 		auto dtcid = (dtc & 0xF) + ((static_cast<uint8_t>(subsys) & 0x7) << 4);
 		for (size_t ii = 0; ii < sub_events_.size(); ++ii)
@@ -1274,7 +1258,7 @@ public:
 private:
 	std::shared_ptr<std::vector<uint8_t>> allocBytes{nullptr};  ///< Used if the block owns its memory
 	DTC_EventHeader header_;
-	std::vector<DTCLib::DTC_SubEvent> sub_events_;
+	std::vector<DTC_SubEvent> sub_events_;
 	const void* buffer_ptr_;
 };
 
