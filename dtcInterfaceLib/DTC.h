@@ -28,7 +28,7 @@ public:
 	/// <param name="skipInit">Whether to skip full initialization of the DTC</param>
 	/// <param name="simMemoryFile">Name of the simulated DDR memory file if mu2esim is used</param>
 	explicit DTC(DTC_SimMode mode = DTC_SimMode_Disabled, int dtc = -1, unsigned rocMask = 0x1,
-				 std::string expectedDesignVersion = "", bool skipInit = false, std::string simMemoryFile = "mu2esim.bin");
+				 std::string expectedDesignVersion = "", bool skipInit = false, std::string simMemoryFile = "mu2esim.bin", const std::string& uid = "");
 	virtual ~DTC();
 
 	//
