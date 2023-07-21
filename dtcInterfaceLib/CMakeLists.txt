@@ -43,15 +43,11 @@ add_subdirectory(test)
 
 # Add subdirectories for each language if desired
 
-message(EMOE-001!! BUILD_PYTHON_INTERFACE=$ENV{BUILD_PYTHON_INTERFACE})
-
 if ($ENV{BUILD_PYTHON_INTERFACE})
    find_package(SWIG REQUIRED)
    include(${SWIG_USE_FILE})
    add_subdirectory(python)
 endif()
-
-message(EMOE_002 !! BUILD_ROOT_INTERFACE=$ENV{BUILD_ROOT_INTERFACE})
 
 if($ENV{BUILD_ROOT_INTERFACE})
   add_subdirectory(root)
