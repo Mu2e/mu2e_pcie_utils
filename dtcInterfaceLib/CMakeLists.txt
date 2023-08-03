@@ -1,17 +1,20 @@
 set(NODEJS_ADDON_NAME "DTC")
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+include_directories(./)
+
 cet_make_library(LIBRARY_NAME DTCInterface SOURCE
             DTC.cpp
             DTCLibTest.cpp
             DTCSoftwareCFO.cpp
-			DTC_Registers.cpp
-			DTC_Packets.cpp
+	    DTC_Registers.cpp
+	    DTC_Packets.cpp
             DTC_Types.cpp
+#	    DTCTest.cpp
             mu2edev.cpp
 	    mu2esim.cpp
-        LIBRARIES PUBLIC
-        TRACE::MF
-        
+            LIBRARIES PUBLIC TRACE::MF
 )
 
 cet_make_exec(NAME mu2eUtil SOURCE util_main.cc Mu2eUtil.cpp LIBRARIES mu2e_pcie_utils::DTCInterface)
@@ -38,3 +41,23 @@ install_source()
 cet_script( ALWAYS_COPY updateMu2e.sh Setup_DTC.sh JAConfig.sh)
 
 add_subdirectory(test)
+
+find_package(SWIG REQUIRED)
+include(${SWIG_USE_FILE})
+
+# Add subdirectories for each language if desired
+option(BUILD_PYTHON "Build Python SWIG module" ON)
+
+if (BUILD_PYTHON_INTERFACE)
+    add_subdirectory(python)
+endif()
+
+message(BUILD_PYTHON_INTERFACE=${BUILD_PYTHON_INTERFACE})
+
+set(BUILD_ROOT_INTERFACE $ENV{BUILD_ROOT_INTERFACE})
+
+message(BUILD_ROOT_INTERFACE=${BUILD_ROOT_INTERFACE} $ENV{BUILD_ROOT_INTERFACE})
+
+if(BUILD_ROOT_INTERFACE)
+  add_subdirectory(root)
+endif()
