@@ -48,6 +48,7 @@ add_subdirectory(test)
 # Add subdirectories for each language if desired
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 if (BUILD_PYTHON_INTERFACE)
     add_subdirectory(python)
 endif()
@@ -61,6 +62,9 @@ message(BUILD_ROOT_INTERFACE=${BUILD_ROOT_INTERFACE} $ENV{BUILD_ROOT_INTERFACE})
 if(BUILD_ROOT_INTERFACE)
 =======
 message(EMOE!! BUILD_PYTHON_INTERFACE=$ENV{BUILD_PYTHON_INTERFACE})
+=======
+message(EMOE-001!! BUILD_PYTHON_INTERFACE=$ENV{BUILD_PYTHON_INTERFACE})
+>>>>>>> 5174b44 (cosmetics)
 
 if ($ENV{BUILD_PYTHON_INTERFACE})
    find_package(SWIG REQUIRED)
