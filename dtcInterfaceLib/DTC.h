@@ -41,7 +41,7 @@ public:
 	/// </summary>
 	/// <param name="when">Desired event window tag for readout. Default means use whatever event window tag is next</param>
 	/// <returns>A vector of DTC_Event objects</returns>
-	std::vector<std::unique_ptr<DTCLib::DTC_Event>> GetData(DTCLib::DTC_EventWindowTag when = DTC_EventWindowTag());
+	std::vector<std::unique_ptr<DTC_Event>> GetData(DTC_EventWindowTag when = DTC_EventWindowTag());
 
 	/// <summary>
 	/// Read a file into the DTC memory. Will truncate the file so that it fits in the DTC memory.
@@ -71,7 +71,7 @@ public:
 	/// <param name="address">Address of the register</param>
 	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Value of the ROC register from a DCS Reply packet</returns>
-	roc_data_t ReadROCRegister(const DTCLib::DTC_Link_ID& link, const roc_address_t address, int tmo_ms );
+	roc_data_t ReadROCRegister(const DTC_Link_ID& link, const roc_address_t address, int tmo_ms );
 	/// <summary>
 	/// Sends a DCS Request Packet with the fields filled in such that the given ROC register will be written.
 	/// This function writes to the main ROC register space, use WriteExtROCRegister to access other firmware blocks'
@@ -82,7 +82,7 @@ public:
 	/// <param name="data">Value to write</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
-	bool WriteROCRegister(const DTCLib::DTC_Link_ID& link, const roc_address_t address, const roc_data_t data, bool requestAck, int ack_tmo_ms );
+	bool WriteROCRegister(const DTC_Link_ID& link, const roc_address_t address, const roc_data_t data, bool requestAck, int ack_tmo_ms );
 
 	/// <summary>
 	/// Perform a "double operation" read of ROC registers
@@ -104,7 +104,7 @@ public:
 	/// <param name="data2">Value to write to second register</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
-	bool WriteROCRegisters(const DTCLib::DTC_Link_ID& link, const roc_address_t address1, const roc_data_t data1,
+	bool WriteROCRegisters(const DTC_Link_ID& link, const roc_address_t address1, const roc_data_t data1,
 						   const roc_address_t address2, const roc_data_t data2, bool requestAck, int ack_tmo_ms );
 	/// <summary>
 	/// Perform a ROC block read
@@ -116,7 +116,7 @@ public:
 	/// <returns>Vector of words returned by block read</returns>
 	/// <param name="incrementAddress">Whether to increment the address pointer for block reads/writes</param>
 	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
-	void ReadROCBlock(std::vector<roc_data_t>& data, const DTCLib::DTC_Link_ID& link, const roc_address_t address, const uint16_t wordCount, bool incrementAddress, int tmo_ms);
+	void ReadROCBlock(std::vector<roc_data_t>& data, const DTC_Link_ID& link, const roc_address_t address, const uint16_t wordCount, bool incrementAddress, int tmo_ms);
 	/// <summary>
 	/// Perform a ROC block write
 	/// </summary>
@@ -126,8 +126,7 @@ public:
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="incrementAddress">Whether to increment the address pointer for block reads/writes</param>
 	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
-	bool WriteROCBlock(const DTCLib::DTC_Link_ID& link, const roc_address_t address, 
-			   const std::vector<roc_data_t>& blockData, bool requestAck, bool incrementAddress, int ack_tmo_ms );
+	bool WriteROCBlock(const DTC_Link_ID& link, const roc_address_t address, const std::vector<roc_data_t>& blockData, bool requestAck, bool incrementAddress, int ack_tmo_ms );
 
 	/// <summary>
 	/// Sends a DCS Request Packet with fields filled in such that the given ROC firmware block register will be read out.
@@ -138,7 +137,7 @@ public:
 	/// <param name="address">Address of the register</param>
 	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Value of the ROC register from a DCS Reply packet</returns>
-	uint16_t ReadExtROCRegister(const DTCLib::DTC_Link_ID& link, const roc_address_t block, const roc_address_t address, int tmo_ms = 0);
+	uint16_t ReadExtROCRegister(const DTC_Link_ID& link, const roc_address_t block, const roc_address_t address, int tmo_ms = 0);
 	/// <summary>
 	/// Sends a DCS Request Packet with fields filled in such that the given ROC firmware block register will be written.
 	/// This funcion writes to firmware blocks' register spaces.
@@ -149,13 +148,13 @@ public:
 	/// <param name="data">Value to write</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
-	bool WriteExtROCRegister(const DTCLib::DTC_Link_ID& link, const roc_address_t block, const roc_address_t address, const roc_data_t data, bool requestAck, int ack_tmo_ms);
+	bool WriteExtROCRegister(const DTC_Link_ID& link, const roc_address_t block, const roc_address_t address, const roc_data_t data, bool requestAck, int ack_tmo_ms);
 	/// <summary>
 	/// Dump all known registers from the given ROC, via DCS Request packets.
 	/// </summary>
 	/// <param name="link">Link of the ROC</param>
 	/// <returns>JSON-formatted register dump</returns>
-	std::string ROCRegDump(const DTCLib::DTC_Link_ID& link);
+	std::string ROCRegDump(const DTC_Link_ID& link);
 
 	// Broadcast Readout
 	/// <summary>
@@ -166,7 +165,7 @@ public:
 	/// <param name="when">Timestamp for the Readout Request</param>
 	/// <param name="quiet">Whether to not print the JSON representation of the Readout Request (Default: true, no JSON
 	/// printed)</param>
-	void SendReadoutRequestPacket(const DTCLib::DTC_Link_ID& link, const DTCLib::DTC_EventWindowTag& when, bool quiet = true);
+	void SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_EventWindowTag& when, bool quiet = true);
 	/// <summary>
 	/// Send a DCS Request Packet to the given ROC. Use the Read/Write ROC Register functions for more convinient register
 	/// access.
@@ -180,16 +179,15 @@ public:
 	/// <param name="quiet">Whether to not print the JSON representation of the Readout Request (Default: true, no JSON
 	/// printed)</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
-	void SendDCSRequestPacket(const DTCLib::DTC_Link_ID& link, 
-				  const DTCLib::DTC_DCSOperationType type, const roc_address_t address,
-				  const roc_data_t data = 0x0, const roc_address_t address2 = 0x0, const roc_data_t data2 = 0,
-				  bool quiet = true, bool requestAck = false);
+	void SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOperationType type, const roc_address_t address,
+							  const roc_data_t data = 0x0, const roc_address_t address2 = 0x0, const roc_data_t data2 = 0,
+							  bool quiet = true, bool requestAck = false);
 
 	/// <summary>
 	/// Writes a packet to the DTC on the DCS channel
 	/// </summary>
 	/// <param name="packet">Packet to write</param>
-	void WriteDMAPacket(const DTCLib::DTC_DMAPacket& packet);
+	void WriteDMAPacket(const DTC_DMAPacket& packet);
 	/// <summary>
 	/// Writes the given data buffer to the DTC's DDR memory, via the DAQ channel.
 	/// </summary>
@@ -201,13 +199,13 @@ public:
 	 * @param tmo_ms Timeout
 	 * @return A DTC_Event representing the data in a single DMA, or nullptr if no data/timeout
 	*/
-	std::unique_ptr<DTCLib::DTC_Event> ReadNextDAQDMA(int tmo_ms );
+	std::unique_ptr<DTC_Event> ReadNextDAQDMA(int tmo_ms );
 	/// <summary>
 	/// DCS packets are read one-at-a-time, this function reads the next one from the DTC
 	/// </summary>
 	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Pointer to read DCSReplyPacket. Will be nullptr if no data available.</returns>
-	std::unique_ptr<DTCLib::DTC_DCSReplyPacket> ReadNextDCSPacket(int tmo_ms );
+	std::unique_ptr<DTC_DCSReplyPacket> ReadNextDCSPacket(int tmo_ms );
 
 	/// <summary>
 	/// Releases all buffers to the hardware, from both the DAQ and DCS channels
