@@ -532,8 +532,8 @@ void DTCLib::Mu2eUtil::buffer_test()
 	TLOG(TLVL_DEBUG) << "Operation \"buffer_test\"" << std::endl;
 	auto startTime = std::chrono::steady_clock::now();
 	auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
-	auto device  = thisDTC->GetDevice();
-	thisDTC->SetSequenceNumberDisable(); // For Tracker Testing
+	auto device = thisDTC->GetDevice();
+	thisDTC->SetSequenceNumberDisable();  // For Tracker Testing
 
 	auto initTime = device->GetDeviceTime();
 	device->ResetDeviceTime();

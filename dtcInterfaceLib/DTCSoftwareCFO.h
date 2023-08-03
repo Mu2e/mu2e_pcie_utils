@@ -35,18 +35,10 @@ public:
 	/// <param name="asyncRR">Whether to send ReadoutRequests asynchronously</param>
 	/// <param name="forceNoDebugMode">Do NOT set the Debug flag in Data Request</param>
 	/// <param name="useCFODRP">Send DRPs from the CFO Emulator</param>
-
-  DTCSoftwareCFO(DTC*     dtc, 
-		 bool     useCFOEmulator, 
-		 uint16_t debugPacketCount = 0,
-		 DTC_DebugType debugType = DTC_DebugType_ExternalSerialWithReset, 
-		 bool stickyDebugType    = false,
-		 bool quiet              = false, 
-		 bool asyncRR            = false, 
-		 bool forceNoDebugMode   = false, 
-		 bool useCFODRP          = false);
-
-  /// <summary>
+	DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t debugPacketCount = 0,
+				   DTC_DebugType debugType = DTC_DebugType_ExternalSerialWithReset, bool stickyDebugType = false,
+				   bool quiet = false, bool asyncRR = false, bool forceNoDebugMode = false, bool useCFODRP = false);
+	/// <summary>
 	/// DTCSoftwareCFO Destructor
 	/// </summary>
 	~DTCSoftwareCFO();
@@ -56,9 +48,7 @@ public:
 	/// </summary>
 	/// <param name="ts">Timestamp for requests</param>
 	/// <param name="heartbeatsAfter">Number of heartbeats after reqeust to drive DTC state machine</param>
-
-	void SendRequestForTimestamp(DTC_EventWindowTag ts = DTC_EventWindowTag(static_cast<uint64_t>(0)), 
-				     uint32_t heartbeatsAfter = 16);
+	void SendRequestForTimestamp(DTC_EventWindowTag ts = DTC_EventWindowTag(static_cast<uint64_t>(0)), uint32_t heartbeatsAfter = 16);
 	/// <summary>
 	/// Send Heartbeat Packets and Data Requests for a range of timestamps.
 	/// </summary>
@@ -68,12 +58,8 @@ public:
 	/// <param name="delayBetweenDataRequests">Number of microseconds to wait between requests</param>
 	/// <param name="requestsAhead">Number of Heartbeat Packets to send ahead of data requests</param>
 	/// <param name="heartbeatsAfter">How many Heartbeat Packets to send after all Data Requests have been sent to flush the system</param>
-	void SendRequestsForRange(int count, 
-				  DTC_EventWindowTag start = DTC_EventWindowTag(static_cast<uint64_t>(0)),
-				  bool increment = true, 
-				  uint32_t delayBetweenDataRequests = 0, 
-				  int requestsAhead = 1, 
-				  uint32_t heartbeatsAfter = 16);
+	void SendRequestsForRange(int count, DTC_EventWindowTag start = DTC_EventWindowTag(static_cast<uint64_t>(0)),
+							  bool increment = true, uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t heartbeatsAfter = 16);
 
 	/// <summary>
 	/// Send requests for a list of timestamps.
@@ -109,20 +95,12 @@ public:
 	DTC* GetDTC() const { return theDTC_; }
 
 private:
-	void SendRequestsForRangeImplAsync(DTC_EventWindowTag start, int count, 
-					   bool increment = true,
-					   uint32_t delayBetweenDataRequests = 0, 
-					   uint32_t heartbeatsAfter = 16);
+	void SendRequestsForRangeImplAsync(DTC_EventWindowTag start, int count, bool increment = true,
+									   uint32_t delayBetweenDataRequests = 0, uint32_t heartbeatsAfter = 16);
+	void SendRequestsForRangeImplSync(DTC_EventWindowTag start, int count, bool increment = true,
+									  uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t heartbeatsAfter = 16);
 
-	void SendRequestsForRangeImplSync(DTC_EventWindowTag start, 
-					  int count, bool increment = true,
-					  uint32_t delayBetweenDataRequests = 0, 
-					  int requestsAhead = 1, 
-					  uint32_t heartbeatsAfter = 16);
-
-	void SendRequestsForListImplAsync(std::set<DTC_EventWindowTag> timestamps, 
-					  uint32_t delayBetweenDataRequests = 0, 
-					  uint32_t heartbeatsAfter = 16);
+	void SendRequestsForListImplAsync(std::set<DTC_EventWindowTag> timestamps, uint32_t delayBetweenDataRequests = 0, uint32_t heartbeatsAfter = 16);
 
 	// Request Parameters
 	bool useCFOEmulator_;
