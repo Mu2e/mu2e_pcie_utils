@@ -11,10 +11,6 @@ cet_make_library(LIBRARY_NAME DTCInterface SOURCE
 	    DTC_Registers.cpp
 	    DTC_Packets.cpp
             DTC_Types.cpp
-<<<<<<< HEAD
-#	    DTCTest.cpp
-=======
->>>>>>> 2bb40db (P.Murat: ROOT interface fully functional, use ROOT builtin -D=__CLING__ for protection)
             mu2edev.cpp
 	    mu2esim.cpp
             LIBRARIES PUBLIC TRACE::MF
@@ -47,34 +43,18 @@ add_subdirectory(test)
 
 # Add subdirectories for each language if desired
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-if (BUILD_PYTHON_INTERFACE)
-    add_subdirectory(python)
-endif()
+set(BUILD_PYTHON_INTERFACE $ENV{BUILD_PYTHON_INTERFACE})
+set(BUILD_ROOT_INTERFACE   $ENV{BUILD_ROOT_INTERFACE}  )
 
-message(BUILD_PYTHON_INTERFACE=${BUILD_PYTHON_INTERFACE})
+if (${BUILD_PYTHON_INTERFACE})
+   message(BUILD_PYTHON_INTERFACE=${BUILD_PYTHON_INTERFACE})
 
-set(BUILD_ROOT_INTERFACE $ENV{BUILD_ROOT_INTERFACE})
-
-message(BUILD_ROOT_INTERFACE=${BUILD_ROOT_INTERFACE} $ENV{BUILD_ROOT_INTERFACE})
-
-if(BUILD_ROOT_INTERFACE)
-=======
-message(EMOE!! BUILD_PYTHON_INTERFACE=$ENV{BUILD_PYTHON_INTERFACE})
-=======
-message(EMOE-001!! BUILD_PYTHON_INTERFACE=$ENV{BUILD_PYTHON_INTERFACE})
->>>>>>> 5174b44 (cosmetics)
-
-if ($ENV{BUILD_PYTHON_INTERFACE})
    find_package(SWIG REQUIRED)
    include(${SWIG_USE_FILE})
    add_subdirectory(python)
 endif()
 
-message(EMOE_002 !! BUILD_ROOT_INTERFACE=$ENV{BUILD_ROOT_INTERFACE})
-
-if($ENV{BUILD_ROOT_INTERFACE})
->>>>>>> 2bb40db (P.Murat: ROOT interface fully functional, use ROOT builtin -D=__CLING__ for protection)
+if(${BUILD_ROOT_INTERFACE})
+  message(-- BUILD_ROOT_INTERFACE=${BUILD_ROOT_INTERFACE})
   add_subdirectory(root)
 endif()
