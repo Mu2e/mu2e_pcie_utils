@@ -2,8 +2,6 @@ set(NODEJS_ADDON_NAME "DTC")
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-include_directories(./)
-
 cet_make_library(LIBRARY_NAME DTCInterface SOURCE
             DTC.cpp
             DTCLibTest.cpp
