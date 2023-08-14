@@ -43,8 +43,8 @@ e26:s123:prof  e26:prof          -nq-    -std=c++17
 e20:s123:debug e20:debug         -nq-    -std=c++17
 e20:s123:prof  e20:prof          -nq-    -std=c++17
 
-e20:s122:debug e20:debug         -nq-    -std=c++17
-e20:s122:prof  e20:prof          -nq-    -std=c++17
+e20:s112:debug e20:debug         -nq-    -std=c++17
+e20:s112:prof  e20:prof          -nq-    -std=c++17
 
 end_qualifier_list
 
