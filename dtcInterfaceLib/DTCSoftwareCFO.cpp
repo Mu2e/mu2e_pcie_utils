@@ -11,11 +11,11 @@
 #define QUOTE(X) Q(X)
 #define VAL(X) QUOTE(X) << " = " << X
 
-#define TLVL_SendRequestsForTimestamp TLVL_DEBUG + 5
+#define TLVL_SendRequestsForTimestamp  TLVL_DEBUG + 5
 #define TLVL_SendRequestsForTimestamp2 TLVL_DEBUG + 6
-#define TLVL_SendRequestsForRange TLVL_DEBUG + 7
-#define TLVL_SendRequestsForRange2 TLVL_DEBUG + 8
-#define TLVL_SendRequestsForRangeImpl TLVL_DEBUG + 9
+#define TLVL_SendRequestsForRange      TLVL_DEBUG + 7
+#define TLVL_SendRequestsForRange2     TLVL_DEBUG + 8
+#define TLVL_SendRequestsForRangeImpl  TLVL_DEBUG + 9
 
 DTCLib::DTCSoftwareCFO::DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t debugPacketCount,
 									   DTC_DebugType debugType, bool stickyDebugType, bool quiet, bool asyncRR,
@@ -143,10 +143,11 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 		theDTC_->EnableDetectorEmulator();
 		return;
 	}
-
-	if (delayBetweenDataRequests < 1000)
-	{
-		delayBetweenDataRequests = 1000;
+//-----------------------------------------------------------------------------
+// P.Murat: according to Ryan (Rick K.), the minimal heartbeat interval is 0x20, or 800 ns
+//-----------------------------------------------------------------------------
+	if (delayBetweenDataRequests < 0x20) {
+		delayBetweenDataRequests = 0x20;
 	}
 
 	TLOG(TLVL_SendRequestsForRange2) << VAL(count);
@@ -223,9 +224,12 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_EventWind
 														  uint32_t delayBetweenDataRequests,
 														  uint32_t heartbeatsAfter)
 {
-	if (delayBetweenDataRequests < 1000)
-	{
-		delayBetweenDataRequests = 1000;
+//-----------------------------------------------------------------------------
+// P.Murat: according to Ryan , who referred to Rick K., the minimal heartbeat 
+// interval is 0x20, or 800 ns
+//-----------------------------------------------------------------------------
+	if (delayBetweenDataRequests < 0x20) {
+		delayBetweenDataRequests = 0x20;
 	}
 
 	auto ii = timestamps.begin();
