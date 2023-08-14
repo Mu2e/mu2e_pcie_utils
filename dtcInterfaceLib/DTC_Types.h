@@ -5,7 +5,15 @@
 #include <cstdint>  // uint8_t, uint16_t
 #include <iomanip>
 #include <vector>  // std::vector
+
+#ifndef __CLING__
 #include "TRACE/tracemf.h"
+#else
+class   TraceStreamer;
+#define TLVL_WARNING 1
+#define TLVL_INFO    2
+#endif
+
 
 namespace DTCLib {
 
@@ -35,10 +43,13 @@ enum DTC_Link_ID : uint8_t
 	DTC_Link_Unused,
 	DTC_Link_ALL = 255
 };
+
+#ifndef __CLING__
 inline TraceStreamer& operator<<(TraceStreamer& ts, DTC_Link_ID const& link)
 {
 	return ts << static_cast<uint8_t>(link);
 }
+#endif
 
 static const std::vector<DTC_Link_ID> DTC_Links{DTC_Link_0,
 												DTC_Link_1,
@@ -139,11 +150,13 @@ struct DTC_DebugTypeConverter
 	/// <param name="stream">Stream to write</param>
 	/// <param name="type">DTC_DebugTypeConverter to serialize</param>
 	/// <returns>Stream reference for continued streaming</returns>
+#ifndef __CLING__
 	friend std::ostream& operator<<(std::ostream& stream, const DTC_DebugTypeConverter& type)
 	{
 		stream << "\"DTC_DebugType\":\"" << type.toString() << "\"";
 		return stream;
 	}
+#endif
 };
 
 enum DTC_RXBufferStatus
