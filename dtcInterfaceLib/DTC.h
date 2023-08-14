@@ -41,7 +41,7 @@ public:
 	/// </summary>
 	/// <param name="when">Desired event window tag for readout. Default means use whatever event window tag is next</param>
 	/// <returns>A vector of DTC_Event objects</returns>
-	std::vector<std::unique_ptr<DTC_Event>> GetData(DTC_EventWindowTag when = DTC_EventWindowTag());
+	std::vector<std::unique_ptr<DTC_Event>> GetData(DTC_EventWindowTag when = DTC_EventWindowTag(), bool matchEventWindowTag = false);
 
 	/// <summary>
 	/// Read a file into the DTC memory. Will truncate the file so that it fits in the DTC memory.

@@ -152,16 +152,16 @@ std::string DTCLib::DTC_EventWindowTag::toJSON(bool arrayMode) const
 	{
 		uint8_t ts[6];
 		GetEventWindowTag(ts, 0);
-		ss << "\"timestamp\": [" << static_cast<int>(ts[0]) << ",";
-		ss << static_cast<int>(ts[1]) << ",";
-		ss << static_cast<int>(ts[2]) << ",";
-		ss << static_cast<int>(ts[3]) << ",";
-		ss << static_cast<int>(ts[4]) << ",";
-		ss << static_cast<int>(ts[5]) << "]";
+		ss << "\t\"timestamp\": [\n" << static_cast<int>(ts[0]) << ",\n";
+		ss << static_cast<int>(ts[1]) << ",\n";
+		ss << static_cast<int>(ts[2]) << ",\n";
+		ss << static_cast<int>(ts[3]) << ",\n";
+		ss << static_cast<int>(ts[4]) << ",\n";
+		ss << static_cast<int>(ts[5]) << "\n]";
 	}
 	else
 	{
-		ss << "\"timestamp\": " << event_tag_;
+		ss << "\t\"timestamp\": " << event_tag_;
 	}
 	return ss.str();
 }
