@@ -43,7 +43,7 @@ DTCLib::DTC::~DTC()
 //
 // DMA Functions
 //
-std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWindowTag when)
+std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWindowTag when, bool matchEventWindowTag)
 {
 	TLOG(TLVL_GetData) << "GetData begin";
 	std::vector<std::unique_ptr<DTC_Event>> output;
@@ -72,7 +72,7 @@ std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWi
 			return output;
 		}
 
-		if (packet->GetEventWindowTag() != when && when.GetEventWindowTag(true) != 0)
+		if (packet->GetEventWindowTag() != when && matchEventWindowTag)
 		{
 			TLOG(TLVL_ERROR) << "GetData: Error: DTC_Event has wrong Event Window Tag! 0x" << std::hex << when.GetEventWindowTag(true)
 							 << "(expected) != 0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true);

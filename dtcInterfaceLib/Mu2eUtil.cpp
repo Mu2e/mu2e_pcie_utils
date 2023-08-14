@@ -530,7 +530,7 @@ void DTCLib::Mu2eUtil::verify_stream()
 void DTCLib::Mu2eUtil::buffer_test()
 {
 	TLOG(TLVL_DEBUG) << "Operation \"buffer_test\"" << std::endl;
-	auto startTime = std::chrono::steady_clock::now();
+	auto startTime = std::chrono::steady_clock::now();		// get the beggining of the test
 	auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
 	auto device = thisDTC->GetDevice();
 	thisDTC->SetSequenceNumberDisable();  // For Tracker Testing
@@ -539,7 +539,16 @@ void DTCLib::Mu2eUtil::buffer_test()
 	device->ResetDeviceTime();
 	auto afterInit = std::chrono::steady_clock::now();
 
-	DTCSoftwareCFO cfo(thisDTC, useCFOEmulator, packetCount, debugType, stickyDebugType, quiet, false, forceNoDebug, useCFODRP);
+	// Emulated CFO
+	DTCSoftwareCFO cfo(thisDTC, 
+						useCFOEmulator, 
+						packetCount, 
+						debugType, 
+						stickyDebugType, 
+						quiet, 
+						false, 
+						forceNoDebug, 
+						useCFODRP);
 
 	if (useSimFile)
 	{
@@ -574,7 +583,12 @@ void DTCLib::Mu2eUtil::buffer_test()
 	}
 	else if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && !syncRequests)
 	{
-		cfo.SendRequestsForRange(number, DTC_EventWindowTag(timestampOffset), incrementTimestamp, cfodelay, requestsAhead, heartbeatsAfter);
+		cfo.SendRequestsForRange(number, 
+									DTC_EventWindowTag(timestampOffset), 
+									incrementTimestamp, 
+									cfodelay, 
+									requestsAhead, 
+									heartbeatsAfter);
 	}
 	else if (thisDTC->ReadSimMode() == DTC_SimMode_Loopback)
 	{
@@ -584,6 +598,7 @@ void DTCLib::Mu2eUtil::buffer_test()
 		thisDTC->WriteDMAPacket(header);
 	}
 
+	// record the response time
 	auto readoutRequestTime = device->GetDeviceTime();
 	device->ResetDeviceTime();
 	auto afterRequests = std::chrono::steady_clock::now();
@@ -605,6 +620,7 @@ void DTCLib::Mu2eUtil::buffer_test()
 		size_t sts = 0;
 		mu2e_databuff_t* buffer = readDTCBuffer(device, readSuccess, timeout, sts, false);
 
+		// check if the read of the buffer is succesful
 		if (!readSuccess && checkSERDES)
 			break;
 		else if (!readSuccess)
