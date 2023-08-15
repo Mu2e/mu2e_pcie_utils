@@ -262,6 +262,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDesignStatus()
 {
 	auto form = CreateFormatter(CFO_Register_DesignStatus);
 	form.description = "Design Status Register";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("DDR FIFO Empty:             [") + (ReadDDRFIFOEmpty() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("DDR Clock Calibration Done: [") + (ReadDDRClockCalibrationDone() ? "x" : " ") + "]");
 	return form;
@@ -295,6 +296,9 @@ void CFOLib::CFO_Registers::ResetCFO()
 	CFO_TLOG(TLVL_ResetCFO) << "ResetCFO start";
 	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
 	data[31] = 1;  // CFO Reset bit
+	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	//NOTE: CFO might self-clear the reset bit
+	data[31] = 0;  // CFO Reset bit
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
 }
 
@@ -410,6 +414,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 {
 	auto form = CreateFormatter(CFO_Register_CFOControl);
 	form.description = "CFO Control";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("Reset:                [") + (ReadResetCFO() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("CFO Autogenerate DRP: [") + (ReadAutogenDRP() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Event Window Input:   [") + (ReadEventWindowInput() ? "x" : " ") + "]");
@@ -452,6 +457,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDMATransferLength()
 {
 	auto form = CreateFormatter(CFO_Register_DMATransferLength);
 	form.description = "DMA Transfer Length";
+	form.vals.push_back(""); //translation
 	std::stringstream o;
 	o << "Trigger Length: 0x" << std::hex << ReadTriggerDMATransferLength();
 	form.vals.push_back(o.str());
@@ -482,6 +488,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESLoopbackEnable(
 {
 	auto form = CreateFormatter(CFO_Register_SERDESLoopbackEnable);
 	form.description = "SERDES Loopback Enable";
+	form.vals.push_back(""); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": " +
@@ -526,6 +533,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatClockOscillatorStatus
 {
 	auto form = CreateFormatter(CFO_Register_ClockOscillatorStatus);
 	form.description = "Clock Oscillator Status";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("SERDES IIC Error:      [") + (ReadSERDESOscillatorIICError() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("SERDES Init.Complete:  [") +
 						(ReadSERDESOscillatorInitializationComplete() ? "x" : " ") + "]");
@@ -655,6 +663,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESReset()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESReset);
 	form.description = "SERDES Reset";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadResetSERDES(r) ? "x" : " ") + "]");
@@ -715,6 +724,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESUnlockError()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESUnlockError);
 	form.description = "SERDES Unlock Error";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESUnlockError(r) ? "x" : " ") +
@@ -734,6 +744,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPLLLocked()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPLLLocked);
 	form.description = "SERDES PLL Locked";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESPLLLocked(r) ? "x" : " ") + "]");
@@ -753,6 +764,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXStatus()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESRXStatus);
 	form.description = "SERDES RX Status";
+	form.vals.push_back(""); //translation
 	for (auto r : CFO_Links)
 	{
 		auto re = ReadSERDESRXStatus(r);
@@ -773,6 +785,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESResetDone()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESResetDone);
 	form.description = "SERDES Reset Done";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadResetSERDESDone(r) ? "x" : " ") + "]");
@@ -792,6 +805,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCDRLock()
 {
 	auto form = CreateFormatter(CFO_Register_SFPSERDESStatus);
 	form.description = "SERDES CDR Lock";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESRXCDRLock(r) ? "x" : " ") + "]");
@@ -838,6 +852,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnMode()
 {
 	auto form = CreateFormatter(CFO_Register_EnableBeamOnMode);
 	form.description = "Enable Beam On Mode Register";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOnMode(r) ? "x" : " ") + "]");
@@ -881,6 +896,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatBeamOffMode()
 {
 	auto form = CreateFormatter(CFO_Register_EnableBeamOffMode);
 	form.description = "Enable Beam Off Mode Register";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOffMode(r) ? "x" : " ") + "]");
@@ -1127,6 +1143,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorContr
 {
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusControl);
 	form.description = "SERDES Oscillator IIC Bus Control";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("Reset:  [") + (ReadSERDESOscillatorIICInterfaceReset() ? "x" : " ") + "]");
 	return form;
 }
@@ -1134,6 +1151,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParam
 {
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusLow);
 	form.description = "SERDES Oscillator IIC Bus Low";
+	form.vals.push_back(""); //translation
 	auto data = ReadRegister_(CFO_Register_SERDESClock_IICBusLow);
 	std::ostringstream s1, s2, s3, s4;
 	s1 << "Device:     " << std::showbase << std::hex << ((data & 0xFF000000) >> 24);
@@ -1150,6 +1168,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParam
 {
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusHigh);
 	form.description = "SERDES Oscillator IIC Bus High";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("Write:  [") +
 						(ReadRegister_(CFO_Register_SERDESClock_IICBusHigh) & 0x1 ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Read:   [") +
@@ -1231,6 +1250,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatNUMDTCs()
 {
 	auto form = CreateFormatter(CFO_Register_NUMDTCs);
 	form.description = "Number of DTCs Register";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadLinkDTCCount(r, false) ? "x" : " ") +
@@ -1264,7 +1284,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatFIFOFullErrorFlag0()
 {
 	auto form = CreateFormatter(CFO_Register_FIFOFullErrorFlag0);
 	form.description = "FIFO Full Error Flags 0";
-	form.vals.push_back("       ([CFO Link Output])");
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		auto re = ReadFIFOFullErrorFlags(r);
@@ -1393,6 +1413,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowTimeoutErr
 {
 	auto form = CreateFormatter(CFO_Register_EventWindowTimeoutError);
 	form.description = "Event Window Timeout Error";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" +
@@ -2601,6 +2622,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink0);
 	form.description = "SERDES PRBS Control Link 0";
+	form.vals.push_back(""); //translation
 	std::ostringstream o;
 	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_0);
 	form.vals.push_back(o.str());
@@ -2629,6 +2651,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink1);
 	form.description = "SERDES PRBS Control Link 1";
+	form.vals.push_back(""); //translation
 	std::ostringstream o;
 	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_1);
 	form.vals.push_back(o.str());
@@ -2657,6 +2680,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink2);
 	form.description = "SERDES PRBS Control Link 2";
+	form.vals.push_back(""); //translation
 	std::ostringstream o;
 	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_2);
 	form.vals.push_back(o.str());
@@ -2685,6 +2709,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink3);
 	form.description = "SERDES PRBS Control Link 3";
+	form.vals.push_back(""); //translation
 	std::ostringstream o;
 	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_3);
 	form.vals.push_back(o.str());
@@ -2713,6 +2738,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink4);
 	form.description = "SERDES PRBS Control Link 4";
+	form.vals.push_back(""); //translation
 	std::ostringstream o;
 	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_4);
 	form.vals.push_back(o.str());
@@ -2741,6 +2767,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink5);
 	form.description = "SERDES PRBS Control Link 5";
+	form.vals.push_back(""); //translation
 	std::ostringstream o;
 	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_5);
 	form.vals.push_back(o.str());
@@ -2769,6 +2796,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink6);
 	form.description = "SERDES PRBS Control Link 6";
+	form.vals.push_back(""); //translation
 	std::ostringstream o;
 	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_6);
 	form.vals.push_back(o.str());
@@ -2797,6 +2825,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink7);
 	form.description = "SERDES PRBS Control Link 7";
+	form.vals.push_back(""); //translation
 	std::ostringstream o;
 	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_7);
 	form.vals.push_back(o.str());
@@ -3008,6 +3037,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayControl()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayControlStatus);
 	form.description = "Cabel Delay Control and Status";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("Delay External Loopback Enable: [") +
 						(ReadDelayExternalLoopbackEnable() ? "x" : " ") + std::string("]"));
 	form.vals.push_back(std::string("Delay Measure Flags:           ([Error, Enabled, Now])"));
@@ -3037,6 +3067,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatFPGAPROMProgramStatus
 {
 	auto form = CreateFormatter(CFO_Register_FPGAPROMProgramStatus);
 	form.description = "FPGA PROM Program Status";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("FPGA PROM Program FIFO Full: [") + (ReadFPGAPROMProgramFIFOFull() ? "x" : " ") +
 						"]");
 	form.vals.push_back(std::string("FPGA PROM Ready:             [") + (ReadFPGAPROMReady() ? "x" : " ") + "]");
@@ -3100,6 +3131,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatFPGACoreAccess()
 {
 	auto form = CreateFormatter(CFO_Register_FPGACoreAccess);
 	form.description = "FPGA Core Access";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("FPGA Core Access FIFO Full:  [") + (ReadFPGACoreAccessFIFOFull() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("FPGA Core Access FIFO Empty: [") + (ReadFPGACoreAccessFIFOEmpty() ? "x" : " ") +
 						"]");
@@ -3166,10 +3198,14 @@ void CFOLib::CFO_Registers::WriteRegister_(uint32_t dataToWrite, const CFO_Regis
 		throw DTC_IOErrorException(errorCode);
 	}
 
-	CFO_TLOG(TLVL_DEBUG) << device_.getDeviceUID() << " - " << 
-			"write value 0x"	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
-			<< " to register 0x" 	<< std::setw(4) << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+	{
+		std::stringstream o;
+		o << device_.getDeviceUID() << " - " << 
+			"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+			<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 			std::endl;
+		CFO_TLOG(TLVL_DEBUG) << o.str();
+	}
 
 	//verify register readback
 	if(1)
@@ -3219,9 +3255,9 @@ void CFOLib::CFO_Registers::WriteRegister_(uint32_t dataToWrite, const CFO_Regis
 		{
 			std::stringstream ss;
 			ss << device_.getDeviceUID() << " - " << 
-					"write value 0x"	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
-					<< " to register 0x" 	<< std::setw(4) << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-					"... read back 0x"	 	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
+					"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+					<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+					"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
 					std::endl;
 			CFO_TLOG(TLVL_ERROR) << ss.str();
 			throw DTC_IOErrorException(ss.str());
@@ -3247,10 +3283,14 @@ uint32_t CFOLib::CFO_Registers::ReadRegister_(const CFO_Register& address)
 	}
 
 	if(address != 0x916c)
-		CFO_TLOG(TLVL_DEBUG) << device_.getDeviceUID() << " - " << 
-			"read value 0x"	<< std::setw(8) << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
-			<< " from register 0x" 	<< std::setw(4) << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+	{
+		std::stringstream o;
+		o << device_.getDeviceUID() << " - " << 
+			"read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
+			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 			std::endl;
+		CFO_TLOG(TLVL_DEBUG) << o.str();
+	}
 
 	return data;
 }
