@@ -18,6 +18,8 @@ CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int cfo, std::string expe
 									 bool skipInit, const std::string& uid)
 	: device_(), simMode_(mode), dmaSize_(16)
 {
+	TLOG(TLVL_INFO) << "CONSTRUCTOR";
+
 	auto sim = getenv("CFOLIB_SIM_ENABLE");
 	if (sim == nullptr)
 	{
@@ -44,8 +46,7 @@ CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int cfo, std::string expe
 				break;
 		}
 	}
-	TLOG(TLVL_INFO) << "CFO Sim Mode is " << DTC_SimModeConverter(simMode_).toString();
-
+	
 	if (cfo == -1)
 	{
 		auto CFOE = getenv("CFOLIB_CFO");
@@ -66,17 +67,24 @@ CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int cfo, std::string expe
 			}
 		}
 	}
-	TLOG(TLVL_INFO) << "CFO ID is " << cfo;
-
+	
 	SetSimMode(expectedDesignVersion, simMode_, cfo, skipInit, (uid == ""? ("CFO"+std::to_string(cfo)):uid));
-}
+} //end costructor()
 
-CFOLib::CFO_Registers::~CFO_Registers() { device_.close(); }
+CFOLib::CFO_Registers::~CFO_Registers() 
+{
+	TLOG(TLVL_INFO) << "DESTRUCTOR";
+	device_.close(); 
+} //end destructor()
 
 DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int cfo,
 													  bool skipInit, const std::string& uid)
 {
 	simMode_ = mode;
+
+	TLOG(TLVL_INFO) << "Initializing CFO device, sim mode is " << 
+		DTC_SimModeConverter(simMode_).toString() << " for uid = " << uid << ", deviceIndex = " << cfo;
+
 	device_.init(simMode_, cfo, /* simMemoryFile */ "", uid);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
@@ -3258,7 +3266,8 @@ void CFOLib::CFO_Registers::WriteRegister_(uint32_t dataToWrite, const CFO_Regis
 					"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
 					<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 					"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
-					std::endl;
+					std::endl << std::endl <<
+					"If you do not understand this error, try checking the CFO firmware version." << std::endl;
 			CFO_TLOG(TLVL_ERROR) << ss.str();
 			throw DTC_IOErrorException(ss.str());
 			// __FE_COUT_ERR__ << ss.str(); 
