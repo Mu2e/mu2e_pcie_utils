@@ -1178,7 +1178,7 @@ public:
 	DTC_Event()
 		: header_(), sub_events_(), buffer_ptr_(nullptr) {}
 
-	static const int MAX_DMA_SIZE = 0x8000;
+	static const int MAX_DMA_SIZE = 0x8000;	// 32k
 
 	void SetupEvent();
 	size_t GetEventByteCount() const { return header_.inclusive_event_byte_count; }

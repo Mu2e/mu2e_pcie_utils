@@ -161,13 +161,12 @@ DTCLib::DTC_DMAPacket::DTC_DMAPacket(const DTC_DataPacket in)
 std::string DTCLib::DTC_DMAPacket::headerJSON() const
 {
 	std::stringstream ss;
-	ss << "\"byteCount\": " << std::hex << "0x" << static_cast<int>(byteCount_) << ",";
-	ss << "\"isValid\": " << valid_ << ",";
-	ss << "\"subsystemID\": " << std::hex << "0x" << static_cast<int>(subsystemID_) << ",";
-	ss << "\"linkID\": " << std::dec << linkID_ << ",";
-	ss << "\"packetType\": " << packetType_ << ",";
-
-	ss << "\"hopCount\": " << std::hex << "0x" << static_cast<int>(hopCount_);
+	ss << "\t\"byteCount\": " << std::hex << "0x" << static_cast<int>(byteCount_) << ",\n";
+	ss << "\t\"isValid\": " << valid_ << ",\n";
+	ss << "\t\"subsystemID\": " << std::hex << "0x" << static_cast<int>(subsystemID_) << ",\n";
+	ss << "\t\"linkID\": " << std::dec << linkID_ << ",\n";
+	ss << "\t\"packetType\": " << packetType_ << ",\n";
+	ss << "\t\"hopCount\": " << std::hex << "0x" << static_cast<int>(hopCount_);
 
 	return ss.str();
 }
@@ -757,14 +756,14 @@ DTCLib::DTC_DataHeaderPacket::DTC_DataHeaderPacket(DTC_DataPacket in)
 std::string DTCLib::DTC_DataHeaderPacket::toJSON()
 {
 	std::stringstream ss;
-	ss << "\"DataHeaderPacket\": {";
-	ss << headerJSON() << ",";
-	ss << "\"packetCount\": " << std::dec << static_cast<int>(packetCount_) << ",";
-	ss << event_tag_.toJSON() << ",";
-	ss << "\"status\": " << std::dec << static_cast<int>(status_) << ",";
-	ss << "\"packetVersion\": " << std::hex << static_cast<int>(dataPacketVersion_) << ",";
-	ss << "\"DTC ID\": " << std::dec << static_cast<int>(dtcId_) << ",";
-	ss << "\"evbMode\": " << std::hex << "0x" << static_cast<int>(evbMode_) << "}";
+	ss << "\"DataHeaderPacket\": {\n";
+	ss << headerJSON() << ",\n";
+	ss << "\t\"packetCount\": " << std::dec << static_cast<int>(packetCount_) << ",\n";
+	ss << event_tag_.toJSON() << ",\n";
+	ss << "\t\"status\": " << std::dec << static_cast<int>(status_) << ",\n";
+	ss << "\t\"packetVersion\": " << std::hex << static_cast<int>(dataPacketVersion_) << ",\n";
+	ss << "\t\"DTC ID\": " << std::dec << static_cast<int>(dtcId_) << ",\n";
+	ss << "\t\"evbMode\": " << std::hex << "0x" << static_cast<int>(evbMode_) << "\n}";
 	return ss.str();
 }
 
@@ -1024,23 +1023,23 @@ std::string DTCLib::DTC_SubEventHeader::toJson() const
 {
 	std::ostringstream oss;
 
-	oss << "\"DTC_SubEventHeader\": {";
-	oss << "\"inclusive_subevent_byte_count\": " << inclusive_subevent_byte_count << ",";
-	oss << "\"event_tag_low\": " << event_tag_low << ",";
-	oss << "\"event_tag_high\": " << event_tag_high << ",";
-	oss << "\"num_rocs\": " << num_rocs << ",";
-	oss << "\"event_mode\": " << event_mode << ",";
-	oss << "\"dtc_mac\": " << dtc_mac << ",";
-	oss << "\"partition_id\": " << partition_id << ",";
-	oss << "\"evb_mode\": " << evb_mode << ",";
-	oss << "\"source_dtc_id\": " << source_dtc_id << ",";
-	oss << "\"link0_status\": " << link0_status << ",";
-	oss << "\"link1_status\": " << link1_status << ",";
-	oss << "\"link2_status\": " << link2_status << ",";
-	oss << "\"link3_status\": " << link3_status << ",";
-	oss << "\"link4_status\": " << link4_status << ",";
-	oss << "\"link5_status\": " << link5_status << ",";
-	oss << "\"emtdc\": " << emtdc << "}";
+	oss << "\"DTC_SubEventHeader\": {\n";
+	oss << "\t\"inclusive_subevent_byte_count\": " << inclusive_subevent_byte_count << ",\n";
+	oss << "\t\"event_tag_low\": " << event_tag_low << ",\n";
+	oss << "\t\"event_tag_high\": " << event_tag_high << ",\n";
+	oss << "\t\"num_rocs\": " << num_rocs << ",\n";
+	oss << "\t\"event_mode\": 0x" << std::hex << event_mode << ",\n";
+	oss << "\t\"dtc_mac\": " << dtc_mac << ",\n";
+	oss << "\t\"partition_id\": " << partition_id << ",\n";
+	oss << "\t\"evb_mode\": " << evb_mode << ",\n";
+	oss << "\t\"source_dtc_id\": " << source_dtc_id << ",\n";
+	oss << "\t\"link0_status\": " << link0_status << ",\n";
+	oss << "\t\"link1_status\": " << link1_status << ",\n";
+	oss << "\t\"link2_status\": " << link2_status << ",\n";
+	oss << "\t\"link3_status\": " << link3_status << ",\n";
+	oss << "\t\"link4_status\": " << link4_status << ",\n";
+	oss << "\t\"link5_status\": " << link5_status << ",\n";
+	oss << "\t\"emtdc\": " << emtdc << "\n}";
 
 	return oss.str();
 }
@@ -1049,18 +1048,18 @@ std::string DTCLib::DTC_EventHeader::toJson() const
 {
 	std::ostringstream oss;
 
-	oss << "\"DTC_EventHeader\": {";
-	oss << "\"inclusive_event_byte_count\": " << inclusive_event_byte_count << ",";
-	oss << "\"event_tag_low\": " << event_tag_low << ",";
-	oss << "\"event_tag_high\": " << event_tag_high << ",";
-	oss << "\"num_dtcs\": " << num_dtcs << ",";
-	oss << "\"event_mode\": " << event_mode << ",";
-	oss << "\"dtc_mac\": " << dtc_mac << ",";
-	oss << "\"partition_id\": " << partition_id << ",";
-	oss << "\"evb_mode\": " << evb_mode << ",";
-	oss << "\"evb_id\": " << evb_id << ",";
-	oss << "\"evb_status\": " << evb_status << ",";
-	oss << "\"emtdc\": " << emtdc << "}";
+	oss << "\"DTC_EventHeader\": {\n";
+	oss << "\t\"inclusive_event_byte_count\": " << inclusive_event_byte_count << ",\n";
+	oss << "\t\"event_tag_low\": " << event_tag_low << ",\n";
+	oss << "\t\"event_tag_high\": " << event_tag_high << ",\n";
+	oss << "\t\"num_dtcs\": " << num_dtcs << ",\n";
+	oss << "\t\"event_mode\": 0x" << std::hex << event_mode << ",\n";
+	oss << "\t\"dtc_mac\": " << dtc_mac << ",\n";
+	oss << "\t\"partition_id\": " << partition_id << ",\n";
+	oss << "\t\"evb_mode\": " << evb_mode << ",\n";
+	oss << "\t\"evb_id\": " << evb_id << ",\n";
+	oss << "\t\"evb_status\": " << evb_status << ",\n";
+	oss << "\t\"emtdc\": " << emtdc << "\n}";
 
 	return oss.str();
 }
