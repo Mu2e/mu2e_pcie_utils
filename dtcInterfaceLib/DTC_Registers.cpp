@@ -30,13 +30,14 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 									 bool skipInit, const std::string& uid)
 	: device_(), simMode_(mode), usingDetectorEmulator_(false), dmaSize_(64)
 {
+	TLOG(TLVL_INFO) << "CONSTRUCTOR";
+
 	auto sim = getenv("DTCLIB_SIM_ENABLE");
 	if (sim != nullptr)
 	{
 		auto simstr = std::string(sim);
 		simMode_ = DTC_SimModeConverter::ConvertToSimMode(simstr);
 	}
-	TLOG(TLVL_INFO) << "DTC Sim Mode is " << DTC_SimModeConverter(simMode_).toString();
 
 	if (dtc == -1)
 	{
@@ -48,22 +49,22 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 		else
 			dtc = 0;
 	}
-	TLOG(TLVL_INFO) << "DTC ID is " << dtc;
 
 	SetSimMode(expectedDesignVersion, simMode_, dtc, simFileName, rocMask, skipInit, (uid == ""? ("DTC"+std::to_string(dtc)):uid));
-}
+} //end constructor()
 
 /// <summary>
 /// DTC_Registers destructor
 /// </summary>
 DTCLib::DTC_Registers::~DTC_Registers()
 {
+	TLOG(TLVL_INFO) << "DESTRUCTOR";
 	DisableDetectorEmulator();
 	// DisableDetectorEmulatorMode();
 	// DisableCFOEmulation();
 	// ResetDTC();
 	device_.close();
-}
+} //end destructor()
 
 /// <summary>
 /// Initialize the DTC in the given SimMode.
@@ -79,7 +80,9 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 													  unsigned rocMask, bool skipInit, const std::string& uid)
 {
 	simMode_ = mode;
-	TLOG(TLVL_INFO) << "Initializing device, sim mode is " << DTC_SimModeConverter(simMode_).toString();
+	TLOG(TLVL_INFO) << "Initializing DTC device, sim mode is " << 
+		DTC_SimModeConverter(simMode_).toString() << " for uid = " << uid << ", deviceIndex = " << dtc;
+
 	device_.init(simMode_, dtc, simMemoryFile, uid);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
@@ -94,23 +97,29 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 	}
 
 	DTC_TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
+	
+	DTC_TLOG(TLVL_DEBUG+11) << "Setting up DTC links...";
 	for (auto link : DTC_Links)
 	{
 		bool linkEnabled = ((rocMask >> (link * 4)) & 0x1) != 0;
 		if (!linkEnabled)
 		{
+			DTC_TLOG(TLVL_DEBUG+11) << "Disabling Link " << (int)link;				
 			DisableLink(link);
+			
+			DisableROCEmulator(link);
+			SetSERDESLoopbackMode(link, DTC_SERDESLoopbackMode_Disabled);
 		}
 		else
 		{
+			DTC_TLOG(TLVL_DEBUG+11) << "Enabling Link " << (int)link;				
 			EnableLink(link, DTC_LinkEnableMode(true, true));
 		}
-		if (!linkEnabled) DisableROCEmulator(link);
-		if (!linkEnabled) SetSERDESLoopbackMode(link, DTC_SERDESLoopbackMode_Disabled);
 	}
 
 	if (simMode_ != DTC_SimMode_Disabled)
 	{
+		DTC_TLOG(TLVL_DEBUG+11) << "Setting up simulation modes in Hardware...";
 		// Set up hardware simulation mode: Link 0 Tx/Rx Enabled, Loopback Enabled, ROC Emulator Enabled. All other links
 		// disabled. for (auto link : DTC_Links)
 		// 	{
@@ -121,16 +130,19 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 		{
 			if (simMode_ == DTC_SimMode_Loopback)
 			{
+				DTC_TLOG(TLVL_DEBUG+11) << "Setting up simulation of Loopback in Hardware... Link " << (int)link;
 				SetSERDESLoopbackMode(link, DTC_SERDESLoopbackMode_NearPCS);
 				//			SetMaxROCNumber(DTC_Link_0, DTC_ROC_0);
 			}
 			else if (simMode_ == DTC_SimMode_ROCEmulator)
 			{
+				DTC_TLOG(TLVL_DEBUG+11) << "Setting up simulation of ROC in Hardware... Link " << (int)link;
 				EnableROCEmulator(link);
 				// SetMaxROCNumber(DTC_Link_0, DTC_ROC_0);
 			}
 			else
 			{
+				DTC_TLOG(TLVL_DEBUG+11) << "Turning off simulation in Hardware... Link " << (int)link;
 				SetSERDESLoopbackMode(link, DTC_SERDESLoopbackMode_Disabled);
 				DisableROCEmulator(link);
 			}
@@ -687,6 +699,7 @@ void DTCLib::DTC_Registers::ResetDTC()
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	data[31] = 1;  // DTC Reset bit
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+	//NOTE: newer DTC versions (roughly > August 2023), self-clear the reset bit
 	data[31] = 0;  // DTC Reset bit
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
 }
@@ -4890,9 +4903,9 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatFireflyTXIICParameter
 /// <returns>DTC_RegisterFormatter object containing register information</returns>
 DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatFireflyTXIICParameterHigh()
 {
-	auto form = CreateFormatter(DTC_Register_FireflyTX_IICBusConfigHigh);
-	form.vals.push_back("[ x = 1 (hi) ]"); //translation
+	auto form = CreateFormatter(DTC_Register_FireflyTX_IICBusConfigHigh);	
 	form.description = "TX Firefly IIC Bus High";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("Write:  [") +
 						(ReadRegister_(DTC_Register_FireflyTX_IICBusConfigHigh) & 0x1 ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Read:   [") +
@@ -5359,11 +5372,11 @@ void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
 	std::bitset<32> regdata = ReadRegister_(DTC_Register_JitterAttenuatorCSR);
 
 	// detection if already locked may not work
-	// if(regdata[0] == 0 && regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
-	// {
-	// 	DTC_TLOG(TLVL_DEBUG) << "JA already locked with selected input " << data;
-	// 	return;
-	// }
+	if(regdata[0] == 0 && regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
+	{
+		DTC_TLOG(TLVL_DEBUG) << "JA already locked with selected input " << data;
+		return;
+	}
 	regdata[4] = data[0];
 	regdata[5] = data[1];
 	WriteRegister_(regdata.to_ulong(), DTC_Register_JitterAttenuatorCSR);
@@ -9851,8 +9864,7 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 
 	{	//trace seems to ignore the std::setfill, so using stringstream
 		std::stringstream o;
-		o << device_.getDeviceUID() << " - " << 
-				"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+		o << "write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
 				<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 				std::endl;
 		DTC_TLOG(TLVL_DEBUG) << o.str();
@@ -9876,6 +9888,8 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 				readbackValue 	&= 0x0000ffff; 
 				break;
 			case DTC_Register_DTCControl: //bit 31 is reset bit, which is write only 
+				if((dataToWrite >> 31) & 1) //NOTE: as of roughly August 2023, DTC Reset clears the entire register to 0
+					return; //ignore check if reset bit high
 				dataToWrite		&= 0x7fffffff;
 				readbackValue   &= 0x7fffffff; 
 				break;
@@ -9927,7 +9941,8 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 					"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
 					<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 					"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) <<
-					std::endl;
+					std::endl << std::endl <<
+					"If you do not understand this error, try checking the DTC firmware version." << std::endl;
 			DTC_TLOG(TLVL_ERROR) << ss.str();
 			throw DTC_IOErrorException(ss.str());
 			// __FE_COUT_ERR__ << ss.str(); 
@@ -9955,8 +9970,7 @@ uint32_t DTCLib::DTC_Registers::ReadRegister_(const DTC_Register& address)
 	if(address != 0x916c)
 	{	//trace seems to ignore the std::setfill, so using stringstream
 		std::stringstream o;
-		o << device_.getDeviceUID() << " - " << 
-			"read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
+		o << "read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
 			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 			std::endl;
 		DTC_TLOG(TLVL_DEBUG) << o.str();
