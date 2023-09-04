@@ -394,7 +394,7 @@ public:
 	//
 	// DTC Register Dumps
 	//
-	std::string FormattedRegDump(int width);
+	std::string FormattedRegDump(int width, const std::vector<std::function<DTC_RegisterFormatter()>> *regVecIn = nullptr);
 	std::string LinkCountersRegDump(int width);
 	std::string PerformanceCountersRegDump(int width);
 	std::string SERDESErrorsRegDump(int width);
@@ -1421,9 +1421,21 @@ protected:
 	uint16_t dmaSize_;                   ///< Size of DMAs, in bytes (default 32k)
 	int formatterWidth_ = 28;            ///< Description field width, in characters (must be initialized or DTC_RegisterFormatter can resize to crazy large values!)
 
+
 	/// <summary>
 	/// Functions needed to print regular register map
 	/// </summary>
+
+
+ public:
+  	const std::vector<std::function<DTC_RegisterFormatter()>> formattedSimpleDumpFunctions_{
+		[this] { return this->FormatDTCControl(); },
+		[this] { return this->FormatROCEmulationEnable(); },
+		[this] { return this->FormatLinkEnable(); },
+		[this] { return this->FormatSERDESReset(); },
+		[this] { return this->FormatSERDESResetDone(); },
+	};
+
 	const std::vector<std::function<DTC_RegisterFormatter()>> formattedDumpFunctions_{
 		[this] { return this->FormatDesignVersion(); },
 		[this] { return this->FormatDesignDate(); },

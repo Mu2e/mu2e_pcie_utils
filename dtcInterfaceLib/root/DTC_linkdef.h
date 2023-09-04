@@ -47,6 +47,8 @@
 #pragma link C++  class  DTCLib::DTC_Utilities;
 
 #pragma link C++  class  DTCLib::DTC_Event;
+#pragma link C++  class  DTCLib::DTC_EventHeader;
+#pragma link C++  class  DTCLib::DTC_SubEvent;
 #pragma link C++  class  DTCLib::DTCSoftwareCFO;
 #pragma link C++  class  mu2edev;
 #pragma link C++  class  mu2esim;
