@@ -2,8 +2,6 @@ set(NODEJS_ADDON_NAME "DTC")
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-include_directories(./)
-
 cet_make_library(LIBRARY_NAME DTCInterface SOURCE
             DTC.cpp
             DTCLibTest.cpp
@@ -43,12 +41,18 @@ add_subdirectory(test)
 
 # Add subdirectories for each language if desired
 
-if ($ENV{BUILD_PYTHON_INTERFACE})
+set(BUILD_PYTHON_INTERFACE $ENV{BUILD_PYTHON_INTERFACE})
+set(BUILD_ROOT_INTERFACE   $ENV{BUILD_ROOT_INTERFACE}  )
+
+if (${BUILD_PYTHON_INTERFACE})
+   message(BUILD_PYTHON_INTERFACE=${BUILD_PYTHON_INTERFACE})
+
    find_package(SWIG REQUIRED)
    include(${SWIG_USE_FILE})
    add_subdirectory(python)
 endif()
 
-if($ENV{BUILD_ROOT_INTERFACE})
+if(${BUILD_ROOT_INTERFACE})
+  message(-- BUILD_ROOT_INTERFACE=${BUILD_ROOT_INTERFACE})
   add_subdirectory(root)
 endif()
