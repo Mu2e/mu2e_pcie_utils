@@ -37,8 +37,8 @@ DTCLib::DTC::DTC(DTC_SimMode mode, int dtc, unsigned rocMask, std::string expect
 
 DTCLib::DTC::~DTC()
 {
-	DTC_TLOG(TLVL_INFO) << "DESTRUCTOR";
 	ReleaseAllBuffers();
+  TLOG(TLVL_INFO) << "DESTRUCTOR exit";
 }
 
 //
