@@ -574,6 +574,10 @@ public:
 	DTC_RegisterFormatter FormatROCEmulationEnable();
 
 	// Link Enable Register
+	void EnableReceiveCFOLink();
+	void DisableReceiveCFOLink();
+	void EnableTransmitCFOLink();
+	void DisableTransmitCFOLink();
 	void EnableLink(DTC_Link_ID const& link, const DTC_LinkEnableMode& mode = DTC_LinkEnableMode());
 	void DisableLink(DTC_Link_ID const& link, const DTC_LinkEnableMode& mode = DTC_LinkEnableMode());
 	DTC_LinkEnableMode ReadLinkEnabled(DTC_Link_ID const& link);

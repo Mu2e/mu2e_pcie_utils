@@ -1483,6 +1483,11 @@ public:
 
 	// Cable Delay Control And Status Register
 	/// <summary>
+	/// reset all the bits of the register
+	/// </summary>
+	void ResetDelayRegister();
+
+	/// <summary>
 	/// Read the Measure Error bit for the given link
 	/// </summary>
 	/// <param name="link">Link to read</param>
@@ -1583,6 +1588,11 @@ public:
 	/// <param name="targetFrequency">New frequency to program, in Hz</param>
 	/// <returns>Whether the oscillator frequency was changed</returns>
 	bool SetNewOscillatorFrequency(double targetFrequency);
+
+	/// <summary>
+	/// Disable all CFO links
+	/// </summary>
+	void DisableLinks();
 
 	/// <summary>
 	/// Disable all CFO outputs

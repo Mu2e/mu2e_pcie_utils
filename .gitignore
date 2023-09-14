@@ -20,3 +20,4 @@ trace/
 Module.symvers
 modules.order
 *.ko
+*.code-workspace
