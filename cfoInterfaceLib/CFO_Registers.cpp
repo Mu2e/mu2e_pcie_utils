@@ -2974,6 +2974,12 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink7(
 	return form;
 }
 
+void CFOLib::CFO_Registers::ResetDelayRegister()
+{
+	WriteRegister_(0, CFO_Register_CableDelayControlStatus);
+}
+
+
 bool CFOLib::CFO_Registers::ReadDelayMeasureError(const CFO_Link_ID& link)
 {
 	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
@@ -3165,6 +3171,12 @@ bool CFOLib::CFO_Registers::SetNewOscillatorFrequency(double targetFrequency)
 	return true;
 }
 
+void CFOLib::CFO_Registers::DisableLinks()
+{
+	CFO_TLOG(TLVL_INFO) << "CFO disable serdes transmit and receive";
+	WriteRegister_(0, CFO_Register_LinkEnable);
+}
+
 void CFOLib::CFO_Registers::DisableAllOutputs()
 {
 	CFO_TLOG(TLVL_INFO) << "CFO disable Event Start character output";
@@ -3184,8 +3196,6 @@ void CFOLib::CFO_Registers::DisableAllOutputs()
 // Private Functions
 void CFOLib::CFO_Registers::WriteRegister_(uint32_t dataToWrite, const CFO_Register& address)
 {
-	
-			
 	auto retry = 3;
 	int errorCode;
 	do
@@ -3214,6 +3224,10 @@ void CFOLib::CFO_Registers::WriteRegister_(uint32_t dataToWrite, const CFO_Regis
 		int i = -1;  // used for counters
 		switch(address) //handle special register checks by masking of DONT-CARE bits, or else check full 32 bits
 		{
+			//---------- TODO: check if CFO 0x9380 need a delay between write and read op.
+			case CFO_Register_CableDelayControlStatus:
+				usleep(100);
+				return;	// do not check
 			//---------- CFO and DTC registers
 			case CFO_Register_SERDESClock_IICBusLow: // lowest 16-bits are the I2C read value. So ignore in write validation			
 			// case 0x9298 FIXME and add CFO Firefly feature? --> DTC_Register_FireflyRX_IICBusConfigLow:
