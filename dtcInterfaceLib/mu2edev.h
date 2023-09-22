@@ -153,6 +153,8 @@ public:
 	// int  read_test_command(m_ioc_cmd_t *output);
 	// int  write_test_command(m_ioc_cmd_t input, bool start);
 
+	bool begin_dcs_transaction(int tmo_ms);
+	void end_dcs_transaction();
 
 	/// <summary>
 	/// Get the current DTC UID for this instance
@@ -169,6 +171,7 @@ private:
 	unsigned buffers_held_;
 	mu2esim* simulator_;
 	int activeDeviceIndex_;
+	std::atomic<bool> dcs_lock_held_{false};
 	std::atomic<long long> deviceTime_;
 	std::atomic<size_t> writeSize_;
 	std::atomic<size_t> readSize_;

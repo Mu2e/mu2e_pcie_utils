@@ -174,6 +174,9 @@ NOTE: for _IOR, _IOW: the size is only for the data at the address used in the
 #define M_IOC_DUMP _IO(MU2E_IOC_MAGIC, 14)
 #define M_IOC_BUF_XMIT _IO(MU2E_IOC_MAGIC, 16)
 
+#define M_IOC_DCS_LOCK _IO(MU2E_IOC_MAGIC, 17)
+#define M_IOC_DCS_RELEASE _IO(MU2E_IOC_MAGIC, 18)
+
 /// <summary>
 /// Register Access information
 /// </summary>
