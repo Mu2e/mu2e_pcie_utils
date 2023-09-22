@@ -21,33 +21,35 @@ mu2edev::mu2edev()
 {
 	// TRACE_CNTL( "lvlmskM", 0x3 );
 	// TRACE_CNTL( "lvlmskS", 0x3 );
-
 }
 
-mu2edev::~mu2edev() { delete simulator_; if(debugFp_) fclose(debugFp_);}
+mu2edev::~mu2edev()
+{
+	delete simulator_;
+	if (debugFp_) fclose(debugFp_);
+}
 
 int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simMemoryFileName, const std::string& uid)
 {
 	UID_ = uid;
 
-
 	auto debugWriteFilePath = getenv("DTCLIB_DEBUG_WRITE_FILE_PATH");
-	if( debugWriteFilePath != nullptr )
+	if (debugWriteFilePath != nullptr)
 	{
 		auto debugWriteFileStr = std::string(debugWriteFilePath) + "/Write_debug_" + uid + "_" + std::to_string(time(0)) + ".txt";
-		if(debugFp_) fclose(debugFp_);
-		debugFp_ = fopen(debugWriteFileStr.c_str(),"w");
-		if(!debugFp_)
+		if (debugFp_) fclose(debugFp_);
+		debugFp_ = fopen(debugWriteFileStr.c_str(), "w");
+		if (!debugFp_)
 		{
 			perror(("open " + std::string(debugWriteFileStr)).c_str());
 			TRACE(TLVL_WARNING, UID_ + " - mu2e Device write debug file could not be opened at path DTCLIB_DEBUG_WRITE_FILE_PATH! Exiting.");
 			throw std::runtime_error(UID_ + " - mu2e Device write debug file could not be opened at path DTCLIB_DEBUG_WRITE_FILE_PATH! Exiting.");
-			//exit(1);
+			// exit(1);
 		}
 	}
 
 	auto start = std::chrono::steady_clock::now();
-	lastWriteTime_ = start; //init time
+	lastWriteTime_ = start;  // init time
 
 	if (simMode != DTCLib::DTC_SimMode_Disabled && simMode != DTCLib::DTC_SimMode_NoCFO &&
 		simMode != DTCLib::DTC_SimMode_ROCEmulator && simMode != DTCLib::DTC_SimMode_Loopback)
@@ -73,7 +75,7 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
 			perror(("open " + std::string(devfile)).c_str());
 			TRACE(TLVL_WARNING, UID_ + " - mu2e Device file not found and DTCLIB_SIM_ENABLE not set! Exiting.");
 			throw std::runtime_error(UID_ + " - mu2e Device file not found and DTCLIB_SIM_ENABLE not set! Exiting.");
-			//exit(1);
+			// exit(1);
 		}
 		for (unsigned chn = 0; chn < MU2E_MAX_CHANNELS; ++chn)
 			for (unsigned dir = 0; dir < 2; ++dir)
@@ -89,7 +91,7 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
 					perror("M_IOC_GET_INFO");
 
 					throw std::runtime_error(UID_ + " - Failed mu2edev::init before ioctl( devfd_, M_IOC_GET_INFO, &get_info)");
-					//exit(1);
+					// exit(1);
 				}
 				mu2e_channel_info_[activeDeviceIndex_][chn][dir] = get_info;
 				TRACE(TLVL_DEBUG, UID_ + " - mu2edev::init %d %u:%u - num=%u size=%u hwIdx=%u, swIdx=%u delta=%u", activeDeviceIndex_, chn, dir,
@@ -102,13 +104,13 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
 					int prot = (((map == MU2E_MAP_BUFF)) ? PROT_WRITE : PROT_READ);
 					off64_t offset = chnDirMap2offset(chn, dir, map);
 					mu2e_mmap_ptrs_[activeDeviceIndex_][chn][dir][map] = mmap(0 /* hint address */
-																	  ,
-																	  length, prot, MAP_SHARED, devfd_, offset);
+																			  ,
+																			  length, prot, MAP_SHARED, devfd_, offset);
 					if (mu2e_mmap_ptrs_[activeDeviceIndex_][chn][dir][map] == MAP_FAILED)
 					{
 						perror("mmap");
 						throw std::runtime_error("mmap");
-						//exit(1);
+						// exit(1);
 					}
 					TRACE(TLVL_DEBUG, UID_ + " - mu2edev::init chnDirMap2offset=%lu mu2e_mmap_ptrs_[%d][%d][%d][%d]=%p p=%c l=%lu", offset, activeDeviceIndex_, chn,
 						  dir, map, mu2e_mmap_ptrs_[activeDeviceIndex_][chn][dir][map], prot == PROT_READ ? 'R' : 'W', length);
@@ -147,6 +149,12 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
    */
 int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 {
+	if (chn == DTC_DMA_Engine_DCS && !dcs_lock_held_)
+	{
+		TRACE(TLVL_ERROR, UID_ + " - read_data dcs lock not held!");
+		return -2;
+	}
+
 	auto start = std::chrono::steady_clock::now();
 	auto retsts = -1;
 	if (simulator_ != nullptr)
@@ -181,20 +189,9 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 					  chn, mu2e_channel_info_[activeDeviceIndex_][chn][C2S].hwIdx, mu2e_channel_info_[activeDeviceIndex_][chn][C2S].swIdx,
 					  mu2e_channel_info_[activeDeviceIndex_][chn][C2S].num_buffs, has_recv_data, (void*)BC_p, newNxtIdx, retsts,
 					  *buffer, *(uint32_t*)*buffer);
-				if(retsts == 80)
+				if (retsts == 80)
 				{
-					TRACE(TLVL_TRACE,"80 bytes: %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx", *(((uint64_t*)*buffer)+0)
-									   , *(((uint64_t*)*buffer)+1)
-									   , *(((uint64_t*)*buffer)+2)
-									   , *(((uint64_t*)*buffer)+3)
-									   , *(((uint64_t*)*buffer)+4)
-									   , *(((uint64_t*)*buffer)+5)
-									   , *(((uint64_t*)*buffer)+6)
-									   , *(((uint64_t*)*buffer)+7)
-									   , *(((uint64_t*)*buffer)+8)
-									   , *(((uint64_t*)*buffer)+9)
-									   );
-
+					TRACE(TLVL_TRACE, "80 bytes: %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx", *(((uint64_t*)*buffer) + 0), *(((uint64_t*)*buffer) + 1), *(((uint64_t*)*buffer) + 2), *(((uint64_t*)*buffer) + 3), *(((uint64_t*)*buffer) + 4), *(((uint64_t*)*buffer) + 5), *(((uint64_t*)*buffer) + 6), *(((uint64_t*)*buffer) + 7), *(((uint64_t*)*buffer) + 8), *(((uint64_t*)*buffer) + 9));
 				}
 				++buffers_held_;
 			}
@@ -219,6 +216,12 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
    */
 int mu2edev::read_release(DTC_DMA_Engine const& chn, unsigned num)
 {
+	if (chn == DTC_DMA_Engine_DCS && !dcs_lock_held_)
+	{
+		TRACE(TLVL_ERROR, UID_ + " - read_release dcs lock not held!");
+		return -2;
+	}
+
 	auto start = std::chrono::steady_clock::now();
 	auto retsts = -1;
 	if (simulator_ != nullptr)
@@ -293,9 +296,9 @@ int mu2edev::write_register(uint16_t address, int tmo_ms, uint32_t data)
 		reg.reg_offset = address;
 		reg.access_type = 1;
 		reg.val = data;
-		TRACE(TLVL_DEBUG + 16, UID_ + " - Writing value 0x%x to register 0x%x", data, address);		
-		if(debugFp_) fprintf(debugFp_, (UID_ + " - Writing value 0x%x to register 0x%x - time delta %ld\n").c_str(), data, address,
-			std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - lastWriteTime_).count());
+		TRACE(TLVL_DEBUG + 16, UID_ + " - Writing value 0x%x to register 0x%x", data, address);
+		if (debugFp_) fprintf(debugFp_, (UID_ + " - Writing value 0x%x to register 0x%x - time delta %ld\n").c_str(), data, address,
+							  std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - lastWriteTime_).count());
 		retsts = ioctl(devfd_, M_IOC_REG_ACCESS, &reg);
 		lastWriteTime_ = start;
 	}
@@ -319,8 +322,8 @@ int mu2edev::write_register_checked(uint16_t address, int tmo_ms, uint32_t data,
 		reg.access_type = 2;
 		reg.val = data;
 		TRACE(TLVL_DEBUG + 17, UID_ + " - Writing value 0x%x to register 0x%x with readback", data, address);
-		if(debugFp_) fprintf(debugFp_, (UID_ + " - Writing value 0x%x to register 0x%x with readback - time delta %ld\n").c_str(), data, address,
-			std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - lastWriteTime_).count());
+		if (debugFp_) fprintf(debugFp_, (UID_ + " - Writing value 0x%x to register 0x%x with readback - time delta %ld\n").c_str(), data, address,
+							  std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - lastWriteTime_).count());
 		retsts = ioctl(devfd_, M_IOC_REG_ACCESS, &reg);
 		*output = reg.val;
 		lastWriteTime_ = start;
@@ -354,6 +357,12 @@ void mu2edev::meta_dump()
 
 int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 {
+	if (chn == DTC_DMA_Engine_DCS && !dcs_lock_held_)
+	{
+		TRACE(TLVL_ERROR, UID_ + " - write_data dcs lock not held!");
+		return -2;
+	}
+
 	auto start = std::chrono::steady_clock::now();
 	auto retsts = -1;
 	if (simulator_ != nullptr)
@@ -425,6 +434,11 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 // applicable for recv.
 int mu2edev::release_all(DTC_DMA_Engine const& chn)
 {
+	if (chn == DTC_DMA_Engine_DCS && !dcs_lock_held_)
+	{
+		TRACE(TLVL_ERROR, UID_ + " - release_all dcs lock not held!");
+		return -2;
+	}
 	auto start = std::chrono::steady_clock::now();
 	auto retsts = 0;
 	if (simulator_ != nullptr)
@@ -446,5 +460,46 @@ void mu2edev::close()
 	{
 		delete simulator_;
 		simulator_ = nullptr;
+	}
+}
+
+bool mu2edev::begin_dcs_transaction(int tmo_ms)
+{
+	if (simulator_ != nullptr)
+	{
+		dcs_lock_held_ = true;
+		return true;
+	}
+
+	int retsts = -1;
+	auto start = std::chrono::steady_clock::now();
+	while (retsts == -1 && (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
+	{
+		auto retsts = ioctl(devfd_, M_IOC_DCS_LOCK);
+		if (retsts != 0)
+		{
+			perror("M_IOC_DCS_LOCK");
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
+		}
+		else {
+			dcs_lock_held_ = true;
+			return true;
+		}
+	}
+	return false;
+}
+
+void mu2edev::end_dcs_transaction()
+{
+	if (simulator_ != nullptr)
+	{
+		dcs_lock_held_ = false;
+		return;
+	}
+
+	int retsts = ioctl(devfd_, M_IOC_DCS_RELEASE);
+	dcs_lock_held_ = false;
+	if (retsts != 0) {
+		perror("M_IOC_DCS_RELEASE");
 	}
 }
