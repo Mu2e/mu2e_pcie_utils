@@ -153,8 +153,8 @@ public:
 	// int  read_test_command(m_ioc_cmd_t *output);
 	// int  write_test_command(m_ioc_cmd_t input, bool start);
 
-	bool begin_dcs_transaction(int tmo_ms);
-	void end_dcs_transaction();
+	void begin_dcs_transaction();
+	void end_dcs_transaction(bool mustHaveLock = true);
 
 	/// <summary>
 	/// Get the current DTC UID for this instance
