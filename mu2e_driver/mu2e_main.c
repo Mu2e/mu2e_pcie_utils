@@ -564,7 +564,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 		case M_IOC_DCS_LOCK:
 			spin_lock_bh(&DcsTransactionLock);
 			if (mu2e_dcs_locks[dtc]) {
-				retval = -1;
+				retval = -EAGAIN;
 			}
 			else {
 				mu2e_dcs_locks[dtc] = 1;
@@ -580,7 +580,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			break;
 		default:
 			TRACE(11, "mu2e_ioctl: unknown cmd");
-			return (-1);  // some error
+			return (-ENOSYS);  // some error
 	}
 	TRACE(11, "mu2e_ioctl: end");
 	return (retval);

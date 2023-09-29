@@ -272,6 +272,7 @@ int main(int argc, char* argv[])
 			TLOG(DCS_TLVL(reallyQuiet)) << "Buffer Read " << ii << std::endl;
 			mu2e_databuff_t* buffer;
 			auto tmo_ms = 1500;
+			device->begin_dcs_transaction();
 			auto sts = device->read_data(DTC_DMA_Engine_DCS, reinterpret_cast<void**>(&buffer), tmo_ms);
 
 			TLOG(TLVL_DEBUG) << "util - read for DCS - ii=" << ii << ", sts=" << sts << ", buffer=" << (void*)buffer;
@@ -300,6 +301,7 @@ int main(int argc, char* argv[])
 				}
 			}
 			device->read_release(DTC_DMA_Engine_DCS, 1);
+			device->end_dcs_transaction();
 
 			if (sts <= 0 && stopOnError)
 			{
@@ -330,8 +332,10 @@ int main(int argc, char* argv[])
 		{
 			void* buffer;
 			auto tmo_ms = 0;
+			device->begin_dcs_transaction();
 			auto stsRD = device->read_data(DTC_DMA_Engine_DCS, &buffer, tmo_ms);
 			auto stsRL = device->read_release(DTC_DMA_Engine_DCS, 1);
+			device->end_dcs_transaction();
 			TLOG(TLVL_DEBUG + 7) << "dcs - release/read for DCS ii=" << ii << ", stsRD=" << stsRD << ", stsRL=" << stsRL << ", buffer=" << buffer;
 			if (delay > 0) usleep(delay);
 		}
@@ -393,16 +397,18 @@ int main(int argc, char* argv[])
 
 				if (!thisDTC->ReadDCSReception()) thisDTC->EnableDCSReception();
 
-				thisDTC->WriteDMAPacket(req);
-				TLOG(TLVL_TRACE) << "rocUtil raw_block_read: after  WriteDMADCSPacket - DTC_DCSRequestPacket";
-
-				usleep(2500);
 
 				mu2e_databuff_t* buffer;
 				auto tmo_ms = 1500;
-				TLOG(TLVL_TRACE) << "rocUtil - before read for DCS";
+
+				thisDTC->GetDevice()->begin_dcs_transaction();
+				thisDTC->WriteDMAPacket(req);
+				TLOG(TLVL_TRACE) << "rocUtil raw_block_read: after  WriteDMADCSPacket - DTC_DCSRequestPacket";
+				usleep(2500);				
 				auto sts = device->read_data(DTC_DMA_Engine_DCS, reinterpret_cast<void**>(&buffer), tmo_ms);
-				TLOG(TLVL_TRACE) << "rocUtil - after read for DCS - "
+				device->read_release(DTC_DMA_Engine_DCS, 1);
+				thisDTC->GetDevice()->end_dcs_transaction();
+				TLOG(TLVL_TRACE) << "rocUtil raw_block_read: after DCS read_data - "
 					<< " sts=" << sts << ", buffer=" << (void*)buffer;
 
 				if (sts > 0)
@@ -420,7 +426,6 @@ int main(int argc, char* argv[])
 						DTCLib::Utilities::PrintBuffer(buffer, sts >= bufSize ? sts : bufSize);
 					}
 				}
-				device->read_release(DTC_DMA_Engine_DCS, 1);
 				if (delay > 0) usleep(delay);
 			}
 			catch (std::runtime_error& err)

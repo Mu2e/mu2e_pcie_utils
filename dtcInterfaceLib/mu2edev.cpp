@@ -25,6 +25,7 @@ mu2edev::mu2edev()
 
 mu2edev::~mu2edev()
 {
+	end_dcs_transaction(false /* mustHaveLock */);
 	delete simulator_;
 	if (debugFp_) fclose(debugFp_);
 }
@@ -463,34 +464,62 @@ void mu2edev::close()
 	}
 }
 
-bool mu2edev::begin_dcs_transaction(int tmo_ms)
+void mu2edev::begin_dcs_transaction()
 {
 	if (simulator_ != nullptr)
 	{
 		dcs_lock_held_ = true;
-		return true;
+		return;
 	}
+	if(dcs_lock_held_)
+		TRACE(TLVL_DEBUG, UID_ + " - device lock for this instance held by another thread! Waiting...");
+	else
+		TRACE(TLVL_DEBUG, UID_ + " - device lock not currently held by instance.");
+		
 
 	int retsts = -1;
+	int tmo_ms = 1000; /* 1 second timeout */
 	auto start = std::chrono::steady_clock::now();
 	while (retsts == -1 && (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
 	{
 		auto retsts = ioctl(devfd_, M_IOC_DCS_LOCK);
-		if (retsts != 0)
+		if(retsts == ENOSYS ||
+			retsts == -1 /* backwards compatibility before driver implementation */)
 		{
-			perror("M_IOC_DCS_LOCK");
+			TRACE(TLVL_DEBUG+12, UID_ + " - device lock not supported.");
+			dcs_lock_held_ = true;
+			return;
+		}
+
+		if (retsts != 0)
+		{			
+			TRACE(TLVL_DEBUG, UID_ + " - device lock failed, trying again...");
 			std::this_thread::sleep_for(std::chrono::microseconds(100));
 		}
-		else {
+		else 
+		{
+			TRACE(TLVL_DEBUG, UID_ + " - device lock succeeded!");			
 			dcs_lock_held_ = true;
-			return true;
+			return;
 		}
 	}
-	return false;
-}
+	//force unlock
+	end_dcs_transaction(false /* mustHaveLock */);
+	throw std::runtime_error(		
+			std::string(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__) + ":" +
+			std::to_string(__LINE__) + " | " +
+			UID_ + " - mu2e Device could not take lock - M_IOC_DCS_LOCK error. Attempting to force unlock and throwing exception.");
+} //end begin_dcs_transaction()
 
-void mu2edev::end_dcs_transaction()
+void mu2edev::end_dcs_transaction(bool mustHaveLock /* = true */)
 {
+	TRACE(TLVL_DEBUG, UID_ + " - attempting to release device lock...");
+	if(mustHaveLock && !dcs_lock_held_)
+		throw std::runtime_error(
+			std::string(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__) + ":" + 
+			std::to_string(__LINE__) + " | " +
+			UID_ + " - mu2e Device could not release unowned lock.");
+
 	if (simulator_ != nullptr)
 	{
 		dcs_lock_held_ = false;
@@ -499,7 +528,21 @@ void mu2edev::end_dcs_transaction()
 
 	int retsts = ioctl(devfd_, M_IOC_DCS_RELEASE);
 	dcs_lock_held_ = false;
-	if (retsts != 0) {
-		perror("M_IOC_DCS_RELEASE");
+	if(retsts == ENOSYS ||
+		retsts == -1 /* backwards compatibility before driver implementation */)
+	{
+		TRACE(TLVL_DEBUG+12, UID_ + " - device unlock not supported.");		
+		return;
 	}
-}
+
+	if (mustHaveLock && retsts != 0)
+		throw std::runtime_error(
+			std::string(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__) + ":" +
+			std::to_string(__LINE__) + " | " +
+			UID_ + " - mu2e Device could not release lock - M_IOC_DCS_RELEASE error.");
+
+	if(retsts != 0)
+		TRACE(TLVL_DEBUG, UID_ + " - was not able to release device lock. Forcing instance bool unlocked anyway.");
+	else
+		TRACE(TLVL_DEBUG, UID_ + " - released device lock.");
+} //end end_dcs_transaction()

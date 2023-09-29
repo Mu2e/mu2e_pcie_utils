@@ -3267,7 +3267,7 @@ void CFOLib::CFO_Registers::WriteRegister_(uint32_t dataToWrite, const CFO_Regis
 					<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 					"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
 					std::endl << std::endl <<
-					"If you do not understand this error, try checking the CFO firmware version." << std::endl;
+					"If you do not understand this error, try checking the CFO firmware version: " << ReadDesignDate() << std::endl;
 			CFO_TLOG(TLVL_ERROR) << ss.str();
 			throw DTC_IOErrorException(ss.str());
 			// __FE_COUT_ERR__ << ss.str(); 
