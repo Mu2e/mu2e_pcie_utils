@@ -18,6 +18,7 @@ endif()
 
 message( "ESYMS is ${ESYMS}" )
 
+if (EXISTS /lib/modules/${KVERS}/build)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}/pci_devel_main.ko
 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/Makefile ${CMAKE_CURRENT_BINARY_DIR}
@@ -33,6 +34,11 @@ add_custom_command(
 
 add_custom_target(pci_devel_module ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}/pci_devel_main.ko)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../../drivers DESTINATION .)
+else()
+    if(${WANT_KMOD})
+        message(FATAL_ERROR "KMOD build requested, but kernel-devel package is not installed!")
+    endif()
+endif()
 
 install_headers()
 install_source()
