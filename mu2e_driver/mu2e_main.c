@@ -574,7 +574,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			}
 			TRACE(23, "mu2e_ioctl DCS_LOCK before releasing DcsTransactionLock");
 			spin_unlock_bh(&DcsTransactionLock);
-			TRACE(23, "mu2e_ioctl DCS_LOCK after releasing DcsTransactionLock retval=%d", retval);
+			TRACE(23, "mu2e_ioctl DCS_LOCK after releasing DcsTransactionLock retval=%ld", retval);
 			break;
 		case M_IOC_DCS_RELEASE:
 			TRACE(24, "mu2e_ioctl DCS_UNLOCK before taking DcsTransactionLock");
