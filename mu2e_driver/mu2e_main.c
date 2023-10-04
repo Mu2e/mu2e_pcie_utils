@@ -41,8 +41,6 @@ struct pci_dev *mu2e_pci_dev[MU2E_MAX_NUM_DTCS] = {0};
 
 bar_info_t mu2e_pcie_bar_info[MU2E_MAX_NUM_DTCS] = {{0}};
 
-bool mu2e_dcs_locks[MU2E_MAX_NUM_DTCS] = {0};
-
 dev_t mu2e_dev_number;
 struct class *mu2e_dev_class;
 
@@ -78,6 +76,9 @@ int dstatsNum[MAX_DMA_ENGINES], sstatsRead[MAX_DMA_ENGINES];
 int sstatsWrite[MAX_DMA_ENGINES], sstatsNum[MAX_DMA_ENGINES];
 int tstatsRead, tstatsWrite, tstatsNum;
 u32 SWrate[MAX_DMA_ENGINES];
+
+/* DCS Transaction lock (software-implemented) */
+bool mu2e_dcs_locks[MU2E_MAX_NUM_DTCS] = {0};
 
 //////////////////////////////////////////////////////////////////////////////
 /* forward decl */
