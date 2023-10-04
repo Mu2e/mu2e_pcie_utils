@@ -562,7 +562,9 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				  descDmaAdr2idx(Dma_mReadChnReg(dtc, chn, dir, REG_HW_NEXT_BD), dtc, chn, dir, 0));
 			break;
 		case M_IOC_DCS_LOCK:
+			TRACE(23, "mu2e_ioctl DCS_LOCK before taking DcsTransactionLock");
 			spin_lock_bh(&DcsTransactionLock);
+			TRACE(23, "mu2e_ioctl DCS_LOCK after taking DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
 			if (mu2e_dcs_locks[dtc]) {
 				retval = -EAGAIN;
 			}
@@ -570,13 +572,19 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				mu2e_dcs_locks[dtc] = 1;
 				retval = 0;
 			}
+			TRACE(23, "mu2e_ioctl DCS_LOCK before releasing DcsTransactionLock");
 			spin_unlock_bh(&DcsTransactionLock);
+			TRACE(23, "mu2e_ioctl DCS_LOCK after releasing DcsTransactionLock retval=%ld", retval);
 			break;
 		case M_IOC_DCS_RELEASE:
+			TRACE(24, "mu2e_ioctl DCS_UNLOCK before taking DcsTransactionLock");
 			spin_lock_bh(&DcsTransactionLock);
+			TRACE(24, "mu2e_ioctl DCS_UNLOCK after taking DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
 			mu2e_dcs_locks[dtc] = 0;
 			retval = 0;
+			TRACE(24, "mu2e_ioctl DCS_UNLOCK before releasing DcsTransactionLock");
 			spin_unlock_bh(&DcsTransactionLock);
+			TRACE(24, "mu2e_ioctl DCS_UNLOCK after releasing DcsTransactionLock");
 			break;
 		default:
 			TRACE(11, "mu2e_ioctl: unknown cmd");
