@@ -16,6 +16,9 @@
 
 #include "mu2edev.h"
 
+static const std::thread::id NULL_TID = std::thread::id(0);
+std::atomic<std::thread::id> mu2edev::dcs_lock_held_ = NULL_TID;
+
 mu2edev::mu2edev()
 	: devfd_(0), buffers_held_(0), simulator_(nullptr), activeDeviceIndex_(0), deviceTime_(0LL), writeSize_(0), readSize_(0), UID_("")
 {

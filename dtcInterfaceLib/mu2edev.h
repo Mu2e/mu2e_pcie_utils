@@ -154,7 +154,7 @@ public:
 	// int  write_test_command(m_ioc_cmd_t input, bool start);
 
 	bool begin_dcs_transaction(int tmo_ms);
-	void end_dcs_transaction(bool force = false);
+	void end_dcs_transaction(bool force);
 
 	/// <summary>
 	/// Get the current DTC UID for this instance
@@ -165,15 +165,14 @@ public:
 private:
 	// unsigned delta_(int chn, int dir);
 
-#define NULL_TID std::thread::id(0)
-
 	int devfd_;
 	volatile void* mu2e_mmap_ptrs_[MU2E_MAX_NUM_DTCS][MU2E_MAX_CHANNELS][2][2];
 	m_ioc_get_info_t mu2e_channel_info_[MU2E_MAX_NUM_DTCS][MU2E_MAX_CHANNELS][2];
 	unsigned buffers_held_;
 	mu2esim* simulator_;
 	int activeDeviceIndex_;
-	std::atomic<std::thread::id> dcs_lock_held_{NULL_TID};
+	static std::atomic<std::thread::id> dcs_lock_held_;
+	
 	std::atomic<long long> deviceTime_;
 	std::atomic<size_t> writeSize_;
 	std::atomic<size_t> readSize_;
