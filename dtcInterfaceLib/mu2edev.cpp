@@ -475,9 +475,9 @@ bool mu2edev::begin_dcs_transaction(int tmo_ms)
 	return false;
 }
 
-void mu2edev::end_dcs_transaction()
+void mu2edev::end_dcs_transaction( bool force)
 {
-	if (dcs_lock_held_.load() == std::this_thread::get_id())
+	if (force || dcs_lock_held_.load() == std::this_thread::get_id())
 	{
 		dcs_lock_held_ = NULL_TID;
 	}
