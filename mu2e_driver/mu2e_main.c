@@ -41,8 +41,6 @@ struct pci_dev *mu2e_pci_dev[MU2E_MAX_NUM_DTCS] = {0};
 
 bar_info_t mu2e_pcie_bar_info[MU2E_MAX_NUM_DTCS] = {{0}};
 
-bool mu2e_dcs_locks[MU2E_MAX_NUM_DTCS] = {0};
-
 dev_t mu2e_dev_number;
 struct class *mu2e_dev_class;
 
@@ -59,7 +57,6 @@ volatile void *mu2e_mmap_ptrs[MU2E_MAX_NUM_DTCS][MU2E_MAX_CHANNELS][2][2];
 
 /* for exclusion of all program flows (processes, ISRs and BHs) */
 static DEFINE_SPINLOCK(DmaStatsLock);
-static DEFINE_SPINLOCK(DcsTransactionLock);
 
 /**
  * The get_info_wait_queue allows this module to put
@@ -560,31 +557,6 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			TRACE(22, "mu2e_ioctl BUF_XMIT after WriteChnReg REG_SW_NEXT_BD swIdx=%u hwIdx=%u ->Complete=%d CmpltIdx=%u",
 				  nxtIdx, hwIdx, ((mu2e_buffdesc_S2C_t *)idx2descVirtAdr(hwIdx, dtc, chn, dir))->Complete,
 				  descDmaAdr2idx(Dma_mReadChnReg(dtc, chn, dir, REG_HW_NEXT_BD), dtc, chn, dir, 0));
-			break;
-		case M_IOC_DCS_LOCK:
-			TRACE(23, "mu2e_ioctl DCS_LOCK before taking DcsTransactionLock");
-			spin_lock_bh(&DcsTransactionLock);
-			TRACE(23, "mu2e_ioctl DCS_LOCK after taking DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
-			if (mu2e_dcs_locks[dtc]) {
-				retval = -EAGAIN;
-			}
-			else {
-				mu2e_dcs_locks[dtc] = 1;
-				retval = 0;
-			}
-			TRACE(23, "mu2e_ioctl DCS_LOCK before releasing DcsTransactionLock");
-			spin_unlock_bh(&DcsTransactionLock);
-			TRACE(23, "mu2e_ioctl DCS_LOCK after releasing DcsTransactionLock retval=%ld", retval);
-			break;
-		case M_IOC_DCS_RELEASE:
-			TRACE(24, "mu2e_ioctl DCS_UNLOCK before taking DcsTransactionLock");
-			spin_lock_bh(&DcsTransactionLock);
-			TRACE(24, "mu2e_ioctl DCS_UNLOCK after taking DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
-			mu2e_dcs_locks[dtc] = 0;
-			retval = 0;
-			TRACE(24, "mu2e_ioctl DCS_UNLOCK before releasing DcsTransactionLock");
-			spin_unlock_bh(&DcsTransactionLock);
-			TRACE(24, "mu2e_ioctl DCS_UNLOCK after releasing DcsTransactionLock");
 			break;
 		default:
 			TRACE(11, "mu2e_ioctl: unknown cmd");
