@@ -149,7 +149,7 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
    */
 int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 {
-	if (chn == DTC_DMA_Engine_DCS && !dcs_lock_held_)
+	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - read_data dcs lock not held!");
 		return -2;
@@ -216,7 +216,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
    */
 int mu2edev::read_release(DTC_DMA_Engine const& chn, unsigned num)
 {
-	if (chn == DTC_DMA_Engine_DCS && !dcs_lock_held_)
+	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - read_release dcs lock not held!");
 		return -2;
@@ -357,7 +357,7 @@ void mu2edev::meta_dump()
 
 int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 {
-	if (chn == DTC_DMA_Engine_DCS && !dcs_lock_held_)
+	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - write_data dcs lock not held!");
 		return -2;
@@ -434,7 +434,7 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 // applicable for recv.
 int mu2edev::release_all(DTC_DMA_Engine const& chn)
 {
-	if (chn == DTC_DMA_Engine_DCS && !dcs_lock_held_)
+	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - release_all dcs lock not held!");
 		return -2;
@@ -465,41 +465,20 @@ void mu2edev::close()
 
 bool mu2edev::begin_dcs_transaction(int tmo_ms)
 {
-	if (simulator_ != nullptr)
-	{
-		dcs_lock_held_ = true;
-		return true;
-	}
-
-	int retsts = -1;
 	auto start = std::chrono::steady_clock::now();
-	while (retsts == -1 && (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
+	while (dcs_lock_held_.load() != NULL_TID && dcs_lock_held_.load() != std::this_thread::get_id()
+		&& (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
 	{
-		auto retsts = ioctl(devfd_, M_IOC_DCS_LOCK);
-		if (retsts != 0)
-		{
-			perror("M_IOC_DCS_LOCK");
-			std::this_thread::sleep_for(std::chrono::microseconds(100));
-		}
-		else {
-			dcs_lock_held_ = true;
-			return true;
-		}
+		dcs_lock_held_ = std::this_thread::get_id();
+		return true;
 	}
 	return false;
 }
 
 void mu2edev::end_dcs_transaction()
 {
-	if (simulator_ != nullptr)
+	if (dcs_lock_held_.load() == std::this_thread::get_id())
 	{
-		dcs_lock_held_ = false;
-		return;
-	}
-
-	int retsts = ioctl(devfd_, M_IOC_DCS_RELEASE);
-	dcs_lock_held_ = false;
-	if (retsts != 0) {
-		perror("M_IOC_DCS_RELEASE");
+		dcs_lock_held_ = NULL_TID;
 	}
 }
