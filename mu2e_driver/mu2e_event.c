@@ -145,7 +145,7 @@ void poll_packets(struct timer_list *t)
 			nxtCachedCmpltIdx = idx_add(mu2e_channel_info_[dtc][chn][dir].hwIdx, 1, dtc, chn, dir);
 			buffdesc_C2S_p = idx2descVirtAdr(nxtCachedCmpltIdx, dtc, chn, dir);
 			BC_p[nxtCachedCmpltIdx] = buffdesc_C2S_p->ByteCount;
-			TRACE(4, "poll_packets: chn=%d dir=%d %p[idx=%u]=byteCnt=%d newCmpltIdx=%u", chn, dir, (void *)BC_p,
+			TRACE(4, "poll_packets: dtc=%d chn=%d dir=%d %p[idx=%u]=byteCnt=%d newCmpltIdx=%u", dtc, chn, dir, (void *)BC_p,
 				  nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, newCmpltIdx);
 			mu2e_channel_info_[dtc][chn][dir].hwIdx = nxtCachedCmpltIdx;
 			// Now system SW can see another buffer with valid meta data

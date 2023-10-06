@@ -16,7 +16,7 @@ int mu2e_mmap(struct file *file, struct vm_area_struct *vma)
 	int dtc = iminor(file->f_path.dentry->d_inode);
 
 	page2chDirMap(vma->vm_pgoff, ch, dir, map);
-	TRACE(4, "mu2e_mmap: vm_pgoff:%lu ch:%d dir:%d map:%d: %p", vma->vm_pgoff, ch, dir, map,
+	TRACE(4, "mu2e_mmap: vm_pgoff:%lu dtc:%d ch:%d dir:%d map:%d: %p", vma->vm_pgoff, dtc, ch, dir, map,
 		  mu2e_mmap_ptrs[dtc][ch][dir][map]);
 	if (map == MU2E_MAP_META) vma->vm_flags &= ~VM_WRITE;
 
@@ -109,7 +109,7 @@ int alloc_mem(int dtc)
 		}
 
 		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_BUFF] = mu2e_pci_recver[dtc][chn].databuffs;
-		va = kmalloc(MU2E_NUM_RECV_BUFFS * sizeof(int), GFP_KERNEL);
+		va = kzalloc(MU2E_NUM_RECV_BUFFS * sizeof(int), GFP_KERNEL);
 		if (va == NULL) goto out;
 		mu2e_pci_recver[dtc][chn].buffer_sizes = va;
 		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META] = va;
@@ -180,7 +180,7 @@ int alloc_mem(int dtc)
 		if (va == NULL) goto out;
 		mu2e_pci_sender[dtc][chn].buffdesc_ring = va;
 
-		va = kmalloc(MU2E_NUM_SEND_BUFFS * sizeof(int), GFP_KERNEL);
+		va = kzalloc(MU2E_NUM_SEND_BUFFS * sizeof(int), GFP_KERNEL);
 		if (va == NULL) goto out;
 		mu2e_pci_sender[dtc][chn].buffer_sizes = va;
 		mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META] = va;
