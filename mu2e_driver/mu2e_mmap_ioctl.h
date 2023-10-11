@@ -182,7 +182,7 @@ typedef uint32_t dtc_data_t;
 typedef struct
 {
 	dtc_address_t reg_offset;  ///< Offset of register from BAR0
-	int access_type;           ///< 0=read, 1=write
+	int access_type;           ///< 0=read, 1=write, 2=write-with-readback
 	dtc_data_t val;            ///< Value of register
 } m_ioc_reg_access_t;
 
