@@ -174,7 +174,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 			((retsts = init(DTCLib::DTC_SimMode_Disabled, 0)) == 0))  // Default-init mu2edev if not given guidance
 		{
 			has_recv_data = mu2e_chn_info_delta_(activeDeviceIndex_, chn, C2S, &mu2e_channel_info_);
-			TRACE(TLVL_DEBUG + 11, UID_ + " - mu2edev::read_data after %u=has_recv_data = delta_( chn, C2S )", has_recv_data);
+			TRACE(TLVL_DEBUG + 11, UID_ + " - mu2edev::read_data after %u=has_recv_data = delta_( chn, C2S ), held=%u", has_recv_data, buffers_held_);
 			mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = tmo_ms;  // in case GET_INFO is called
 			if ((has_recv_data > buffers_held_) ||
 				((retsts = ioctl(devfd_, M_IOC_GET_INFO, &mu2e_channel_info_[activeDeviceIndex_][chn][C2S])) == 0 &&
@@ -469,18 +469,25 @@ void mu2edev::close()
 
 void mu2edev::begin_dcs_transaction()
 {
-	if(dcs_lock_held_.load() != NULL_TID && dcs_lock_held_.load() != std::this_thread::get_id())
+	if(dcs_lock_held_.load() == std::this_thread::get_id()) {
+		TRACE(TLVL_DEBUG, UID_ + " - device lock already held by this thread");
+		return;
+	}
+	if(dcs_lock_held_.load() != NULL_TID)
 		TRACE(TLVL_DEBUG, UID_ + " - device lock for this instance held by another thread! Waiting...");
 	else
 		TRACE(TLVL_DEBUG, UID_ + " - device lock not currently held by instance.");
 	
 	int tmo_ms = 1000; // 1s timeout	
 	auto start = std::chrono::steady_clock::now();
-	while (dcs_lock_held_.load() != NULL_TID && dcs_lock_held_.load() != std::this_thread::get_id()
+	while (dcs_lock_held_.load() != std::this_thread::get_id()
 		&& (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
 	{
-		dcs_lock_held_ = std::this_thread::get_id();
-		return true;
+		if(dcs_lock_held_.load() == NULL_TID) {
+			TRACE(TLVL_DEBUG, UID_ + " - taking device lock");
+			dcs_lock_held_ = std::this_thread::get_id();
+			return;
+		}
 	}
 	//force unlock
 	end_dcs_transaction(true /* force */);
@@ -492,9 +499,9 @@ void mu2edev::begin_dcs_transaction()
 
 void mu2edev::end_dcs_transaction( bool force)
 {
-TRACE(TLVL_DEBUG, UID_ + " - attempting to release device lock...");
 	if (force || dcs_lock_held_.load() == std::this_thread::get_id())
 	{
+		TRACE(TLVL_DEBUG, UID_ + " - release device lock...");
 		dcs_lock_held_ = NULL_TID;
 	}
 
