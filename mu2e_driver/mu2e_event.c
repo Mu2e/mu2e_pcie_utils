@@ -55,7 +55,7 @@ irqreturn_t DmaInterrupt(int irq, void *dev_id)
 
 	TRACE(20, "DmaInterrupt: Calling poll routine");
     /* Handle DMA and any user interrupts */
-#if 0
+#if 1
 	if (mu2e_force_poll(dtc) == 0) // calls poll_packets from within interrupt handler?!
 #else
 	if (mu2e_sched_poll(dtc) == 0)
@@ -167,7 +167,7 @@ void poll_packets(struct timer_list *t)
 	if (did_work)
 	{
 		// Reschedule immediately
-		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d rescheduling poll");
+		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d rescheduling poll", dtc, chn, dir, did_work);
 #if 1
 		packets_timer[dtc].timer.expires = jiffies + 1;
 		add_timer(&packets_timer[dtc].timer);
@@ -178,7 +178,7 @@ void poll_packets(struct timer_list *t)
 	else
 	{
 		// Re-enable interrupts.
-		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d re-enabling interrupts");
+		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d re-enabling interrupts", dtc, chn, dir, did_work);
 		Dma_mIntEnable(base);
 	}
 #else
