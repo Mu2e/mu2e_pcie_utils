@@ -1,10 +1,10 @@
 /*  This file (mu2e_event.c) was created by Ron Rechenmacher <ron@fnal.gov> on
-        Feb  5, 2014. "TERMS AND CONDITIONS" governing this file are in the README
-        or COPYING file. If you do not have such a file, one can be obtained by
-        contacting Ron or Fermi Lab in Batavia IL, 60510, phone: 630-840-3000.
-        $RCSfile: .emacs.gnu,v $
-        rev="$Revision: 1.23 $$Date: 2012/01/23 15:32:40 $";
-        */
+		Feb  5, 2014. "TERMS AND CONDITIONS" governing this file are in the README
+		or COPYING file. If you do not have such a file, one can be obtained by
+		contacting Ron or Fermi Lab in Batavia IL, 60510, phone: 630-840-3000.
+		$RCSfile: .emacs.gnu,v $
+		rev="$Revision: 1.23 $$Date: 2012/01/23 15:32:40 $";
+		*/
 
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -54,8 +54,12 @@ irqreturn_t DmaInterrupt(int irq, void *dev_id)
 	}
 
 	TRACE(20, "DmaInterrupt: Calling poll routine");
-	/* Handle DMA and any user interrupts */
-	if (mu2e_force_poll(dtc) == 0)
+    /* Handle DMA and any user interrupts */
+#if 0
+	if (mu2e_force_poll(dtc) == 0) // calls poll_packets from within interrupt handler?!
+#else
+	if (mu2e_sched_poll(dtc) == 0)
+#endif
 	{
 		TRACE(20, "DMAInterrupt: Marking Interrupt as acked");
 		Dma_mIntAck(base, DMA_ENG_ALLINT_MASK);
@@ -163,6 +167,7 @@ void poll_packets(struct timer_list *t)
 	if (did_work)
 	{
 		// Reschedule immediately
+		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d rescheduling poll");
 #if 1
 		packets_timer[dtc].timer.expires = jiffies + 1;
 		add_timer(&packets_timer[dtc].timer);
@@ -173,6 +178,7 @@ void poll_packets(struct timer_list *t)
 	else
 	{
 		// Re-enable interrupts.
+		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d re-enabling interrupts");
 		Dma_mIntEnable(base);
 	}
 #else
@@ -205,25 +211,25 @@ int mu2e_event_up(int dtc)
 #endif
 	packets_timer_guard[dtc] = 1;
 	TRACE(1, "mu2e_event_up complete, calling mu2e_sched_poll");
-       return mu2e_sched_poll(dtc);
+	return mu2e_sched_poll(dtc);
 }
 
 int mu2e_sched_poll(int dtc)
 {
-       TRACE(1, "mu2e_sched_poll dtc=%d packets_timer_guard[dtc]=%d", dtc, packets_timer_guard[dtc]);
-       if (packets_timer_guard[dtc])
-       {
-               packets_timer_guard[dtc] = 0;
-               packets_timer[dtc].timer.expires = jiffies
+	TRACE(1, "mu2e_sched_poll dtc=%d packets_timer_guard[dtc]=%d", dtc, packets_timer_guard[dtc]);
+	if (packets_timer_guard[dtc])
+	{
+		packets_timer_guard[dtc] = 0;
+		packets_timer[dtc].timer.expires = jiffies
 #if MU2E_RECV_INTER_ENABLED == 0
-                                                                                  + (HZ / PACKET_POLL_HZ)
+										   + (HZ / PACKET_POLL_HZ)
 #endif
-                     ;
-               // timer->data=(unsigned long) pdev;
-			   TRACE(1, "Adding poll_packets timer for dtc %d=%d", dtc, packets_timer[dtc].dtc);
-               add_timer(&packets_timer[dtc].timer);
-       }
-       return (0);
+			;
+		// timer->data=(unsigned long) pdev;
+		TRACE(1, "Adding poll_packets timer for dtc %d=%d", dtc, packets_timer[dtc].dtc);
+		add_timer(&packets_timer[dtc].timer);
+	}
+	return (0);
 }
 
 int mu2e_force_poll(int dtc)
@@ -241,8 +247,9 @@ int mu2e_force_poll(int dtc)
 	return 0;
 }
 
-void mu2e_event_down(int dtc) {
-	while(packets_timer_guard[dtc] == 0) {}
-	packets_timer_guard[dtc] = 0; // Ensure that mu2e_force_poll won't call poll_packets again
-	del_timer_sync(&packets_timer[dtc].timer); 
+void mu2e_event_down(int dtc)
+{
+	while (packets_timer_guard[dtc] == 0) {}
+	packets_timer_guard[dtc] = 0;  // Ensure that mu2e_force_poll won't call poll_packets again
+	del_timer_sync(&packets_timer[dtc].timer);
 }
