@@ -470,25 +470,58 @@ void mu2edev::close()
 void mu2edev::begin_dcs_transaction()
 {
 	if(dcs_lock_held_.load() == std::this_thread::get_id()) {
-		TRACE(TLVL_DEBUG, UID_ + " - device lock already held by this thread");
+		TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transation: device lock already held by this thread");
 		return;
 	}
 	if(dcs_lock_held_.load() != NULL_TID)
-		TRACE(TLVL_DEBUG, UID_ + " - device lock for this instance held by another thread! Waiting...");
+		TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transaction: device lock for this instance held by another thread! Waiting...");
 	else
-		TRACE(TLVL_DEBUG, UID_ + " - device lock not currently held by instance.");
+		TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transaction: device lock not currently held by instance.");
 	
 	int tmo_ms = 1000; // 1s timeout	
 	auto start = std::chrono::steady_clock::now();
-	while (dcs_lock_held_.load() != std::this_thread::get_id()
-		&& (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
+	TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transaction: waiting for library thread lock");
+	while (dcs_lock_held_.load() != NULL_TID && dcs_lock_held_.load() != std::this_thread::get_id() && (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
 	{
-		if(dcs_lock_held_.load() == NULL_TID) {
-			TRACE(TLVL_DEBUG, UID_ + " - taking device lock");
+		std::this_thread::sleep_for(std::chrono::microseconds(100));
+	}
+
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() >= tmo_ms)
+	{
+		TRACE(TLVL_ERROR, UID_ + " begin_dcs_transaction: timed out waiting for library thread lock");
+	        throw std::runtime_error(		
+			std::string(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__) + ":" +
+			std::to_string(__LINE__) + " | " +
+			UID_ + " - mu2e Device could not take lock - library-internal lock error. Throwing exception.");
+	}
+
+	if (simulator_ != nullptr)
+	{
+		TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transaction: sim mode, taking library thread lock and returning");
+		dcs_lock_held_ = std::this_thread::get_id();
+		return;
+	}
+
+	TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transaction: waiting for driver lock");
+	int retsts = -1;
+	while (retsts == -1 && (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
+	{
+		retsts = ioctl(devfd_, M_IOC_DCS_LOCK);
+		if (retsts != 0)
+		{
+			TRACE(TLVL_DEBUG + 23, UID_ + " begin_dcs_transaction: ioctl returned %d, waiting and retrying", retsts);
+			perror("M_IOC_DCS_LOCK");
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
+		}
+		else
+		{
+			TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transaction: have driver lock, setting library lock and retunring true");
 			dcs_lock_held_ = std::this_thread::get_id();
 			return;
 		}
 	}
+
+	TRACE(TLVL_ERROR, UID_ + " begin_dcs_transaction: timed out waiting for driver lock");
 	//force unlock
 	end_dcs_transaction(true /* force */);
 	throw std::runtime_error(		
@@ -497,11 +530,20 @@ void mu2edev::begin_dcs_transaction()
 			UID_ + " - mu2e Device could not take lock - M_IOC_DCS_LOCK error. Attempting to force unlock and throwing exception.");
 } //end begin_dcs_transaction()
 
-void mu2edev::end_dcs_transaction( bool force)
+void mu2edev::end_dcs_transaction(bool force)
 {
+	TRACE(TLVL_DEBUG + 14, UID_ + " end_dcs_transaction: checking for ability to release lock force=%d", force);
 	if (force || dcs_lock_held_.load() == std::this_thread::get_id())
 	{
-		TRACE(TLVL_DEBUG, UID_ + " - release device lock...");
+		if (simulator_ == nullptr) {
+			TRACE(TLVL_DEBUG + 14, UID_ + " end_dcs_transaction: releasing driver lock");
+			int retsts = ioctl(devfd_, M_IOC_DCS_RELEASE);
+			if (retsts != 0) {
+				TRACE(TLVL_DEBUG + 14, UID_ + " end_dcs_transaction: IOCTL returned %d!", retsts);
+				perror("M_IOC_DCS_RELEASE");
+			}
+		}
+		TRACE(TLVL_DEBUG + 14, UID_ + " end_dcs_transaction: releasing library lock");
 		dcs_lock_held_ = NULL_TID;
 	}
 
