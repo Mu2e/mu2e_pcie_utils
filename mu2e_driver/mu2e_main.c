@@ -57,6 +57,8 @@ volatile void *mu2e_mmap_ptrs[MU2E_MAX_NUM_DTCS][MU2E_MAX_CHANNELS][2][2];
 
 /* for exclusion of all program flows (processes, ISRs and BHs) */
 static DEFINE_SPINLOCK(DmaStatsLock);
+static DEFINE_SPINLOCK(ReadbackLock);
+static DEFINE_SPINLOCK(DcsTransactionLock);
 
 /**
  * The get_info_wait_queue allows this module to put
@@ -340,20 +342,22 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			}
 			if (reg_access.access_type)
 			{
+				if (reg_access.access_type == 2) spin_lock_bh(&ReadbackLock);  // Lock for readback
 				TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - write dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
 				Dma_mWriteReg(base, reg_access.reg_offset, reg_access.val);
+				if (reg_access.access_type == 1) return retval;
 			}
-			else
+
+			TRACE(18, "mu2e_ioctl: cmd=REG_ACCESS - read offset=0x%x", reg_access.reg_offset);
+			reg_access.val = Dma_mReadReg(base, reg_access.reg_offset);
+			if (reg_access.access_type == 2) spin_unlock_bh(&ReadbackLock);  // Unlock for readback
+			TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - read dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
+			if (copy_to_user((void *)arg, &reg_access, sizeof(reg_access)))
 			{
-				TRACE(18, "mu2e_ioctl: cmd=REG_ACCESS - read offset=0x%x", reg_access.reg_offset);
-				reg_access.val = Dma_mReadReg(base, reg_access.reg_offset);
-				TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - read dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
-				if (copy_to_user((void *)arg, &reg_access, sizeof(reg_access)))
-				{
-					printk("copy_to_user failed\n");
-					return (-EFAULT);
-				}
+				printk("copy_to_user failed\n");
+				return (-EFAULT);
 			}
+
 			break;
 		case M_IOC_GET_INFO:
 			if (copy_from_user(&get_info, (void *)arg, sizeof(m_ioc_get_info_t)))

@@ -55,11 +55,7 @@ irqreturn_t DmaInterrupt(int irq, void *dev_id)
 
 	TRACE(20, "DmaInterrupt: Calling poll routine");
     /* Handle DMA and any user interrupts */
-#if 1
-	if (mu2e_force_poll(dtc) == 0) // calls poll_packets from within interrupt handler?!
-#else
-	if (mu2e_sched_poll(dtc) == 0)
-#endif
+	if (mu2e_force_poll(dtc) == 0)
 	{
 		TRACE(20, "DMAInterrupt: Marking Interrupt as acked");
 		Dma_mIntAck(base, DMA_ENG_ALLINT_MASK);
