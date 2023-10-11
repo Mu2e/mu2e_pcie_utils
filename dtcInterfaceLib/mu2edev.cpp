@@ -469,19 +469,62 @@ void mu2edev::close()
 bool mu2edev::begin_dcs_transaction(int tmo_ms)
 {
 	auto start = std::chrono::steady_clock::now();
-	while (dcs_lock_held_.load() != NULL_TID && dcs_lock_held_.load() != std::this_thread::get_id()
-		&& (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
+	TRACE(TLVL_DEBUG + 13, "begin_dcs_transaction: waiting for library thread lock");
+	while (dcs_lock_held_.load() != NULL_TID && dcs_lock_held_.load() != std::this_thread::get_id() && (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
 	{
+		std::this_thread::sleep_for(std::chrono::microseconds(100));
+	}
+
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() >= tmo_ms)
+	{
+		TRACE(TLVL_DEBUG + 13, "begin_dcs_transaction: timed out waiting for library thread lock");
+		return false;
+	}
+
+	if (simulator_ != nullptr)
+	{
+		TRACE(TLVL_DEBUG + 13, "begin_dcs_transaction: sim mode, taking library thread lock and returning");
 		dcs_lock_held_ = std::this_thread::get_id();
 		return true;
 	}
+
+	TRACE(TLVL_DEBUG + 13, "begin_dcs_transaction: waiting for driver lock");
+	int retsts = -1;
+	while (retsts == -1 && (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
+	{
+		retsts = ioctl(devfd_, M_IOC_DCS_LOCK);
+		if (retsts != 0)
+		{
+			TRACE(TLVL_DEBUG + 23, "begin_dcs_transaction: ioctl returned %d, waiting and retrying", retsts);
+			perror("M_IOC_DCS_LOCK");
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
+		}
+		else
+		{
+			TRACE(TLVL_DEBUG + 13, "begin_dcs_transaction: have driver lock, setting library lock and retunring true");
+			dcs_lock_held_ = std::this_thread::get_id();
+			return true;
+		}
+	}
+
+	TRACE(TLVL_DEBUG + 13, "begin_dcs_transaction: timed out waiting for driver lock");
 	return false;
 }
 
-void mu2edev::end_dcs_transaction( bool force)
+void mu2edev::end_dcs_transaction(bool force)
 {
+	TRACE(TLVL_DEBUG + 14, "end_dcs_transaction: checking for ability to release lock force=%d", force);
 	if (force || dcs_lock_held_.load() == std::this_thread::get_id())
 	{
+		if (simulator_ == nullptr) {
+			TRACE(TLVL_DEBUG + 14, "end_dcs_transaction: releasing driver lock");
+			int retsts = ioctl(devfd_, M_IOC_DCS_RELEASE);
+			if (retsts != 0) {
+				TRACE(TLVL_DEBUG + 14, "end_dcs_transaction: IOCTL returned %d!", retsts);
+				perror("M_IOC_DCS_RELEASE");
+			}
+		}
+		TRACE(TLVL_DEBUG + 14, "end_dcs_transaction: releasing library lock");
 		dcs_lock_held_ = NULL_TID;
 	}
 }

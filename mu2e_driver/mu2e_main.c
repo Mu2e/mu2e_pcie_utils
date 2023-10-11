@@ -78,6 +78,9 @@ int sstatsWrite[MAX_DMA_ENGINES], sstatsNum[MAX_DMA_ENGINES];
 int tstatsRead, tstatsWrite, tstatsNum;
 u32 SWrate[MAX_DMA_ENGINES];
 
+/* DCS Transaction lock (software-implemented) */
+bool mu2e_dcs_locks[MU2E_MAX_NUM_DTCS] = {0};
+
 //////////////////////////////////////////////////////////////////////////////
 /* forward decl */
 static int ReadPCIState(struct pci_dev *pdev, m_ioc_pcistate_t *pcistate);
@@ -561,6 +564,33 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			TRACE(22, "mu2e_ioctl BUF_XMIT after WriteChnReg REG_SW_NEXT_BD swIdx=%u hwIdx=%u ->Complete=%d CmpltIdx=%u",
 				  nxtIdx, hwIdx, ((mu2e_buffdesc_S2C_t *)idx2descVirtAdr(hwIdx, dtc, chn, dir))->Complete,
 				  descDmaAdr2idx(Dma_mReadChnReg(dtc, chn, dir, REG_HW_NEXT_BD), dtc, chn, dir, 0));
+			break;
+		case M_IOC_DCS_LOCK:
+			TRACE(23, "mu2e_ioctl DCS_LOCK before taking DcsTransactionLock");
+			spin_lock(&DcsTransactionLock);
+			TRACE(23, "mu2e_ioctl DCS_LOCK after taking DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
+			if (mu2e_dcs_locks[dtc])
+			{
+				retval = -EAGAIN;
+			}
+			else
+			{
+				mu2e_dcs_locks[dtc] = 1;
+				retval = 0;
+			}
+			TRACE(23, "mu2e_ioctl DCS_LOCK before releasing DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
+			spin_unlock(&DcsTransactionLock);
+			TRACE(23, "mu2e_ioctl DCS_LOCK after releasing DcsTransactionLock retval=%ld", retval);
+			break;
+		case M_IOC_DCS_RELEASE:
+			TRACE(24, "mu2e_ioctl DCS_UNLOCK before taking DcsTransactionLock");
+			spin_lock(&DcsTransactionLock);
+			TRACE(24, "mu2e_ioctl DCS_UNLOCK after taking DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
+			mu2e_dcs_locks[dtc] = 0;
+			retval = 0;
+			TRACE(24, "mu2e_ioctl DCS_UNLOCK before releasing DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
+			spin_unlock(&DcsTransactionLock);
+			TRACE(24, "mu2e_ioctl DCS_UNLOCK after releasing DcsTransactionLock");
 			break;
 		default:
 			TRACE(11, "mu2e_ioctl: unknown cmd");
