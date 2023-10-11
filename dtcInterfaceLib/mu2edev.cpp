@@ -507,11 +507,16 @@ void mu2edev::begin_dcs_transaction()
 	while (retsts == -1 && (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
 	{
 		retsts = ioctl(devfd_, M_IOC_DCS_LOCK);
-		if (retsts != 0)
+		if (retsts == -EAGAIN)
 		{
 			TRACE(TLVL_DEBUG + 23, UID_ + " begin_dcs_transaction: ioctl returned %d, waiting and retrying", retsts);
 			perror("M_IOC_DCS_LOCK");
 			std::this_thread::sleep_for(std::chrono::microseconds(100));
+		}
+		else if(retsts != 0) {
+		    TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transaction: Method not supported by driver, taking library lock and returning");
+		    dcs_lock_held_ = std::this_thread::get_id();
+		    return;
 		}
 		else
 		{
