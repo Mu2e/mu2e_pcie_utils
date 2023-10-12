@@ -18,21 +18,27 @@ endif()
 
 message( "ESYMS is ${ESYMS}" )
 
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}/pci_devel_main.ko
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/Makefile ${CMAKE_CURRENT_BINARY_DIR}
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/Kbuild ${CMAKE_CURRENT_BINARY_DIR}
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/pci_devel_main.c ${CMAKE_CURRENT_BINARY_DIR}
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/pcidevl_ioctl.h ${CMAKE_CURRENT_BINARY_DIR}
-    COMMAND make CC=/usr/bin/gcc EXTRA_SYMBOLS="KBUILD_EXTRA_SYMBOLS=${ESYMS}" TRACE_INC="${TRACE_INCLUDE_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}
-    COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_CURRENT_BINARY_DIR}/pci_devel_main.ko ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}/pci_devel_main.ko
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/pci_devel_main.c
-            ${TRACE_KO}
-)
+if(${WANT_KMOD})
+    if (EXISTS /lib/modules/${KVERS}/build)
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}/pci_devel_main.ko
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/Makefile ${CMAKE_CURRENT_BINARY_DIR}
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/Kbuild ${CMAKE_CURRENT_BINARY_DIR}
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/pci_devel_main.c ${CMAKE_CURRENT_BINARY_DIR}
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/pcidevl_ioctl.h ${CMAKE_CURRENT_BINARY_DIR}
+            COMMAND make CC=/usr/bin/gcc EXTRA_SYMBOLS="KBUILD_EXTRA_SYMBOLS=${ESYMS}" TRACE_INC="${TRACE_INCLUDE_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}
+            COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_CURRENT_BINARY_DIR}/pci_devel_main.ko ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}/pci_devel_main.ko
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/pci_devel_main.c
+                    ${TRACE_KO}
+        )
 
-add_custom_target(pci_devel_module ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}/pci_devel_main.ko)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../../drivers DESTINATION .)
+        add_custom_target(pci_devel_module ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/../../drivers/${KVERS}/pci_devel_main.ko)
+        install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../../drivers DESTINATION .)
+    else()
+        message(FATAL_ERROR "KMOD build requested, but kernel-devel package is not installed!")
+    endif()
+endif()
 
 install_headers()
 install_source()

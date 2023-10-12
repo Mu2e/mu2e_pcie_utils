@@ -30,13 +30,14 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 									 bool skipInit, const std::string& uid)
 	: device_(), simMode_(mode), usingDetectorEmulator_(false), dmaSize_(64)
 {
+	TLOG(TLVL_INFO) << "CONSTRUCTOR";
+
 	auto sim = getenv("DTCLIB_SIM_ENABLE");
 	if (sim != nullptr)
 	{
 		auto simstr = std::string(sim);
 		simMode_ = DTC_SimModeConverter::ConvertToSimMode(simstr);
 	}
-	TLOG(TLVL_INFO) << "DTC Sim Mode is " << DTC_SimModeConverter(simMode_).toString();
 
 	if (dtc == -1)
 	{
@@ -48,22 +49,22 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 		else
 			dtc = 0;
 	}
-	TLOG(TLVL_INFO) << "DTC ID is " << dtc;
 
 	SetSimMode(expectedDesignVersion, simMode_, dtc, simFileName, rocMask, skipInit, (uid == ""? ("DTC"+std::to_string(dtc)):uid));
-}
+} //end constructor()
 
 /// <summary>
 /// DTC_Registers destructor
 /// </summary>
 DTCLib::DTC_Registers::~DTC_Registers()
 {
+	TLOG(TLVL_INFO) << "DESTRUCTOR";
 	DisableDetectorEmulator();
 	// DisableDetectorEmulatorMode();
 	// DisableCFOEmulation();
 	// ResetDTC();
 	device_.close();
-}
+} //end destructor()
 
 /// <summary>
 /// Initialize the DTC in the given SimMode.
@@ -79,7 +80,9 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 													  unsigned rocMask, bool skipInit, const std::string& uid)
 {
 	simMode_ = mode;
-	TLOG(TLVL_INFO) << "Initializing device, sim mode is " << DTC_SimModeConverter(simMode_).toString();
+	TLOG(TLVL_INFO) << "Initializing DTC device, sim mode is " << 
+		DTC_SimModeConverter(simMode_).toString() << " for uid = " << uid << ", deviceIndex = " << dtc;
+
 	device_.init(simMode_, dtc, simMemoryFile, uid);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
@@ -9897,8 +9900,7 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 
 	{	//trace seems to ignore the std::setfill, so using stringstream
 		std::stringstream o;
-		o << device_.getDeviceUID() << " - " << 
-				"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+		o << "write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
 				<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 				std::endl;
 		DTC_TLOG(TLVL_DEBUG) << o.str();
@@ -9975,7 +9977,8 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 					"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
 					<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 					"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) <<
-					std::endl;
+					std::endl << std::endl <<
+					"If you do not understand this error, try checking the DTC firmware version." << std::endl;
 			DTC_TLOG(TLVL_ERROR) << ss.str();
 			throw DTC_IOErrorException(ss.str());
 			// __FE_COUT_ERR__ << ss.str(); 
@@ -10003,8 +10006,7 @@ uint32_t DTCLib::DTC_Registers::ReadRegister_(const DTC_Register& address)
 	if(address != 0x916c)
 	{	//trace seems to ignore the std::setfill, so using stringstream
 		std::stringstream o;
-		o << device_.getDeviceUID() << " - " << 
-			"read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
+		o << "read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
 			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 			std::endl;
 		DTC_TLOG(TLVL_DEBUG) << o.str();
