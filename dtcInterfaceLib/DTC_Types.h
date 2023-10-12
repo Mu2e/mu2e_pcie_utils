@@ -47,9 +47,14 @@ enum DTC_Link_ID : uint8_t
 #ifndef __CLING__
 inline TraceStreamer& operator<<(TraceStreamer& ts, DTC_Link_ID const& link)
 {
-	return ts << static_cast<uint8_t>(link);
+	return ts << static_cast<unsigned int>(link);
 }
 #endif
+
+inline std::ostream& operator<<(std::ostream& o, DTC_Link_ID const& link)
+{
+	return o << static_cast<unsigned int>(link);
+}
 
 static const std::vector<DTC_Link_ID> DTC_Links{DTC_Link_0,
 												DTC_Link_1,

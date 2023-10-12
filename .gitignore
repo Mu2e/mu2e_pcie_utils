@@ -12,7 +12,6 @@ obj
 *.tmp
 *.bk
 *.tmp
-CMakePresets.json
 *.o
 *.cmd
 trace/
