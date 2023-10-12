@@ -687,7 +687,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatFPGAAlarms()
 
 // DTC Control Register
 /// <summary>
-/// Clear the the DTC Control Register
+/// Clear the DTC Control Register
 /// </summary>
 void DTCLib::DTC_Registers::ClearDTCControlRegister()
 {
@@ -1588,6 +1588,42 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatROCEmulationEnable()
 }
 
 // Link Enable Register
+/// <summary>
+/// Enable Receive CFO Link
+/// </summary>
+void DTCLib::DTC_Registers::EnableReceiveCFOLink()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_LinkEnable);
+	data[14] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_LinkEnable);
+}
+/// <summary>
+/// Disable Receive CFO Link
+/// </summary>
+void DTCLib::DTC_Registers::DisableReceiveCFOLink()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_LinkEnable);
+	data[14] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_LinkEnable);
+}
+/// <summary>
+/// Enable Receive CFO Link
+/// </summary>
+void DTCLib::DTC_Registers::EnableTransmitCFOLink()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_LinkEnable);
+	data[6] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_LinkEnable);
+}
+/// <summary>
+/// Disable Receive CFO Link
+/// </summary>
+void DTCLib::DTC_Registers::DisableTransmitCFOLink()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_LinkEnable);
+	data[6] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_LinkEnable);
+}
 /// <summary>
 /// Enable a SERDES Link
 /// </summary>
