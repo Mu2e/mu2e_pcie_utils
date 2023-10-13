@@ -94,6 +94,8 @@ DTCLib::DTC_SimMode DTCLib::DTC_SimModeConverter::ConvertToSimMode(std::string m
 			return DTC_SimMode_Event;
 
 		case '0':
+		case 'D':
+		case 'd':
 			return DTC_SimMode_Disabled;
 		default:
 			break;
