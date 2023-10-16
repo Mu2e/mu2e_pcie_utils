@@ -37,8 +37,17 @@ DTCLib::DTC::DTC(DTC_SimMode mode, int dtc, unsigned rocMask, std::string expect
 
 DTCLib::DTC::~DTC()
 {
-	ReleaseAllBuffers();
-  TLOG(TLVL_INFO) << "DESTRUCTOR exit";
+	//assume the destructor is destructive (could be in response to exceptions), so first force ending of dcs lock
+	try
+	{
+		ReleaseAllBuffers();
+	}
+	catch(...)
+	{
+ 		TLOG(TLVL_WARN) << "Ignoring exception caught in DESTRUCTOR while calling ReleaseAllBuffers()";
+	}
+	
+ 	TLOG(TLVL_INFO) << "DESTRUCTOR exit";
 }
 
 //
@@ -412,6 +421,8 @@ uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t ad
 {
 	dcsDMAInfo_.currentReadPtr = nullptr;
 	ReleaseBuffers(DTC_DMA_Engine_DCS);
+
+	device_.begin_dcs_transaction();
 	SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address,
 						 0x0 /*data*/, 0x0 /*address2*/, 0x0 /*data2*/,
 						 false /*quiet*/);
@@ -419,6 +430,7 @@ uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t ad
 	uint16_t data = 0xFFFF;
 
 	auto reply = ReadNextDCSPacket(tmo_ms);
+	device_.end_dcs_transaction();
 
 	if (reply != nullptr)  //have data!
 	{
@@ -453,6 +465,7 @@ bool DTCLib::DTC::WriteROCRegister(const DTC_Link_ID& link, const uint16_t addre
 		ReleaseBuffers(DTC_DMA_Engine_DCS);
 	}
 
+	device_.begin_dcs_transaction();
 	SendDCSRequestPacket(link, DTC_DCSOperationType_Write, address, data,
 						 0x0 /*address2*/, 0x0 /*data2*/,
 						 false /*quiet*/, requestAck);
@@ -484,6 +497,7 @@ bool DTCLib::DTC::WriteROCRegister(const DTC_Link_ID& link, const uint16_t addre
 			}
 		}
 	}
+	device_.end_dcs_transaction();
 	return !requestAck || ackReceived;
 }
 
@@ -492,6 +506,8 @@ std::pair<uint16_t, uint16_t> DTCLib::DTC::ReadROCRegisters(const DTC_Link_ID& l
 {
 	dcsDMAInfo_.currentReadPtr = nullptr;
 	ReleaseBuffers(DTC_DMA_Engine_DCS);
+
+	device_.begin_dcs_transaction();
 	SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address1, 0, address2);
 	usleep(2500);
 	uint16_t data1 = 0xFFFF;
@@ -526,7 +542,7 @@ std::pair<uint16_t, uint16_t> DTCLib::DTC::ReadROCRegisters(const DTC_Link_ID& l
 			data2 = reply2tmp.second;
 		}
 	}
-
+	device_.end_dcs_transaction();
 	DTC_TLOG(TLVL_TRACE) << "ReadROCRegisters returning " << static_cast<int>(data1) << " for link " << static_cast<int>(link)
 					 << ", address " << static_cast<int>(address1) << ", " << static_cast<int>(data2) << ", address "
 					 << static_cast<int>(address2);
@@ -541,6 +557,8 @@ bool DTCLib::DTC::WriteROCRegisters(const DTC_Link_ID& link, const uint16_t addr
 		dcsDMAInfo_.currentReadPtr = nullptr;
 		ReleaseBuffers(DTC_DMA_Engine_DCS);
 	}
+
+	device_.begin_dcs_transaction();
 	SendDCSRequestPacket(link, DTC_DCSOperationType_Write, address1, data1, address2, data2, false /*quiet*/, requestAck);
 
 	bool ackReceived = false;
@@ -574,6 +592,7 @@ bool DTCLib::DTC::WriteROCRegisters(const DTC_Link_ID& link, const uint16_t addr
 			}
 		}
 	}
+	device_.end_dcs_transaction();
 	return !requestAck || ackReceived;
 }
 
@@ -591,6 +610,7 @@ void DTCLib::DTC::ReadROCBlock(
 
 	if (!ReadDCSReception()) EnableDCSReception();
 
+	device_.begin_dcs_transaction();
 	WriteDMAPacket(req);
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "ReadROCBlock after  WriteDMADCSPacket - DTC_DCSRequestPacket";
 
@@ -640,6 +660,7 @@ void DTCLib::DTC::ReadROCBlock(
 			packetCount--;
 		}
 	}
+	device_.end_dcs_transaction();
 
 	DTC_TLOG(TLVL_TRACE) << "ReadROCBlock returning " << static_cast<int>(data.size()) << " words for link " << static_cast<int>(link)
 					 << ", address " << static_cast<int>(address);
@@ -660,6 +681,7 @@ bool DTCLib::DTC::WriteROCBlock(const DTC_Link_ID& link, const uint16_t address,
 
 	if (!ReadDCSReception()) EnableDCSReception();
 
+	device_.begin_dcs_transaction();
 	WriteDMAPacket(req);
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "WriteROCBlock after  WriteDMADCSPacket - DTC_DCSRequestPacket";
 
@@ -690,6 +712,7 @@ bool DTCLib::DTC::WriteROCBlock(const DTC_Link_ID& link, const uint16_t address,
 			}
 		}
 	}
+	device_.end_dcs_transaction();
 	return !requestAck || ackReceived;
 }
 
@@ -1138,7 +1161,12 @@ void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)
 	{
 		DTC_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers releasing " << releaseBufferCount << " "
 								  << (channel == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS") << " buffers.";
+
+		if (channel == DTC_DMA_Engine_DCS)
+			device_.begin_dcs_transaction();
 		device_.read_release(channel, releaseBufferCount);
+		if (channel == DTC_DMA_Engine_DCS)
+			device_.end_dcs_transaction();
 
 		for (int ii = 0; ii < releaseBufferCount; ++ii)
 		{

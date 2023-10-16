@@ -815,7 +815,7 @@ public:
 	/// Get the block read data, if any
 	/// </summary>
 	/// <returns>Vector of 16-bit words</returns>
-	std::vector<uint16_t> GetBlockReadData() const { return blockReadData_; }
+	const std::vector<uint16_t>& GetBlockReadData() const { return blockReadData_; }
 
 	/// <summary>
 	/// Convert a DTC_DCSReplyPacket to DTC_DataPacket in "owner" mode

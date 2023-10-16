@@ -53,21 +53,21 @@ union DataHeaderPacket
 	{
 		uint16_t TransferByteCount;  ///< Block Byte count
 
-		uint16_t Resv1 : 4;       ///< Reserved
-		uint16_t PacketType : 4;  ///< Type of packet
-		uint16_t LinkID : 4;      ///< Link ID of packet
-		uint16_t SubsystemID : 3;       ///< Subsystem ID
-		uint16_t Valid : 1;       ///< Is the packet valid?
+		uint16_t Resv1 : 4;        ///< Reserved
+		uint16_t PacketType : 4;   ///< Type of packet
+		uint16_t LinkID : 4;       ///< Link ID of packet
+		uint16_t SubsystemID : 3;  ///< Subsystem ID
+		uint16_t Valid : 1;        ///< Is the packet valid?
 
-		uint16_t PacketCount : 11;  ///< Packet count requested
-		uint16_t Resv2 : 5;        ///< Reserved
-		uint16_t ts10;             ///< Timestamp bytes 1 and 2 (Least significant)
-		uint16_t ts32;             ///< Timestamp bytes 3 and 4
-		uint16_t ts54;             ///< Timestamp bytes 5 and 6 (Most significant)
-		uint16_t Status : 8; ///< Status word
-		uint16_t Version : 8; ///< Data packet format version
-		uint16_t DTCID : 8; ///< ID of receiving DTC
-		uint16_t EventWindowMode : 8; ///< Window mode byte from CFO
+		uint16_t PacketCount : 11;     ///< Packet count requested
+		uint16_t Resv2 : 5;            ///< Reserved
+		uint16_t ts10;                 ///< Timestamp bytes 1 and 2 (Least significant)
+		uint16_t ts32;                 ///< Timestamp bytes 3 and 4
+		uint16_t ts54;                 ///< Timestamp bytes 5 and 6 (Most significant)
+		uint16_t Status : 8;           ///< Status word
+		uint16_t Version : 8;          ///< Data packet format version
+		uint16_t DTCID : 8;            ///< ID of receiving DTC
+		uint16_t EventWindowMode : 8;  ///< Window mode byte from CFO
 	} s;
 };
 /// <summary>
@@ -149,13 +149,13 @@ struct DataPacket
  _IOR  - implementation has copy_to_user   (or equiv., at end)
  _IOW  - implementation has copy_from_user (or equiv., at beginnning)
  _IOWR - implementaions has both copy_from_user (at beginnning) and
-                 copy_to_user (at end)
+				 copy_to_user (at end)
 NOTE: for _IOR, _IOW: the size is only for the data at the address used in the
-          ioctl call; NOT for the size at an address contained within the data
-          pointed to by the address used in the ioctl call.  So, if a small
-          structure is pointed to (to be copied in) which has an address of a
-          large buffer, the only thing that these macros should consider is the
-          pointer used (directly) in the ioctl call.
+		  ioctl call; NOT for the size at an address contained within the data
+		  pointed to by the address used in the ioctl call.  So, if a small
+		  structure is pointed to (to be copied in) which has an address of a
+		  large buffer, the only thing that these macros should consider is the
+		  pointer used (directly) in the ioctl call.
  */
 #define MU2E_IOC_MAGIC 'C'
 
@@ -173,6 +173,9 @@ NOTE: for _IOR, _IOW: the size is only for the data at the address used in the
 #define M_IOC_BUF_GIVE _IO(MU2E_IOC_MAGIC, 13)  // arg=(chn<<24)|(dir<<16)|num
 #define M_IOC_DUMP _IO(MU2E_IOC_MAGIC, 14)
 #define M_IOC_BUF_XMIT _IO(MU2E_IOC_MAGIC, 16)
+
+#define M_IOC_DCS_LOCK _IO(MU2E_IOC_MAGIC, 17)
+#define M_IOC_DCS_RELEASE _IO(MU2E_IOC_MAGIC, 18)
 
 /// <summary>
 /// Register Access information

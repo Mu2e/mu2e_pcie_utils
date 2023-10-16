@@ -321,6 +321,10 @@ std::string DTCLib::DTC_Registers::ReadDesignDate()
 	std::ostringstream o;
 	std::vector<std::string> months({"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"});
 	int mon =  ((readData>>20)&0xF)*10 + ((readData>>16)&0xF);
+	if(mon-1 > 11)
+	{
+		throw std::runtime_error("Invalid register read for firmware design date: " + std::to_string(mon));
+	}
 	o << months[mon-1] << "/" << 
 		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
 		((readData>>28)&0xF) << ((readData>>24)&0xF) << " " <<
