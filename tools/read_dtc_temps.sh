@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Configuration
-PCIE_VERSION=${PCIE_VERSION:-v2_05_11}
-PCIE_QUALS=${PCIE_QUALS:-e20:s112:prof}
-EPICS_VERSION=${EPICS_VERSION:-v3_16_2}
-EPICS_QUALS=${EPICS_QUALS:-e19}
+PCIE_VERSION=${PCIE_VERSION:-v2_08_00}
+PCIE_QUALS=${PCIE_QUALS:-e20:s118:prof}
+EPICS_VERSION=${EPICS_VERSION:-v7_0_6_1}
+EPICS_QUALS=${EPICS_QUALS:-e20}
 DTC_TEMP_THRESHOLD=${DTC_TEMP_THRESHOLD:-75}
 DTC_MAX_TEMP=255
 FIREFLY_TEMP_THRESHOLD=${FIREFLY_TEMP_THRESHOLD:-60}
@@ -18,6 +18,8 @@ export EPICS_CA_ADDR_LIST=
 export EPICS_CA_NAME_SERVERS=mu2e-dcs-01
   
 DO_CA=`ls ~mu2edcs/.caput_enabled 2>/dev/null|wc -l`
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 
 # Default to verbose if run interactively
 if [ -z "$VERBOSE_SET" ] && [ $VERBOSE -eq 0 ] && [ -t 0 ];then
@@ -25,9 +27,29 @@ if [ -z "$VERBOSE_SET" ] && [ $VERBOSE -eq 0 ] && [ -t 0 ];then
   echo "Shutdown on error: $SHUTDOWN_ON_ERROR, DO_CA: $DO_CA"
 fi
 
+# Check for updates
+pushd $SCRIPT_DIR
+if [ -d .git ]; then
+  git fetch
+  git diff --quiet --exit-code "origin/develop" "tools/read_dtc_temps.sh"
+  if [ $? -eq 1 ];then
+    if [[ $VERBOSE -ne 0 ]]; then
+      echo "read_dtc_temps.sh updated, relaunching!"
+    fi
+    git pull
+    popd
+    exec $0
+    exit 1
+  fi
+  if [[ $VERBOSE -ne 0 ]]; then
+    echo "read_dtc_temps.sh is latest version"
+  fi
+fi
+popd
+
 # From NOvA's Loadshed script
 #MAIL_RECIPIENTS_ERROR="eflumerf@fnal.gov,mu2e_tdaq_developers@fnal.gov" # comma-separated list
-MAIL_RECIPIENTS_ERROR="eflumerf@fnal.gov,rrivera@fnal.gov,gahs@phys.ksu.edu,sws-admin@fnal.gov" # comma-separated list
+MAIL_RECIPIENTS_ERROR="eflumerf@fnal.gov,rrivera@fnal.gov,grakness@fnal.gov,gahs@phys.ksu.edu,sws-admin@fnal.gov" # comma-separated list
 function send_error_mail()
 {
         echo "$2"| mail -s "`date`: $1" $MAIL_RECIPIENTS_ERROR
@@ -46,7 +68,7 @@ done
 
 source /mu2e/ups/setup
 setup epics $EPICS_VERSION -q$EPICS_QUALS
-setup pcie_linux_kernel_module $PCIE_VERSION -q$PCIE_QUALS
+setup mu2e_pcie_utils $PCIE_VERSION -q$PCIE_QUALS
 
 errstring=
 warnstring=
