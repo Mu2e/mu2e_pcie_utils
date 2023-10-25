@@ -6,7 +6,7 @@
 #include <functional>  // std::bind, std::function
 #include <vector>      // std::vector
 
-#include "DTC_Types.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types.h"
 #include "mu2edev.h"
 
 namespace DTCLib {
