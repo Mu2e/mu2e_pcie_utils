@@ -611,7 +611,7 @@ void DTCLib::DTC::ReadROCBlock(
 	if (!ReadDCSReception()) EnableDCSReception();
 
 	device_.begin_dcs_transaction();
-	WriteDMAPacket(req);
+	WriteDMAPacket(req, true /* alreadyHaveDCSTransactionLock */);
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "ReadROCBlock after  WriteDMADCSPacket - DTC_DCSRequestPacket";
 
 	usleep(2500);
@@ -682,7 +682,7 @@ bool DTCLib::DTC::WriteROCBlock(const DTC_Link_ID& link, const uint16_t address,
 	if (!ReadDCSReception()) EnableDCSReception();
 
 	device_.begin_dcs_transaction();
-	WriteDMAPacket(req);
+	WriteDMAPacket(req, true /* alreadyHaveDCSTransactionLock */);
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "WriteROCBlock after  WriteDMADCSPacket - DTC_DCSRequestPacket";
 
 	bool ackReceived = false;
@@ -767,6 +767,7 @@ void DTCLib::DTC::SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_Ev
 	DTC_TLOG(TLVL_SendReadoutRequestPacket) << "SendReadoutRequestPacket after  WriteDMADAQPacket - DTC_HeartbeatPacket";
 }
 
+//Note! Before calling this function SendDCSRequestPacket(), the device must be locked with device_.begin_dcs_transaction();
 void DTCLib::DTC::SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOperationType type, const uint16_t address,
 									   const uint16_t data, const uint16_t address2, const uint16_t data2, bool quiet, bool requestAck)
 {
@@ -789,7 +790,7 @@ void DTCLib::DTC::SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOpe
 
 	if (!ReadDCSReception()) EnableDCSReception();
 
-	WriteDMAPacket(req);
+	WriteDMAPacket(req, true /* alreadyHaveDCSTransactionLock */);
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "SendDCSRequestPacket after  WriteDMADCSPacket - DTC_DCSRequestPacket";
 }
 
@@ -1215,7 +1216,7 @@ uint16_t DTCLib::DTC::GetBufferByteCount(DMAInfo* info, size_t index)
 }
 
 //This is on DMA Channel 1 (i.e., DCS)
-void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
+void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet, bool alreadyHaveDCSTransactionLock)
 {
 	DTC_TLOG(TLVL_WriteDataPacket) << "WriteDataPacket: Writing packet: " << packet.toJSON();
 	mu2e_databuff_t buf;
@@ -1228,7 +1229,9 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
 
 	Utilities::PrintBuffer(buf, size, 0, TLVL_TRACE + 30);
 
-	device_.begin_dcs_transaction();
+	if(!alreadyHaveDCSTransactionLock)
+		device_.begin_dcs_transaction();
+
 	auto retry = 3;
 	int errorCode;
 	do
@@ -1238,7 +1241,10 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
 		DTC_TLOG(TLVL_WriteDataPacket) << "Attempted to write data, errorCode=" << errorCode << ", retries=" << retry;
 		retry--;
 	} while (retry > 0 && errorCode != 0);
-	device_.end_dcs_transaction();
+
+	if(!alreadyHaveDCSTransactionLock)
+		device_.end_dcs_transaction();
+
 	if (errorCode != 0)
 	{
 		DTC_TLOG(TLVL_ERROR) << "WriteDataPacket: write_data returned " << errorCode << ", throwing DTC_IOErrorException!";
@@ -1246,7 +1252,7 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
 	}
 }
 
-void DTCLib::DTC::WriteDMAPacket(const DTC_DMAPacket& packet)
+void DTCLib::DTC::WriteDMAPacket(const DTC_DMAPacket& packet, bool alreadyHaveDCSTransactionLock /* = false */)
 {
-	WriteDataPacket(packet.ConvertToDataPacket());
+	WriteDataPacket(packet.ConvertToDataPacket(), alreadyHaveDCSTransactionLock);
 }
