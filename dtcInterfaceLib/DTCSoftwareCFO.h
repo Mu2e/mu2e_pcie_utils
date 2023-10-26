@@ -48,7 +48,7 @@ public:
 	/// </summary>
 	/// <param name="ts">Timestamp for requests</param>
 	/// <param name="heartbeatsAfter">Number of heartbeats after reqeust to drive DTC state machine</param>
-	void SendRequestForTimestamp(DTC_EventWindowTag ts = DTC_EventWindowTag(static_cast<uint64_t>(0)), uint32_t heartbeatsAfter = 16);
+	void SendRequestForTimestamp(DTC_EventWindowTag ts = DTC_EventWindowTag(static_cast<uint64_t>(0)), uint32_t heartbeatsAfter = 16, bool sendHeartbeats = true);
 	/// <summary>
 	/// Send Heartbeat Packets and Data Requests for a range of timestamps.
 	/// </summary>
@@ -59,7 +59,7 @@ public:
 	/// <param name="requestsAhead">Number of Heartbeat Packets to send ahead of data requests</param>
 	/// <param name="heartbeatsAfter">How many Heartbeat Packets to send after all Data Requests have been sent to flush the system</param>
 	void SendRequestsForRange(int count, DTC_EventWindowTag start = DTC_EventWindowTag(static_cast<uint64_t>(0)),
-							  bool increment = true, uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t heartbeatsAfter = 16);
+							  bool increment = true, uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t heartbeatsAfter = 16, bool sendHeartbeats = true);
 
 	/// <summary>
 	/// Send requests for a list of timestamps.
@@ -96,9 +96,9 @@ public:
 
 private:
 	void SendRequestsForRangeImplAsync(DTC_EventWindowTag start, int count, bool increment = true,
-									   uint32_t delayBetweenDataRequests = 0, uint32_t heartbeatsAfter = 16);
+									   uint32_t delayBetweenDataRequests = 0, uint32_t heartbeatsAfter = 16, bool sendHeartbeats = true);
 	void SendRequestsForRangeImplSync(DTC_EventWindowTag start, int count, bool increment = true,
-									  uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t heartbeatsAfter = 16);
+									  uint32_t delayBetweenDataRequests = 0, int requestsAhead = 1, uint32_t heartbeatsAfter = 16, bool sendHeartbeats = true);
 
 	void SendRequestsForListImplAsync(std::set<DTC_EventWindowTag> timestamps, uint32_t delayBetweenDataRequests = 0, uint32_t heartbeatsAfter = 16);
 

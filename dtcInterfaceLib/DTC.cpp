@@ -1214,6 +1214,7 @@ uint16_t DTCLib::DTC::GetBufferByteCount(DMAInfo* info, size_t index)
 	return bufferSize;
 }
 
+//This is on DMA Channel 1 (i.e., DCS)
 void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
 {
 	DTC_TLOG(TLVL_WriteDataPacket) << "WriteDataPacket: Writing packet: " << packet.toJSON();
@@ -1227,6 +1228,7 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
 
 	Utilities::PrintBuffer(buf, size, 0, TLVL_TRACE + 30);
 
+	device_.begin_dcs_transaction();
 	auto retry = 3;
 	int errorCode;
 	do
@@ -1236,6 +1238,7 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
 		DTC_TLOG(TLVL_WriteDataPacket) << "Attempted to write data, errorCode=" << errorCode << ", retries=" << retry;
 		retry--;
 	} while (retry > 0 && errorCode != 0);
+	device_.end_dcs_transaction();
 	if (errorCode != 0)
 	{
 		DTC_TLOG(TLVL_ERROR) << "WriteDataPacket: write_data returned " << errorCode << ", throwing DTC_IOErrorException!";
