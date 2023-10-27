@@ -19,6 +19,8 @@ if ! [ -d trace ]; then
   git clone https://github.com/art-daq/trace.git
 fi
 
+sed -i "s/#define DRIVER_VERSION_STRING .*/#define DRIVER_VERSION_STRING \"`git describe --tags`\"/g" mu2e_driver/mu2e_main.c
+
 cat >Makefile <<EOF
 
 EXTRA_SYMBOLS=KBUILD_EXTRA_SYMBOLS=$PWD/trace/src_module/Module.symvers

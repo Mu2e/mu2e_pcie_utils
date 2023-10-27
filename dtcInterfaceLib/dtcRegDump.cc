@@ -97,6 +97,8 @@ int main(int argc, char* argv[])
 		cols = 120;
 	}
 
+	std::cout << "Driver Version: " << thisDTC->GetDevice()->get_driver_version() << std::endl;
+
 	if (printRegisterDump)
 	{
 		std::cout << thisDTC->FormattedRegDump(cols) << std::endl;

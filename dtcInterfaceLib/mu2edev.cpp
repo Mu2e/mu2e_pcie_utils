@@ -553,3 +553,24 @@ void mu2edev::end_dcs_transaction(bool force)
 	}
 
 } //end end_dcs_transaction()
+
+std::string mu2edev::get_driver_version() 
+{
+	TRACE(TLVL_DEBUG + 5, UID_ + " get_driver_version BEGIN");
+	if (simulator_ != nullptr) { return "SIMULATED"; }
+	mu2e_string_t output;
+	int retsts = ioctl(devfd_, M_IOC_GET_VERSION, &output);
+	
+	if (retsts != 0)
+	{
+		TRACE(TLVL_DEBUG + 14, UID_ + " get_driver_version: IOCTL returned %d!", retsts);
+		perror("M_IOC_GET_VERSION");
+	}
+
+	std::string outstr = std::string(output);
+	if (outstr == "") {
+		return "UNSUPPORTED_DRIVER";
+	}
+
+	return outstr;
+} // end get_driver_version
