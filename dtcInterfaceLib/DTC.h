@@ -187,7 +187,7 @@ public:
 	/// Writes a packet to the DTC on the DCS channel
 	/// </summary>
 	/// <param name="packet">Packet to write</param>
-	void WriteDMAPacket(const DTC_DMAPacket& packet);
+	void WriteDMAPacket(const DTC_DMAPacket& packet, bool alreadyHaveDCSTransactionLock = false);
 	/// <summary>
 	/// Writes the given data buffer to the DTC's DDR memory, via the DAQ channel.
 	/// </summary>
@@ -245,7 +245,7 @@ private:
 	/// </summary>
 	/// <param name="channel">Channel to release</param>
 	void ReleaseBuffers(const DTC_DMA_Engine& channel);
-	void WriteDataPacket(const DTC_DataPacket& packet);
+	void WriteDataPacket(const DTC_DataPacket& packet, bool alreadyHaveDCSTransactionLock);
 
 	struct DMAInfo
 	{

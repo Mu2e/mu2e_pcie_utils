@@ -57,16 +57,17 @@ DTC_Reset()
 #    my_cntl write 0x9118 0x0000003f >/dev/null;: Reset all links;\
 #    my_cntl write 0x9118 0x00000000 >/dev/null;: Clear Link Resets
 
-  my_cntl -d $dtc write 0x9100 0x80000000  >/dev/null # reset DTC  reset serdes osc
-  my_cntl -d $dtc write 0x9100 0x00008000 > /dev/null # Turn on CFO Emulation Mode for Serdes Reset
-  my_cntl -d $dtc write 0x9118 0xffff00ff  >/dev/null  # SERDES resets
-  my_cntl -d $dtc write 0x9118 0x00000000  >/dev/null  # clear SERDES reset on link 0
+  my_cntl -d $dtc write 0x9100 0x80000000  >/dev/null # soft reset DTC  
+  my_cntl -d $dtc write 0x9100 0x00000000  >/dev/null # unreset DTC 
+#   my_cntl -d $dtc write 0x9100 0x00008000 > /dev/null # Turn on CFO Emulation Mode for Serdes Reset
+#   my_cntl -d $dtc write 0x9118 0xffff00ff  >/dev/null  # SERDES resets
+#   my_cntl -d $dtc write 0x9118 0x00000000  >/dev/null  # clear SERDES reset on link 0
 
-  sleep 1
+#   sleep 1
 
 
   echo "SERDES Reset Done after reset: "
-  my_cntl -d $dtc read 0x9138
+#   my_cntl -d $dtc read 0x9138
 }
 
 ROC_Reset()
