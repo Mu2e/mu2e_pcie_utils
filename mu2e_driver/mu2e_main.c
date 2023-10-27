@@ -153,6 +153,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 	m_ioc_pcistate_t pcistate;
 	m_ioc_engstate_t eng;
 	m_ioc_engstats_t es;
+	mu2e_string_t ms;
 	TRNStatsArray tsa;
 	int which_engine, len, ii;
 	DMAStatistics *ds;
@@ -596,10 +597,9 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			break;
 		case M_IOC_GET_VERSION:
 
-			mu2e_string_t output;
 			TRACE(10, "mu2e_ioctl: cmd=GET_VRESION v=%s", DRIVER_VERSION_STRING);
-			strncpy(output, DRIVER_VERSION_STRING, sizeof(mu2e_string_t) - 1);
-			if (copy_to_user((mu2e_string_t*)arg, &output, sizeof(mu2e_string_t)))
+			strncpy(ms, DRIVER_VERSION_STRING, sizeof(mu2e_string_t) - 1);
+			if (copy_to_user((mu2e_string_t*)arg, &ms, sizeof(mu2e_string_t)))
 			{
 				TRACE(0, "copy_to_user failed\n");
 				return (-EFAULT);
