@@ -155,6 +155,7 @@ public:
 
 	void begin_dcs_transaction();
 	void end_dcs_transaction(bool force = false);
+	std::string get_driver_version();
 
 	/// <summary>
 	/// Get the current DTC UID for this instance

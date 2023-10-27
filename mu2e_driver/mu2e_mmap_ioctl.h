@@ -176,6 +176,7 @@ NOTE: for _IOR, _IOW: the size is only for the data at the address used in the
 
 #define M_IOC_DCS_LOCK _IO(MU2E_IOC_MAGIC, 17)
 #define M_IOC_DCS_RELEASE _IO(MU2E_IOC_MAGIC, 18)
+#define M_IOC_GET_VERSION _IOR(MU2E_IOC_MAGIC, 19, mu2e_string_t)
 
 /// <summary>
 /// Register Access information
@@ -287,6 +288,7 @@ typedef struct
 //------------------------------------------
 
 typedef unsigned char mu2e_databuff_t[0x10000];
+typedef char mu2e_string_t[100];
 
 typedef enum
 {
