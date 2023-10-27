@@ -483,7 +483,7 @@ public:
 	void ResetDDRReadAddress();       // B26
 	bool ReadResetDDRReadAddress();   // B26
 	void ResetDDR();                  // B25
-	bool ReadResetDDR();              // B25
+	bool ReadResetDDR();              // B25	
 	void EnableCFOEmulatorDRP();      // B24
 	void DisableCFOEmulatorDRP();     // B24
 	bool ReadCFOEmulatorDRP();        // B24
@@ -493,7 +493,8 @@ public:
 	void EnableSoftwareDRP();         // B22
 	void DisableSoftwareDRP();        // B22
 	bool ReadSoftwareDRP();           // B22
-	// Bit 21 Reserved
+	void ResetPCIe();                 // B21
+	bool ReadResetPCIe();             // B21
 	// Bit 20 Reserved
 	void EnableDownLED0();         // B19
 	void DisableDownLED0();        // B19
@@ -952,7 +953,7 @@ public:
 
 	// Jitter Attenuator CSR Register
 	std::bitset<2> ReadJitterAttenuatorSelect();
-	void SetJitterAttenuatorSelect(std::bitset<2> data);
+	void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
 	bool ReadJitterAttenuatorReset();
 	void ResetJitterAttenuator();
 	DTC_RegisterFormatter FormatJitterAttenuatorCSR();
@@ -1389,7 +1390,7 @@ public:
 	void WriteCurrentProgram(uint64_t program, DTC_OscillatorType oscillator);
 
 private:
-	void WriteRegister_(uint32_t data, const DTC_Register& address);
+	uint32_t WriteRegister_(uint32_t data, const DTC_Register& address);
 	uint32_t ReadRegister_(const DTC_Register& address);
 
 	bool GetBit_(const DTC_Register& address, size_t bit);
