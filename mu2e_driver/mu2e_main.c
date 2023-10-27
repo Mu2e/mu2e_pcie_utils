@@ -35,6 +35,8 @@
 #define ACCESS_OK_WRITE(addr, size) access_ok(addr, size)
 #endif
 
+#define DRIVER_VERSION_STRING "UNKNOWN_VERSION"
+
 /* GLOBALS */
 
 struct pci_dev *mu2e_pci_dev[MU2E_MAX_NUM_DTCS] = {0};
@@ -591,6 +593,18 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			TRACE(24, "mu2e_ioctl DCS_UNLOCK before releasing DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
 			spin_unlock(&DcsTransactionLock);
 			TRACE(24, "mu2e_ioctl DCS_UNLOCK after releasing DcsTransactionLock");
+			break;
+		case M_IOC_GET_VERSION:
+
+			mu2e_string_t output;
+			TRACE(10, "mu2e_ioctl: cmd=GET_VRESION v=%s", DRIVER_VERSION_STRING);
+			strncpy(output, DRIVER_VERSION_STRING, sizeof(mu2e_string_t) - 1);
+			if (copy_to_user((mu2e_string_t*)arg, &output, sizeof(mu2e_string_t)))
+			{
+				TRACE(0, "copy_to_user failed\n");
+				return (-EFAULT);
+			}
+			retval = 0;
 			break;
 		default:
 			TRACE(11, "mu2e_ioctl: unknown cmd");
