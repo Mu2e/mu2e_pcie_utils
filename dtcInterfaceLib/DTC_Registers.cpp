@@ -297,7 +297,7 @@ std::string DTCLib::DTC_Registers::PacketCountersRegDump(int width)
 /// Read the design version
 /// </summary>
 /// <returns>Design version, in VersionNumber_Date format</returns>
-std::string DTCLib::DTC_Registers::ReadDesignVersion() { return ReadDesignVersionNumber() + "_" + ReadDesignDate(); }
+std::string DTCLib::DTC_Registers::ReadDesignVersion() { return ReadDesignVersionNumber() + ReadDesignLinkSpeed() + "_" + ReadDesignDate(); }
 
 /// <summary>
 /// Formats the register's current value for register dumps
@@ -308,6 +308,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatDesignVersion()
 	auto form = CreateFormatter(DTC_Register_DesignVersion);
 	form.description = "DTC Firmware Design Version";
 	form.vals.push_back(ReadDesignVersionNumber());
+	form.vals.push_back(ReadDesignLinkSpeed());
 	return form;
 }
 
@@ -369,6 +370,20 @@ std::string DTCLib::DTC_Registers::ReadDesignVersionNumber()
 	int major = (data & 0xFF00) >> 8;
 	return "v" + std::to_string(major) + "." + std::to_string(minor);
 }
+
+/// <summary>
+/// Read the design version number
+/// </summary>
+/// <returns>The design version number, in vMM.mm format</returns>
+std::string DTCLib::DTC_Registers::ReadDesignLinkSpeed()
+{
+	auto data = ReadRegister_(DTC_Register_DesignVersion);
+	int cfoLinkSpeed = (data>>28) & 0xFF;	//0x40 for 4G
+	int rocLinkSpeed = (data>>20) & 0xFF;	//0x30 for 3.125G
+	return "cfo-link: " + std::to_string(cfoLinkSpeed) + 
+		"G, roc-links: " + std::to_string(rocLinkSpeed) + "G";
+}
+
 
 /// <summary>
 /// Read the DDR interface reset bit
