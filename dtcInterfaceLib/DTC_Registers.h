@@ -424,6 +424,7 @@ public:
 	std::string ReadDesignDate();
 	DTC_RegisterFormatter FormatDesignDate();
 	std::string ReadDesignVersionNumber();
+	std::string ReadDesignLinkSpeed();
 
 	// Design Status Register
 	bool ReadDDRInterfaceReset();
