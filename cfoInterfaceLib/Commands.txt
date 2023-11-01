@@ -1,16 +1,16 @@
 SET 100  //set event window tag
 
-LOOP 16
+LOOP 16 //32-bits
 WAIT period=256 cycles 
 HEARTBEAT event_mode= 23
 INC //increment event window tag
 DO_LOOP
 
-LOOP 16
+LOOP 16 //32-bits
 WAIT period=256 cycles
 HEARTBEAT event_mode= 0 //null heartbeats
 INC //increment event window tag
 DO_LOOP
 
 END
-
+//REPEAT
