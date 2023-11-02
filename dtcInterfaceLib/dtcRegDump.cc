@@ -101,35 +101,35 @@ int main(int argc, char* argv[])
 
 	if (printRegisterDump)
 	{
-		std::cout << thisDTC->FormattedRegDump(cols) << std::endl;
+		std::cout << thisDTC->FormattedRegDump(cols, thisDTC->formattedDumpFunctions_) << std::endl;
 	}
 
 	if (printSERDESCounters)
 	{
 		std::cout << std::endl
 				  << std::endl;
-		std::cout << thisDTC->LinkCountersRegDump(cols);
+		std::cout << thisDTC->FormattedRegDump(cols, thisDTC->formattedSERDESCounterFunctions_) << std::endl;
 	}
 
 	if (printPerformanceCounters)
 	{
 		std::cout << std::endl
 				  << std::endl;
-		std::cout << thisDTC->PerformanceCountersRegDump(cols);
+		std::cout << thisDTC->FormattedRegDump(cols, thisDTC->formattedPerformanceCounterFunctions_) << std::endl; 
 	}
 
 	if (printSERDESErrors)
 	{
 		std::cout << std::endl
 				  << std::endl;
-		std::cout << thisDTC->SERDESErrorsRegDump(cols);
+		std::cout << thisDTC->FormattedRegDump(cols, thisDTC->formattedSERDESErrorFunctions_) << std::endl;
 	}
 
 	if (printProtocolCounters)
 	{
 		std::cout << std::endl
 				  << std::endl;
-		std::cout << thisDTC->PacketCountersRegDump(cols);
+		std::cout << thisDTC->FormattedRegDump(cols, thisDTC->formattedPacketCounterFunctions_) << std::endl;
 	}
 
 	delete thisDTC;

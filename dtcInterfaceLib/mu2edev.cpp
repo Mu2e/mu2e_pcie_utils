@@ -24,6 +24,7 @@ mu2edev::mu2edev()
 {
 	// TRACE_CNTL( "lvlmskM", 0x3 );
 	// TRACE_CNTL( "lvlmskS", 0x3 );
+
 }
 
 mu2edev::~mu2edev()
@@ -193,9 +194,20 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 					  chn, mu2e_channel_info_[activeDeviceIndex_][chn][C2S].hwIdx, mu2e_channel_info_[activeDeviceIndex_][chn][C2S].swIdx,
 					  mu2e_channel_info_[activeDeviceIndex_][chn][C2S].num_buffs, has_recv_data, (void*)BC_p, newNxtIdx, retsts,
 					  *buffer, *(uint32_t*)*buffer);
-				if (retsts == 80)
+				if(retsts == 80)
 				{
-					TRACE(TLVL_TRACE, "80 bytes: %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx", *(((uint64_t*)*buffer) + 0), *(((uint64_t*)*buffer) + 1), *(((uint64_t*)*buffer) + 2), *(((uint64_t*)*buffer) + 3), *(((uint64_t*)*buffer) + 4), *(((uint64_t*)*buffer) + 5), *(((uint64_t*)*buffer) + 6), *(((uint64_t*)*buffer) + 7), *(((uint64_t*)*buffer) + 8), *(((uint64_t*)*buffer) + 9));
+					TRACE(TLVL_TRACE,"80 bytes: %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx", *(((uint64_t*)*buffer)+0)
+									   , *(((uint64_t*)*buffer)+1)
+									   , *(((uint64_t*)*buffer)+2)
+									   , *(((uint64_t*)*buffer)+3)
+									   , *(((uint64_t*)*buffer)+4)
+									   , *(((uint64_t*)*buffer)+5)
+									   , *(((uint64_t*)*buffer)+6)
+									   , *(((uint64_t*)*buffer)+7)
+									   , *(((uint64_t*)*buffer)+8)
+									   , *(((uint64_t*)*buffer)+9)
+									   );
+
 				}
 				++buffers_held_;
 			}

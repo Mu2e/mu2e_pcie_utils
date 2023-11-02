@@ -6,21 +6,24 @@
 #include <functional>  // std::bind, std::function
 #include <vector>      // std::vector
 
-#include "DTC_Types.h"
-#include "mu2edev.h"
+// #include "DTC_Types.h"
+// #include "mu2edev.h"
+#include "CFOandDTC_Registers.h"
 
 namespace DTCLib {
+// struct DTC_Register : public DTCLib::CFOandDTC_Register { 
 enum DTC_Register : uint16_t
 {
-	DTC_Register_DesignVersion = 0x9000,
-	DTC_Register_DesignDate = 0x9004,
-	DTC_Register_DesignStatus = 0x9008,
+	#include "CFOandDTC_Register.def"
+	// DTC_Register_DesignVersion = 0x9000,
+	// DTC_Register_DesignDate = 0x9004,
+	// DTC_Register_DesignStatus = 0x9008,
 	DTC_Register_VivadoVersion = 0x900C,
-	DTC_Register_FPGA_Temperature = 0x9010,
-	DTC_Register_FPGA_VCCINT = 0x9014,
-	DTC_Register_FPGA_VCCAUX = 0x9018,
-	DTC_Register_FPGA_VCCBRAM = 0x901C,
-	DTC_Register_FPGA_MonitorAlarm = 0x9020,
+	// DTC_Register_FPGA_Temperature = 0x9010,
+	// DTC_Register_FPGA_VCCINT = 0x9014,
+	// DTC_Register_FPGA_VCCAUX = 0x9018,
+	// DTC_Register_FPGA_VCCBRAM = 0x901C,
+	// DTC_Register_FPGA_MonitorAlarm = 0x9020,
 	DTC_Register_Scratch = 0x9030,
 	DTC_Register_KernelDriverVersion = 0x9040,
 	DTC_Register_DTCControl = 0x9100,
@@ -358,26 +361,28 @@ enum DTC_Register : uint16_t
 	DTC_Register_RXDataDiagnosticFIFO_LinkCFO = 0x9700,
 	DTC_Register_TXDataDiagnosticFIFO_LinkCFO = 0x9708,
 	DTC_Register_Invalid,
-};
+// };
+}; // end DTC_Register enum
 
 /// <summary>
 /// The DTC_Registers class represents the DTC Register space, and all the methods necessary to read and write those
-/// registers. Each register has, at the very least, a read method, a write method, and a DTC_RegisterFormatter method
+/// registers. Each register has, at the very least, a read method, a write method, and a RegisterFormatter method
 /// which formats the register value in a human-readable way.
 /// </summary>
-class DTC_Registers
+class DTC_Registers : public CFOandDTC_Registers
 {
 public:
 	explicit DTC_Registers(DTC_SimMode mode, int dtc, std::string simFileName, unsigned linkMask = 0x1, std::string expectedDesignVersion = "",
 						   bool skipInit = false, const std::string& uid = "");
 
 	virtual ~DTC_Registers();
+	DTC_Register reg_;
 
-	/// <summary>
-	/// Get a pointer to the device handle
-	/// </summary>
-	/// <returns>mu2edev* pointer</returns>
-	mu2edev* GetDevice() { return &device_; }
+	// /// <summary>
+	// /// Get a pointer to the device handle
+	// /// </summary>
+	// /// <returns>mu2edev* pointer</returns>
+	// mu2edev* GetDevice() { return &device_; }
 
 	//
 	// DTC Sim Mode Virtual Register
@@ -394,79 +399,77 @@ public:
 	//
 	// DTC Register Dumps
 	//
-	std::string FormattedRegDump(int width, const std::vector<std::function<DTC_RegisterFormatter()>> *regVecIn = nullptr);
 	std::string LinkCountersRegDump(int width);
 	std::string PerformanceCountersRegDump(int width);
 	std::string SERDESErrorsRegDump(int width);
 	std::string PacketCountersRegDump(int width);
 
-	/// <summary>
-	/// Initializes a DTC_RegisterFormatter for the given DTC_Register
-	/// </summary>
-	/// <param name="address">Address of register to format</param>
-	/// <returns>DTC_RegisterFormatter with address and raw value set</returns>
-	DTC_RegisterFormatter CreateFormatter(const DTC_Register& address)
-	{
-		DTC_RegisterFormatter form;
-		form.descWidth = formatterWidth_;
-		form.address = address;
-		form.value = ReadRegister_(address);
-		return form;
-	}
+	// /// <summary>
+	// /// Initializes a RegisterFormatter for the given DTC_Register
+	// /// </summary>
+	// /// <param name="address">Address of register to format</param>
+	// /// <returns>RegisterFormatter with address and raw value set</returns>
+	// RegisterFormatter CreateFormatter(const DTC_Register& address)
+	// {
+	// 	RegisterFormatter form;
+	// 	form.descWidth = formatterWidth_;
+	// 	form.address = address;
+	// 	form.value = ReadRegister_(address);
+	// 	return form;
+	// }
 
 	//
 	// Register IO Functions
 	//
 
-	// Desgin Version/Date Registers
-	std::string ReadDesignVersion();
-	DTC_RegisterFormatter FormatDesignVersion();
-	std::string ReadDesignDate();
-	DTC_RegisterFormatter FormatDesignDate();
-	std::string ReadDesignVersionNumber();
-	std::string ReadDesignLinkSpeed();
+	// // Desgin Version/Date Registers
+	// std::string ReadDesignVersion();
+	// RegisterFormatter FormatDesignVersion();
+	// std::string ReadDesignDate();
+	// RegisterFormatter FormatDesignDate();
+	// std::string ReadDesignVersionNumber();
 
 	// Design Status Register
 	bool ReadDDRInterfaceReset();
 	void SetDDRInterfaceReset(bool reset);
 	void ResetDDRInterface();
 	bool ReadDDRAutoCalibrationDone();
-	DTC_RegisterFormatter FormatDesignStatus();
+	RegisterFormatter FormatDesignStatus();
 
 	// Vivado Version Register
-	std::string ReadVivadoVersionNumber();
-	DTC_RegisterFormatter FormatVivadoVersion();
+	std::string ReadVivadoVersionNumber(uint32_t* val = 0) override;
+	RegisterFormatter FormatVivadoVersion() override;
 
-	// FPGA Temperature Register
-	double ReadFPGATemperature();
-	DTC_RegisterFormatter FormatFPGATemperature();
+	// // FPGA Temperature Register
+	// double ReadFPGATemperature();
+	// RegisterFormatter FormatFPGATemperature();
 
-	// FPGA VCCINT Voltage Register
-	double ReadFPGAVCCINTVoltage();
-	DTC_RegisterFormatter FormatFPGAVCCINT();
+	// // FPGA VCCINT Voltage Register
+	// double ReadFPGAVCCINTVoltage();
+	// RegisterFormatter FormatFPGAVCCINT();
 
-	// FPGA VCCAUX Voltage Register
-	double ReadFPGAVCCAUXVoltage();
-	DTC_RegisterFormatter FormatFPGAVCCAUX();
+	// // FPGA VCCAUX Voltage Register
+	// double ReadFPGAVCCAUXVoltage();
+	// RegisterFormatter FormatFPGAVCCAUX();
 
-	// FPGA VCCBRAM Voltage Register
-	double ReadFPGAVCCBRAMVoltage();
-	DTC_RegisterFormatter FormatFPGAVCCBRAM();
+	// // FPGA VCCBRAM Voltage Register
+	// double ReadFPGAVCCBRAMVoltage();
+	// RegisterFormatter FormatFPGAVCCBRAM();
 
-	// FPGA Monitor Alarm Register
-	bool ReadFPGADieTemperatureAlarm();
-	void ResetFPGADieTemperatureAlarm();
-	bool ReadFPGAAlarms();
-	void ResetFPGAAlarms();
-	bool ReadVCCBRAMAlarm();
-	void ResetVCCBRAMAlarm();
-	bool ReadVCCAUXAlarm();
-	void ResetVCCAUXAlarm();
-	bool ReadVCCINTAlarm();
-	void ResetVCCINTAlarm();
-	bool ReadFPGAUserTemperatureAlarm();
-	void ResetFPGAUserTemperatureAlarm();
-	DTC_RegisterFormatter FormatFPGAAlarms();
+	// // FPGA Monitor Alarm Register
+	// bool ReadFPGADieTemperatureAlarm();
+	// void ResetFPGADieTemperatureAlarm();
+	// bool ReadFPGAAlarms();
+	// void ResetFPGAAlarms();
+	// bool ReadVCCBRAMAlarm();
+	// void ResetVCCBRAMAlarm();
+	// bool ReadVCCAUXAlarm();
+	// void ResetVCCAUXAlarm();
+	// bool ReadVCCINTAlarm();
+	// void ResetVCCINTAlarm();
+	// bool ReadFPGAUserTemperatureAlarm();
+	// void ResetFPGAUserTemperatureAlarm();
+	// RegisterFormatter FormatFPGAAlarms();
 
 	// DTC Control Register
 	void ClearDTCControlRegister();    
@@ -548,24 +551,24 @@ public:
 	bool ReadDCSReception();     // B2
 	// Bit 1 Reserved
 	// Bit 0 Reserved
-	DTC_RegisterFormatter FormatDTCControl();
+	RegisterFormatter FormatDTCControl();
 
 	// DMA Transfer Length Register
 	void SetTriggerDMATransferLength(uint16_t length);
 	uint16_t ReadTriggerDMATransferLength();
 	void SetMinDMATransferLength(uint16_t length);
 	uint16_t ReadMinDMATransferLength();
-	DTC_RegisterFormatter FormatDMATransferLength();
+	RegisterFormatter FormatDMATransferLength();
 
 	// SERDES Loopback Enable Register
 	void SetSERDESLoopbackMode(DTC_Link_ID const& link, const DTC_SERDESLoopbackMode& mode);
 	DTC_SERDESLoopbackMode ReadSERDESLoopback(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESLoopbackEnable();
+	RegisterFormatter FormatSERDESLoopbackEnable();
 
 	// Clock Status Register
 	bool ReadSERDESOscillatorIICError();
 	bool ReadDDROscillatorIICError();
-	DTC_RegisterFormatter FormatClockOscillatorStatus();
+	RegisterFormatter FormatClockOscillatorStatus();
 
 	// ROC Emulation Enable Register
 	void EnableROCEmulator(DTC_Link_ID const& link);
@@ -573,7 +576,7 @@ public:
 	bool ReadROCEmulator(DTC_Link_ID const& link);
 	void SetROCEmulatorMask(uint32_t rocEnableMask);
 	uint32_t ReadROCEmulatorMask();
-	DTC_RegisterFormatter FormatROCEmulationEnable();
+	RegisterFormatter FormatROCEmulationEnable();
 
 	// Link Enable Register
 	void EnableReceiveCFOLink();
@@ -583,7 +586,7 @@ public:
 	void EnableLink(DTC_Link_ID const& link, const DTC_LinkEnableMode& mode = DTC_LinkEnableMode());
 	void DisableLink(DTC_Link_ID const& link, const DTC_LinkEnableMode& mode = DTC_LinkEnableMode());
 	DTC_LinkEnableMode ReadLinkEnabled(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatLinkEnable();
+	RegisterFormatter FormatLinkEnable();
 
 	// SERDES Reset Register
 	void ResetSERDESTX(DTC_Link_ID const& link, int interval = 100000);
@@ -594,67 +597,67 @@ public:
 	bool ReadResetSERDESPLL(const DTC_PLL_ID& pll);
 	void ResetSERDES(DTC_Link_ID const& link, int interval = 100000);
 	bool ReadResetSERDES(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESReset();
+	RegisterFormatter FormatSERDESReset();
 
 	// Link Diagnostic FIFOs
-	//DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatRXDiagFifo(DTC_Link_ID const& link);
-	//DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatTXDiagFifo(DTC_Link_ID const& link);
-	DTCLib::DTC_RegisterFormatter FormatRXDiagFifo(DTC_Link_ID const& link);
-	DTCLib::DTC_RegisterFormatter FormatTXDiagFifo(DTC_Link_ID const& link);
+	//DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRXDiagFifo(DTC_Link_ID const& link);
+	//DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXDiagFifo(DTC_Link_ID const& link);
+	DTCLib::RegisterFormatter FormatRXDiagFifo(DTC_Link_ID const& link);
+	DTCLib::RegisterFormatter FormatTXDiagFifo(DTC_Link_ID const& link);
 
 
 	// SERDES RX Disparity Error Register
 	DTC_SERDESRXDisparityError ReadSERDESRXDisparityError(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESRXDisparityError();
+	RegisterFormatter FormatSERDESRXDisparityError();
 
 	// SERDES Character Not In Table Error Register
 	DTC_CharacterNotInTableError ReadSERDESRXCharacterNotInTableError(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESRXCharacterNotInTableError();
+	RegisterFormatter FormatSERDESRXCharacterNotInTableError();
 
 	// SERDES Unlock Error Register
 	bool ReadSERDESCDRUnlockError(DTC_Link_ID const& link);
 	bool ReadSERDESPLLUnlockError(const DTC_PLL_ID& pll);
-	DTC_RegisterFormatter FormatSERDESUnlockError();
+	RegisterFormatter FormatSERDESUnlockError();
 
 	// SERDES PLL Locked Register
 	bool ReadSERDESPLLLocked(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESPLLLocked();
+	RegisterFormatter FormatSERDESPLLLocked();
 
 	// SERDES PLL Power Down
 	void EnableSERDESPLL(DTC_Link_ID const& link);
 	void DisableSERDESPLL(DTC_Link_ID const& link);
 	bool ReadSERDESPLLPowerDown(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESPLLPowerDown();
+	RegisterFormatter FormatSERDESPLLPowerDown();
 
 	// SERDES RX Status Register
 	DTC_RXStatus ReadSERDESRXStatus(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESRXStatus();
+	RegisterFormatter FormatSERDESRXStatus();
 
 	// SERDES Reset Done Register
 	bool ReadResetRXFSMSERDESDone(DTC_Link_ID const& link);
 	bool ReadResetRXSERDESDone(DTC_Link_ID const& link);
 	bool ReadResetTXFSMSERDESDone(DTC_Link_ID const& link);
 	bool ReadResetTXSERDESDone(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESResetDone();
+	RegisterFormatter FormatSERDESResetDone();
 
 	// SERDES CDR Lock Register
 	bool ReadSERDESRXCDRLock(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatRXCDRLockStatus();
+	RegisterFormatter FormatRXCDRLockStatus();
 
 	// DMA Timeout Preset Regsiter
 	void SetDMATimeoutPreset(uint32_t preset);
 	uint32_t ReadDMATimeoutPreset();
-	DTC_RegisterFormatter FormatDMATimeoutPreset();
+	RegisterFormatter FormatDMATimeoutPreset();
 
 	// ROC Timeout (Header Packet to All Packets Received) Preset Register
 	void SetROCTimeoutPreset(uint32_t preset);
 	uint32_t ReadROCTimeoutPreset();
-	DTC_RegisterFormatter FormatROCReplyTimeout();
+	RegisterFormatter FormatROCReplyTimeout();
 
 	// ROC Timeout Error Register
 	void ClearROCTimeoutError(DTC_Link_ID const& link);
 	bool ReadROCTimeoutError(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatROCReplyTimeoutError();
+	RegisterFormatter FormatROCReplyTimeoutError();
 
 	// EVB Network Partition ID / EVB Network Local MAC Index Register
 	void SetEVBInfo(uint8_t dtcid, uint8_t mode, uint8_t partitionId, uint8_t macByte);
@@ -666,7 +669,7 @@ public:
 	uint8_t ReadEVBLocalParitionID();
 	void SetEVBLocalMACAddress(uint8_t macByte);
 	uint8_t ReadEVBLocalMACAddress();
-	DTC_RegisterFormatter FormatEVBLocalParitionIDMACIndex();
+	RegisterFormatter FormatEVBLocalParitionIDMACIndex();
 
 	// EVB Buffer Config
 	void SetEVBBufferInfo(uint8_t bufferCount, uint8_t startNode, uint8_t numOfNodes);
@@ -676,7 +679,7 @@ public:
 	uint8_t ReadEVBStartNode();
 	void SetEVBNumberOfDestinationNodes(uint8_t number);
 	uint8_t ReadEVBNumberOfDestinationNodes();
-	DTC_RegisterFormatter FormatEVBNumberOfDestinationNodes();
+	RegisterFormatter FormatEVBNumberOfDestinationNodes();
 
 	// SERDES Oscillator Registers
 	uint32_t ReadSERDESOscillatorReferenceFrequency(DTC_IICSERDESBusAddress device);
@@ -691,11 +694,11 @@ public:
 	DTC_SerdesClockSpeed ReadSERDESOscillatorClock();
 	void SetSERDESOscillatorClock(DTC_SerdesClockSpeed speed);
 	void SetTimingOscillatorClock(uint32_t freq);
-	DTC_RegisterFormatter FormatTimingSERDESOscillatorFrequency();
-	DTC_RegisterFormatter FormatMainBoardSERDESOscillatorFrequency();
-	DTC_RegisterFormatter FormatSERDESOscillatorControl();
-	DTC_RegisterFormatter FormatSERDESOscillatorParameterLow();
-	DTC_RegisterFormatter FormatSERDESOscillatorParameterHigh();
+	RegisterFormatter FormatTimingSERDESOscillatorFrequency();
+	RegisterFormatter FormatMainBoardSERDESOscillatorFrequency();
+	RegisterFormatter FormatSERDESOscillatorControl();
+	RegisterFormatter FormatSERDESOscillatorParameterLow();
+	RegisterFormatter FormatSERDESOscillatorParameterHigh();
 
 	// DDR Oscillator Registers
 	uint32_t ReadDDROscillatorReferenceFrequency();
@@ -705,65 +708,65 @@ public:
 
 	void WriteDDRIICInterface(DTC_IICDDRBusAddress device, uint8_t address, uint8_t data);
 	uint8_t ReadDDRIICInterface(DTC_IICDDRBusAddress device, uint8_t address);
-	DTC_RegisterFormatter FormatDDROscillatorFrequency();
-	DTC_RegisterFormatter FormatDDROscillatorControl();
-	DTC_RegisterFormatter FormatDDROscillatorParameterLow();
-	DTC_RegisterFormatter FormatDDROscillatorParameterHigh();
+	RegisterFormatter FormatDDROscillatorFrequency();
+	RegisterFormatter FormatDDROscillatorControl();
+	RegisterFormatter FormatDDROscillatorParameterLow();
+	RegisterFormatter FormatDDROscillatorParameterHigh();
 
 	// Data Pending Timer Register
 	void SetDataPendingTimer(uint32_t timer);
 	uint32_t ReadDataPendingTimer();
-	DTC_RegisterFormatter FormatDataPendingTimer();
+	RegisterFormatter FormatDataPendingTimer();
 
 	// FIFO Full Error Flags Registers
 	void ClearFIFOFullErrorFlags(DTC_Link_ID const& link);
 	DTC_FIFOFullErrorFlags ReadFIFOFullErrorFlags(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatFIFOFullErrorFlag0();
-	DTC_RegisterFormatter FormatFIFOFullErrorFlag1();
-	DTC_RegisterFormatter FormatFIFOFullErrorFlag2();
+	RegisterFormatter FormatFIFOFullErrorFlag0();
+	RegisterFormatter FormatFIFOFullErrorFlag1();
+	RegisterFormatter FormatFIFOFullErrorFlag2();
 
 	// Receive Packet Error Register
 	void ClearPacketError(DTC_Link_ID const& link);
 	bool ReadPacketError(DTC_Link_ID const& link);
 	void ClearPacketCRCError(DTC_Link_ID const& link);
 	bool ReadPacketCRCError(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatReceivePacketError();
+	RegisterFormatter FormatReceivePacketError();
 
 	// CFO Emulation Timestamp Registers
 	void SetCFOEmulationTimestamp(const DTC_EventWindowTag& ts);
 	DTC_EventWindowTag ReadCFOEmulationTimestamp();
-	DTC_RegisterFormatter FormatCFOEmulationTimestampLow();
-	DTC_RegisterFormatter FormatCFOEmulationTimestampHigh();
+	RegisterFormatter FormatCFOEmulationTimestampLow();
+	RegisterFormatter FormatCFOEmulationTimestampHigh();
 
 	// CFO Emulation Heartbeat Interval Regsister
 	void SetCFOEmulationHeartbeatInterval(uint32_t interval);
 	uint32_t ReadCFOEmulationHeartbeatInterval();
-	DTC_RegisterFormatter FormatCFOEmulationHeartbeatInterval();
+	RegisterFormatter FormatCFOEmulationHeartbeatInterval();
 
 	// CFO Emulation Number of Heartbeats Register
 	void SetCFOEmulationNumHeartbeats(uint32_t numHeartbeats);
 	uint32_t ReadCFOEmulationNumHeartbeats();
-	DTC_RegisterFormatter FormatCFOEmulationNumHeartbeats();
+	RegisterFormatter FormatCFOEmulationNumHeartbeats();
 
 	// CFO Emulation Number of Packets Registers
 	void SetCFOEmulationNumPackets(DTC_Link_ID const& link, uint16_t numPackets);
 	uint16_t ReadCFOEmulationNumPackets(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatCFOEmulationNumPacketsLink01();
-	DTC_RegisterFormatter FormatCFOEmulationNumPacketsLink23();
-	DTC_RegisterFormatter FormatCFOEmulationNumPacketsLink45();
+	RegisterFormatter FormatCFOEmulationNumPacketsLink01();
+	RegisterFormatter FormatCFOEmulationNumPacketsLink23();
+	RegisterFormatter FormatCFOEmulationNumPacketsLink45();
 
 	// CFO Emulation Number of Null Heartbeats Register
 	void SetCFOEmulationNumNullHeartbeats(const uint32_t& count);
 	uint32_t ReadCFOEmulationNumNullHeartbeats();
-	DTC_RegisterFormatter FormatCFOEmulationNumNullHeartbeats();
+	RegisterFormatter FormatCFOEmulationNumNullHeartbeats();
 
 	// CFO Emulation Event Mode Bytes Registers
 	void SetCFOEmulationEventMode(const uint64_t& eventMode);
 	uint64_t ReadCFOEmulationEventMode();
 	void SetCFOEmulationModeByte(const uint8_t& byteNum, uint8_t data);
 	uint8_t ReadCFOEmulationModeByte(const uint8_t& byteNum);
-	DTC_RegisterFormatter FormatCFOEmulationModeBytes03();
-	DTC_RegisterFormatter FormatCFOEmulationModeBytes45();
+	RegisterFormatter FormatCFOEmulationModeBytes03();
+	RegisterFormatter FormatCFOEmulationModeBytes45();
 
 	// CFO Emulation Debug Packet Type Register
 	void EnableDebugPacketMode();
@@ -771,23 +774,23 @@ public:
 	bool ReadDebugPacketMode();
 	void SetCFOEmulationDebugType(DTC_DebugType type);
 	DTC_DebugType ReadCFOEmulationDebugType();
-	DTC_RegisterFormatter FormatCFOEmulationDebugPacketType();
+	RegisterFormatter FormatCFOEmulationDebugPacketType();
 
 	// RX Packet Count Error Flags Register
 	bool ReadRXPacketCountErrorFlags(DTC_Link_ID const& link);
 	void ClearRXPacketCountErrorFlags(DTC_Link_ID const& link);
 	void ClearRXPacketCountErrorFlags();
-	DTC_RegisterFormatter FormatRXPacketCountErrorFlags();
+	RegisterFormatter FormatRXPacketCountErrorFlags();
 
 	// Detector Emulation DMA Count Register
 	void SetDetectorEmulationDMACount(uint32_t count);
 	uint32_t ReadDetectorEmulationDMACount();
-	DTC_RegisterFormatter FormatDetectorEmulationDMACount();
+	RegisterFormatter FormatDetectorEmulationDMACount();
 
 	// Detector Emulation DMA Delay Count Register
 	void SetDetectorEmulationDMADelayCount(uint32_t count);
 	uint32_t ReadDetectorEmulationDMADelayCount();
-	DTC_RegisterFormatter FormatDetectorEmulationDMADelayCount();
+	RegisterFormatter FormatDetectorEmulationDMADelayCount();
 
 	// Detector Emulation Control Registers
 	void EnableDetectorEmulatorMode();
@@ -813,44 +816,44 @@ public:
 		usingDetectorEmulator_ = true;
 	}
 	void ClearDetectorEmulatorInUse();
-	DTC_RegisterFormatter FormatDetectorEmulationControl0();
-	DTC_RegisterFormatter FormatDetectorEmulationControl1();
+	RegisterFormatter FormatDetectorEmulationControl0();
+	RegisterFormatter FormatDetectorEmulationControl1();
 
 	// DDR Event Data Local Start Address Register
 	void SetDDRDataLocalStartAddress(uint32_t address);
 	uint32_t ReadDDRDataLocalStartAddress();
-	DTC_RegisterFormatter FormatDDRDataLocalStartAddress();
+	RegisterFormatter FormatDDRDataLocalStartAddress();
 
 	// DDR Event Data Local End Address Register
 	void SetDDRDataLocalEndAddress(uint32_t address);
 	uint32_t ReadDDRDataLocalEndAddress();
-	DTC_RegisterFormatter FormatDDRDataLocalEndAddress();
+	RegisterFormatter FormatDDRDataLocalEndAddress();
 
 	// CFO Emulator Data Request Interpacket Delay
 	uint32_t ReadCFOEmulatorInterpacketDelay();
-	DTC_RegisterFormatter FormatCFOEmulatorInterpacketDelay();
+	RegisterFormatter FormatCFOEmulatorInterpacketDelay();
 
 	// Ethernet Frame Payload Max Size
 	uint32_t ReadEthernetPayloadSize();
 	void SetEthernetPayloadSize(uint32_t size);
-	DTC_RegisterFormatter FormatEthernetPayloadSize();
+	RegisterFormatter FormatEthernetPayloadSize();
 
 	// CFO Emulation 40 MHz Clock Marker Interval
 	uint32_t ReadCFOEmulation40MHzMarkerInterval();
 	void SetCFOEmulation40MHzMarkerInterval(uint32_t interval);
-	DTC_RegisterFormatter FormatCFOEmulation40MHzMarkerInterval();
+	RegisterFormatter FormatCFOEmulation40MHzMarkerInterval();
 
 	// CFO Emulation Marker Enables
 	bool ReadCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link);
 	void SetCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, bool enable);
 	bool ReadCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link);
 	void SetCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link, bool enable);
-	DTC_RegisterFormatter FormatCFOEmulationMarkerEnables();
+	RegisterFormatter FormatCFOEmulationMarkerEnables();
 
 	// ROC Finish Threshold Register
 	uint8_t ReadROCCommaLimit();
 	void SetROCCommaLimit(uint8_t limit);
-	DTC_RegisterFormatter FormatROCFinishThreshold();
+	RegisterFormatter FormatROCFinishThreshold();
 
 	// SERDES Counter Registers
 	void ClearReceiveByteCount(DTC_Link_ID const& link);
@@ -861,61 +864,61 @@ public:
 	uint32_t ReadTransmitByteCount(DTC_Link_ID const& link);
 	void ClearTransmitPacketCount(DTC_Link_ID const& link);
 	uint32_t ReadTransmitPacketCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatReceiveByteCountLink0();
-	DTC_RegisterFormatter FormatReceiveByteCountLink1();
-	DTC_RegisterFormatter FormatReceiveByteCountLink2();
-	DTC_RegisterFormatter FormatReceiveByteCountLink3();
-	DTC_RegisterFormatter FormatReceiveByteCountLink4();
-	DTC_RegisterFormatter FormatReceiveByteCountLink5();
-	DTC_RegisterFormatter FormatReceiveByteCountCFO();
-	DTC_RegisterFormatter FormatReceivePacketCountLink0();
-	DTC_RegisterFormatter FormatReceivePacketCountLink1();
-	DTC_RegisterFormatter FormatReceivePacketCountLink2();
-	DTC_RegisterFormatter FormatReceivePacketCountLink3();
-	DTC_RegisterFormatter FormatReceivePacketCountLink4();
-	DTC_RegisterFormatter FormatReceivePacketCountLink5();
-	DTC_RegisterFormatter FormatReceivePacketCountCFO();
-	DTC_RegisterFormatter FormatTramsitByteCountLink0();
-	DTC_RegisterFormatter FormatTramsitByteCountLink1();
-	DTC_RegisterFormatter FormatTramsitByteCountLink2();
-	DTC_RegisterFormatter FormatTramsitByteCountLink3();
-	DTC_RegisterFormatter FormatTramsitByteCountLink4();
-	DTC_RegisterFormatter FormatTramsitByteCountLink5();
-	DTC_RegisterFormatter FormatTramsitByteCountCFO();
-	DTC_RegisterFormatter FormatTransmitPacketCountLink0();
-	DTC_RegisterFormatter FormatTransmitPacketCountLink1();
-	DTC_RegisterFormatter FormatTransmitPacketCountLink2();
-	DTC_RegisterFormatter FormatTransmitPacketCountLink3();
-	DTC_RegisterFormatter FormatTransmitPacketCountLink4();
-	DTC_RegisterFormatter FormatTransmitPacketCountLink5();
-	DTC_RegisterFormatter FormatTransmitPacketCountCFO();
+	RegisterFormatter FormatReceiveByteCountLink0();
+	RegisterFormatter FormatReceiveByteCountLink1();
+	RegisterFormatter FormatReceiveByteCountLink2();
+	RegisterFormatter FormatReceiveByteCountLink3();
+	RegisterFormatter FormatReceiveByteCountLink4();
+	RegisterFormatter FormatReceiveByteCountLink5();
+	RegisterFormatter FormatReceiveByteCountCFO();
+	RegisterFormatter FormatReceivePacketCountLink0();
+	RegisterFormatter FormatReceivePacketCountLink1();
+	RegisterFormatter FormatReceivePacketCountLink2();
+	RegisterFormatter FormatReceivePacketCountLink3();
+	RegisterFormatter FormatReceivePacketCountLink4();
+	RegisterFormatter FormatReceivePacketCountLink5();
+	RegisterFormatter FormatReceivePacketCountCFO();
+	RegisterFormatter FormatTramsitByteCountLink0();
+	RegisterFormatter FormatTramsitByteCountLink1();
+	RegisterFormatter FormatTramsitByteCountLink2();
+	RegisterFormatter FormatTramsitByteCountLink3();
+	RegisterFormatter FormatTramsitByteCountLink4();
+	RegisterFormatter FormatTramsitByteCountLink5();
+	RegisterFormatter FormatTramsitByteCountCFO();
+	RegisterFormatter FormatTransmitPacketCountLink0();
+	RegisterFormatter FormatTransmitPacketCountLink1();
+	RegisterFormatter FormatTransmitPacketCountLink2();
+	RegisterFormatter FormatTransmitPacketCountLink3();
+	RegisterFormatter FormatTransmitPacketCountLink4();
+	RegisterFormatter FormatTransmitPacketCountLink5();
+	RegisterFormatter FormatTransmitPacketCountCFO();
 
 	// Firefly TX IIC Registers
 	bool ReadFireflyTXIICInterfaceReset();
 	void ResetFireflyTXIICInterface();
 	void WriteFireflyTXIICInterface(uint8_t device, uint8_t address, uint8_t data);
 	uint8_t ReadFireflyTXIICInterface(uint8_t device, uint8_t address);
-	DTC_RegisterFormatter FormatFireflyTXIICControl();
-	DTC_RegisterFormatter FormatFireflyTXIICParameterLow();
-	DTC_RegisterFormatter FormatFireflyTXIICParameterHigh();
+	RegisterFormatter FormatFireflyTXIICControl();
+	RegisterFormatter FormatFireflyTXIICParameterLow();
+	RegisterFormatter FormatFireflyTXIICParameterHigh();
 
 	// Firefly RX IIC Registers
 	bool ReadFireflyRXIICInterfaceReset();
 	void ResetFireflyRXIICInterface();
 	void WriteFireflyRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
 	uint8_t ReadFireflyRXIICInterface(uint8_t device, uint8_t address);
-	DTC_RegisterFormatter FormatFireflyRXIICControl();
-	DTC_RegisterFormatter FormatFireflyRXIICParameterLow();
-	DTC_RegisterFormatter FormatFireflyRXIICParameterHigh();
+	RegisterFormatter FormatFireflyRXIICControl();
+	RegisterFormatter FormatFireflyRXIICParameterLow();
+	RegisterFormatter FormatFireflyRXIICParameterHigh();
 
 	// Firefly TXRX IIC Registers
 	bool ReadFireflyTXRXIICInterfaceReset();
 	void ResetFireflyTXRXIICInterface();
 	void WriteFireflyTXRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
 	uint8_t ReadFireflyTXRXIICInterface(uint8_t device, uint8_t address);
-	DTC_RegisterFormatter FormatFireflyTXRXIICControl();
-	DTC_RegisterFormatter FormatFireflyTXRXIICParameterLow();
-	DTC_RegisterFormatter FormatFireflyTXRXIICParameterHigh();
+	RegisterFormatter FormatFireflyTXRXIICControl();
+	RegisterFormatter FormatFireflyTXRXIICParameterLow();
+	RegisterFormatter FormatFireflyTXRXIICParameterHigh();
 
 	// SERDES TX PRBS Control
 	bool ReadTXPRBSForceError(DTC_Link_ID const& link);
@@ -923,13 +926,13 @@ public:
 	void ClearTXPRBSForceError(DTC_Link_ID const& link);
 	DTC_PRBSMode ReadTXPRBSMode(DTC_Link_ID const& link);
 	void SetTXPRBSMode(DTC_Link_ID const& link, DTC_PRBSMode mode);
-	DTC_RegisterFormatter FormatSERDESTXPRBSControl();
+	RegisterFormatter FormatSERDESTXPRBSControl();
 
 	// SERDES RX PRBS Control
 	bool ReadRXPRBSError(DTC_Link_ID const& link);
 	DTC_PRBSMode ReadRXPRBSMode(DTC_Link_ID const& link);
 	void SetRXPRBSMode(DTC_Link_ID const& link, DTC_PRBSMode mode);
-	DTC_RegisterFormatter FormatSERDESRXPRBSControl();
+	RegisterFormatter FormatSERDESRXPRBSControl();
 
 	// DTC Mode Lookup
 	bool ReadEventModeTableEnable();
@@ -937,27 +940,27 @@ public:
 	void ClearEventModeTableEnable();
 	uint8_t ReadEventModeLookupByteSelect();
 	void SetEventModeLookupByteSelect(uint8_t byte);
-	DTC_RegisterFormatter FormatEventModeLookupTableControl();
+	RegisterFormatter FormatEventModeLookupTableControl();
 
 	// DDR Memory Test Register
 	bool ReadDDRMemoryTestComplete();
 	bool ReadDDRMemoryTestError();
 	void ClearDDRMemoryTestError();
-	DTC_RegisterFormatter FormatDDRMemoryTestRegister();
+	RegisterFormatter FormatDDRMemoryTestRegister();
 
 	// SERDES Serial Inversion Enable Register
 	bool ReadInvertSERDESRXInput(DTC_Link_ID const& link);
 	void SetInvertSERDESRXInput(DTC_Link_ID const& link, bool invert);
 	bool ReadInvertSERDESTXOutput(DTC_Link_ID const& link);
 	void SetInvertSERDESTXOutput(DTC_Link_ID const& link, bool invert);
-	DTC_RegisterFormatter FormatSERDESSerialInversionEnable();
+	RegisterFormatter FormatSERDESSerialInversionEnable();
 
 	// Jitter Attenuator CSR Register
 	std::bitset<2> ReadJitterAttenuatorSelect();
 	void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
 	bool ReadJitterAttenuatorReset();
 	void ResetJitterAttenuator();
-	DTC_RegisterFormatter FormatJitterAttenuatorCSR();
+	RegisterFormatter FormatJitterAttenuatorCSR();
 
 	void ConfigureJitterAttenuator();
 
@@ -966,39 +969,39 @@ public:
 	void ResetSFPIICInterface();
 	void WriteSFPIICInterface(uint8_t device, uint8_t address, uint8_t data);
 	uint8_t ReadSFPIICInterface(uint8_t device, uint8_t address);
-	DTC_RegisterFormatter FormatSFPIICControl();
-	DTC_RegisterFormatter FormatSFPIICParameterLow();
-	DTC_RegisterFormatter FormatSFPIICParameterHigh();
+	RegisterFormatter FormatSFPIICControl();
+	RegisterFormatter FormatSFPIICParameterLow();
+	RegisterFormatter FormatSFPIICParameterHigh();
 
 	// Retransmit Request Count Registers
 	uint32_t ReadRetransmitRequestCount(DTC_Link_ID const& link);
 	void ClearRetransmitRequestCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatRetransmitRequestCountLink0();
-	DTC_RegisterFormatter FormatRetransmitRequestCountLink1();
-	DTC_RegisterFormatter FormatRetransmitRequestCountLink2();
-	DTC_RegisterFormatter FormatRetransmitRequestCountLink3();
-	DTC_RegisterFormatter FormatRetransmitRequestCountLink4();
-	DTC_RegisterFormatter FormatRetransmitRequestCountLink5();
+	RegisterFormatter FormatRetransmitRequestCountLink0();
+	RegisterFormatter FormatRetransmitRequestCountLink1();
+	RegisterFormatter FormatRetransmitRequestCountLink2();
+	RegisterFormatter FormatRetransmitRequestCountLink3();
+	RegisterFormatter FormatRetransmitRequestCountLink4();
+	RegisterFormatter FormatRetransmitRequestCountLink5();
 
 	// Missed CFO Packet Count Registers
 	uint32_t ReadMissedCFOPacketCount(DTC_Link_ID const& link);
 	void ClearMissedCFOPacketCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatMissedCFOPacketCountLink0();
-	DTC_RegisterFormatter FormatMissedCFOPacketCountLink1();
-	DTC_RegisterFormatter FormatMissedCFOPacketCountLink2();
-	DTC_RegisterFormatter FormatMissedCFOPacketCountLink3();
-	DTC_RegisterFormatter FormatMissedCFOPacketCountLink4();
-	DTC_RegisterFormatter FormatMissedCFOPacketCountLink5();
+	RegisterFormatter FormatMissedCFOPacketCountLink0();
+	RegisterFormatter FormatMissedCFOPacketCountLink1();
+	RegisterFormatter FormatMissedCFOPacketCountLink2();
+	RegisterFormatter FormatMissedCFOPacketCountLink3();
+	RegisterFormatter FormatMissedCFOPacketCountLink4();
+	RegisterFormatter FormatMissedCFOPacketCountLink5();
 
 	// Local Fragment Drop Count Register
 	uint32_t ReadLocalFragmentDropCount();
 	void ClearLocalFragmentDropCount();
-	DTC_RegisterFormatter FormatLocalFragmentDropCount();
+	RegisterFormatter FormatLocalFragmentDropCount();
 
 	// EVB SubEvent Receive Timer Preset
 	uint32_t ReadEVBSubEventReceiveTimer();
 	void SetEVBSubEventReceiveTimer(uint32_t timer);
-	DTC_RegisterFormatter FormatEVBSubEventReceiveTimer();
+	RegisterFormatter FormatEVBSubEventReceiveTimer();
 
 	// EVB SERDES PRBS Control / Status Register
 	bool ReadEVBSERDESPRBSErrorFlag();
@@ -1012,7 +1015,7 @@ public:
 	bool ReadEVBSERDESPRBSReset();
 	void SetEVBSERDESPRBSReset(bool flag);
 	void ToggleEVBSERDESPRBSReset();
-	DTC_RegisterFormatter FormatEVBSERDESPRBSControl();
+	RegisterFormatter FormatEVBSERDESPRBSControl();
 
 	// Event Builder Error Register
 	bool ReadEventBuilder_SubEventReceiverFlagsBufferError();
@@ -1021,7 +1024,7 @@ public:
 	bool ReadEventBuilder_TXPacketError();
 	bool ReadEventBuilder_LocalDataPointerFIFOQueueError();
 	bool ReadEventBuilder_TransmitDMAByteCountFIFOFull();
-	DTC_RegisterFormatter FormatEventBuilderErrorRegister();
+	RegisterFormatter FormatEventBuilderErrorRegister();
 
 	// SERDES VFIFO Error Register
 	bool ReadSERDESVFIFO_EgressFIFOFull();
@@ -1030,7 +1033,7 @@ public:
 	bool ReadSERDESVFIFO_LastWordWrittenTimeoutError();
 	bool ReadSERDESVFIFO_FragmentCountError();
 	bool ReadSERDESVFIFO_DDRFullError();
-	DTC_RegisterFormatter FormatSERDESVFIFOError();
+	RegisterFormatter FormatSERDESVFIFOError();
 
 	// PCI VFIFO Error Register
 	bool ReadPCIVFIFO_DDRFull();
@@ -1041,7 +1044,7 @@ public:
 	bool ReadPCIVFIFO_RXBufferSelectFIFOFull();
 	bool ReadPCIVFIFO_IngressFIFOFull();
 	bool ReadPCIVFIFO_EventByteCountTotalError();
-	DTC_RegisterFormatter FormatPCIVFIFOError();
+	RegisterFormatter FormatPCIVFIFOError();
 
 	// ROC Link Error Registers
 	bool ReadROCLink_ROCDataRequestSyncError(DTC_Link_ID const& link);
@@ -1050,20 +1053,20 @@ public:
 	bool ReadROCLink_RXPacketCRCError(DTC_Link_ID const& link);
 	bool ReadROCLink_DataPendingTimeoutError(DTC_Link_ID const& link);
 	bool ReadROCLink_ReceiveDataPacketCountError(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatRocLink0Error();
-	DTC_RegisterFormatter FormatRocLink1Error();
-	DTC_RegisterFormatter FormatRocLink2Error();
-	DTC_RegisterFormatter FormatRocLink3Error();
-	DTC_RegisterFormatter FormatRocLink4Error();
-	DTC_RegisterFormatter FormatRocLink5Error();
+	RegisterFormatter FormatRocLink0Error();
+	RegisterFormatter FormatRocLink1Error();
+	RegisterFormatter FormatRocLink2Error();
+	RegisterFormatter FormatRocLink3Error();
+	RegisterFormatter FormatRocLink4Error();
+	RegisterFormatter FormatRocLink5Error();
 
 	// CFO Link Error Register
-	DTC_RegisterFormatter FormatCFOLinkError();
+	RegisterFormatter FormatCFOLinkError();
 
 	// Link Mux Error Register
 	bool ReadDCSMuxDecodeError();
 	bool ReadDataMuxDecodeError();
-	DTC_RegisterFormatter FormatLinkMuxError();
+	RegisterFormatter FormatLinkMuxError();
 
 	// Firefly CSR Register
 	bool ReadTXRXFireflyPresent();
@@ -1084,7 +1087,7 @@ public:
 	void ResetTXFirefly();
 	bool ReadResetRXFirefly();
 	void ResetRXFirefly();
-	DTC_RegisterFormatter FormatFireflyCSR();
+	RegisterFormatter FormatFireflyCSR();
 
 	// SFP Control Status Register
 	bool ReadSFPPresent();
@@ -1096,61 +1099,61 @@ public:
 	void DisableSFPTX();
 	void EnableSFPTX();
 	bool ReadSFPTXDisable();
-	DTC_RegisterFormatter FormatSFPControlStatus();
+	RegisterFormatter FormatSFPControlStatus();
 
 	// RX CDR Unlock Count Registers
 	uint32_t ReadRXCDRUnlockCount(DTC_Link_ID const& link);
 	void ClearRXCDRUnlockCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatRXCDRUnlockCountLink0();
-	DTC_RegisterFormatter FormatRXCDRUnlockCountLink1();
-	DTC_RegisterFormatter FormatRXCDRUnlockCountLink2();
-	DTC_RegisterFormatter FormatRXCDRUnlockCountLink3();
-	DTC_RegisterFormatter FormatRXCDRUnlockCountLink4();
-	DTC_RegisterFormatter FormatRXCDRUnlockCountLink5();
-	DTC_RegisterFormatter FormatRXCDRUnlockCountCFOLink();
+	RegisterFormatter FormatRXCDRUnlockCountLink0();
+	RegisterFormatter FormatRXCDRUnlockCountLink1();
+	RegisterFormatter FormatRXCDRUnlockCountLink2();
+	RegisterFormatter FormatRXCDRUnlockCountLink3();
+	RegisterFormatter FormatRXCDRUnlockCountLink4();
+	RegisterFormatter FormatRXCDRUnlockCountLink5();
+	RegisterFormatter FormatRXCDRUnlockCountCFOLink();
 
 	// RX Jitter Attenuator Unlock Count Register
 	uint32_t ReadJitterAttenuatorUnlockCount();
 	void ClearJitterAttenuatorUnlockCount();
-	DTC_RegisterFormatter FormatJitterAttenuatorUnlockCount();
+	RegisterFormatter FormatJitterAttenuatorUnlockCount();
 
 	// RX CFO Link Event Start Character Error Count Register
 	uint32_t ReadRXCFOLinkEventStartCharacterErrorCount();
 	void ClearRXCFOLinkEventStartCharacterErrorCount();
-	DTC_RegisterFormatter FormatRXCFOLinkEventStartCharacterErrorCount();
+	RegisterFormatter FormatRXCFOLinkEventStartCharacterErrorCount();
 
 	// RX CFO Link 40MHz Clock Character Error Count Register
 	uint32_t ReadRXCFOLink40MHzCharacterErrorCount();
 	void ClearRXCFOLink40MHzCharacterErrorCount();
-	DTC_RegisterFormatter FormatRXCFOLink40MHzCharacterErrorCount();
+	RegisterFormatter FormatRXCFOLink40MHzCharacterErrorCount();
 
 	// Input Buffer Fragment Dump Count
 	uint32_t ReadInputBufferFragmentDumpCount();
 	void ClearInputBufferFragmentDumpCount();
-	DTC_RegisterFormatter FormatInputBufferFragmentDumpCount();
+	RegisterFormatter FormatInputBufferFragmentDumpCount();
 
 	// Output Buffer Fragment Dump Count
 	uint32_t ReadOutputBufferFragmentDumpCount();
 	void ClearOutputBufferFragmentDumpCount();
-	DTC_RegisterFormatter FormatOutputBufferFragmentDumpCount();
+	RegisterFormatter FormatOutputBufferFragmentDumpCount();
 
 	// ROC DCS Response Timer Preset
 	uint32_t ReadROCDCSResponseTimer();
 	void SetROCDCSResponseTimer(uint32_t timer);
-	DTC_RegisterFormatter FormatROCDCSResponseTimerPreset();
+	RegisterFormatter FormatROCDCSResponseTimerPreset();
 
 	// FPGA PROM Program Data Register
 
 	// FPGA PROM Program Status Register
 	bool ReadFPGAPROMProgramFIFOFull();
 	bool ReadFPGAPROMReady();
-	DTC_RegisterFormatter FormatFPGAPROMProgramStatus();
+	RegisterFormatter FormatFPGAPROMProgramStatus();
 
 	// FPGA Core Access Register
 	void ReloadFPGAFirmware();
 	bool ReadFPGACoreAccessFIFOFull();
 	bool ReadFPGACoreAccessFIFOEmpty();
-	DTC_RegisterFormatter FormatFPGACoreAccess();
+	RegisterFormatter FormatFPGACoreAccess();
 
 	// Slow Optical Links Control/Status Register
 	bool ReadRXOKErrorSlowOpticalLink3();
@@ -1169,23 +1172,23 @@ public:
 	void ClearLatchedRXOKErrorSlowOpticalLink1();
 	bool ReadLatchedRXOKErrorSlowOpticalLink0();
 	void ClearLatchedRXOKErrorSlowOpticalLink0();
-	DTC_RegisterFormatter FormatSlowOpticalLinkControlStatus();
+	RegisterFormatter FormatSlowOpticalLinkControlStatus();
 
 	// Diagnostic SERDES Induce Error Enable Register
 	bool ReadSERDESInduceErrorEnable(DTC_Link_ID const& link);
 	void EnableSERDESInduceError(DTC_Link_ID const& link);
 	void DisableSERDESInduceError(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESInduceErrorEnable();
+	RegisterFormatter FormatSERDESInduceErrorEnable();
 
 	// Diagnostic SERDES Incude Error Link Registers
 	uint32_t ReadSERDESInduceErrorSequenceNumber(DTC_Link_ID const& link);
 	void SetSERDESInduceErrorSequenceNumber(DTC_Link_ID const& link, uint32_t sequence);
-	DTC_RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink0();
-	DTC_RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink1();
-	DTC_RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink2();
-	DTC_RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink3();
-	DTC_RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink4();
-	DTC_RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink5();
+	RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink0();
+	RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink1();
+	RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink2();
+	RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink3();
+	RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink4();
+	RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink5();
 
 	// DDR Memory Flags Registers
 	DTC_DDRFlags ReadDDRFlags(uint8_t buffer_id);
@@ -1195,40 +1198,40 @@ public:
 	std::bitset<128> ReadDDREventBuilderBufferFullFlags();
 	std::bitset<128> ReadDDREventBuilderBufferEmptyFlags();
 	std::bitset<128> ReadDDREventBuilderBufferHalfFullFlags();
-	DTC_RegisterFormatter FormatDDRLinkBufferEmptyFlags0();
-	DTC_RegisterFormatter FormatDDRLinkBufferEmptyFlags1();
-	DTC_RegisterFormatter FormatDDRLinkBufferEmptyFlags2();
-	DTC_RegisterFormatter FormatDDRLinkBufferEmptyFlags3();
-	DTC_RegisterFormatter FormatDDRLinkBufferHalfFullFlags0();
-	DTC_RegisterFormatter FormatDDRLinkBufferHalfFullFlags1();
-	DTC_RegisterFormatter FormatDDRLinkBufferHalfFullFlags2();
-	DTC_RegisterFormatter FormatDDRLinkBufferHalfFullFlags3();
-	DTC_RegisterFormatter FormatDDRLinkBufferFullFlags0();
-	DTC_RegisterFormatter FormatDDRLinkBufferFullFlags1();
-	DTC_RegisterFormatter FormatDDRLinkBufferFullFlags2();
-	DTC_RegisterFormatter FormatDDRLinkBufferFullFlags3();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferEmptyFlags0();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferEmptyFlags1();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferEmptyFlags2();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferEmptyFlags3();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferHalfFullFlags0();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferHalfFullFlags1();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferHalfFullFlags2();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferHalfFullFlags3();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferFullFlags0();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferFullFlags1();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferFullFlags2();
-	DTC_RegisterFormatter FormatDDREventBuilderBufferFullFlags3();
+	RegisterFormatter FormatDDRLinkBufferEmptyFlags0();
+	RegisterFormatter FormatDDRLinkBufferEmptyFlags1();
+	RegisterFormatter FormatDDRLinkBufferEmptyFlags2();
+	RegisterFormatter FormatDDRLinkBufferEmptyFlags3();
+	RegisterFormatter FormatDDRLinkBufferHalfFullFlags0();
+	RegisterFormatter FormatDDRLinkBufferHalfFullFlags1();
+	RegisterFormatter FormatDDRLinkBufferHalfFullFlags2();
+	RegisterFormatter FormatDDRLinkBufferHalfFullFlags3();
+	RegisterFormatter FormatDDRLinkBufferFullFlags0();
+	RegisterFormatter FormatDDRLinkBufferFullFlags1();
+	RegisterFormatter FormatDDRLinkBufferFullFlags2();
+	RegisterFormatter FormatDDRLinkBufferFullFlags3();
+	RegisterFormatter FormatDDREventBuilderBufferEmptyFlags0();
+	RegisterFormatter FormatDDREventBuilderBufferEmptyFlags1();
+	RegisterFormatter FormatDDREventBuilderBufferEmptyFlags2();
+	RegisterFormatter FormatDDREventBuilderBufferEmptyFlags3();
+	RegisterFormatter FormatDDREventBuilderBufferHalfFullFlags0();
+	RegisterFormatter FormatDDREventBuilderBufferHalfFullFlags1();
+	RegisterFormatter FormatDDREventBuilderBufferHalfFullFlags2();
+	RegisterFormatter FormatDDREventBuilderBufferHalfFullFlags3();
+	RegisterFormatter FormatDDREventBuilderBufferFullFlags0();
+	RegisterFormatter FormatDDREventBuilderBufferFullFlags1();
+	RegisterFormatter FormatDDREventBuilderBufferFullFlags2();
+	RegisterFormatter FormatDDREventBuilderBufferFullFlags3();
 
 	// Data Pending Diagnostic Timer Registers
 	uint32_t ReadDataPendingDiagnosticTimer(DTC_Link_ID const& link);
 	void ResetDataPendingDiagnosticTimerFIFO(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatDataPendingDiagnosticTimerLink0();
-	DTC_RegisterFormatter FormatDataPendingDiagnosticTimerLink1();
-	DTC_RegisterFormatter FormatDataPendingDiagnosticTimerLink2();
-	DTC_RegisterFormatter FormatDataPendingDiagnosticTimerLink3();
-	DTC_RegisterFormatter FormatDataPendingDiagnosticTimerLink4();
-	DTC_RegisterFormatter FormatDataPendingDiagnosticTimerLink5();
+	RegisterFormatter FormatDataPendingDiagnosticTimerLink0();
+	RegisterFormatter FormatDataPendingDiagnosticTimerLink1();
+	RegisterFormatter FormatDataPendingDiagnosticTimerLink2();
+	RegisterFormatter FormatDataPendingDiagnosticTimerLink3();
+	RegisterFormatter FormatDataPendingDiagnosticTimerLink4();
+	RegisterFormatter FormatDataPendingDiagnosticTimerLink5();
 
 	// ROC Emulator Induce Timeout Error Control
 	bool ReadEnableROCEmulatorPeriodicTimeoutError(DTC_Link_ID const& link);
@@ -1239,12 +1242,12 @@ public:
 	void DisableROCEmulatorTimeoutErrorOutputPartialData(DTC_Link_ID const& link);
 	uint32_t ReadROCEmulatorTimeoutErrorTimestamp(DTC_Link_ID const& link);
 	void SetROCEmulatorTimeoutErrorTimestamp(DTC_Link_ID const& link, uint32_t timestamp);
-	DTC_RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink0();
-	DTC_RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink1();
-	DTC_RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink2();
-	DTC_RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink3();
-	DTC_RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink4();
-	DTC_RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink5();
+	RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink0();
+	RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink1();
+	RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink2();
+	RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink3();
+	RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink4();
+	RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink5();
 
 	// ROC Emulator Induce Extra Word Error
 	bool ReadEnableROCEmulatorExtraWordError(DTC_Link_ID const& link);
@@ -1252,126 +1255,126 @@ public:
 	void DisableROCEmulatorExtraWordError(DTC_Link_ID const& link);
 	uint32_t ReadROCEmulatorExtraWordErrorTimestamp(DTC_Link_ID const& link);
 	void SetROCEmulatorExtraWordErrorTimestamp(DTC_Link_ID const& link, uint32_t timestamp);
-	DTC_RegisterFormatter FormatROCEmulatorExtraWordErrorLink0();
-	DTC_RegisterFormatter FormatROCEmulatorExtraWordErrorLink1();
-	DTC_RegisterFormatter FormatROCEmulatorExtraWordErrorLink2();
-	DTC_RegisterFormatter FormatROCEmulatorExtraWordErrorLink3();
-	DTC_RegisterFormatter FormatROCEmulatorExtraWordErrorLink4();
-	DTC_RegisterFormatter FormatROCEmulatorExtraWordErrorLink5();
+	RegisterFormatter FormatROCEmulatorExtraWordErrorLink0();
+	RegisterFormatter FormatROCEmulatorExtraWordErrorLink1();
+	RegisterFormatter FormatROCEmulatorExtraWordErrorLink2();
+	RegisterFormatter FormatROCEmulatorExtraWordErrorLink3();
+	RegisterFormatter FormatROCEmulatorExtraWordErrorLink4();
+	RegisterFormatter FormatROCEmulatorExtraWordErrorLink5();
 
 	// SERDES CNIT Error Count
 	uint32_t ReadSERDESCharacterNotInTableErrorCount(DTC_Link_ID const& link);
 	void ClearSERDESCharacterNotInTableErrorCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink0();
-	DTC_RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink1();
-	DTC_RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink2();
-	DTC_RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink3();
-	DTC_RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink4();
-	DTC_RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink5();
-	DTC_RegisterFormatter FormatSERDESCharacterNotInTableErrorCountCFOLink();
+	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink0();
+	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink1();
+	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink2();
+	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink3();
+	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink4();
+	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink5();
+	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountCFOLink();
 
 	// SERDES RX Disparity Error Count
 	uint32_t ReadSERDESRXDisparityErrorCount(DTC_Link_ID const& link);
 	void ClearSERDESRXDisparityErrorCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESRXDisparityErrorCountLink0();
-	DTC_RegisterFormatter FormatSERDESRXDisparityErrorCountLink1();
-	DTC_RegisterFormatter FormatSERDESRXDisparityErrorCountLink2();
-	DTC_RegisterFormatter FormatSERDESRXDisparityErrorCountLink3();
-	DTC_RegisterFormatter FormatSERDESRXDisparityErrorCountLink4();
-	DTC_RegisterFormatter FormatSERDESRXDisparityErrorCountLink5();
-	DTC_RegisterFormatter FormatSERDESRXDisparityErrorCountCFOLink();
+	RegisterFormatter FormatSERDESRXDisparityErrorCountLink0();
+	RegisterFormatter FormatSERDESRXDisparityErrorCountLink1();
+	RegisterFormatter FormatSERDESRXDisparityErrorCountLink2();
+	RegisterFormatter FormatSERDESRXDisparityErrorCountLink3();
+	RegisterFormatter FormatSERDESRXDisparityErrorCountLink4();
+	RegisterFormatter FormatSERDESRXDisparityErrorCountLink5();
+	RegisterFormatter FormatSERDESRXDisparityErrorCountCFOLink();
 
 	// SERDES RX PRBS Error Count
 	uint32_t ReadSERDESRXPRBSErrorCount(DTC_Link_ID const& link);
 	void ClearSERDESRXPRBSErrorCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESRXPRBSErrorCountLink0();
-	DTC_RegisterFormatter FormatSERDESRXPRBSErrorCountLink1();
-	DTC_RegisterFormatter FormatSERDESRXPRBSErrorCountLink2();
-	DTC_RegisterFormatter FormatSERDESRXPRBSErrorCountLink3();
-	DTC_RegisterFormatter FormatSERDESRXPRBSErrorCountLink4();
-	DTC_RegisterFormatter FormatSERDESRXPRBSErrorCountLink5();
-	DTC_RegisterFormatter FormatSERDESRXPRBSErrorCountCFOLink();
+	RegisterFormatter FormatSERDESRXPRBSErrorCountLink0();
+	RegisterFormatter FormatSERDESRXPRBSErrorCountLink1();
+	RegisterFormatter FormatSERDESRXPRBSErrorCountLink2();
+	RegisterFormatter FormatSERDESRXPRBSErrorCountLink3();
+	RegisterFormatter FormatSERDESRXPRBSErrorCountLink4();
+	RegisterFormatter FormatSERDESRXPRBSErrorCountLink5();
+	RegisterFormatter FormatSERDESRXPRBSErrorCountCFOLink();
 
 	// SERDES RX CRC Error Count
 	uint32_t ReadSERDESRXCRCErrorCount(DTC_Link_ID const& link);
 	void ClearSERDESRXCRCErrorCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESRXCRCErrorCountLink0();
-	DTC_RegisterFormatter FormatSERDESRXCRCErrorCountLink1();
-	DTC_RegisterFormatter FormatSERDESRXCRCErrorCountLink2();
-	DTC_RegisterFormatter FormatSERDESRXCRCErrorCountLink3();
-	DTC_RegisterFormatter FormatSERDESRXCRCErrorCountLink4();
-	DTC_RegisterFormatter FormatSERDESRXCRCErrorCountLink5();
-	DTC_RegisterFormatter FormatSERDESRXCRCErrorCountCFOLink();
+	RegisterFormatter FormatSERDESRXCRCErrorCountLink0();
+	RegisterFormatter FormatSERDESRXCRCErrorCountLink1();
+	RegisterFormatter FormatSERDESRXCRCErrorCountLink2();
+	RegisterFormatter FormatSERDESRXCRCErrorCountLink3();
+	RegisterFormatter FormatSERDESRXCRCErrorCountLink4();
+	RegisterFormatter FormatSERDESRXCRCErrorCountLink5();
+	RegisterFormatter FormatSERDESRXCRCErrorCountCFOLink();
 
 	// SERDES RX CRC Error Control
 	bool ReadEnableInduceSERDESRXCRCError(DTC_Link_ID const& link);
 	void EnableInduceSERDESRXCRCError(DTC_Link_ID const& link);
 	void DisableInduceSERDESRXCRCError(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatSERDESRXCRCErrorControl();
+	RegisterFormatter FormatSERDESRXCRCErrorControl();
 
 	uint32_t ReadEVBSERDESRXPacketErrorCounter();
 	void ClearEVBSERDESRXPacketErrorCounter();
-	DTC_RegisterFormatter FormatEVBSERDESRXPacketErrorCounter();
+	RegisterFormatter FormatEVBSERDESRXPacketErrorCounter();
 
 	// Jitter Attenuator SERDES RX Recovered Clock LOS Counter
 	uint32_t ReadJitterAttenuatorRecoveredClockLOSCount();
 	void ClearJitterAttenuatorRecoeveredClockLOSCount();
-	DTC_RegisterFormatter FormatJitterAttenuatorRecoveredClockLOSCount();
+	RegisterFormatter FormatJitterAttenuatorRecoveredClockLOSCount();
 
 	// Jitter Attenuator SERDES RX External Clock LOS Counter
 	uint32_t ReadJitterAttenuatorExternalClockLOSCount();
 	void ClearJitterAttenuatorExternalClockLOSCount();
-	DTC_RegisterFormatter FormatJitterAttenuatorExternalClockLOSCount();
+	RegisterFormatter FormatJitterAttenuatorExternalClockLOSCount();
 
 	// ROC Emulator Interpacket Delay
 	uint32_t ReadROCEmulatorInterpacketDelay(DTC_Link_ID const& link);
 	void SetROCEmulatorInterpacketDelay(DTC_Link_ID const& link, uint32_t delay);
-	DTC_RegisterFormatter FormatROCEmulatorInterpacketDelayLink0();
-	DTC_RegisterFormatter FormatROCEmulatorInterpacketDelayLink1();
-	DTC_RegisterFormatter FormatROCEmulatorInterpacketDelayLink2();
-	DTC_RegisterFormatter FormatROCEmulatorInterpacketDelayLink3();
-	DTC_RegisterFormatter FormatROCEmulatorInterpacketDelayLink4();
-	DTC_RegisterFormatter FormatROCEmulatorInterpacketDelayLink5();
+	RegisterFormatter FormatROCEmulatorInterpacketDelayLink0();
+	RegisterFormatter FormatROCEmulatorInterpacketDelayLink1();
+	RegisterFormatter FormatROCEmulatorInterpacketDelayLink2();
+	RegisterFormatter FormatROCEmulatorInterpacketDelayLink3();
+	RegisterFormatter FormatROCEmulatorInterpacketDelayLink4();
+	RegisterFormatter FormatROCEmulatorInterpacketDelayLink5();
 
 	// TX Data Request Packet Count
 	uint32_t ReadTXDataRequestPacketCount(DTC_Link_ID const& link);
 	void ClearTXDataRequetsPacketCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatTXDataRequestPacketCountLink0();
-	DTC_RegisterFormatter FormatTXDataRequestPacketCountLink1();
-	DTC_RegisterFormatter FormatTXDataRequestPacketCountLink2();
-	DTC_RegisterFormatter FormatTXDataRequestPacketCountLink3();
-	DTC_RegisterFormatter FormatTXDataRequestPacketCountLink4();
-	DTC_RegisterFormatter FormatTXDataRequestPacketCountLink5();
+	RegisterFormatter FormatTXDataRequestPacketCountLink0();
+	RegisterFormatter FormatTXDataRequestPacketCountLink1();
+	RegisterFormatter FormatTXDataRequestPacketCountLink2();
+	RegisterFormatter FormatTXDataRequestPacketCountLink3();
+	RegisterFormatter FormatTXDataRequestPacketCountLink4();
+	RegisterFormatter FormatTXDataRequestPacketCountLink5();
 
 	// TX Heartbeat Packet Count
 	uint32_t ReadTXHeartbeatPacketCount(DTC_Link_ID const& link);
 	void ClearTXHeartbeatPacketCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatTXHeartbeatPacketCountLink0();
-	DTC_RegisterFormatter FormatTXHeartbeatPacketCountLink1();
-	DTC_RegisterFormatter FormatTXHeartbeatPacketCountLink2();
-	DTC_RegisterFormatter FormatTXHeartbeatPacketCountLink3();
-	DTC_RegisterFormatter FormatTXHeartbeatPacketCountLink4();
-	DTC_RegisterFormatter FormatTXHeartbeatPacketCountLink5();
+	RegisterFormatter FormatTXHeartbeatPacketCountLink0();
+	RegisterFormatter FormatTXHeartbeatPacketCountLink1();
+	RegisterFormatter FormatTXHeartbeatPacketCountLink2();
+	RegisterFormatter FormatTXHeartbeatPacketCountLink3();
+	RegisterFormatter FormatTXHeartbeatPacketCountLink4();
+	RegisterFormatter FormatTXHeartbeatPacketCountLink5();
 
 	// RX Data Header Packet Count
 	uint32_t ReadRXDataHeaderPacketCount(DTC_Link_ID const& link);
 	void ClearRXDataHeaderPacketCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatRXDataHeaderPacketCountLink0();
-	DTC_RegisterFormatter FormatRXDataHeaderPacketCountLink1();
-	DTC_RegisterFormatter FormatRXDataHeaderPacketCountLink2();
-	DTC_RegisterFormatter FormatRXDataHeaderPacketCountLink3();
-	DTC_RegisterFormatter FormatRXDataHeaderPacketCountLink4();
-	DTC_RegisterFormatter FormatRXDataHeaderPacketCountLink5();
+	RegisterFormatter FormatRXDataHeaderPacketCountLink0();
+	RegisterFormatter FormatRXDataHeaderPacketCountLink1();
+	RegisterFormatter FormatRXDataHeaderPacketCountLink2();
+	RegisterFormatter FormatRXDataHeaderPacketCountLink3();
+	RegisterFormatter FormatRXDataHeaderPacketCountLink4();
+	RegisterFormatter FormatRXDataHeaderPacketCountLink5();
 
 	// RX Data Packet Count
 	uint32_t ReadRXDataPacketCount(DTC_Link_ID const& link);
 	void ClearRXDataPacketCount(DTC_Link_ID const& link);
-	DTC_RegisterFormatter FormatRXDataPacketCountLink0();
-	DTC_RegisterFormatter FormatRXDataPacketCountLink1();
-	DTC_RegisterFormatter FormatRXDataPacketCountLink2();
-	DTC_RegisterFormatter FormatRXDataPacketCountLink3();
-	DTC_RegisterFormatter FormatRXDataPacketCountLink4();
-	DTC_RegisterFormatter FormatRXDataPacketCountLink5();
+	RegisterFormatter FormatRXDataPacketCountLink0();
+	RegisterFormatter FormatRXDataPacketCountLink1();
+	RegisterFormatter FormatRXDataPacketCountLink2();
+	RegisterFormatter FormatRXDataPacketCountLink3();
+	RegisterFormatter FormatRXDataPacketCountLink4();
+	RegisterFormatter FormatRXDataPacketCountLink5();
 
 	// EVB Diagnostic RX Packet FIFO
 	uint64_t ReadEVBDiagnosticFIFO();
@@ -1391,17 +1394,19 @@ public:
 	void WriteCurrentProgram(uint64_t program, DTC_OscillatorType oscillator);
 
 private:
-	uint32_t WriteRegister_(uint32_t data, const DTC_Register& address);
-	uint32_t ReadRegister_(const DTC_Register& address);
 
-	bool GetBit_(const DTC_Register& address, size_t bit);
-	void SetBit_(const DTC_Register& address, size_t bit, bool value);
-	bool ToggleBit_(const DTC_Register& address, size_t bit)
-	{
-		auto val = GetBit_(address, bit);
-		SetBit_(address, bit, !val);
-		return !val;
-	}
+	// void WriteRegister_(uint32_t data, const DTC_Register& address);
+	// uint32_t ReadRegister_(const DTC_Register& address);
+	void VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite) override;
+
+	// bool GetBit_(const DTC_Register& address, size_t bit);
+	// void SetBit_(const DTC_Register& address, size_t bit, bool value);
+	// bool ToggleBit_(const DTC_Register& address, size_t bit)
+	// {
+	// 	auto val = GetBit_(address, bit);
+	// 	SetBit_(address, bit, !val);
+	// 	return !val;
+	// }
 
 	int DecodeHighSpeedDivider_(int input);
 	int DecodeOutputDivider_(int input) { return input + 1; }
@@ -1421,11 +1426,11 @@ private:
 	bool WaitForLinkReady_(DTC_Link_ID const& link, size_t interval, double timeout = 2.0 /*seconds*/);
 
 protected:
-	mu2edev device_;                     ///< Device handle
+	// mu2edev device_;                     ///< Device handle
 	DTC_SimMode simMode_;                ///< Simulation mode
 	bool usingDetectorEmulator_{false};  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;                   ///< Size of DMAs, in bytes (default 32k)
-	int formatterWidth_ = 28;            ///< Description field width, in characters (must be initialized or DTC_RegisterFormatter can resize to crazy large values!)
+	// int formatterWidth_ = 28;            ///< Description field width, in characters (must be initialized or RegisterFormatter can resize to crazy large values!)
 
 
 	/// <summary>
@@ -1434,7 +1439,8 @@ protected:
 
 
  public:
-  	const std::vector<std::function<DTC_RegisterFormatter()>> formattedSimpleDumpFunctions_{
+
+  	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
 		[this] { return this->FormatDTCControl(); },
 		[this] { return this->FormatROCEmulationEnable(); },
 		[this] { return this->FormatLinkEnable(); },
@@ -1442,7 +1448,7 @@ protected:
 		[this] { return this->FormatSERDESResetDone(); },
 	};
 
-	const std::vector<std::function<DTC_RegisterFormatter()>> formattedDumpFunctions_{
+	const std::vector<std::function<RegisterFormatter()>> formattedDumpFunctions_{
 		[this] { return this->FormatDesignVersion(); },
 		[this] { return this->FormatDesignDate(); },
 		[this] { return this->FormatDesignStatus(); },
@@ -1577,7 +1583,7 @@ protected:
 	/// <summary>
 	/// Dump Byte/Packet Counter Registers
 	/// </summary>
-	const std::vector<std::function<DTC_RegisterFormatter()>> formattedSERDESCounterFunctions_{
+	const std::vector<std::function<RegisterFormatter()>> formattedSERDESCounterFunctions_{
 		[this] { return this->FormatReceiveByteCountLink0(); },
 		[this] { return this->FormatReceiveByteCountLink1(); },
 		[this] { return this->FormatReceiveByteCountLink2(); },
@@ -1609,7 +1615,7 @@ protected:
 
 	};
 
-	const std::vector<std::function<DTC_RegisterFormatter()>> formattedPerformanceCounterFunctions_{
+	const std::vector<std::function<RegisterFormatter()>> formattedPerformanceCounterFunctions_{
 		[this] { return this->FormatDDRLinkBufferEmptyFlags0(); },
 		[this] { return this->FormatDDRLinkBufferEmptyFlags1(); },
 		[this] { return this->FormatDDRLinkBufferEmptyFlags2(); },
@@ -1649,7 +1655,7 @@ protected:
 
 	};
 
-	const std::vector<std::function<DTC_RegisterFormatter()>> formattedSERDESErrorFunctions_{
+	const std::vector<std::function<RegisterFormatter()>> formattedSERDESErrorFunctions_{
 		[this] { return this->FormatSERDESCharacterNotInTableErrorCountLink0(); },
 		[this] { return this->FormatSERDESCharacterNotInTableErrorCountLink1(); },
 		[this] { return this->FormatSERDESCharacterNotInTableErrorCountLink2(); },
@@ -1684,7 +1690,7 @@ protected:
 
 	};
 
-	const std::vector<std::function<DTC_RegisterFormatter()>> formattedPacketCounterFunctions_{
+	const std::vector<std::function<RegisterFormatter()>> formattedPacketCounterFunctions_{
 		[this] { return this->FormatMissedCFOPacketCountLink0(); },
 		[this] { return this->FormatMissedCFOPacketCountLink1(); },
 		[this] { return this->FormatMissedCFOPacketCountLink2(); },

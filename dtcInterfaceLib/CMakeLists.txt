@@ -6,11 +6,12 @@ cet_make_library(LIBRARY_NAME DTCInterface SOURCE
             DTC.cpp
             DTCLibTest.cpp
             DTCSoftwareCFO.cpp
-	    DTC_Registers.cpp
-	    DTC_Packets.cpp
+            DTC_Registers.cpp
+            CFOandDTC_Registers.cpp
+            DTC_Packets.cpp
             DTC_Types.cpp
             mu2edev.cpp
-	    mu2esim.cpp
+	          mu2esim.cpp
             LIBRARIES PUBLIC TRACE::MF
 )
 
