@@ -4,8 +4,8 @@
 #include <unordered_map>
 #include <bitset>
 
-#include "dtcInterfaceLib/DTC_Packets.h"
-#include "dtcInterfaceLib/DTC_Types.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types.h"
 #include "mu2e_driver/mu2e_mmap_ioctl.h"
 
 namespace DTCLib {

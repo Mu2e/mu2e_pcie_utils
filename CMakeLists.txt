@@ -32,6 +32,7 @@ string(TOUPPER ${CMAKE_BUILD_TYPE} BTYPE_UC )
 
 find_package(TRACE 3.17.05 REQUIRED)
 find_package(messagefacility REQUIRED)
+find_package(artdaq_core_mu2e REQUIRED)
 
 # source
 add_subdirectory(mu2e_driver)

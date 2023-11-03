@@ -1,18 +1,19 @@
 set(NODEJS_ADDON_NAME "DTC")
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+#set(CMAKE_VERBOSE_MAKEFILE ON)
 
-cet_make_library(LIBRARY_NAME DTCInterface SOURCE
-            DTC.cpp
-            DTCLibTest.cpp
-            DTCSoftwareCFO.cpp
-            DTC_Registers.cpp
-            CFOandDTC_Registers.cpp
-            DTC_Packets.cpp
-            DTC_Types.cpp
-            mu2edev.cpp
-	          mu2esim.cpp
-            LIBRARIES PUBLIC TRACE::MF
+cet_make_library(LIBRARY_NAME DTCInterface 
+    SOURCE
+      DTC.cpp
+      DTCLibTest.cpp
+      DTCSoftwareCFO.cpp
+      DTC_Registers.cpp
+      CFOandDTC_Registers.cpp
+      mu2edev.cpp
+      mu2esim.cpp
+    LIBRARIES PUBLIC 
+      TRACE::MF
+      artdaq_core_mu2e::artdaq-core-mu2e_Overlays
 )
 
 cet_make_exec(NAME mu2eUtil SOURCE util_main.cc Mu2eUtil.cpp LIBRARIES mu2e_pcie_utils::DTCInterface)

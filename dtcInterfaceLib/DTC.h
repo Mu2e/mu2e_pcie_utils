@@ -5,9 +5,9 @@
 #include <memory>
 #include <vector>
 
-#include "DTC_Packets.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
 #include "DTC_Registers.h"
-#include "DTC_Types.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types.h"
 
 namespace DTCLib {
 /// <summary>

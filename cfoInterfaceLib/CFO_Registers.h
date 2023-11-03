@@ -1,13 +1,9 @@
 #ifndef CFO_REGISTERS_H
 #define CFO_REGISTERS_H
 
-//#include <bitset> // std::bitset
-//#include <cstdint> // uint8_t, uint16_t
 #include <functional>  // std::bind, std::function
 #include <vector>      // std::vector
 
-// #include "dtcInterfaceLib/DTC_Types.h"
-// #include "dtcInterfaceLib/mu2edev.h"
 #include "dtcInterfaceLib/CFOandDTC_Registers.h"
 
 using namespace DTCLib;
