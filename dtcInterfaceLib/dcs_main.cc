@@ -265,6 +265,7 @@ int main(int argc, char* argv[])
 	{
 		TLOG(TLVL_DEBUG) << "Operation \"test_read\"" << std::endl;
 
+		// device->begin_dcs_transaction();
 		// thisDTC->SendDCSRequestPacket(dtc_link,  DTC_DCSOperationType_Read, address, quiet);
 
 		for (unsigned ii = 0; ii < number; ++ii)

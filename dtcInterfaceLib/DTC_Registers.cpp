@@ -297,7 +297,7 @@ std::string DTCLib::DTC_Registers::PacketCountersRegDump(int width)
 /// Read the design version
 /// </summary>
 /// <returns>Design version, in VersionNumber_Date format</returns>
-std::string DTCLib::DTC_Registers::ReadDesignVersion() { return ReadDesignVersionNumber() + "_" + ReadDesignDate(); }
+std::string DTCLib::DTC_Registers::ReadDesignVersion() { return ReadDesignVersionNumber() + ReadDesignLinkSpeed() + "_" + ReadDesignDate(); }
 
 /// <summary>
 /// Formats the register's current value for register dumps
@@ -308,6 +308,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatDesignVersion()
 	auto form = CreateFormatter(DTC_Register_DesignVersion);
 	form.description = "DTC Firmware Design Version";
 	form.vals.push_back(ReadDesignVersionNumber());
+	form.vals.push_back(ReadDesignLinkSpeed());
 	return form;
 }
 
@@ -369,6 +370,20 @@ std::string DTCLib::DTC_Registers::ReadDesignVersionNumber()
 	int major = (data & 0xFF00) >> 8;
 	return "v" + std::to_string(major) + "." + std::to_string(minor);
 }
+
+/// <summary>
+/// Read the design version number
+/// </summary>
+/// <returns>The design version number, in vMM.mm format</returns>
+std::string DTCLib::DTC_Registers::ReadDesignLinkSpeed()
+{
+	auto data = ReadRegister_(DTC_Register_DesignVersion);
+	int cfoLinkSpeed = (data>>28) & 0xFF;	//0x40 for 4G
+	int rocLinkSpeed = (data>>20) & 0xFF;	//0x30 for 3.125G
+	return "cfo-link: " + std::to_string(cfoLinkSpeed) + 
+		"G, roc-links: " + std::to_string(rocLinkSpeed) + "G";
+}
+
 
 /// <summary>
 /// Read the DDR interface reset bit
@@ -476,7 +491,11 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatFPGATemperature()
 {
 	auto form = CreateFormatter(DTC_Register_FPGA_Temperature);
 	form.description = "FPGA Temperature";
-	form.vals.push_back(std::to_string(ReadFPGATemperature()) + " C");
+	auto val = ReadFPGATemperature();
+	std::stringstream ss;
+	ss << std::fixed << std::setprecision(1) << val << " C, " <<
+		val*9/5 + 32 << " F, <65C=" << (val < 65?"GOOD":"BAD");
+	form.vals.push_back(ss.str());	
 	return form;
 }
 
@@ -674,6 +693,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatFPGAAlarms()
 {
 	auto form = CreateFormatter(DTC_Register_FPGA_MonitorAlarm);
 	form.description = "FPGA Monitor Alarm";
+	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("FPGA Die Temperature Alarm:  [") + (ReadFPGADieTemperatureAlarm() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("FPGA Alarms OR:              [") + (ReadFPGAAlarms() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("VCC BRAM Alarm:              [") + (ReadVCCBRAMAlarm() ? "x" : " ") + "]");
@@ -948,6 +968,35 @@ bool DTCLib::DTC_Registers::ReadSoftwareDRP()
 	return data[22];
 }
 
+/// <summary>
+/// Reset the PCIe interface
+/// </summary>
+void DTCLib::DTC_Registers::ResetPCIe()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	data[21] = 1;
+	data[20] = 1;
+	data[11] = 1;
+	data[7] = 1;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+	usleep(1000);
+	data = ReadRegister_(DTC_Register_DTCControl);
+	data[21] = 0;
+	data[20] = 0;
+	data[11] = 0;
+	data[7] = 0;
+	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
+}
+
+/// <summary>
+/// Determine whether the PCIe interface is currently being reset
+/// </summary>
+/// <returns>True if the PCIe interface is currently being reset, false otherwise</returns>
+bool DTCLib::DTC_Registers::ReadResetPCIe()
+{
+	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
+	return data[21];
+}
 
 /// <summary>
 /// Enable the All LED bits in Control register
@@ -2158,8 +2207,8 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatSERDESUnlockError()
 	}
 	form.vals.push_back(std::string("PLL CFO RX:    [") + (ReadSERDESPLLUnlockError(DTC_PLL_CFO_RX) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("PLL CFO TX:    [") + (ReadSERDESPLLUnlockError(DTC_PLL_CFO_TX) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("PLL CFO TX/RX: [") + (ReadSERDESPLLUnlockError(DTC_PLL_CFO_TXRX) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("PLL Timing:    [") + (ReadSERDESPLLUnlockError(DTC_PLL_PunchedClock) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("PLL EVB:       [") + (ReadSERDESPLLUnlockError(DTC_PLL_EVB_TXRX) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("PLL PunchClock:[") + (ReadSERDESPLLUnlockError(DTC_PLL_PunchedClock) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -2360,7 +2409,7 @@ DTCLib::DTC_RegisterFormatter DTCLib::DTC_Registers::FormatRXCDRLockStatus()
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : DTC_Links)
 	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) +
+		form.vals.push_back(std::string("ROC Link ") + std::to_string(r) +
 							" CDR Lock: " + (ReadSERDESRXCDRLock(r) ? "x" : " "));
 	}
 	form.vals.push_back(std::string("CFO CDR Lock: ") + +(ReadSERDESRXCDRLock(DTC_Link_CFO) ? "x" : " "));
@@ -2695,10 +2744,13 @@ void DTCLib::DTC_Registers::SetSERDESOscillatorReferenceFrequency(DTCLib::DTC_II
 	switch (device)
 	{
 		case DTC_IICSERDESBusAddress_CFO:
-			return WriteRegister_(freq, DTC_Register_SERDESTimingCardOscillatorFrequency);
+			WriteRegister_(freq, DTC_Register_SERDESTimingCardOscillatorFrequency);
+			break;
 		case DTC_IICSERDESBusAddress_EVB:
-			return WriteRegister_(freq, DTC_Register_SERDESReferenceClockFrequency);
+			WriteRegister_(freq, DTC_Register_SERDESReferenceClockFrequency);
+			break;
 		default:
+			throw std::runtime_error("Invalid device for set SERDES ref frequency: " + std::to_string(device));
 			return;
 	}
 	return;
@@ -5401,10 +5453,10 @@ std::bitset<2> DTCLib::DTC_Registers::ReadJitterAttenuatorSelect()
 	return output;
 }
 /// <summary>
-/// Set the Jitter Attenuator Select bits
+/// Set the Jitter Attenuator Select bits. JA reset only needed after a power cycle
 /// </summary>
 /// <param name="data">Value to set</param>
-void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
+void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA /* = false */)
 {
 	DTC_TLOG(TLVL_DEBUG) << "JA select " << data << " = " <<
 		(data == 0? "CFO control link":(data == 1? "RTF copper clock": (data == 2? "FPGA FMC":"undefined source!")));
@@ -5412,6 +5464,11 @@ void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
 	std::bitset<32> regdata = ReadRegister_(DTC_Register_JitterAttenuatorCSR);
 
 	// detection if already locked may not work
+		// form.vals.push_back(std::string("JA in Reset:   [") + (data[0] ? "YES" : "No") + "]");
+		// form.vals.push_back(std::string("JA Loss-of-Lock:   [") + (data[8] ? "Not Locked" : "LOCKED") + "]");
+		// form.vals.push_back(std::string("JA Input-0 Upstream Control Link Rx Recovered Clock:   [") + (data[9] ? "Missing" : "OK") + "]");
+		// form.vals.push_back(std::string("JA Input-1 RJ45 Upstream Rx Clock:   [") + (data[10] ? "Missing" : "OK") + "]");
+		// form.vals.push_back(std::string("JA Input-2 Timing Card Selectable, SFP+ or FPGA, Input Clock:   [") + (data[11] ? "Missing" : "OK") + "]");
 	if(regdata[0] == 0 && regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
 	{
 		DTC_TLOG(TLVL_DEBUG) << "JA already locked with selected input " << data;
@@ -5419,7 +5476,15 @@ void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
 	}
 	regdata[4] = data[0];
 	regdata[5] = data[1];
-	WriteRegister_(regdata.to_ulong(), DTC_Register_JitterAttenuatorCSR);
+	regdata = WriteRegister_(regdata.to_ulong(), DTC_Register_JitterAttenuatorCSR);
+	
+	if(!alsoResetJA && regdata[8] == 0)
+	{
+		DTC_TLOG(TLVL_DEBUG) << "JA select done with no reset for input " << data;
+		return;
+	} 
+
+	DTC_TLOG(TLVL_DEBUG) << "JA reset...";
 
 	//now reset the JA a la DTCLib::DTC_Registers::ResetJitterAttenuator()
 	
@@ -6764,8 +6829,8 @@ bool DTCLib::DTC_Registers::ReadTXRXFireflySelect()
 /// <param name="select">Value to write</param>
 void DTCLib::DTC_Registers::SetTXRXFireflySelect(bool select)
 {
-	std::bitset<32> data = ReadRegister_(DTC_Register_FireFlyControlStatus);
-	data[10] = select;
+	std::bitset<32> data = select << 9; //Do not read value -- ReadRegister_(DTC_Register_FireFlyControlStatus);
+	// data[9] = select;
 	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
 }
 /// <summary>
@@ -9886,7 +9951,7 @@ void DTCLib::DTC_Registers::WriteCurrentProgram(uint64_t program, DTC_Oscillator
 }
 
 // Private Functions
-void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Register& address)
+uint32_t DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Register& address)
 {
 	auto retry = 3;
 	int errorCode;
@@ -9913,7 +9978,8 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 	//verify register readback
 	if(1)
 	{
-		uint32_t readbackValue = ReadRegister_(address);
+		uint32_t readbackReturnValue = ReadRegister_(address);
+		uint32_t readbackValue = readbackReturnValue;
 		int i = -1;  // used for counters
 		switch(address) //handle special register checks by masking of DONT-CARE bits, or else check full 32 bits
 		{
@@ -9929,7 +9995,7 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 				break;
 			case DTC_Register_DTCControl: //bit 31 is reset bit, which is write only 
 				if((dataToWrite >> 31) & 1) //NOTE: as of roughly August 2023, DTC Reset clears the entire register to 0
-					return; //ignore check if reset bit high
+					return readbackReturnValue; //ignore check if reset bit high
 				dataToWrite		&= 0x7fffffff;
 				readbackValue   &= 0x7fffffff; 
 				break;
@@ -9956,7 +10022,7 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 			case DTC_Register_RXCDRUnlockCount_CFOLink:  // write clears 32-bit CDR unlock counter, but can read back errors
 						// immediately, so don't check
 			case DTC_Register_JitterAttenuatorLossOfLockCount:
-				return;
+				return readbackReturnValue;
 			case DTC_Register_JitterAttenuatorCSR:  // 0x9308 bit-0 is reset, input select bit-5:4, bit-8 is LOL, bit-11:9
 						// (input LOS).. only check input select bits
 				dataToWrite &= (3 << 4);
@@ -9967,7 +10033,7 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 				readbackValue 	&= 0x0000ffff; 
 				break;
 			case DTC_Register_DetEmulation_Control1: //self clearing bit-1, so return immediately
-				return;
+				return readbackReturnValue;
 
 				
 
@@ -9987,9 +10053,9 @@ void DTCLib::DTC_Registers::WriteRegister_(uint32_t dataToWrite, const DTC_Regis
 			throw DTC_IOErrorException(ss.str());
 			// __FE_COUT_ERR__ << ss.str(); 
 		}
-
+		return readbackReturnValue;
 	} //end verify register readback
-}
+} //end WriteRegister_()
 
 uint32_t DTCLib::DTC_Registers::ReadRegister_(const DTC_Register& address)
 {

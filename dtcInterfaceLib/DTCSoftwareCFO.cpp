@@ -20,7 +20,9 @@
 DTCLib::DTCSoftwareCFO::DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t debugPacketCount,
 									   DTC_DebugType debugType, bool stickyDebugType, bool quiet, bool asyncRR,
 									   bool forceNoDebug, bool useCFODRP)
-	: useCFOEmulator_(useCFOEmulator), debugPacketCount_(debugPacketCount), debugType_(debugType), stickyDebugType_(stickyDebugType), quiet_(quiet), asyncRR_(asyncRR), forceNoDebug_(forceNoDebug), theThread_(nullptr), requestsSent_(false), abort_(false)
+	: useCFOEmulator_(useCFOEmulator), debugPacketCount_(debugPacketCount), debugType_(debugType),
+		 stickyDebugType_(stickyDebugType), quiet_(quiet), asyncRR_(asyncRR), forceNoDebug_(forceNoDebug), 
+		 theThread_(nullptr), requestsSent_(false), abort_(false)
 {
 	theDTC_ = dtc;
 	for (auto link : DTC_Links)
@@ -60,7 +62,7 @@ void DTCLib::DTCSoftwareCFO::WaitForRequestsToBeSent() const
 	}
 }
 
-void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint32_t heartbeatsAfter)
+void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint32_t heartbeatsAfter, bool sendHeartbeats /* = true */)
 {
 	if (theDTC_->IsDetectorEmulatorInUse())
 	{
@@ -73,12 +75,16 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 	}
 	if (!useCFOEmulator_)
 	{
+		theDTC_->EnableSoftwareDRP();
 		for (auto link : DTC_Links)
 		{
 			if (linkMode_[link].TransmitEnable)
 			{
-				TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp before SendReadoutRequestPacket";
-				theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
+				if(sendHeartbeats)
+				{
+					TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp before SendReadoutRequestPacket";
+					theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
+				}
 
 				TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp before DTC_DataRequestPacket req";
 				DTC_DataRequestPacket req(link, ts, !forceNoDebug_, debugPacketCount_, debugType_);
@@ -91,7 +97,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 				theDTC_->WriteDMAPacket(req);
 				TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp after  WriteDMADAQPacket - DTC_DataRequestPacket";
 
-				for (uint32_t ii = 1; ii <= heartbeatsAfter; ++ii)
+				for (uint32_t ii = 1; sendHeartbeats && ii <= heartbeatsAfter; ++ii)
 				{
 					theDTC_->SendReadoutRequestPacket(link, ts + ii, quiet_);
 					usleep(1000);
@@ -99,10 +105,11 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 				// usleep(2000);
 			}
 		}
+		theDTC_->DisableSoftwareDRP();
 	}
 	else
 	{
-		TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp setting up DTC CFO Emulator";
+		TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp setting up DTC CFO Emulator";		
 		theDTC_->SetCFOEmulationMode();
 		theDTC_->DisableCFOEmulation();
 		theDTC_->SetCFOEmulationTimestamp(ts);
@@ -131,7 +138,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 
 void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag start, bool increment,
 												  uint32_t delayBetweenDataRequests, int requestsAhead,
-												  uint32_t heartbeatsAfter)
+												  uint32_t heartbeatsAfter, bool sendHeartbeats /* = true */)
 {
 	if (theDTC_->IsDetectorEmulatorInUse())
 	{
@@ -143,9 +150,8 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 		theDTC_->EnableDetectorEmulator();
 		return;
 	}
-//-----------------------------------------------------------------------------
-// P.Murat: according to Ryan (Rick K.), the minimal heartbeat interval is 0x20, or 800 ns
-//-----------------------------------------------------------------------------
+
+	//the minimal heartbeat interval is 0x20, or 800 ns
 	if (delayBetweenDataRequests < 0x20) {
 		delayBetweenDataRequests = 0x20;
 	}
@@ -162,13 +168,13 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 		{
 			if (theThread_ && theThread_->joinable()) theThread_->join();
 			theThread_.reset(new std::thread(&DTCSoftwareCFO::SendRequestsForRangeImplAsync, this, start, count, increment,
-											 delayBetweenDataRequests, heartbeatsAfter));
+											 delayBetweenDataRequests, heartbeatsAfter, sendHeartbeats));
 		}
 		else
 		{
 			if (theThread_ && theThread_->joinable()) theThread_->join();
 			theThread_.reset(new std::thread(&DTCSoftwareCFO::SendRequestsForRangeImplSync, this, start, count, increment,
-											 delayBetweenDataRequests, requestsAhead, heartbeatsAfter));
+											 delayBetweenDataRequests, requestsAhead, heartbeatsAfter, sendHeartbeats));
 		}
 		WaitForRequestsToBeSent();
 	}
@@ -270,82 +276,100 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_EventWind
 }
 
 void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplSync(DTC_EventWindowTag start, int count, bool increment,
-														  uint32_t delayBetweenDataRequests, int requestsAhead, uint32_t heartbeatsAfter)
+														  uint32_t delayBetweenDataRequests, int requestsAhead, 
+														  uint32_t heartbeatsAfter, bool sendHeartbeats /* = true */)
 {
-	TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImplSync Start";
-	for (auto ii = 0; ii < count; ++ii)
+	try
 	{
-		auto ts = start + (increment ? ii : 0);
-
-		SendRequestForTimestamp(ts, heartbeatsAfter);
-		if (ii >= requestsAhead || ii == count - 1)
+		TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImplSync Start";
+		for (auto ii = 0; ii < count; ++ii)
 		{
-			requestsSent_ = true;
-		}
+			auto ts = start + (increment ? ii : 0);
 
-		usleep(delayBetweenDataRequests);
-		if (abort_) return;
+			SendRequestForTimestamp(ts, heartbeatsAfter, sendHeartbeats);
+			if (ii >= requestsAhead || ii == count - 1)
+			{
+				requestsSent_ = true;
+			}
+
+			usleep(delayBetweenDataRequests);
+			if (abort_) return;
+		}
+	}
+	catch(const std::exception& e)
+	{
+		TLOG(TLVL_ERROR) << e.what() << '\n';
 	}
 }
 
 void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag start, int count, bool increment,
-														   uint32_t delayBetweenDataRequests, uint32_t heartbeatsAfter)
+														   uint32_t delayBetweenDataRequests, uint32_t heartbeatsAfter,
+														   bool sendHeartbeats /* = true */)
 {
-	TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImplAsync Start";
-
-	// Send Readout Requests first
-	for (auto ii = 0; ii < count; ++ii)
+	try
 	{
-		auto ts = start + (increment ? ii : 0);
-		for (auto link : DTC_Links)
-		{
-			if (linkMode_[link].TransmitEnable)
-			{
-				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
-				theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
-			}
-			if (abort_) return;
-		}
-	}
-	TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl setting RequestsSent flag";
-	requestsSent_ = true;
+		
 
-	// Now do the DataRequests, sleeping for the required delay between each.
-	for (auto ii = 0; ii < count; ++ii)
-	{
-		auto ts = start + (increment ? ii : 0);
-		for (auto link : DTC_Links)
+		TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImplAsync Start";
+
+		// Send Readout Requests first
+		for (auto ii = 0; ii < count; ++ii)
 		{
-			if (linkMode_[link].TransmitEnable)
+			auto ts = start + (increment ? ii : 0);
+			for (auto link : DTC_Links)
 			{
-				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before DTC_DataRequestPacket req";
-				DTC_DataRequestPacket req(link, ts, !forceNoDebug_, static_cast<uint16_t>(debugPacketCount_), debugType_);
-				if (debugType_ == DTC_DebugType_ExternalSerialWithReset && !stickyDebugType_)
+				if (linkMode_[link].TransmitEnable && sendHeartbeats)
 				{
-					debugType_ = DTC_DebugType_ExternalSerial;
+					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
+					theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
 				}
-				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before WriteDMADAQPacket - DTC_DataRequestPacket";
-				if (!quiet_) std::cout << req.toJSON() << std::endl;
-				theDTC_->WriteDMAPacket(req);
-				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl after  WriteDMADAQPacket - DTC_DataRequestPacket";
 				if (abort_) return;
 			}
-			if (abort_) return;
 		}
-		usleep(delayBetweenDataRequests);
-	}
+		TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl setting RequestsSent flag";
+		requestsSent_ = true;
 
-	for (uint32_t ii = 0; ii < heartbeatsAfter; ++ii)
-	{
-		auto ts = start + (increment ? count + ii : 0);
-		for (auto link : DTC_Links)
+		// Now do the DataRequests, sleeping for the required delay between each.
+		for (auto ii = 0; ii < count; ++ii)
 		{
-			if (linkMode_[link].TransmitEnable)
+			auto ts = start + (increment ? ii : 0);
+			for (auto link : DTC_Links)
 			{
-				TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
-				theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
+				if (linkMode_[link].TransmitEnable)
+				{
+					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before DTC_DataRequestPacket req";
+					DTC_DataRequestPacket req(link, ts, !forceNoDebug_, static_cast<uint16_t>(debugPacketCount_), debugType_);
+					if (debugType_ == DTC_DebugType_ExternalSerialWithReset && !stickyDebugType_)
+					{
+						debugType_ = DTC_DebugType_ExternalSerial;
+					}
+					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before WriteDMADAQPacket - DTC_DataRequestPacket";
+					if (!quiet_) std::cout << req.toJSON() << std::endl;
+					theDTC_->WriteDMAPacket(req);
+					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl after  WriteDMADAQPacket - DTC_DataRequestPacket";
+					if (abort_) return;
+				}
+				if (abort_) return;
 			}
-			if (abort_) return;
+			usleep(delayBetweenDataRequests);
 		}
+
+		for (uint32_t ii = 0; ii < heartbeatsAfter; ++ii)
+		{
+			auto ts = start + (increment ? count + ii : 0);
+			for (auto link : DTC_Links)
+			{
+				if (linkMode_[link].TransmitEnable && sendHeartbeats)
+				{
+					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
+					theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
+				}
+				if (abort_) return;
+			}
+		}
+	}
+	catch(const std::exception& e)
+	{
+		TLOG(TLVL_ERROR) << e.what() << '\n';
 	}
 }
