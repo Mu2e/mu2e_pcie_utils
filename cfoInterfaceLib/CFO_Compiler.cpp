@@ -11,52 +11,57 @@
 #define __COUT_HDR_L__ 		"[" << std::dec        << __LINE__ << "]\t"
 #define __COUT_HDR_FL__ 	__SHORTFILE__ << " "   << __COUT_HDR_L__
 #define __COUT_ERR__ 		TLOG(TLVL_ERROR) 
-#define __cout__			std::cout << __MF_DECOR__ << __COUT_HDR_FL__
+#define __COUT_INFO__ 		TLOG(TLVL_INFO) 
+#define __COUT__			TLOG(TLVL_DEBUG) //std::cout << __MF_DECOR__ << __COUT_HDR_FL__
 
 #define __SS__            	std::stringstream ss; ss << ":" << __MF_DECOR__ << ":" << __COUT_HDR_FL__
 #define __SS_THROW__        { __COUT_ERR__ << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
 #define __E__ 				std::endl
 
 
+//========================================================================
 std::deque<char> CFOLib::CFO_Compiler::processFile(std::vector<std::string> lines)
 {
-	TLOG(TLVL_INFO) << "CFO_Compiler::processFile BEGIN";
-	lineNumber_ = 0;
+	__COUT_INFO__ << "CFO_Compiler::processFile BEGIN";
+	txtLineNumber_ = 0;
+	binLineNumber_ = 0;
 	output_.clear();
 
-	while (lineNumber_ < lines.size())
+	while (txtLineNumber_ < lines.size())
 	{
-		__cout__ << "Line number " << lineNumber_ << ": " << lines[lineNumber_] << __E__;
-		auto line = trim(lines[lineNumber_]);
+		__COUT__ << "Line number " << txtLineNumber_ << ": " << lines[txtLineNumber_] << __E__;
+		auto line = trim(lines[txtLineNumber_]);
 		if (!isComment(line))
 		{
 			readLine(line);  // Reading line
-			__cout__ << "Instruction buffer: " << instructionBuffer_ << __E__;
+			__COUT__ << txtLineNumber_ << ": Instruction buffer: " << instructionBuffer_ << __E__;
 
 			// Transcription into output file.
-			if (!macroFlag_)
+			if (!macroFlag_)			
 				transcribeInstruction();
 			else
 				transcribeMacro();
 		}
-		lineNumber_++;
-	}
+		else
+			__COUT__ << txtLineNumber_ << ": is comment" << __E__;
 
-	TLOG(TLVL_INFO) << "CFO_Compiler::processFile Parsing Complete!";
+		txtLineNumber_++;
+	} //end main processing loop
+
+	__COUT_INFO__ << "CFO_Compiler::processFile Parsing Complete!";
 	return output_;
-}
+} //end processFile()
 
-/**********************************************
- *Read/Input Functions
- *********************************************/
-void CFOLib::CFO_Compiler::readLine(std::string line)  // Reads one line and stores into instruction, parameter, argument and identifier
+//========================================================================
+//  *Read/Input Functions
+void CFOLib::CFO_Compiler::readLine(std::string& line)  // Reads one line and stores into instruction, parameter, argument and identifier
 													   // Buffers.
 {
-	__cout__ << "Reading line instruction" << __E__;
+	__COUT__ << "Reading line instruction" << __E__;
 	instructionBuffer_ = readInstruction(line);
 
 	macroFlag_ = isMacro();
-	__cout__ << "Is macro: " << std::boolalpha << macroFlag_ << __E__;
+	__COUT__ << "Is macro: " << std::boolalpha << macroFlag_ << __E__;
 
 	parameterBufferString_.clear();
 
@@ -64,32 +69,37 @@ void CFOLib::CFO_Compiler::readLine(std::string line)  // Reads one line and sto
 	{
 		if (std::isdigit(line[0]))  //
 		{
-			__cout__ << "Detected parameter, reading" << __E__;
+			__COUT__ << "Detected parameter, reading" << __E__;
 			argumentBuffer_.clear();
 			parameterBufferString_ = readInstruction(line);
 			parameterBuffer_ = atoi(parameterBufferString_.c_str());
 		}
 		else
 		{
-			__cout__ << "Detected argument, reading argument and parameter" << __E__;
+			__COUT__ << "Detected argument, reading argument and parameter" << __E__;
 			argumentBuffer_ = readInstruction(line);
+			__COUT__ << "argumentBuffer_: " << argumentBuffer_;
 			parameterBufferString_ = readInstruction(line);
+			__COUT__ << "parameterBufferString_: " << parameterBufferString_;
 			parameterBuffer_ = atoi(parameterBufferString_.c_str());
+			__COUT__ << "parameterBuffer_: " << parameterBuffer_;
 		}
 
 		if (!(isComment(line)))
 		{
-			__cout__ << "Reading identifier"  << __E__;
+			__COUT__ << "Reading identifier"  << __E__;
 			identifierBuffer_ = readInstruction(line);
+			__COUT__ << "identifierBuffer_: " << identifierBuffer_;
 		}
 		else
 		{
+			__COUT__ << "Comment, clearing identifier";
 			identifierBuffer_.clear();
 		}
 	}
 	else if (macroFlag_)
 	{
-		__cout__ << "Reading macro"  << __E__;
+		__COUT__ << "Reading macro"  << __E__;
 		argumentBuffer_.clear();
 		parameterBuffer_ = 0;
 		identifierBuffer_.clear();
@@ -98,18 +108,19 @@ void CFOLib::CFO_Compiler::readLine(std::string line)  // Reads one line and sto
 	}
 	else
 	{
-		__cout__ << "Comment or blank line detected, not parsing!"  << __E__;
+		__COUT__ << "Comment or blank line detected, not parsing!"  << __E__;
 		argumentBuffer_.clear();
 		parameterBuffer_ = 0;
 		identifierBuffer_.clear();
 	}
 
-	__cout__ << "Instruction: " << instructionBuffer_ << 
-		" Parameter: " << parameterBuffer_  << __E__;
-}
+	__COUT__ << "Instruction: " << instructionBuffer_ << 
+		" Parameter: '" << argumentBuffer_ << "' = " << parameterBuffer_  <<
+		" " << identifierBuffer_ << __E__;
+} //end readLine()
 
+//========================================================================
 // Basic Read Algorithms
-//************************
 std::string
 CFOLib::CFO_Compiler::readInstruction(std::string& line)  // reads on space separated word (with an exception for DATA REQ and DO LOOP)
 {
@@ -133,86 +144,73 @@ CFOLib::CFO_Compiler::readInstruction(std::string& line)  // reads on space sepa
 
 	TLOG(TLVL_TRACE) << "readInstruction: Returning instruction " << insString << ", remaining line: " << line;
 	return insString;
-}
+} //end readInstruction()
 
+//========================================================================
 // macro artificial instruction forming.
-//*****************************
-void CFOLib::CFO_Compiler::feedInstruction(std::string instruction, std::string argument, int64_t parameter,
-										   std::string identifier)
+void CFOLib::CFO_Compiler::feedInstruction(const std::string& instruction, 
+											const std::string& argument, 
+											uint64_t parameter,
+										   	const std::string& identifier)
 {
 	instructionBuffer_ = instruction;
 	argumentBuffer_ = argument;
 	parameterBuffer_ = parameter;
 	identifierBuffer_ = identifier;
-}
+} //end feedInstruction()
 
+//========================================================================
 // Macro Argument Reading
 void CFOLib::CFO_Compiler::readMacro(std::string& line)
 {
 	macroSetup(instructionBuffer_);
 
 	for (int i = 0; i < macroArgCount_; i++)
-	{
 		macroArgument_.push_back(readInstruction(line));
-	}
-}
+} //end readMacro()
 
-/**********************************************
-                          Internal Functions
- *********************************************/
-/**************** AUXILIARY ******************/
+//========================================================================
 // Boolean Operators
-bool CFOLib::CFO_Compiler::isComment(std::string line)  // Checks if line has a comment.
+bool CFOLib::CFO_Compiler::isComment(const std::string& line)  // Checks if line has a comment.
 {
 	if (line.size() == 0) return true;
+
 	if (line[0] == '/')
 	{
 		if (line[1] != '/')
 		{
-			__SS__ << "Error: Missing slash for comment. (Line " << lineNumber_ << ")" << __E__;
+			__SS__ << "Singled slash found; missing double slash for comment. (Line " << txtLineNumber_ << ")" << __E__;
 			__SS_THROW__;
 		}
 		return true;
 	}
-	else
-	{
-		return false;
-	}
-}
+		
+	return false;
+} // end isComment()
 
+//========================================================================
 bool CFOLib::CFO_Compiler::isMacro()
 {
 	macroOpcode_ = parse_macro(instructionBuffer_);
 	if (macroOpcode_ == CFO_MACRO::NON_MACRO)
-	{
 		return false;
-	}
-	else
-	{
-		return true;
-	}
-}
 
+	return true;
+} //end isMacro()
+
+//========================================================================
 // Switch Conversions
-CFOLib::CFO_Compiler::CFO_INSTR CFOLib::CFO_Compiler::parse_instruction(
-	std::string instructionBuffer)  // Turns strings into integers for switch statements.
+// Turns strings into integers for switch statements.
+CFOLib::CFO_Compiler::CFO_INSTR CFOLib::CFO_Compiler::parse_instruction(const std::string& instructionBuffer)
 {
 	if (instructionBuffer == "HEARTBEAT")
-	{
 		return CFO_INSTR::HEARTBEAT;
-	}
 	else if (instructionBuffer == "DATA_REQUEST")
-	{
 		return CFO_INSTR::DATA_REQUEST;
-	}
 	else if (instructionBuffer == "INC")
-	{
 		return CFO_INSTR::INC;
-	}
 	else if (instructionBuffer == "SET")
-	{
 		return CFO_INSTR::SET;
-	}
 	// else if (instructionBuffer == "AND")
 	// {
 	// 	return CFO_INSTR::AND;
@@ -222,41 +220,31 @@ CFOLib::CFO_Compiler::CFO_INSTR CFOLib::CFO_Compiler::parse_instruction(
 	// 	return CFO_INSTR::OR;
 	// }
 	else if (instructionBuffer == "LOOP")
-	{
 		return CFO_INSTR::LOOP;
-	}
 	else if (instructionBuffer == "DO_LOOP")
-	{
 		return CFO_INSTR::DO_LOOP;
-	}
 	else if (instructionBuffer == "REPEAT")
-	{
 		return CFO_INSTR::REPEAT;
-	}
 	else if (instructionBuffer == "WAIT")
-	{
 		return CFO_INSTR::WAIT;
-	}
 	else if (instructionBuffer == "END")
-	{
 		return CFO_INSTR::END;
-	}
 	return CFO_INSTR::INVALID;
-}
+} //end parse_instruction()
 
+//========================================================================
 // Macro Switch
-CFOLib::CFO_Compiler::CFO_MACRO CFOLib::CFO_Compiler::parse_macro(
-	std::string instructionBuffer)  // Turns strings into integers for switch statements.
+// Turns strings into integers for switch statements.
+CFOLib::CFO_Compiler::CFO_MACRO CFOLib::CFO_Compiler::parse_macro(const std::string& instructionBuffer) 
 {
 	if (instructionBuffer == "SLICE")
-	{
 		return CFO_MACRO::SLICE;
-	}
 	return CFO_MACRO::NON_MACRO;
-}
+} //end parse_macro()
 
+//========================================================================
 // Macro Argument and Instruction Counts
-void CFOLib::CFO_Compiler::macroSetup(std::string instructionBuffer)
+void CFOLib::CFO_Compiler::macroSetup(const std::string& instructionBuffer)
 {
 	if (instructionBuffer == "SLICE")
 	{
@@ -266,8 +254,9 @@ void CFOLib::CFO_Compiler::macroSetup(std::string instructionBuffer)
 	{
 		macroArgCount_ = 0;
 	}
-}
+} //end macroSetup()
 
+//========================================================================
 // Error Checking
 void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if there are any misplaced arguments
 {
@@ -276,13 +265,13 @@ void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if
 		case CFO_INSTR::HEARTBEAT:
 			if (parameterBuffer_ == 0 && parameterBufferString_ != "0")
 			{
-				__SS__ << "ERROR: On Line " << lineNumber_ << ". HEARTBEAT has a null or invalid argument (HEARTBEAT 0 Event)"
+				__SS__ << "On Line " << txtLineNumber_ << ". HEARTBEAT has a null or invalid argument (HEARTBEAT 0 Event)"
 						  << std::endl;
 				__SS_THROW__;
 			}
 			if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_mode")
 			{
-				__SS__ << "ERROR: On Line" << lineNumber_ << ". did you mean \"HEARTBEAT event_mode=\"?" << std::endl;
+				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"HEARTBEAT event_mode=\"?" << std::endl;
 				__SS_THROW__;
 			}
 			break;
@@ -290,13 +279,13 @@ void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if
 		case CFO_INSTR::DATA_REQUEST:
 			if (parameterBuffer_ == 0 && argumentBuffer_ != "CURRENT")
 			{
-				__SS__ << "ERROR: On Line " << lineNumber_ << ". DATA REQ has a null  or invalid argument (DATA REQ 0 Event)"
+				__SS__ << "On Line " << txtLineNumber_ << ". DATA REQ has a null  or invalid argument (DATA REQ 0 Event)"
 						  << std::endl;
 				__SS_THROW__;
 			}
 			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "request_tag" && argumentBuffer_ != "CURRENT")
 			{
-				__SS__ << "ERROR: On Line" << lineNumber_
+				__SS__ << "On Line" << txtLineNumber_
 						  << ". did you mean \"DATA_REQUEST request_tag=\" or DATA_REQUEST CURRENT?" << std::endl;
 				__SS_THROW__;
 			}
@@ -305,12 +294,12 @@ void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if
 		case CFO_INSTR::INC:
 			if (identifierBuffer_.empty() == false)
 			{
-				__SS__ << "ERROR: On Line " << lineNumber_ << ". INC has an extraneous identifier" << std::endl;
+				__SS__ << "On Line " << txtLineNumber_ << ". INC has an extraneous identifier" << std::endl;
 				__SS_THROW__;
 			}
 			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_by" && argumentBuffer_ != "event_tag")
 			{
-				__SS__ << "ERROR: On Line" << lineNumber_ << ". did you mean \"INC event_by=\" or \"INC event_tag\?"
+				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"INC event_by=\" or \"INC event_tag\?"
 						  << std::endl;
 				__SS_THROW__;
 			}
@@ -318,81 +307,81 @@ void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if
 		case CFO_INSTR::SET:
 			if (parameterBuffer_ == 0)
 			{
-				__SS__ << "\nERROR: On Line " << lineNumber_ << ". SET has a null  or invalid argument (SET 0 Event)"
+				__SS__ << "On Line " << txtLineNumber_ << ". SET has a null  or invalid argument (SET 0 Event)"
 						  << std::endl;
 				__SS_THROW__;
 			}
 			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_tag")
 			{
-				__SS__ << "ERROR: On Line" << lineNumber_ << ". did you mean \"SET event_tag=\"?" << std::endl;
+				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"SET event_tag=\"?" << std::endl;
 				__SS_THROW__;
 			}
 			break;
 		// case CFO_INSTR::AND:
 		// 	if (parameterBuffer_ == 0)
 		// 	{
-		// 		__SS__ << "\nERROR: On Line " << lineNumber_ << ". AND has a null  or invalid argument (AND 0 Event)"
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". AND has a null  or invalid argument (AND 0 Event)"
 		// 				  << std::endl;
 		// 		throw std::exception();
 		// 	}
 		// 	else if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_tag")
 		// 	{
-		// 		__SS__ << "ERROR: On Line" << lineNumber_ << ". did you mean \"AND event_tag=\"?" << std::endl;
+		// 		__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"AND event_tag=\"?" << std::endl;
 		// 		throw std::exception();
 		// 	}
 		// 	break;
 		// case CFO_INSTR::OR:
 		// 	if (parameterBuffer_ == 0)
 		// 	{
-		// 		__SS__ << "\nERROR: On Line " << lineNumber_ << ". OR has a null  or invalid argument (OR 0 Event)"
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". OR has a null  or invalid argument (OR 0 Event)"
 		// 				  << std::endl;
 		// 		throw std::exception();
 		// 	}
 		// 	else if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_tag")
 		// 	{
-		// 		__SS__ << "ERROR: On Line" << lineNumber_ << ". did you mean \"OR event_tag=\"?" << std::endl;
+		// 		__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"OR event_tag=\"?" << std::endl;
 		// 		throw std::exception();
 		// 	}
 		// 	break;
 		case CFO_INSTR::LOOP:
 			if (parameterBuffer_ == 0)
 			{
-				__SS__ << "ERROR: On Line " << lineNumber_ << ". LOOP has a null  or invalid argument (Looping 0 times)"
+				__SS__ << "On Line " << txtLineNumber_ << ". LOOP has a null  or invalid argument (Looping 0 times)"
 						  << std::endl;
 				__SS_THROW__;
 			}
 			else if (identifierBuffer_.empty() == 0 && identifierBuffer_ != "times")
 			{
-				__SS__ << "ERROR: On Line " << std::to_string(lineNumber_) << ". LOOP has an invalid identifier ("
+				__SS__ << "On Line " << txtLineNumber_ << ". LOOP has an invalid identifier ("
 						  << identifierBuffer_ << ")" << std::endl;
 				__SS_THROW__;
 			}
 			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "count")
 			{
-				__SS__ << "ERROR: On Line" << lineNumber_ << ". did you mean \"LOOP count=\"?" << std::endl;
+				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"LOOP count=\"?" << std::endl;
 				__SS_THROW__;
 			}
 			break;
 		case CFO_INSTR::DO_LOOP:
 			if (parameterBuffer_ != 0)
 			{
-				__SS__ << "WARNING: On Line " << std::dec << lineNumber_ << ". DO LOOP has an extraneous argument("
+				__SS__ << "On Line " << txtLineNumber_ << ". DO LOOP has an extraneous argument("
 						  << parameterBuffer_ << ")" << std::endl;
 				__SS_THROW__;
 			}
 			break;
 		case CFO_INSTR::WAIT:
-			if (identifierBuffer_.empty() == 0 && identifierBuffer_ != "cycles" && identifierBuffer_ != "ns" &&
-				identifierBuffer_ != "sec" && identifierBuffer_ != "ms")
+			if (identifierBuffer_.empty() == 0 && identifierBuffer_ != "clocks" && identifierBuffer_ != "ns" &&
+				identifierBuffer_ != "sec" && identifierBuffer_ != "ms" && identifierBuffer_ != "us")
 			{
-				__SS__ << "WARNING: On Line " << std::dec << lineNumber_ << ". WAIT has an invalid identifier("
+				__SS__ << "On Line " << txtLineNumber_ << ". WAIT has an invalid identifier("
 						  << identifierBuffer_ << ")" << std::endl <<
 						 "Options for third argument are [empty] ns ms sec" << std::endl;
 				__SS_THROW__;
 			}
 			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "period" && argumentBuffer_ != "NEXT")
 			{
-				__SS__ << "ERROR: On Line" << lineNumber_ << ". did you mean \"WAIT period=\"?" << std::endl;
+				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"WAIT period=\"?" << std::endl;
 				__SS_THROW__;
 			}
 
@@ -400,7 +389,7 @@ void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if
 		case CFO_INSTR::REPEAT:
 			if (parameterBuffer_ != 0 && identifierBuffer_.empty())
 			{
-				__SS__ << "WARNING: On Line " << std::dec << lineNumber_ << ". REPEAT has extraneous arguments("
+				__SS__ << "On Line " << txtLineNumber_ << ". REPEAT has extraneous arguments("
 						  << parameterBuffer_ << "_" << identifierBuffer_ << ")" << std::endl;
 				__SS_THROW__;
 			}
@@ -408,7 +397,7 @@ void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if
 		case CFO_INSTR::END:
 			if (parameterBuffer_ != 0 && identifierBuffer_.empty())
 			{
-				__SS__ << "WARNING: On Line " << std::dec << lineNumber_ << ". END has extraneous arguments("
+				__SS__ << "On Line " << txtLineNumber_ << ". END has extraneous arguments("
 						  << parameterBuffer_ << "_" << identifierBuffer_ << ")" << std::endl;
 				__SS_THROW__;
 			}
@@ -420,8 +409,9 @@ void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if
 			}
 			break;
 	}
-}
+} //end errorCheck()
 
+//========================================================================
 void CFOLib::CFO_Compiler::macroErrorCheck(CFO_MACRO macroInt)
 {
 	switch (macroInt)
@@ -429,38 +419,38 @@ void CFOLib::CFO_Compiler::macroErrorCheck(CFO_MACRO macroInt)
 		case CFO_MACRO::SLICE:
 			if (macroArgument_[0] != "bitposition")
 			{
-				__SS__<< "ERROR: On Line (" << lineNumber_ << ") " << 
+				__SS__<< "On Line (" << txtLineNumber_ << ") " << 
 					"1st parameter should be bitposition=" << __E__;
 				__SS_THROW__;
 			}
 			else if ((atoi(macroArgument_[1].c_str()) > 48) || (atoi(macroArgument_[1].c_str()) < 1))
 			{
-				__SS__ << "ERROR: On Line (" << lineNumber_ << ") " << 
+				__SS__ << "On Line (" << txtLineNumber_ << ") " << 
 					"2nd parameter, integer must be between 1 and 48" << __E__;
 				__SS_THROW__;
 			}
 			else if (macroArgument_[2] != "bitwidth")
 			{
-				__SS__ << "ERROR: On Line (" << lineNumber_ << ") " << 
+				__SS__ << "On Line (" << txtLineNumber_ << ") " << 
 					"3rd parameter should be bitwidth=" << __E__;
 				__SS_THROW__;
 			}
 			else if ((atoi(macroArgument_[3].c_str()) + atoi(macroArgument_[1].c_str()) - 1 > 48) ||
 					 (atoi(macroArgument_[3].c_str()) < 1))
 			{
-				__SS__ << "ERROR: On Line (" << lineNumber_ << ") " <<
+				__SS__ << "On Line (" << txtLineNumber_ << ") " <<
 					"4th parameter, integer must be between 1 and must add with bitposition to less than 48" << __E__;
 				__SS_THROW__;
 			}
 			else if (macroArgument_[4] != "event_tag")
 			{
-				__SS__ << "ERROR: On Line (" << lineNumber_ << ") " << 
+				__SS__ << "On Line (" << txtLineNumber_ << ") " << 
 					"5th parameter should be event_tag=" << __E__;
 				__SS_THROW__;
 			}
 			else if ((atoi(macroArgument_[5].c_str()) > 1536))
 			{
-				__SS__ << "ERROR: On Line (" << lineNumber_ << ") " <<
+				__SS__ << "On Line (" << txtLineNumber_ << ") " <<
 					"6th and last parameter, integer must be between 1 and 1536" << __E__;
 				__SS_THROW__;
 			}
@@ -468,12 +458,29 @@ void CFOLib::CFO_Compiler::macroErrorCheck(CFO_MACRO macroInt)
 		default:
 			break;
 	}
-}
+} //end macroErrorCheck()
 
-/****************TRANSCRIPTION********************/
+//========================================================================
+void CFOLib::CFO_Compiler::outParameter(uint64_t paramBuf)  // Writes the 6 byte parameter out based on a given integer.
+{
+	paramBuf &= 0xFFFFFFFFFFFF;  // Enforce 6 bytes
+	auto paramBufPtr = reinterpret_cast<int8_t*>(&paramBuf);
+	for (int i = 0; i < 6; ++i)
+	{
+		output_.push_back(paramBufPtr[i]);
+		__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
+	}
+} //end outParameter()
+
+//========================================================================
 // Transcription
 void CFOLib::CFO_Compiler::transcribeInstruction()  // Outputs a byte stream based on the buffers.
 {
+	//calculate line numbers that match this hexdump call (all usage of bin is relative/differences):
+	//		hexdump -e '"%08_ax | " 1/8 "%016x "' -e '"\n"'  CFOCommands.bin | cat -n
+	binLineNumber_ = 1 + output_.size()/8;
+	__COUT__ << "binLineNumber_: " << (int)binLineNumber_ << __E__;
+
 	CFO_INSTR instructionOpcode = parse_instruction(instructionBuffer_);
 
 	if (instructionOpcode == CFO_INSTR::INVALID)
@@ -483,6 +490,8 @@ void CFOLib::CFO_Compiler::transcribeInstruction()  // Outputs a byte stream bas
 	}
 
 	int64_t parameterCalc = calcParameter(instructionOpcode);
+	__COUT__ << "instructionOpcode: " << (int)instructionOpcode << __E__;
+	__COUT__ << "parameterCalc: " << parameterCalc << __E__;
 
 	errorCheck(instructionOpcode);
 
@@ -517,11 +526,13 @@ void CFOLib::CFO_Compiler::transcribeInstruction()  // Outputs a byte stream bas
 		// 	break;
 
 		case CFO_INSTR::LOOP:
-			loopStack_.push(lineNumber_);
+			__COUT__ << "loopStack_ = " << binLineNumber_ << " at " << loopStack_.size() << " w/parameterBuffer_=" << parameterBuffer_;
+			loopStack_.push(binLineNumber_);
 			outParameter(parameterBuffer_);
 			break;
 
 		case CFO_INSTR::DO_LOOP:
+			__COUT__ << "DO_LOOP loopStack_ " << loopStack_.size() << " w/parameterCalc=" << parameterCalc;
 			outParameter(parameterCalc);
 			break;
 
@@ -530,6 +541,8 @@ void CFOLib::CFO_Compiler::transcribeInstruction()  // Outputs a byte stream bas
 			break;
 
 		case CFO_INSTR::WAIT:
+			__COUT__ << "parameterCalc = " << std::dec << parameterCalc << " clocks"
+				<< std::hex << " = 0x" << parameterCalc << " clocks" << __E__;
 			outParameter(parameterCalc);
 			break;
 
@@ -546,9 +559,13 @@ void CFOLib::CFO_Compiler::transcribeInstruction()  // Outputs a byte stream bas
 	}
 
 	output_.push_back(0x00);
+	__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
 	output_.push_back(static_cast<char>(instructionOpcode));
-}
+	__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
 
+} //end transcribeInstruction()
+
+//========================================================================
 void CFOLib::CFO_Compiler::transcribeMacro()
 {
 	switch (macroOpcode_)
@@ -588,17 +605,22 @@ void CFOLib::CFO_Compiler::transcribeMacro()
 	}
 	// Clearing Macro Deque
 	macroArgument_.clear();
-}
+} //end transcribeMacro()
 
+//========================================================================
 // Parameter Calculations
-int64_t CFOLib::CFO_Compiler::calcParameter(CFO_INSTR instructionOpcode)  // Calculates the parameter for the
+uint64_t CFOLib::CFO_Compiler::calcParameter(CFO_INSTR instructionOpcode)  // Calculates the parameter for the
 																		  // instruction (if needed)
 {
-	int64_t loopLine;
+	__COUT__ << "calcParameter... Instruction: " << instructionBuffer_ << 
+		", Parameter: '" << argumentBuffer_ << "' = " << parameterBuffer_  <<
+		" [" << identifierBuffer_ << "]" << __E__;
+
+	uint64_t loopLine;
 	switch (instructionOpcode)
 	{
 		case CFO_INSTR::INC:
-			if (parameterBuffer_ == 0 or argumentBuffer_ == "event_tag")
+			if (parameterBuffer_ == 0 || argumentBuffer_ == "event_tag")
 			{
 				return 1;
 			}
@@ -609,42 +631,38 @@ int64_t CFOLib::CFO_Compiler::calcParameter(CFO_INSTR instructionOpcode)  // Cal
 			break;
 
 		case CFO_INSTR::WAIT:
+			__COUT__ << "FPGAClock_ = " << FPGAClock_ << " ns" << __E__;
 			if (parameterBuffer_ == 0 && argumentBuffer_ != "NEXT")
-			{
 				return 1;
-			}
 			else if (parameterBuffer_ == 0 && argumentBuffer_ == "NEXT")
-			{
-				return 0xFFFFFFFFFFFF;
-			}
+				return -1;
 			else if (identifierBuffer_ == "sec")  // Wait wanted in seconds
-			{
-				int64_t paramTemp_sec = FPGAClock_ * parameterBuffer_;
-				return paramTemp_sec;
-			}
+				return parameterBuffer_ * 1e9 / FPGAClock_;
 			else if (identifierBuffer_ == "ms")  // Wait wanted in milliseconds
-			{
-				int64_t paramTemp_ms = FPGAClock_ * parameterBuffer_ / 1000;
-				return paramTemp_ms;
-			}
+				return parameterBuffer_ * 1e6 / FPGAClock_;
 			else if (identifierBuffer_ == "us")  // Wait wanted in microseconds
-			{
-				int64_t paramTemp_us = FPGAClock_ * parameterBuffer_ / 1000000;
-				return paramTemp_us;
-			}
+				return parameterBuffer_ * 1e3 / FPGAClock_;
 			else if (identifierBuffer_ == "ns")  // Wait wanted in nanoseconds
 			{
-				int64_t paramTemp_ns = FPGAClock_ * parameterBuffer_ / 1000000000;
-
-				if ((parameterBuffer_ % (paramTemp_ns) != 0))
+				if ((parameterBuffer_ % FPGAClock_) != 0)
 				{
-					__COUT_ERR__ << "WARNING: FPGA can only wait in units of 25ns ()" << std::endl;
+					__SS__ << "FPGA can only wait in multiples of " <<
+						FPGAClock_ << " ns: " << parameterBuffer_ << " has remainder " <<
+						(parameterBuffer_ % FPGAClock_) << __E__;
+					__SS_THROW__;
 				}
-				return paramTemp_ns;
+				return parameterBuffer_ / FPGAClock_;
+			}
+			else if (identifierBuffer_ == "clocks")  // Wait wanted in FPGA clocks
+			{
+				return parameterBuffer_;
 			}
 			else
 			{
-				return parameterBuffer_;
+				__SS__ << "WAIT command is missing unit type after parameter. Command found as" <<
+					"... Parameter: '" << argumentBuffer_ << "' = " << parameterBuffer_  <<
+					" [" << identifierBuffer_ << "]. Accepted unit types are clocks, ns, us, ms, sec." << __E__; 
+				__SS_THROW__;
 			}
 			break;
 
@@ -652,38 +670,29 @@ int64_t CFOLib::CFO_Compiler::calcParameter(CFO_INSTR instructionOpcode)  // Cal
 			if (!loopStack_.empty())
 			{
 				loopLine = loopStack_.top();
+				__COUT__ << "DO_LOOP from [" << binLineNumber_ << 
+					"], loop line popped = " << loopLine <<
+					", must go back	" << binLineNumber_ - loopLine << " lines.";
 				loopStack_.pop();
-				return (lineNumber_ - loopLine);
+				return (binLineNumber_ - loopLine);
 			}
 			else
 			{
-				std::string errorMessage2 = "WARNING: LOOP/DO_LOOP counts don't match. (More DO_LOOP's) ";
-				throw std::runtime_error(errorMessage2);
+				__SS__ << "LOOP/DO_LOOP counts don't match. (More DO_LOOP's)";
+				__SS_THROW__;
 			}
 			break;
 
 		case CFO_INSTR::END:
 			if (!loopStack_.empty())
 			{
-				std::string errorMessage3 = "WARNING: LOOP/DO_LOOP counts don't match (Less DO_LOOP's)";
-				throw std::runtime_error(errorMessage3);
+				__SS__ << "LOOP/DO_LOOP counts don't match (Less DO_LOOP's)";
+				__SS_THROW__;
 			}
 		default:
 			break;
 	}
 	return 0;
-}
+} //end calcParameter()
 
-/**********************************************
-                          Output Functions
- *********************************************/
 
-void CFOLib::CFO_Compiler::outParameter(int64_t paramBuf)  // Writes the 6 byte parameter out based on a given integer.
-{
-	paramBuf = paramBuf & 0xFFFFFFFFFFFF;  // Enforce 6 bytes
-	auto paramBufPtr = reinterpret_cast<int8_t*>(&paramBuf);
-	for (int i = 0; i < 6; ++i) //int i = 5; i >= 0; i--)
-	{
-		output_.push_back(paramBufPtr[i]);
-	}
-}
