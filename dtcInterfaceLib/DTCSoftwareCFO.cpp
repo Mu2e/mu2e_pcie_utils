@@ -151,10 +151,10 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 		return;
 	}
 
-	//the minimal heartbeat interval is 0x20, or 800 ns
-	if (delayBetweenDataRequests < 0x20) {
+	// the minimal heartbeat interval is 0x20, or 800 ns
+	if (delayBetweenDataRequests < 0x20)
 		delayBetweenDataRequests = 0x20;
-	}
+	
 
 	TLOG(TLVL_SendRequestsForRange2) << VAL(count);
 	TLOG(TLVL_SendRequestsForRange2) << VAL(delayBetweenDataRequests);

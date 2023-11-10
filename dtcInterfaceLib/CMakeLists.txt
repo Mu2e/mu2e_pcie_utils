@@ -8,6 +8,7 @@ cet_make_library(LIBRARY_NAME DTCInterface
       DTCLibTest.cpp
       DTCSoftwareCFO.cpp
       DTC_Registers.cpp
+      CFOandDTC_Registers.cpp
       mu2edev.cpp
       mu2esim.cpp
     LIBRARIES PUBLIC 

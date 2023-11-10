@@ -14,9 +14,12 @@
 #define TLVL_SERDESReset TLVL_DEBUG + 7
 #define TLVL_CalculateFreq TLVL_DEBUG + 8
 
+
+
+
 CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int cfo, std::string expectedDesignVersion,
 									 bool skipInit, const std::string& uid)
-	: device_(), simMode_(mode), dmaSize_(16)
+	: simMode_(mode), dmaSize_(16)
 {
 	TLOG(TLVL_INFO) << "CONSTRUCTOR";
 
@@ -134,167 +137,178 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 	return simMode_;
 }
 
-//
-// CFO Register Dumps
-//
-std::string CFOLib::CFO_Registers::FormattedRegDump(int width)
-{
-	std::string divider(width, '=');
-	formatterWidth_ = width - 27 - 65;
-	if (formatterWidth_ < 28)
-	{
-		formatterWidth_ = 28;
-	}
-	std::string spaces(formatterWidth_ - 4, ' ');
-	std::ostringstream o;
-	o << "Memory Map: " << std::endl;
-	o << "    Address | Value      | Name " << spaces << "| Translation" << std::endl;
-	for (auto i : formattedDumpFunctions_)
-	{
-		o << divider << std::endl;
-		o << i();
-	}
-	return o.str();
-}
+// //
+// // CFO Register Dumps
+// //
+// std::string CFOLib::CFO_Registers::FormattedRegDump(int width)
+// {
+// 	std::string divider(width, '=');
+// 	formatterWidth_ = width - 27 - 65;
+// 	if (formatterWidth_ < 28)
+// 	{
+// 		formatterWidth_ = 28;
+// 	}
+// 	std::string spaces(formatterWidth_ - 4, ' ');
+// 	std::ostringstream o;
+// 	o << "Memory Map: " << std::endl;
+// 	o << "    Address | Value      | Name " << spaces << "| Translation" << std::endl;
+// 	for (auto i : formattedDumpFunctions_)
+// 	{
+// 		o << divider << std::endl;
+// 		o << i();
+// 	}
+// 	return o.str();
+// }
 
-std::string CFOLib::CFO_Registers::LinkCountersRegDump(int width)
-{
-	std::string divider(width, '=');
-	formatterWidth_ = width - 27 - 65;
-	if (formatterWidth_ < 28)
-	{
-		formatterWidth_ = 28;
-	}
-	std::string spaces(formatterWidth_ - 4, ' ');
-	std::ostringstream o;
-	o << "SERDES Byte/Packet Counters: " << std::endl;
-	o << "    Address | Value      | Name " << spaces << "| Translation" << std::endl;
-	for (auto i : formattedCounterFunctions_)
-	{
-		o << divider << std::endl;
-		o << i();
-	}
-	return o.str();
-}
+// std::string CFOLib::CFO_Registers::LinkCountersRegDump(int width)
+// {
+// 	std::string divider(width, '=');
+// 	formatterWidth_ = width - 27 - 65;
+// 	if (formatterWidth_ < 28)
+// 	{
+// 		formatterWidth_ = 28;
+// 	}
+// 	std::string spaces(formatterWidth_ - 4, ' ');
+// 	std::ostringstream o;
+// 	o << "SERDES Byte/Packet Counters: " << std::endl;
+// 	o << "    Address | Value      | Name " << spaces << "| Translation" << std::endl;
+// 	for (auto i : formattedCounterFunctions_)
+// 	{
+// 		o << divider << std::endl;
+// 		o << i();
+// 	}
+// 	return o.str();
+// }
 
 //
 // Register IO Functions
 //
 
-// Desgin Version/Date Registers
-std::string CFOLib::CFO_Registers::ReadDesignVersion()
-{
-	auto data = ReadRegister_(CFO_Register_DesignVersion) & 0xFFFFFF;
-	int minorHex = data & 0xFF;
-	auto minor = ((minorHex & 0xF0) >> 4) * 10 + (minorHex & 0xF);
-	int majorHex = (data & 0xFFFF00) >> 8;
-	auto major = ((majorHex & 0xF000) >> 12) * 1000 + ((majorHex & 0xF00) >> 8) * 100 + ((majorHex & 0xF0) >> 4) * 10 +
-				 (majorHex & 0xF);
-	std::ostringstream o;
-	o << "v" << std::setw(4) << std::setfill('0') << major << "." << std::setw(2) << std::setfill('0') << minor;
-	return o.str();
-}
+// // Desgin Version/Date Registers
+// std::string CFOLib::CFO_Registers::ReadDesignVersion()
+// {
+// 	auto data = ReadRegister_(CFO_Register_DesignVersion) & 0xFFFFFF;
+// 	int minorHex = data & 0xFF;
+// 	auto minor = ((minorHex & 0xF0) >> 4) * 10 + (minorHex & 0xF);
+// 	int majorHex = (data & 0xFFFF00) >> 8;
+// 	auto major = ((majorHex & 0xF000) >> 12) * 1000 + ((majorHex & 0xF00) >> 8) * 100 + ((majorHex & 0xF0) >> 4) * 10 +
+// 				 (majorHex & 0xF);
+// 	std::ostringstream o;
+// 	o << "v" << std::setw(4) << std::setfill('0') << major << "." << std::setw(2) << std::setfill('0') << minor;
+// 	return o.str();
+// }
 
-DTCLib::DTC_SerdesClockSpeed CFOLib::CFO_Registers::ReadSERDESVersion()
-{
-	auto data = (ReadRegister_(CFO_Register_DesignVersion) & 0xF0000000) >> 28;
-	if (data == 3) return DTC_SerdesClockSpeed_3125Gbps;
-	return DTC_SerdesClockSpeed_48Gbps;
-}
+// DTCLib::DTC_SerdesClockSpeed CFOLib::CFO_Registers::ReadSERDESVersion()
+// {
+// 	auto data = (ReadRegister_(CFO_Register_DesignVersion) & 0xF0000000) >> 28;
+// 	if (data == 3) return DTC_SerdesClockSpeed_3125Gbps;
+// 	return DTC_SerdesClockSpeed_48Gbps;
+// }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDesignVersion()
-{
-	auto form = CreateFormatter(CFO_Register_DesignVersion);
-	form.description = "CFO Firmware Design Version";
-	form.vals.push_back(ReadDesignVersion());
-	form.vals.push_back(std::string("Intrinsic Clock Speed: ") +
-						(ReadSERDESVersion() == DTC_SerdesClockSpeed_3125Gbps ? "3.125 Gbps" : "4.8 Gbps"));
-	return form;
-}
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignVersion()
+// {
+// 	auto form = CreateFormatter(CFO_Register_DesignVersion);
+// 	form.description = "CFO Firmware Design Version";
+// 	form.vals.push_back(ReadDesignVersion());
+// 	form.vals.push_back(std::string("Intrinsic Clock Speed: ") +
+// 						(ReadSERDESVersion() == DTC_SerdesClockSpeed_3125Gbps ? "3.125 Gbps" : "4.8 Gbps"));
+// 	return form;
+// }
+
+
+// /// <summary>
+// /// Read the modification date of the CFO firmware
+// /// </summary>
+// /// <returns>Design date in MON/DD/20YY HH:00 format</returns>
+// std::string CFOLib::CFO_Registers::ReadDesignDate()
+// {
+// 	auto readData = ReadRegister_(CFO_Register_DesignDate);
+// 	std::ostringstream o;
+// 	std::vector<std::string> months({"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"});
+// 	int mon =  ((readData>>20)&0xF)*10 + ((readData>>16)&0xF);
+// 	o << months[mon-1] << "/" << 
+// 		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
+// 		((readData>>28)&0xF) << ((readData>>24)&0xF) << " " <<
+// 		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData;
+	
+
+// 	// auto data = ReadRegister_(CFO_Register_DesignDate);
+// 	// std::ostringstream o;
+// 	// int yearHex = (data & 0xFF000000) >> 24;
+// 	// auto year = ((yearHex & 0xF0) >> 4) * 10 + (yearHex & 0xF);
+// 	// int monthHex = (data & 0xFF0000) >> 16;
+// 	// auto month = ((monthHex & 0xF0) >> 4) * 10 + (monthHex & 0xF);
+// 	// int dayHex = (data & 0xFF00) >> 8;
+// 	// auto day = ((dayHex & 0xF0) >> 4) * 10 + (dayHex & 0xF);
+// 	// int hour = ((data & 0xF0) >> 4) * 10 + (data & 0xF);
+// 	// o << "20" << std::setfill('0') << std::setw(2) << year << "-";
+// 	// o << std::setfill('0') << std::setw(2) << month << "-";
+// 	// o << std::setfill('0') << std::setw(2) << day << "-";
+// 	// o << std::setfill('0') << std::setw(2) << hour;
+// 	// // std::cout << o.str() << std::endl;
+// 	return o.str();
+// }
+
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignDate()
+// {
+// 	auto form = CreateFormatter(CFO_Register_DesignDate);
+// 	form.description = "CFO Firmware Design Date";
+// 	form.vals.push_back(ReadDesignDate());
+// 	return form;
+// }
 
 
 /// <summary>
-/// Read the modification date of the CFO firmware
+/// Read the Vivado Version Number
 /// </summary>
-/// <returns>Design date in MON/DD/20YY HH:00 format</returns>
-std::string CFOLib::CFO_Registers::ReadDesignDate()
+/// <returns>The Vivado Version number</returns>
+std::string CFOLib::CFO_Registers::ReadVivadoVersionNumber(uint32_t* val /* = 0 */)
 {
-	auto readData = ReadRegister_(CFO_Register_DesignDate);
+	auto data = val?(*val):ReadRegister_(CFO_Register_VivadoVersion);
 	std::ostringstream o;
-	std::vector<std::string> months({"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"});
-	int mon =  ((readData>>20)&0xF)*10 + ((readData>>16)&0xF);
-	o << months[mon-1] << "/" << 
-		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
-		((readData>>28)&0xF) << ((readData>>24)&0xF) << " " <<
-		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData;
-	
-
-	// auto data = ReadRegister_(CFO_Register_DesignDate);
-	// std::ostringstream o;
-	// int yearHex = (data & 0xFF000000) >> 24;
-	// auto year = ((yearHex & 0xF0) >> 4) * 10 + (yearHex & 0xF);
-	// int monthHex = (data & 0xFF0000) >> 16;
-	// auto month = ((monthHex & 0xF0) >> 4) * 10 + (monthHex & 0xF);
-	// int dayHex = (data & 0xFF00) >> 8;
-	// auto day = ((dayHex & 0xF0) >> 4) * 10 + (dayHex & 0xF);
-	// int hour = ((data & 0xF0) >> 4) * 10 + (data & 0xF);
-	// o << "20" << std::setfill('0') << std::setw(2) << year << "-";
-	// o << std::setfill('0') << std::setw(2) << month << "-";
-	// o << std::setfill('0') << std::setw(2) << day << "-";
-	// o << std::setfill('0') << std::setw(2) << hour;
-	// // std::cout << o.str() << std::endl;
+	int yearHex = (data & 0xFFFF0000) >> 16;
+	auto year = ((yearHex & 0xF000) >> 12) * 1000 + ((yearHex & 0xF00) >> 8) * 100 + ((yearHex & 0xF0) >> 4) * 10 +
+				(yearHex & 0xF);
+	int versionHex = (data & 0xFFFF);
+	auto version = ((versionHex & 0xF000) >> 12) * 1000 + ((versionHex & 0xF00) >> 8) * 100 +
+				   ((versionHex & 0xF0) >> 4) * 10 + (versionHex & 0xF);
+	o << std::setfill('0') << std::setw(4) << year << "." << version;
+	// std::cout << o.str() << std::endl;
 	return o.str();
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDesignDate()
+/// <summary>
+/// Formats the register's current value for register dumps
+/// </summary>
+/// <returns>RegisterFormatter object containing register information</returns>
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatVivadoVersion()
 {
-	auto form = CreateFormatter(CFO_Register_DesignDate);
-	form.description = "CFO Firmware Design Date";
-	form.vals.push_back(ReadDesignDate());
+	auto form = CreateFormatter(CFO_Register_VivadoVersion);
+	form.description = "CFO Firmware Vivado Version";
+	form.vals.push_back(ReadVivadoVersionNumber(&form.value));
 	return form;
 }
 
+
 bool CFOLib::CFO_Registers::ReadDDRFIFOEmpty()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_DesignStatus);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_DesignStatus);
 	return data[2];
 }
 
 bool CFOLib::CFO_Registers::ReadDDRClockCalibrationDone()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_DesignStatus);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_DesignStatus);
 	return data[0];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDesignStatus()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignStatus()
 {
-	auto form = CreateFormatter(CFO_Register_DesignStatus);
+	auto form = CreateFormatter(CFOandDTC_Register_DesignStatus);
 	form.description = "Design Status Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("DDR FIFO Empty:             [") + (ReadDDRFIFOEmpty() ? "x" : " ") + "]");
 	form.vals.push_back(std::string("DDR Clock Calibration Done: [") + (ReadDDRClockCalibrationDone() ? "x" : " ") + "]");
-	return form;
-}
-
-std::string CFOLib::CFO_Registers::ReadVivadoVersion()
-{
-	auto data = ReadRegister_(CFO_Register_VivadoVersion);
-	int yearHex = (data & 0xFFFF0000) >> 16;
-	auto year = ((yearHex & 0xF000) >> 12) * 1000 + ((yearHex & 0xF00) >> 8) * 100 + ((yearHex & 0xF0) >> 4) * 10 +
-				(yearHex & 0xF);
-	int releaseHex = data & 0xFFFF;
-	auto release = ((releaseHex & 0xF000) >> 12) * 1000 + ((releaseHex & 0xF00) >> 8) * 100 +
-				   ((releaseHex & 0xF0) >> 4) * 10 + (releaseHex & 0xF);
-	std::ostringstream o;
-	o << year << " Release " << release;
-	return o.str();
-}
-
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatVivadoVersion()
-{
-	auto form = CreateFormatter(CFO_Register_VivadoVersion);
-	form.description = "Vivado Version Register";
-	form.vals.push_back(ReadVivadoVersion());
 	return form;
 }
 
@@ -418,7 +432,7 @@ bool CFOLib::CFO_Registers::ReadTimingEnable()
 	return data[0];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 {
 	auto form = CreateFormatter(CFO_Register_CFOControl);
 	form.description = "CFO Control";
@@ -461,7 +475,7 @@ uint16_t CFOLib::CFO_Registers::ReadMinDMATransferLength()
 	return dmaSize_;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDMATransferLength()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMATransferLength()
 {
 	auto form = CreateFormatter(CFO_Register_DMATransferLength);
 	form.description = "DMA Transfer Length";
@@ -492,7 +506,7 @@ DTCLib::DTC_SERDESLoopbackMode CFOLib::CFO_Registers::ReadSERDESLoopback(const C
 	return static_cast<DTC_SERDESLoopbackMode>(dataSet.to_ulong());
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESLoopbackEnable()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESLoopbackEnable()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESLoopbackEnable);
 	form.description = "SERDES Loopback Enable";
@@ -537,7 +551,7 @@ bool CFOLib::CFO_Registers::ReadTimingClockPLLLocked()
 	return dataSet[0];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatClockOscillatorStatus()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockOscillatorStatus()
 {
 	auto form = CreateFormatter(CFO_Register_ClockOscillatorStatus);
 	form.description = "Clock Oscillator Status";
@@ -585,7 +599,7 @@ DTCLib::DTC_LinkEnableMode CFOLib::CFO_Registers::ReadLinkEnabled(const CFO_Link
 	return DTC_LinkEnableMode(dataSet[link], dataSet[link + 8]);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatLinkEnable()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatLinkEnable()
 {
 	auto form = CreateFormatter(CFO_Register_LinkEnable);
 	form.description = "Link Enable";
@@ -667,7 +681,7 @@ bool CFOLib::CFO_Registers::ReadResetSERDES(const CFO_Link_ID& link)
 	return dataSet[link];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESReset()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESReset()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESReset);
 	form.description = "SERDES Reset";
@@ -685,7 +699,7 @@ DTCLib::DTC_SERDESRXDisparityError CFOLib::CFO_Registers::ReadSERDESRXDisparityE
 	return DTC_SERDESRXDisparityError(ReadRegister_(CFO_Register_SERDESRXDisparityError), static_cast<DTC_Link_ID>(link));
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXDisparityError()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXDisparityError()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESRXDisparityError);
 	form.description = "SERDES RX Disparity Error";
@@ -707,7 +721,7 @@ DTCLib::DTC_CharacterNotInTableError CFOLib::CFO_Registers::ReadSERDESRXCharacte
 										static_cast<DTC_Link_ID>(link));
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCharacterNotInTableError()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCharacterNotInTableError()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESRXCharacterNotInTableError);
 	form.description = "SERDES RX CNIT Error";
@@ -728,7 +742,7 @@ bool CFOLib::CFO_Registers::ReadSERDESUnlockError(const CFO_Link_ID& link)
 	return dataSet[link];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESUnlockError()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESUnlockError()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESUnlockError);
 	form.description = "SERDES Unlock Error";
@@ -748,7 +762,7 @@ bool CFOLib::CFO_Registers::ReadSERDESPLLLocked(const CFO_Link_ID& link)
 	return dataSet[link];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPLLLocked()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPLLLocked()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPLLLocked);
 	form.description = "SERDES PLL Locked";
@@ -768,7 +782,7 @@ DTCLib::DTC_RXStatus CFOLib::CFO_Registers::ReadSERDESRXStatus(const CFO_Link_ID
 	return static_cast<DTC_RXStatus>(data);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXStatus()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXStatus()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESRXStatus);
 	form.description = "SERDES RX Status";
@@ -789,7 +803,7 @@ bool CFOLib::CFO_Registers::ReadResetSERDESDone(const CFO_Link_ID& link)
 	return dataSet[link];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESResetDone()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESResetDone()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESResetDone);
 	form.description = "SERDES Reset Done";
@@ -809,7 +823,7 @@ bool CFOLib::CFO_Registers::ReadSERDESRXCDRLock(const CFO_Link_ID& link)
 	return dataSet[link];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCDRLock()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCDRLock()
 {
 	auto form = CreateFormatter(CFO_Register_SFPSERDESStatus);
 	form.description = "SERDES CDR Lock";
@@ -828,7 +842,7 @@ void CFOLib::CFO_Registers::SetBeamOnTimerPreset(uint32_t preset)
 
 uint32_t CFOLib::CFO_Registers::ReadBeamOnTimerPreset() { return ReadRegister_(CFO_Register_BeamOnTimerPreset); }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnTimerPreset()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnTimerPreset()
 {
 	auto form = CreateFormatter(CFO_Register_BeamOnTimerPreset);
 	form.description = "Beam On Timer Preset Register";
@@ -856,7 +870,7 @@ bool CFOLib::CFO_Registers::ReadBeamOnMode(const CFO_Link_ID& link)
 	return data[link];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnMode()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnMode()
 {
 	auto form = CreateFormatter(CFO_Register_EnableBeamOnMode);
 	form.description = "Enable Beam On Mode Register";
@@ -900,7 +914,7 @@ bool CFOLib::CFO_Registers::ReadBeamOffMode(const CFO_Link_ID& link)
 	return data[link];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatBeamOffMode()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOffMode()
 {
 	auto form = CreateFormatter(CFO_Register_EnableBeamOffMode);
 	form.description = "Enable Beam Off Mode Register";
@@ -922,7 +936,7 @@ uint32_t CFOLib::CFO_Registers::ReadClockMarkerIntervalCount()
 	return ReadRegister_(CFO_Register_ClockMarkerIntervalCount);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatClockMarkerIntervalCount()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockMarkerIntervalCount()
 {
 	auto form = CreateFormatter(CFO_Register_ClockMarkerIntervalCount);
 	form.description = "40 MHz Clock Marker Interval Count Register";
@@ -1055,8 +1069,8 @@ void CFOLib::CFO_Registers::ResetJitterAttenuator()
 /// <summary>
 /// Formats the register's current value for register dumps
 /// </summary>
-/// <returns>DTC_RegisterFormatter object containing register information</returns>
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatJitterAttenuatorCSR()
+/// <returns>RegisterFormatter object containing register information</returns>
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatJitterAttenuatorCSR()
 {
 	auto form = CreateFormatter(CFO_Register_JitterAttenuatorCSR);
 	std::bitset<32> data = form.value;//ReadRegister_(CFO_Register_JitterAttenuatorCSR);
@@ -1138,7 +1152,7 @@ void CFOLib::CFO_Registers::SetSERDESOscillatorClock(DTC_SerdesClockSpeed speed)
 	}
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorFrequency()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorFrequency()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESOscillatorFrequency);
 	form.description = "SERDES Oscillator Frequency";
@@ -1147,7 +1161,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorFrequ
 	form.vals.push_back(o.str());
 	return form;
 }
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorControl()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorControl()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusControl);
 	form.description = "SERDES Oscillator IIC Bus Control";
@@ -1155,7 +1169,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorContr
 	form.vals.push_back(std::string("Reset:  [") + (ReadSERDESOscillatorIICInterfaceReset() ? "x" : " ") + "]");
 	return form;
 }
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameterLow()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameterLow()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusLow);
 	form.description = "SERDES Oscillator IIC Bus Low";
@@ -1172,7 +1186,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParam
 	form.vals.push_back(s4.str());
 	return form;
 }
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameterHigh()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameterHigh()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusHigh);
 	form.description = "SERDES Oscillator IIC Bus High";
@@ -1204,7 +1218,7 @@ DTCLib::DTC_EventWindowTag CFOLib::CFO_Registers::ReadTimestampPreset()
 	return output;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTimestampPreset0()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTimestampPreset0()
 {
 	auto form = CreateFormatter(CFO_Register_TimestampPreset0);
 	form.description = "Timestamp Preset 0";
@@ -1214,7 +1228,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTimestampPreset0()
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTimestampPreset1()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTimestampPreset1()
 {
 	auto form = CreateFormatter(CFO_Register_TimestampPreset1);
 	form.description = "Timestamp Preset 1";
@@ -1254,7 +1268,7 @@ uint8_t CFOLib::CFO_Registers::ReadLinkDTCCount(const CFO_Link_ID& link, bool lo
 	return (maxDTCs_ >> (link * 4)) & 0xF;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatNUMDTCs()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatNUMDTCs()
 {
 	auto form = CreateFormatter(CFO_Register_NUMDTCs);
 	form.description = "Number of DTCs Register";
@@ -1288,7 +1302,7 @@ DTCLib::DTC_FIFOFullErrorFlags CFOLib::CFO_Registers::ReadFIFOFullErrorFlags(con
 	return flags;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatFIFOFullErrorFlag0()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFIFOFullErrorFlag0()
 {
 	auto form = CreateFormatter(CFO_Register_FIFOFullErrorFlag0);
 	form.description = "FIFO Full Error Flags 0";
@@ -1354,7 +1368,7 @@ bool CFOLib::CFO_Registers::ReadPacketCRCError(const CFO_Link_ID& link)
 	return data[static_cast<int>(link)];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketError()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketError()
 {
 	auto form = CreateFormatter(CFO_Register_ReceivePacketError);
 	form.description = "Receive Packet Error";
@@ -1378,7 +1392,7 @@ uint32_t CFOLib::CFO_Registers::ReadEventWindowEmulatorInterval()
 	return ReadRegister_(CFO_Register_EventWindowEmulatorIntervalTime);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowEmulatorIntervalTime()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowEmulatorIntervalTime()
 {
 	auto form = CreateFormatter(CFO_Register_EventWindowEmulatorIntervalTime);
 	form.description = "Event Window Emulator Interval Time";
@@ -1396,7 +1410,7 @@ uint32_t CFOLib::CFO_Registers::ReadEventWindowHoldoffTime()
 	return ReadRegister_(CFO_Register_EventWindowHoldoffTime);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowHoldoffTime()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowHoldoffTime()
 {
 	auto form = CreateFormatter(CFO_Register_EventWindowHoldoffTime);
 	form.description = "Event Window Holdoff Time";
@@ -1417,7 +1431,7 @@ void CFOLib::CFO_Registers::ClearEventWindowTimeoutError(const CFO_Link_ID& link
 	WriteRegister_(data.to_ulong(), CFO_Register_EventWindowTimeoutError);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowTimeoutError()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowTimeoutError()
 {
 	auto form = CreateFormatter(CFO_Register_EventWindowTimeoutError);
 	form.description = "Event Window Timeout Error";
@@ -1440,7 +1454,7 @@ uint32_t CFOLib::CFO_Registers::ReadEventWindowTimeoutInterval()
 	return ReadRegister_(CFO_Register_EventWindowTimeoutValue);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowTimeoutInterval()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowTimeoutInterval()
 {
 	auto form = CreateFormatter(CFO_Register_EventWindowTimeoutValue);
 	form.description = "Event Window Timeout Value";
@@ -1689,7 +1703,7 @@ uint32_t CFOLib::CFO_Registers::ReadTransmitPacketCount(const CFO_Link_ID& link)
 	}
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink0()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink0()
 {
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink0);
 	form.description = "Receive Byte Count: Link 0";
@@ -1699,7 +1713,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink0
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink1()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink1()
 {
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink1);
 	form.description = "Receive Byte Count: Link 1";
@@ -1709,7 +1723,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink1
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink2()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink2()
 {
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink2);
 	form.description = "Receive Byte Count: Link 2";
@@ -1719,7 +1733,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink2
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink3()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink3()
 {
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink3);
 	form.description = "Receive Byte Count: Link 3";
@@ -1729,7 +1743,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink3
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink4()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink4()
 {
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink4);
 	form.description = "Receive Byte Count: Link 4";
@@ -1739,7 +1753,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink4
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink5()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink5()
 {
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink5);
 	form.description = "Receive Byte Count: Link 5";
@@ -1749,7 +1763,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink5
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink6()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink6()
 {
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink6);
 	form.description = "Receive Byte Count: Link 6";
@@ -1759,7 +1773,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink6
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink7()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink7()
 {
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink7);
 	form.description = "Receive Byte Count: Link 7";
@@ -1769,7 +1783,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink7
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink0()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink0()
 {
 	auto form = CreateFormatter(CFO_Register_ReceivePacketCountDataLink0);
 	form.description = "Receive Packet Count: Link 0";
@@ -1779,7 +1793,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLin
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink1()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink1()
 {
 	auto form = CreateFormatter(CFO_Register_ReceivePacketCountDataLink1);
 	form.description = "Receive Packet Count: Link 1";
@@ -1789,7 +1803,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLin
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink2()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink2()
 {
 	auto form = CreateFormatter(CFO_Register_ReceivePacketCountDataLink2);
 	form.description = "Receive Packet Count: Link 2";
@@ -1799,7 +1813,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLin
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink3()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink3()
 {
 	auto form = CreateFormatter(CFO_Register_ReceivePacketCountDataLink3);
 	form.description = "Receive Packet Count: Link 3";
@@ -1809,7 +1823,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLin
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink4()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink4()
 {
 	auto form = CreateFormatter(CFO_Register_ReceivePacketCountDataLink4);
 	form.description = "Receive Packet Count: Link 4";
@@ -1819,7 +1833,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLin
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink5()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink5()
 {
 	auto form = CreateFormatter(CFO_Register_ReceivePacketCountDataLink5);
 	form.description = "Receive Packet Count: Link 5";
@@ -1829,7 +1843,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLin
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink6()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink6()
 {
 	auto form = CreateFormatter(CFO_Register_ReceivePacketCountDataLink6);
 	form.description = "Receive Packet Count: Link 6";
@@ -1839,7 +1853,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLin
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink7()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLink7()
 {
 	auto form = CreateFormatter(CFO_Register_ReceivePacketCountDataLink7);
 	form.description = "Receive Packet Count: Link 7";
@@ -1849,7 +1863,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketCountLin
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink0()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink0()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitByteCountDataLink0);
 	form.description = "Transmit Byte Count: Link 0";
@@ -1859,7 +1873,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink0
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink1()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink1()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitByteCountDataLink1);
 	form.description = "Transmit Byte Count: Link 1";
@@ -1869,7 +1883,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink1
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink2()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink2()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitByteCountDataLink2);
 	form.description = "Transmit Byte Count: Link 2";
@@ -1879,7 +1893,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink2
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink3()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink3()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitByteCountDataLink3);
 	form.description = "Transmit Byte Count: Link 3";
@@ -1889,7 +1903,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink3
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink4()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink4()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitByteCountDataLink4);
 	form.description = "Transmit Byte Count: Link 4";
@@ -1899,7 +1913,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink4
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink5()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink5()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitByteCountDataLink5);
 	form.description = "Transmit Byte Count: Link 5";
@@ -1909,7 +1923,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink5
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink6()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink6()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitByteCountDataLink6);
 	form.description = "Transmit Byte Count: Link 6";
@@ -1919,7 +1933,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink6
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink7()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink7()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitByteCountDataLink7);
 	form.description = "Transmit Byte Count: Link 7";
@@ -1929,7 +1943,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTramsitByteCountLink7
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink0()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink0()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitPacketCountDataLink0);
 	form.description = "Transmit Packet Count: Link 0";
@@ -1939,7 +1953,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLi
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink1()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink1()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitPacketCountDataLink1);
 	form.description = "Transmit Packet Count: Link 1";
@@ -1949,7 +1963,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLi
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink2()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink2()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitPacketCountDataLink2);
 	form.description = "Transmit Packet Count: Link 2";
@@ -1959,7 +1973,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLi
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink3()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink3()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitPacketCountDataLink3);
 	form.description = "Transmit Packet Count: Link 3";
@@ -1969,7 +1983,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLi
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink4()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink4()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitPacketCountDataLink4);
 	form.description = "Transmit Packet Count: Link 4";
@@ -1979,7 +1993,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLi
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink5()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink5()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitPacketCountDataLink5);
 	form.description = "Transmit Packet Count: Link 5";
@@ -1989,7 +2003,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLi
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink6()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink6()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitPacketCountDataLink6);
 	form.description = "Transmit Packet Count: Link 6";
@@ -1999,7 +2013,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLi
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink7()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatTransmitPacketCountLink7()
 {
 	auto form = CreateFormatter(CFO_Register_TransmitPacketCountDataLink7);
 	form.description = "Transmit Packet Count: Link 7";
@@ -2020,7 +2034,7 @@ uint32_t CFOLib::CFO_Registers::ReadDMAWriteStartAddress()
 	return ReadRegister_(CFO_Register_DDRMemoryDMAWriteStartAddress);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDMAWriteStartAddress()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAWriteStartAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRMemoryDMAWriteStartAddress);
 	form.description = "DDR Memory DMA Write Start Address";
@@ -2038,7 +2052,7 @@ uint32_t CFOLib::CFO_Registers::ReadDMAReadStartAddress()
 	return ReadRegister_(CFO_Register_DDRMemoryDMAReadStartAddress);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDMAReadStartAddress()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAReadStartAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRMemoryDMAWriteStartAddress);
 	form.description = "DDR Memory DMA Read Start Address";
@@ -2053,7 +2067,7 @@ void CFOLib::CFO_Registers::SetDMAReadByteCount(const uint32_t& bytes)
 
 uint32_t CFOLib::CFO_Registers::ReadDMAReadByteCount() { return ReadRegister_(CFO_Register_DDRMemoryDMAReadByteCount); }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDMAReadByteCount()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAReadByteCount()
 {
 	auto form = CreateFormatter(CFO_Register_DDRMemoryDMAWriteStartAddress);
 	form.description = "DDR Memory DMA Read Byte Count/Enable";
@@ -2068,7 +2082,7 @@ void CFOLib::CFO_Registers::SetDDRBeamOnBaseAddress(const uint32_t& address)
 
 uint32_t CFOLib::CFO_Registers::ReadDDRBeamOnBaseAddress() { return ReadRegister_(CFO_Register_DDRBeamOnBaseAddress); }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOnBaseAddress()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOnBaseAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRBeamOnBaseAddress);
 	form.description = "DDR Memory Beam On Base Address";
@@ -2086,7 +2100,7 @@ uint32_t CFOLib::CFO_Registers::ReadDDRBeamOffBaseAddress()
 	return ReadRegister_(CFO_Register_DDRBeamOffBaseAddress);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOffBaseAddress()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOffBaseAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRBeamOffBaseAddress);
 	form.description = "DDR Memory Beam Off Base Address";
@@ -2209,7 +2223,7 @@ bool CFOLib::CFO_Registers::ReadFireflyTXReset()
 	return dataSet[0];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatFireflyCSR()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFireflyCSR()
 {
 	auto form = CreateFormatter(CFO_Register_FireflyCSRRegister);
 	form.description = "Firefly CSR Register";
@@ -2626,7 +2640,7 @@ void CFOLib::CFO_Registers::ToggleSERDESRXPRBSCountReset(const CFO_Link_ID& link
 	WriteRegister_(dataSet.to_ulong(), reg);
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink0()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink0()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink0);
 	form.description = "SERDES PRBS Control Link 0";
@@ -2655,7 +2669,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink1()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink1()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink1);
 	form.description = "SERDES PRBS Control Link 1";
@@ -2684,7 +2698,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink2()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink2()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink2);
 	form.description = "SERDES PRBS Control Link 2";
@@ -2713,7 +2727,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink3()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink3()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink3);
 	form.description = "SERDES PRBS Control Link 3";
@@ -2742,7 +2756,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink4()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink4()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink4);
 	form.description = "SERDES PRBS Control Link 4";
@@ -2771,7 +2785,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink5()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink5()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink5);
 	form.description = "SERDES PRBS Control Link 5";
@@ -2800,7 +2814,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink6()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink6()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink6);
 	form.description = "SERDES PRBS Control Link 6";
@@ -2829,7 +2843,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink7()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink7()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESPRBSControlLink7);
 	form.description = "SERDES PRBS Control Link 7";
@@ -2918,7 +2932,7 @@ uint32_t CFOLib::CFO_Registers::ReadCableDelayValue(const CFO_Link_ID& link)
 	}
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink0()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink0()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink0);
 	form.description = "Cable Delay Value Link 0";
@@ -2926,7 +2940,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink0(
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink1()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink1()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink1);
 	form.description = "Cable Delay Value Link 1";
@@ -2934,7 +2948,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink1(
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink2()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink2()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink2);
 	form.description = "Cable Delay Value Link 2";
@@ -2942,7 +2956,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink2(
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink3()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink3()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink3);
 	form.description = "Cable Delay Value Link 3";
@@ -2950,7 +2964,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink3(
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink4()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink4()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink4);
 	form.description = "Cable Delay Value Link 4";
@@ -2958,7 +2972,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink4(
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink5()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink5()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink5);
 	form.description = "Cable Delay Value Link 5";
@@ -2966,7 +2980,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink5(
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink6()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink6()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink6);
 	form.description = "Cable Delay Value Link 6";
@@ -2974,7 +2988,7 @@ DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink6(
 	return form;
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink7()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink7()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink7);
 	form.description = "Cable Delay Value Link 7";
@@ -3047,7 +3061,7 @@ bool CFOLib::CFO_Registers::ReadDelayMeasureNow(const CFO_Link_ID& link)
 	return dataSet[link];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayControl()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayControl()
 {
 	auto form = CreateFormatter(CFO_Register_CableDelayControlStatus);
 	form.description = "Cabel Delay Control and Status";
@@ -3077,7 +3091,7 @@ bool CFOLib::CFO_Registers::ReadFPGAPROMReady()
 	return dataSet[0];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatFPGAPROMProgramStatus()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFPGAPROMProgramStatus()
 {
 	auto form = CreateFormatter(CFO_Register_FPGAPROMProgramStatus);
 	form.description = "FPGA PROM Program Status";
@@ -3141,7 +3155,7 @@ bool CFOLib::CFO_Registers::ReadFPGACoreAccessFIFOEmpty()
 	return dataSet[0];
 }
 
-DTCLib::DTC_RegisterFormatter CFOLib::CFO_Registers::FormatFPGACoreAccess()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFPGACoreAccess()
 {
 	auto form = CreateFormatter(CFO_Register_FPGACoreAccess);
 	form.description = "FPGA Core Access";
@@ -3202,33 +3216,35 @@ void CFOLib::CFO_Registers::DisableAllOutputs()
 
 
 // Private Functions
-void CFOLib::CFO_Registers::WriteRegister_(uint32_t dataToWrite, const CFO_Register& address)
+void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite)
 {
-	auto retry = 3;
-	int errorCode;
-	do
-	{
-		errorCode = device_.write_register(address, 100, dataToWrite);
-		--retry;
-	} while (retry > 0 && errorCode != 0);
-	if (errorCode != 0)
-	{
-		throw DTC_IOErrorException(errorCode);
-	}
+	// CFOandDTC_Registers::WriteRegister_ used instead of DTC_Registers::WriteRegister_	
+			
+	// auto retry = 3;
+	// int errorCode;
+	// do
+	// {
+	// 	errorCode = device_.write_register(address, 100, dataToWrite);
+	// 	--retry;
+	// } while (retry > 0 && errorCode != 0);
+	// if (errorCode != 0)
+	// {
+	// 	throw DTC_IOErrorException(errorCode);
+	// }
 
-	{
-		std::stringstream o;
-		o << device_.getDeviceUID() << " - " << 
-			"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
-			<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-			std::endl;
-		CFO_TLOG(TLVL_DEBUG) << o.str();
-	}
+	// {
+	// 	std::stringstream o;
+	// 	o << device_.getDeviceUID() << " - " << 
+	// 		"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+	// 		<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+	// 		std::endl;
+	// 	CFO_TLOG(TLVL_DEBUG) << o.str();
+	// }
 
 	//verify register readback
 	if(1)
 	{
-		uint32_t readbackValue = ReadRegister_(address);
+		// uint32_t readbackValue = ReadRegister_(address);
 		int i = -1;  // used for counters
 		switch(address) //handle special register checks by masking of DONT-CARE bits, or else check full 32 bits
 		{
@@ -3290,33 +3306,33 @@ void CFOLib::CFO_Registers::WriteRegister_(uint32_t dataToWrite, const CFO_Regis
 	} //end verify register readback
 }
 
-uint32_t CFOLib::CFO_Registers::ReadRegister_(const CFO_Register& address)
-{
-	auto retry = 3;
-	int errorCode;
-	uint32_t data;
-	do
-	{
-		errorCode = device_.read_register(address, 100, &data);
-		--retry;
-	} while (retry > 0 && errorCode != 0);
-	if (errorCode != 0)
-	{
-		throw DTC_IOErrorException(errorCode);
-	}
+// uint32_t CFOLib::CFO_Registers::ReadRegister_(const CFO_Register& address)
+// {
+// 	auto retry = 3;
+// 	int errorCode;
+// 	uint32_t data;
+// 	do
+// 	{
+// 		errorCode = device_.read_register(address, 100, &data);
+// 		--retry;
+// 	} while (retry > 0 && errorCode != 0);
+// 	if (errorCode != 0)
+// 	{
+// 		throw DTC_IOErrorException(errorCode);
+// 	}
 
-	if(address != 0x916c)
-	{
-		std::stringstream o;
-		o << device_.getDeviceUID() << " - " << 
-			"read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
-			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-			std::endl;
-		CFO_TLOG(TLVL_DEBUG) << o.str();
-	}
+// 	if(address != 0x916c)
+// 	{
+// 		std::stringstream o;
+// 		o << device_.getDeviceUID() << " - " << 
+// 			"read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
+// 			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+// 			std::endl;
+// 		CFO_TLOG(TLVL_DEBUG) << o.str();
+// 	}
 
-	return data;
-}
+// 	return data;
+// }
 
 int CFOLib::CFO_Registers::DecodeHighSpeedDivider_(int input)
 {
