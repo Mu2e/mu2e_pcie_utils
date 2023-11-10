@@ -16,6 +16,12 @@
 
 #include "mu2edev.h"
 
+#define __SHORTFILE__ 		(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
+#define DEV_TLOG(lvl) 	TLOG(lvl) << "DEVICE " << this->getDeviceUID() << ": "
+#define __SS__ 			std::stringstream ss; ss << "|" << "DEVICE " << this->getDeviceUID() << ": " << __SHORTFILE__ << ":" << std::dec << __LINE__ << " |\t"
+#define __SS_THROW__    { DEV_TLOG(TLVL_ERROR) << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
+#define __E__ 				std::endl
+
 static const std::thread::id NULL_TID = std::thread::id(0);
 std::atomic<std::thread::id> mu2edev::dcs_lock_held_ = NULL_TID;
 
@@ -46,9 +52,10 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
 		debugFp_ = fopen(debugWriteFileStr.c_str(), "w");
 		if (!debugFp_)
 		{
-			perror(("open " + std::string(debugWriteFileStr)).c_str());
-			TRACE(TLVL_WARNING, UID_ + " - mu2e Device write debug file could not be opened at path DTCLIB_DEBUG_WRITE_FILE_PATH! Exiting.");
-			throw std::runtime_error(UID_ + " - mu2e Device write debug file could not be opened at path DTCLIB_DEBUG_WRITE_FILE_PATH! Exiting.");
+			__SS__ << "mu2e Device write debug file could not be opened at path DTCLIB_DEBUG_WRITE_FILE_PATH! Exiting.\n" << 
+				"open " << debugWriteFileStr << __E__;
+			perror(ss.str().c_str());
+			__SS_THROW__;
 			// exit(1);
 		}
 	}
@@ -77,9 +84,10 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
 		devfd_ = open(devfile, O_RDWR);
 		if (devfd_ == -1 || devfd_ == 0)
 		{
-			perror(("open " + std::string(devfile)).c_str());
-			TRACE(TLVL_WARNING, UID_ + " - mu2e Device file not found and DTCLIB_SIM_ENABLE not set! Exiting.");
-			throw std::runtime_error(UID_ + " - mu2e Device file not found and DTCLIB_SIM_ENABLE not set! Exiting.");
+			__SS__ << "mu2e Device file not found or DTCLIB_SIM_ENABLE not set! Exiting.\n" << 
+				"open " << devfile << __E__;
+			perror(ss.str().c_str());
+			__SS_THROW__;
 			// exit(1);
 		}
 		for (unsigned chn = 0; chn < MU2E_MAX_CHANNELS; ++chn)
@@ -93,9 +101,9 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
 				sts = ioctl(devfd_, M_IOC_GET_INFO, &get_info);
 				if (sts != 0)
 				{
-					perror("M_IOC_GET_INFO");
-
-					throw std::runtime_error(UID_ + " - Failed mu2edev::init before ioctl( devfd_, M_IOC_GET_INFO, &get_info)");
+					__SS__ << "Failed mu2edev::init before ioctl( devfd_, M_IOC_GET_INFO, &get_info)." << __E__;
+					perror(ss.str().c_str());
+					__SS_THROW__;
 					// exit(1);
 				}
 				mu2e_channel_info_[activeDeviceIndex_][chn][dir] = get_info;
@@ -113,8 +121,10 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
 																			  length, prot, MAP_SHARED, devfd_, offset);
 					if (mu2e_mmap_ptrs_[activeDeviceIndex_][chn][dir][map] == MAP_FAILED)
 					{
-						perror("mmap");
-						throw std::runtime_error("mmap");
+
+						__SS__ << "mu2e Device mmap error! Exiting." << __E__;
+						perror(ss.str().c_str());
+						__SS_THROW__;
 						// exit(1);
 					}
 					TRACE(TLVL_DEBUG, UID_ + " - mu2edev::init chnDirMap2offset=%lu mu2e_mmap_ptrs_[%d][%d][%d][%d]=%p p=%c l=%lu", offset, activeDeviceIndex_, chn,
@@ -215,8 +225,10 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 			{  // was it a tmo or error
 				if (retsts != 0)
 				{
-					perror("M_IOC_GET_INFO");
-					exit(1);
+					__SS__ << "Failed mu2edev::read_data with M_IOC_GET_INFO... return not 0." << __E__;
+					perror(ss.str().c_str());
+					__SS_THROW__;
+					// exit(1);
 				}
 				TRACE(TLVL_DEBUG + 11, UID_ + " - mu2edev::read_data not error... return 0 status");
 			}
@@ -256,7 +268,10 @@ int mu2edev::read_release(DTC_DMA_Engine const& chn, unsigned num)
 			retsts = ioctl(devfd_, M_IOC_BUF_GIVE, arg);
 			if (retsts != 0)
 			{
-				perror("M_IOC_BUF_GIVE");
+				__SS__ << "ioctl(devfd_, M_IOC_BUF_GIVE, arg)... return not 0." << __E__;
+				perror(ss.str().c_str());
+				DEV_TLOG(TLVL_ERROR) << ss.str();
+				// __SS_THROW__;
 			}  // exit(1); } // Don't exit for now
 
 			// increment our cached info
@@ -402,8 +417,10 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 			int sts = ioctl(devfd_, M_IOC_GET_INFO, &get_info);
 			if (sts != 0)
 			{
-				perror("M_IOC_GET_INFO");
-				exit(1);
+				__SS__ << "Failed mu2edev::write_data with M_IOC_GET_INFO... return not 0." << __E__;
+				perror(ss.str().c_str());
+				__SS_THROW__;
+				// exit(1);
 			}
 			mu2e_channel_info_[activeDeviceIndex_][chn][dir] = get_info;  // copy info struct
 			delta = mu2e_chn_info_delta_(activeDeviceIndex_, chn, dir, &mu2e_channel_info_);
@@ -412,10 +429,11 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 
 		if (delta <= 1)
 		{
-			TRACE(TLVL_ERROR, UID_ + " - HW_NOT_READING_BUFS");
-			perror("HW_NOT_READING_BUFS");
-			kill(0, SIGUSR2);
-			exit(2);
+			__SS__ << "Failed mu2edev::write_data with HW_NOT_READING_BUFS." << __E__;
+			perror(ss.str().c_str());
+			__SS_THROW__;
+			// kill(0, SIGUSR2);
+			// exit(2);
 		}
 
 		unsigned idx = mu2e_channel_info_[activeDeviceIndex_][chn][dir].swIdx;
