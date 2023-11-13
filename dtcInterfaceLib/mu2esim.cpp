@@ -119,8 +119,8 @@ int mu2esim::init(DTCLib::DTC_SimMode mode)
 
 	TLOG(TLVL_Init) << "Initializing registers";
 	// Set initial register values...
-	registers_[DTCLib::DTC_Register_DesignVersion] = 0x00006363;           // v99.99
-	registers_[DTCLib::DTC_Register_DesignDate] = 0x53494D44;              // SIMD in ASCII
+	registers_[DTCLib::CFOandDTC_Register_DesignVersion] = 0x00006363;           // v99.99
+	registers_[DTCLib::CFOandDTC_Register_DesignDate] = 0x53494D44;              // SIMD in ASCII
 	registers_[DTCLib::DTC_Register_DTCControl] = 0x00000003;              // System Clock, Timing Enable
 	registers_[DTCLib::DTC_Register_DMATransferLength] = 0x80000010;       // Default value from HWUG
 	registers_[DTCLib::DTC_Register_SERDESLoopbackEnable] = 0x00000000;    // SERDES Loopback Disabled
@@ -141,7 +141,7 @@ int mu2esim::init(DTCLib::DTC_SimMode mode)
 	registers_[DTCLib::DTC_Register_EthernetFramePayloadSize] = 0x5D4;
 	registers_[DTCLib::DTC_Register_FPGAPROMProgramStatus] = 0x1;
 
-	TLOG(TLVL_Init) << "Initialize finished";
+	TLOG(TLVL_Init) << "mu2e Simulator::init finished";
 	return 0;
 }
 

@@ -1,49 +1,23 @@
 #ifndef CFO_REGISTERS_H
 #define CFO_REGISTERS_H
 
-//#include <bitset> // std::bitset
-//#include <cstdint> // uint8_t, uint16_t
 #include <functional>  // std::bind, std::function
 #include <vector>      // std::vector
 
-#include "artdaq-core-mu2e/Overlays/DTC_Types.h"
-#include "dtcInterfaceLib/mu2edev.h"
+#include "dtcInterfaceLib/CFOandDTC_Registers.h"
 
 using namespace DTCLib;
 
 namespace CFOLib {
 
 /// <summary>
-/// The links of the CFO
-/// </summary>
-enum CFO_Link_ID : uint8_t
-{
-	CFO_Link_0 = 0,
-	CFO_Link_1 = 1,
-	CFO_Link_2 = 2,
-	CFO_Link_3 = 3,
-	CFO_Link_4 = 4,
-	CFO_Link_5 = 5,
-	CFO_Link_6 = 6,
-	CFO_Link_7 = 7,
-	CFO_Link_Unused,
-	CFO_Link_ALL = 255
-};
-
-/// <summary>
-/// Vector of the links, for iterating
-/// </summary>
-static const std::vector<CFO_Link_ID> CFO_Links{CFO_Link_0, CFO_Link_1, CFO_Link_2, CFO_Link_3,
-												CFO_Link_4, CFO_Link_5, CFO_Link_6, CFO_Link_7};
-
-/// <summary>
 /// Register address map
 /// </summary>
+// struct CFO_Register : public DTCLib::CFOandDTC_Register { 
 enum CFO_Register : uint16_t
 {
-	CFO_Register_DesignVersion = 0x9000,
-	CFO_Register_DesignDate = 0x9004,
-	CFO_Register_DesignStatus = 0x9008,
+	#include "dtcInterfaceLib/CFOandDTC_Register.def"
+	CFO_Register_KernelDriverVersion = 0x9040,
 	CFO_Register_VivadoVersion = 0x9080,
 	CFO_Register_CFOControl = 0x9100,
 	CFO_Register_DMATransferLength = 0x9104,
@@ -135,14 +109,40 @@ enum CFO_Register : uint16_t
 	CFO_Register_FPGACoreAccess = 0x9408,
 	CFO_Register_JitterAttenuatorCSR = 0x9500,
 	CFO_Register_Invalid,
+// };
+}; // end CFO_Register enum
+
+
+/// <summary>
+/// The links of the CFO
+/// </summary>
+enum CFO_Link_ID : uint8_t
+{
+	CFO_Link_0 = 0,
+	CFO_Link_1 = 1,
+	CFO_Link_2 = 2,
+	CFO_Link_3 = 3,
+	CFO_Link_4 = 4,
+	CFO_Link_5 = 5,
+	CFO_Link_6 = 6,
+	CFO_Link_7 = 7,
+	CFO_Link_Unused,
+	CFO_Link_ALL = 255
 };
 
 /// <summary>
+/// Vector of the links, for iterating
+/// </summary>
+static const std::vector<CFO_Link_ID> CFO_Links{CFO_Link_0, CFO_Link_1, CFO_Link_2, CFO_Link_3,
+												CFO_Link_4, CFO_Link_5, CFO_Link_6, CFO_Link_7};
+
+
+/// <summary>
 /// The CFO_Registers class represents the CFO Register space, and all the methods necessary to read and write those
-/// registers. Each register has, at the very least, a read method, a write method, and a DTC_RegisterFormatter method
+/// registers. Each register has, at the very least, a read method, a write method, and a RegisterFormatter method
 /// which formats the register value in a human-readable way.
 /// </summary>
-class CFO_Registers
+class CFO_Registers : public DTCLib::CFOandDTC_Registers
 {
 public:
 	/// <summary>
@@ -159,12 +159,6 @@ public:
 	/// CFO_Registers destructor
 	/// </summary>
 	virtual ~CFO_Registers();
-
-	/// <summary>
-	/// Get a pointer to the device handle
-	/// </summary>
-	/// <returns>cfodev* pointer</returns>
-	mu2edev* GetDevice() { return &device_; }
 
 	//
 	// CFO Sim Mode Virtual Register
@@ -185,67 +179,10 @@ public:
 	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO, 
 							bool skipInit = false, const std::string& uid = "");
 
-	//
-	// CFO Register Dumps
-	//
-	/// <summary>
-	/// Perform a register dump
-	/// </summary>
-	/// <param name="width">Printable width of description fields</param>
-	/// <returns>StLink containing all registers, with their human-readable representations</returns>
-	std::string FormattedRegDump(int width);
-	/// <summary>
-	/// Dump the Link byte/packet counters
-	/// </summary>
-	/// <param name="width">Printable width of description fields</param>
-	/// <returns>StLink containing the Link counter registers, with their human-readable representations</returns>
-	std::string LinkCountersRegDump(int width);
-
-	/// <summary>
-	/// Initializes a DTC_RegisterFormatter for the given CFO_Register
-	/// </summary>
-	/// <param name="address">Address of register to format</param>
-	/// <returns>DTC_RegisterFormatter with address and raw value set</returns>
-	DTC_RegisterFormatter CreateFormatter(const CFO_Register& address)
-	{
-		DTC_RegisterFormatter form;
-		form.descWidth = formatterWidth_;
-		form.address = address;
-		form.value = ReadRegister_(address);
-		return form;
-	}
-
-	//
-	// Register IO Functions
-	//
-
-	// Desgin Version/Date Registers
-	/// <summary>
-	/// Read the design version
-	/// </summary>
-	/// <returns>The design version in vXXXX.YY format</returns>
-	std::string ReadDesignVersion();
-	/// <summary>
-	/// Determine the native clock speed for the SERDES in the loaded firmware
-	/// </summary>
-	/// <returns>Either CFO_SerdesClockSpeed_48Gbps or CFO_SerdesClockSpeed_3125Gbps</returns>
-	DTC_SerdesClockSpeed ReadSERDESVersion();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatDesignVersion();
-
-	/// <summary>
-	/// Read the modification date of the CFO firmware
-	/// </summary>
-	/// <returns>Design date in 20YY-MM-DD-HH format</returns>
-	std::string ReadDesignDate();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatDesignDate();
+	
+	// Vivado Version Register
+	std::string ReadVivadoVersionNumber(uint32_t* val = 0) override;
+	RegisterFormatter FormatVivadoVersion() override;
 
 	// Design Status Register
 	/// <summary>
@@ -261,20 +198,9 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatDesignStatus();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatDesignStatus();
 
-	// Vivado Version Register
-	/// <summary>
-	/// Read the Vivado Version register
-	/// </summary>
-	/// <returns>The version of Vivado which generated the firmware bitfile</returns>
-	std::string ReadVivadoVersion();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatVivadoVersion();
 
 	// CFO Control Register
 	/// <summary>
@@ -355,8 +281,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCFOControl();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCFOControl();
 
 	// DMA Transfer Length Register
 	/// <summary>
@@ -383,8 +309,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatDMATransferLength();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatDMATransferLength();
 
 	// SERDES Loopback Enable Register
 	/// <summary>
@@ -402,8 +328,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESLoopbackEnable();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESLoopbackEnable();
 
 	// Clock Status Register
 	/// <summary>
@@ -430,8 +356,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatClockOscillatorStatus();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatClockOscillatorStatus();
 
 	// Link Enable Register
 	/// <summary>
@@ -459,8 +385,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatLinkEnable();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatLinkEnable();
 
 	// SERDES Reset Register
 	/// <summary>
@@ -487,8 +413,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESReset();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESReset();
 
 	// SERDES RX Disparity Error Register
 	/// <summary>
@@ -500,8 +426,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESRXDisparityError();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESRXDisparityError();
 
 	// SERDES Character Not In Table Error Register
 	/// <summary>
@@ -513,8 +439,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESRXCharacterNotInTableError();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESRXCharacterNotInTableError();
 
 	// SERDES Unlock Error Register
 	/// <summary>
@@ -526,8 +452,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESUnlockError();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESUnlockError();
 
 	// SERDES PLL Locked Register
 	/// <summary>
@@ -539,8 +465,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESPLLLocked();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESPLLLocked();
 
 	// SERDES RX Status Register
 	/// <summary>
@@ -552,8 +478,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESRXStatus();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESRXStatus();
 
 	// SERDES Reset Done Register
 	/// <summary>
@@ -565,8 +491,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESResetDone();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESResetDone();
 
 	// SERDES RX CDR Lock Register
 	/// <summary>
@@ -578,8 +504,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESRXCDRLock();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESRXCDRLock();
 
 	// Beam On Timer Preset Regsiter
 	/// <summary>
@@ -597,8 +523,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatBeamOnTimerPreset();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatBeamOnTimerPreset();
 
 	// Enable Beam On Mode Register
 	/// <summary>
@@ -620,8 +546,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatBeamOnMode();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatBeamOnMode();
 
 	// Enable Beam Off Mode Register
 	/// <summary>
@@ -643,8 +569,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatBeamOffMode();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatBeamOffMode();
 
 	// 40 MHz Clock Marker Interval Count Register
 	/// <summary>
@@ -660,8 +586,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatClockMarkerIntervalCount();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatClockMarkerIntervalCount();
 
 	// SERDES Oscillator Registers
 	/// <summary>
@@ -704,7 +630,7 @@ public:
 	void SetJitterAttenuatorSelect(std::bitset<2> data);
 	bool ReadJitterAttenuatorReset();
 	void ResetJitterAttenuator();
-	DTC_RegisterFormatter FormatJitterAttenuatorCSR();
+	RegisterFormatter FormatJitterAttenuatorCSR();
 
 	void ConfigureJitterAttenuator();
 
@@ -732,23 +658,23 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESOscillatorFrequency();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESOscillatorFrequency();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESOscillatorControl();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESOscillatorControl();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESOscillatorParameterLow();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESOscillatorParameterLow();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESOscillatorParameterHigh();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESOscillatorParameterHigh();
 
 	// Timestamp Preset Registers
 	/// <summary>
@@ -764,13 +690,13 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTimestampPreset0();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTimestampPreset0();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTimestampPreset1();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTimestampPreset1();
 
 	// NUMDTCs Register
 	/// <summary>
@@ -789,8 +715,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatNUMDTCs();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatNUMDTCs();
 
 	// FIFO Full Error Flags Registers
 	/// <summary>
@@ -807,8 +733,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatFIFOFullErrorFlag0();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatFIFOFullErrorFlag0();
 
 	// Receive Packet Error Register
 	/// <summary>
@@ -858,8 +784,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceivePacketError();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceivePacketError();
 
 	// Event Window Emulator (Beam Off) Interval Time Register
 	/// <summary>
@@ -875,8 +801,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatEventWindowEmulatorIntervalTime();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatEventWindowEmulatorIntervalTime();
 
 	// Event Window Holdoff Time Register
 	/// <summary>
@@ -892,8 +818,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatEventWindowHoldoffTime();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatEventWindowHoldoffTime();
 
 	// Event Window Timeout Error Register
 	/// <summary>
@@ -910,8 +836,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatEventWindowTimeoutError();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatEventWindowTimeoutError();
 
 	// Event Window Timeout Interval Register
 	/// <summary>
@@ -927,8 +853,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatEventWindowTimeoutInterval();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatEventWindowTimeoutInterval();
 
 	/// <summary>
 	/// Clear the value of the Receive byte counter
@@ -977,163 +903,163 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceiveByteCountLink0();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceiveByteCountLink0();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceiveByteCountLink1();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceiveByteCountLink1();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceiveByteCountLink2();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceiveByteCountLink2();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceiveByteCountLink3();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceiveByteCountLink3();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceiveByteCountLink4();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceiveByteCountLink4();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceiveByteCountLink5();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceiveByteCountLink5();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceiveByteCountLink6();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceiveByteCountLink6();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceiveByteCountLink7();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceiveByteCountLink7();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceivePacketCountLink0();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceivePacketCountLink0();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceivePacketCountLink1();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceivePacketCountLink1();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceivePacketCountLink2();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceivePacketCountLink2();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceivePacketCountLink3();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceivePacketCountLink3();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceivePacketCountLink4();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceivePacketCountLink4();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceivePacketCountLink5();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceivePacketCountLink5();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceivePacketCountLink6();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceivePacketCountLink6();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatReceivePacketCountLink7();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatReceivePacketCountLink7();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTramsitByteCountLink0();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTramsitByteCountLink0();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTramsitByteCountLink1();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTramsitByteCountLink1();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTramsitByteCountLink2();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTramsitByteCountLink2();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTramsitByteCountLink3();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTramsitByteCountLink3();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTramsitByteCountLink4();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTramsitByteCountLink4();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTramsitByteCountLink5();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTramsitByteCountLink5();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTramsitByteCountLink6();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTramsitByteCountLink6();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTramsitByteCountLink7();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTramsitByteCountLink7();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTransmitPacketCountLink0();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTransmitPacketCountLink0();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTransmitPacketCountLink1();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTransmitPacketCountLink1();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTransmitPacketCountLink2();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTransmitPacketCountLink2();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTransmitPacketCountLink3();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTransmitPacketCountLink3();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTransmitPacketCountLink4();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTransmitPacketCountLink4();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTransmitPacketCountLink5();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTransmitPacketCountLink5();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTransmitPacketCountLink6();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTransmitPacketCountLink6();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatTransmitPacketCountLink7();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatTransmitPacketCountLink7();
 
 	// DDR3 Memory DMA Write Start Address Register
 	/// <summary>
@@ -1149,8 +1075,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatDMAWriteStartAddress();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatDMAWriteStartAddress();
 
 	// DDR3 Memory DMA Read Start Address Register
 	/// <summary>
@@ -1166,8 +1092,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatDMAReadStartAddress();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatDMAReadStartAddress();
 
 	// DDR3 Memory DMA Read Byte Count / Start Read DMA Register
 	/// <summary>
@@ -1187,8 +1113,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatDMAReadByteCount();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatDMAReadByteCount();
 
 	// DDR3 Beam On Base Address Register
 	/// <summary>
@@ -1204,8 +1130,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatDDRBeamOnBaseAddress();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatDDRBeamOnBaseAddress();
 
 	// DDR3 Beam Off Base Address Register
 	/// <summary>
@@ -1221,8 +1147,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatDDRBeamOffBaseAddress();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatDDRBeamOffBaseAddress();
 
 	// Firefly CSR Register
 	/// <summary>
@@ -1318,8 +1244,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatFireflyCSR();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatFireflyCSR();
 
 	// SERDES PRBS Control Registers
 	/// <summary>
@@ -1389,43 +1315,43 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESPRBSControlLink0();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESPRBSControlLink0();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESPRBSControlLink1();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESPRBSControlLink1();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESPRBSControlLink2();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESPRBSControlLink2();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESPRBSControlLink3();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESPRBSControlLink3();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESPRBSControlLink4();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESPRBSControlLink4();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESPRBSControlLink5();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESPRBSControlLink5();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESPRBSControlLink6();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESPRBSControlLink6();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatSERDESPRBSControlLink7();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatSERDESPRBSControlLink7();
 
 	// Cable Delays
 	/// <summary>
@@ -1443,43 +1369,43 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCableDelayValueLink0();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCableDelayValueLink0();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCableDelayValueLink1();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCableDelayValueLink1();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCableDelayValueLink2();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCableDelayValueLink2();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCableDelayValueLink3();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCableDelayValueLink3();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCableDelayValueLink4();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCableDelayValueLink4();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCableDelayValueLink5();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCableDelayValueLink5();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCableDelayValueLink6();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCableDelayValueLink6();
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCableDelayValueLink7();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCableDelayValueLink7();
 
 	// Cable Delay Control And Status Register
 	/// <summary>
@@ -1538,8 +1464,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatCableDelayControl();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatCableDelayControl();
 
 	// FPGA PROM Program Data Register
 
@@ -1557,8 +1483,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatFPGAPROMProgramStatus();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatFPGAPROMProgramStatus();
 
 	// FPGA Core Access Register
 	/// <summary>
@@ -1578,8 +1504,8 @@ public:
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
-	/// <returns>DTC_RegisterFormatter object containing register information</returns>
-	DTC_RegisterFormatter FormatFPGACoreAccess();
+	/// <returns>RegisterFormatter object containing register information</returns>
+	RegisterFormatter FormatFPGACoreAccess();
 
 	// Oscillator Programming (DDR and SERDES)
 	/// <summary>
@@ -1600,8 +1526,7 @@ public:
 	void DisableAllOutputs();
 
 private:
-	void WriteRegister_(uint32_t data, const CFO_Register& address);
-	uint32_t ReadRegister_(const CFO_Register& address);
+	void VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite) override;
 
 	int DecodeHighSpeedDivider_(int input);
 	int DecodeOutputDivider_(int input) { return input + 1; }
@@ -1613,17 +1538,16 @@ private:
 											   uint64_t currentProgram);
 
 protected:
-	mu2edev device_;              ///< Device handle
 	DTC_SimMode simMode_;         ///< Simulation mode
 	uint32_t maxDTCs_;            ///< Map of active DTCs
 	bool usingDetectorEmulator_;  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;            ///< Size of DMAs, in bytes (default 32k)
-	int formatterWidth_ = 28;     ///< Description field width, in characters (must be initialized or DTC_RegisterFormatter can resize to crazy large values!)
-
+	
+public:
 	/// <summary>
 	/// Functions needed to print regular register map
 	/// </summary>
-	const std::vector<std::function<DTC_RegisterFormatter()>> formattedDumpFunctions_{
+	const std::vector<std::function<RegisterFormatter()>> formattedDumpFunctions_{
 		[this]() { return this->FormatDesignVersion(); },
 		[this]() { return this->FormatDesignDate(); },
 		[this]() { return this->FormatDesignStatus(); },
@@ -1687,7 +1611,7 @@ protected:
 	/// <summary>
 	/// Dump Byte/Packet Counter Registers
 	/// </summary>
-	const std::vector<std::function<DTC_RegisterFormatter()>> formattedCounterFunctions_{
+	const std::vector<std::function<RegisterFormatter()>> formattedCounterFunctions_{
 		[this]() { return this->FormatReceiveByteCountLink0(); },
 		[this]() { return this->FormatReceiveByteCountLink1(); },
 		[this]() { return this->FormatReceiveByteCountLink2(); },
