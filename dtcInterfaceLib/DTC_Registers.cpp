@@ -9493,30 +9493,6 @@ void DTCLib::DTC_Registers::WriteCurrentProgram(uint64_t program, DTC_Oscillator
 // Private Functions
 void DTCLib::DTC_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite)
 {
-	// CFOandDTC_Registers::WriteRegister_ used instead of DTC_Registers::WriteRegister_
-
-	// auto retry = 3;
-	// int errorCode;
-	// uint32_t readbackValue;
-	// do
-	// {
-	// 	errorCode = device_.write_register_checked(address, 100, dataToWrite, &readbackValue);
-	// 	--retry;
-	// } while (retry > 0 && errorCode != 0);
-	// if (errorCode != 0)
-	// {
-	// 	DTC_TLOG(TLVL_ERROR) << "Error writing register 0x" << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
-	// 	throw DTC_IOErrorException(errorCode);
-	// }
-
-	// {	//trace seems to ignore the std::setfill, so using stringstream
-	// 	std::stringstream o;
-	// 	o << "write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
-	// 			<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-	// 			std::endl;
-	// 	DTC_TLOG(TLVL_DEBUG) << o.str();
-	// }
-
 	//verify register readback
 	if(1)
 	{
@@ -9600,56 +9576,6 @@ void DTCLib::DTC_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 		// return readbackReturnValue;
 	} //end verify register readback
 } //end VerifyRegisterWrite_()
-
-// uint32_t DTCLib::DTC_Registers::ReadRegister_(const DTC_Register& address)
-// {
-// 	auto retry = 3;
-// 	int errorCode;
-// 	uint32_t data;
-// 	do
-// 	{
-// 		errorCode = device_.read_register(address, 100, &data);
-// 		--retry;
-// 	} while (retry > 0 && errorCode != 0);
-// 	if (errorCode != 0)
-// 	{
-// 		DTC_TLOG(TLVL_ERROR) << "Error reading register 0x" << std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
-// 		throw DTC_IOErrorException(errorCode);
-// 	}
-
-// 	if(address != 0x916c)
-// 	{	//trace seems to ignore the std::setfill, so using stringstream
-// 		std::stringstream o;
-// 		o << "read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
-// 			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-// 			std::endl;
-// 		DTC_TLOG(TLVL_DEBUG) << o.str();
-// 	}
-
-// 	return data;
-// }
-
-// bool DTCLib::DTC_Registers::GetBit_(const DTC_Register& address, size_t bit)
-// {
-// 	if (bit > 31)
-// 	{
-// 		DTC_TLOG(TLVL_ERROR) << "Cannot read bit " << bit << ", as it is out of range";
-// 		throw std::out_of_range("Cannot read bit " + std::to_string(bit) + ", as it is out of range");
-// 	}
-// 	return std::bitset<32>(ReadRegister_(address))[bit];
-// }
-
-// void DTCLib::DTC_Registers::SetBit_(const DTC_Register& address, size_t bit, bool value)
-// {
-// 	if (bit > 31)
-// 	{
-// 		DTC_TLOG(TLVL_ERROR) << "Cannot set bit " << bit << ", as it is out of range";
-// 		throw std::out_of_range("Cannot set bit " + std::to_string(bit) + ", as it is out of range");
-// 	}
-// 	auto regVal = std::bitset<32>(ReadRegister_(address));
-// 	regVal[bit] = value;
-// 	WriteRegister_(regVal.to_ulong(), address);
-// }
 
 int DTCLib::DTC_Registers::DecodeHighSpeedDivider_(int input)
 {
