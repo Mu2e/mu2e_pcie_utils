@@ -3097,29 +3097,6 @@ void CFOLib::CFO_Registers::DisableAllOutputs()
 // Private Functions
 void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite)
 {
-	// CFOandDTC_Registers::WriteRegister_ used instead of DTC_Registers::WriteRegister_	
-			
-	// auto retry = 3;
-	// int errorCode;
-	// do
-	// {
-	// 	errorCode = device_.write_register(address, 100, dataToWrite);
-	// 	--retry;
-	// } while (retry > 0 && errorCode != 0);
-	// if (errorCode != 0)
-	// {
-	// 	throw DTC_IOErrorException(errorCode);
-	// }
-
-	// {
-	// 	std::stringstream o;
-	// 	o << device_.getDeviceUID() << " - " << 
-	// 		"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
-	// 		<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-	// 		std::endl;
-	// 	CFO_TLOG(TLVL_DEBUG) << o.str();
-	// }
-
 	//verify register readback
 	if(1)
 	{
@@ -3184,34 +3161,6 @@ void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 
 	} //end verify register readback
 }
-
-// uint32_t CFOLib::CFO_Registers::ReadRegister_(const CFO_Register& address)
-// {
-// 	auto retry = 3;
-// 	int errorCode;
-// 	uint32_t data;
-// 	do
-// 	{
-// 		errorCode = device_.read_register(address, 100, &data);
-// 		--retry;
-// 	} while (retry > 0 && errorCode != 0);
-// 	if (errorCode != 0)
-// 	{
-// 		throw DTC_IOErrorException(errorCode);
-// 	}
-
-// 	if(address != 0x916c)
-// 	{
-// 		std::stringstream o;
-// 		o << device_.getDeviceUID() << " - " << 
-// 			"read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
-// 			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-// 			std::endl;
-// 		CFO_TLOG(TLVL_DEBUG) << o.str();
-// 	}
-
-// 	return data;
-// }
 
 int CFOLib::CFO_Registers::DecodeHighSpeedDivider_(int input)
 {
