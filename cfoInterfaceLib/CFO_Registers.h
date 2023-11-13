@@ -1526,8 +1526,6 @@ public:
 	void DisableAllOutputs();
 
 private:
-	// void WriteRegister_(uint32_t data, const CFO_Register& address);
-	// uint32_t ReadRegister_(const CFO_Register& address);
 	void VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite) override;
 
 	int DecodeHighSpeedDivider_(int input);
@@ -1540,13 +1538,11 @@ private:
 											   uint64_t currentProgram);
 
 protected:
-	// mu2edev device_;              ///< Device handle
 	DTC_SimMode simMode_;         ///< Simulation mode
 	uint32_t maxDTCs_;            ///< Map of active DTCs
 	bool usingDetectorEmulator_;  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;            ///< Size of DMAs, in bytes (default 32k)
-	// int formatterWidth_ = 28;     ///< Description field width, in characters (must be initialized or RegisterFormatter can resize to crazy large values!)
-
+	
 public:
 	/// <summary>
 	/// Functions needed to print regular register map
