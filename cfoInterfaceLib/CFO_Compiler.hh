@@ -51,7 +51,7 @@ public:
 	/// <summary>
 	/// Macro names
 	/// </summary>
-	enum class CFO_MACRO : int
+	enum class CFO_MACRO : uint8_t
 	{
 		SLICE = 1,
 		NON_MACRO = 0,
@@ -67,8 +67,8 @@ public:
 	/// Instantiate the CFO Compiler class
 	/// </summary>
 	/// <param name="clockSpeed">Clock to use for calculating delays</param>
-	explicit CFO_Compiler(int clockSpeed = 40000000)
-		: FPGAClock_(clockSpeed){};
+	explicit CFO_Compiler(uint64_t clockSpeed = 40000000)
+		: FPGAClock_(1e9/clockSpeed){};
 	/// <summary>
 	/// Default destructor
 	/// </summary>
@@ -86,35 +86,35 @@ private:
 	/***********************
    ** Function Prototypes
    **********************/
-	void readLine(std::string line);
-	void transcribeInstruction();
-	void transcribeMacro();
-	void errorCheck(CFO_INSTR);
-	int64_t calcParameter(CFO_INSTR);
-	std::string readInstruction(std::string& line);
-	void readMacro(std::string& line);
-	void feedInstruction(std::string, std::string, int64_t, std::string);
-	void macroSetup(std::string);
-	CFO_INSTR parse_instruction(std::string);
-	CFO_MACRO parse_macro(std::string);
-	void outParameter(int64_t);
-	bool isComment(std::string line);
-	bool isMacro();
-	void macroErrorCheck(CFO_MACRO);
+	void 				readLine					(std::string& line);
+	void 				transcribeInstruction		(void);
+	void 				transcribeMacro				(void);
+	void 				errorCheck					(CFO_INSTR);
+	uint64_t			calcParameter				(CFO_INSTR);
+	std::string 		readInstruction				(std::string& line);
+	void 				readMacro					(std::string& line);
+	void 				feedInstruction				(const std::string& instruction, const std::string& argument, uint64_t parameter, const std::string& identifier);
+	void 				macroSetup					(const std::string& instructionBuffer);
+	CFO_INSTR 			parse_instruction			(const std::string& instructionBuffer);
+	CFO_MACRO 			parse_macro					(const std::string& instructionBuffer);
+	void 				outParameter				(uint64_t);
+	bool 				isComment					(const std::string& line);
+	bool 				isMacro						(void);
+	void 				macroErrorCheck				(CFO_MACRO);
 
-	std::stack<int64_t> loopStack_;
+	std::stack<uint64_t> loopStack_;
 	std::deque<std::string> macroArgument_;
 	std::string instructionBuffer_;
 	std::string argumentBuffer_;
 	std::string identifierBuffer_;
 	std::string parameterBufferString_;
-	int64_t parameterBuffer_;
-	int64_t FPGAClock_;
+	uint64_t parameterBuffer_;
+	uint64_t FPGAClock_; //period of FPGA clock in ns
 	int macroArgCount_;
 	CFO_MACRO macroOpcode_;
 	bool macroFlag_;
 
-	size_t lineNumber_;
+	size_t txtLineNumber_, binLineNumber_;
 	std::deque<char> output_;
 
 	//https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
