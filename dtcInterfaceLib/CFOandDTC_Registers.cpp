@@ -23,17 +23,6 @@ using namespace DTCLib;
 enum CFOandDTC_Register : uint16_t
 {
 	#include "CFOandDTC_Register.def"
-// CFOandDTC_Register_DesignVersion = 0x9000,
-// CFOandDTC_Register_DesignDate = 0x9004,
-// CFOandDTC_Register_DesignStatus = 0x9008,
-// CFOandDTC_Register_VivadoVersion = 0x900C,
-// CFOandDTC_Register_FPGA_Temperature = 0x9010,
-// CFOandDTC_Register_FPGA_VCCINT = 0x9014,
-// CFOandDTC_Register_FPGA_VCCAUX = 0x9018,
-// CFOandDTC_Register_FPGA_VCCBRAM = 0x901C,
-// CFOandDTC_Register_FPGA_MonitorAlarm = 0x9020,
-// CFOandDTC_Register_Scratch = 0x9030,
-// CFOandDTC_Register_KernelDriverVersion = 0x9040,	
 };
 
 // }; //end CFOandDTC_Register enum
