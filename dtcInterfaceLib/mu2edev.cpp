@@ -15,11 +15,11 @@
 #include "TRACE/tracemf.h"
 
 #include "mu2edev.h"
+#define DEV_TLOG(lvl) 		TLOG(lvl) << "DEVICE " << this->getDeviceUID() << ": "
 
 #define __SHORTFILE__ 		(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
-#define DEV_TLOG(lvl) 	TLOG(lvl) << "DEVICE " << this->getDeviceUID() << ": "
-#define __SS__ 			std::stringstream ss; ss << "|" << "DEVICE " << this->getDeviceUID() << ": " << __SHORTFILE__ << ":" << std::dec << __LINE__ << " |\t"
-#define __SS_THROW__    { DEV_TLOG(TLVL_ERROR) << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
+#define __SS__ 				std::stringstream ss; ss << "|" << "DEVICE " << this->getDeviceUID() << ": " << __SHORTFILE__ << ":" << std::dec << __LINE__ << " |\t"
+#define __SS_THROW__    	{ DEV_TLOG(TLVL_ERROR) << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
 #define __E__ 				std::endl
 
 static const std::thread::id NULL_TID = std::thread::id(0);

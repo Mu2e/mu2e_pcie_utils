@@ -9,12 +9,17 @@
 
 #include "TRACE/tracemf.h"
 
-#define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << device_.getDeviceUID() << ": "
+#define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << this->getDeviceUID() << ": "
 #define TLVL_ResetDTC TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
 #define TLVL_SERDESReset TLVL_DEBUG + 7
 #define TLVL_CalculateFreq TLVL_DEBUG + 8
 #define TLVL_ReadRegister TLVL_DEBUG + 20
+
+#define __SHORTFILE__ 		(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
+#define __SS__ 				std::stringstream ss; ss << "|" << "CFO " << this->getDeviceUID() << ": " << __SHORTFILE__ << ":" << std::dec << __LINE__ << " |\t"
+#define __SS_THROW__    	{ DTC_TLOG(TLVL_ERROR) << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
+#define __E__ 				std::endl
 
 /// <summary>
 /// Construct an instance of the DTC register map

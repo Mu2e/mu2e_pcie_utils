@@ -8,13 +8,16 @@
 #include <sstream>  // Convert uint to hex stLink
 
 #include "TRACE/tracemf.h"
-#define CFO_TLOG(lvl) TLOG(lvl) << "CFO " << device_.getDeviceUID() << ": "
+#define CFO_TLOG(lvl) TLOG(lvl) << "CFO " << this->getDeviceUID() << ": "
 #define TLVL_ResetCFO TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
 #define TLVL_SERDESReset TLVL_DEBUG + 7
 #define TLVL_CalculateFreq TLVL_DEBUG + 8
 
-
+#define __SHORTFILE__ 		(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
+#define __SS__ 				std::stringstream ss; ss << "|" << "CFO " << this->getDeviceUID() << ": " << __SHORTFILE__ << ":" << std::dec << __LINE__ << " |\t"
+#define __SS_THROW__    	{ CFO_TLOG(TLVL_ERROR) << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
+#define __E__ 				std::endl
 
 
 CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int cfo, std::string expectedDesignVersion,
@@ -1263,20 +1266,32 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketError()
 
 void CFOLib::CFO_Registers::SetEventWindowEmulatorInterval(const uint32_t& data)
 {
-	WriteRegister_(data, CFO_Register_EventWindowEmulatorIntervalTime);
+	__SS__ << "Access attempt of CFO_Register_EventWindowEmulatorIntervalTime = 0x91A0,.."
+	 "this register was deleted in Firmware version: Nov/09/2023 11:00   raw-data: 0x23110911; "
+	 "please update the software to use the CFO Run Plan to control the Event Window duration." << __E__;
+	 __SS_THROW__;
+	// WriteRegister_(data, CFO_Register_EventWindowEmulatorIntervalTime);
 }
 
 uint32_t CFOLib::CFO_Registers::ReadEventWindowEmulatorInterval()
 {
-	return ReadRegister_(CFO_Register_EventWindowEmulatorIntervalTime);
+	__SS__ << "Access attempt of CFO_Register_EventWindowEmulatorIntervalTime = 0x91A0,.."
+	 "this register was deleted in Firmware version: Nov/09/2023 11:00   raw-data: 0x23110911; "
+	 "please update the software to use the CFO Run Plan to control the Event Window duration." << __E__;
+	 __SS_THROW__;
+	// return ReadRegister_(CFO_Register_EventWindowEmulatorIntervalTime);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowEmulatorIntervalTime()
 {
-	auto form = CreateFormatter(CFO_Register_EventWindowEmulatorIntervalTime);
-	form.description = "Event Window Emulator Interval Time";
-	form.vals.push_back(std::to_string(ReadEventWindowEmulatorInterval()));
-	return form;
+	__SS__ << "Access attempt of CFO_Register_EventWindowEmulatorIntervalTime = 0x91A0,.."
+	 "this register was deleted in Firmware version: Nov/09/2023 11:00   raw-data: 0x23110911; "
+	 "please update the software to use the CFO Run Plan to control the Event Window duration." << __E__;
+	 __SS_THROW__;
+	// auto form = CreateFormatter(CFO_Register_EventWindowEmulatorIntervalTime);
+	// form.description = "Event Window Emulator Interval Time";
+	// form.vals.push_back(std::to_string(ReadEventWindowEmulatorInterval()));
+	// return form;
 }
 
 void CFOLib::CFO_Registers::SetEventWindowHoldoffTime(const uint32_t& data)
@@ -3087,7 +3102,10 @@ void CFOLib::CFO_Registers::DisableAllOutputs()
 	WriteRegister_(0,CFO_Register_LinkEnable);
 
 	CFO_TLOG(TLVL_INFO) << "CFO turn off Event Windows";
-	WriteRegister_(0,CFO_Register_EventWindowEmulatorIntervalTime);
+	// WriteRegister_(0,CFO_Register_EventWindowEmulatorIntervalTime);
+	DisableBeamOnMode(CFOLib::CFO_Link_ID::CFO_Link_ALL);
+	DisableBeamOffMode(CFOLib::CFO_Link_ID::CFO_Link_ALL);
+	
 
 	CFO_TLOG(TLVL_INFO) << "CFO turn off 40MHz marker interval";
 	WriteRegister_(0,CFO_Register_ClockMarkerIntervalCount);

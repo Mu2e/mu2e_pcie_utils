@@ -205,6 +205,8 @@ CFOLib::CFO_Compiler::CFO_INSTR CFOLib::CFO_Compiler::parse_instruction(const st
 {
 	if (instructionBuffer == "HEARTBEAT")
 		return CFO_INSTR::HEARTBEAT;
+	else if (instructionBuffer == "MARKER")
+		return CFO_INSTR::MARKER;
 	else if (instructionBuffer == "DATA_REQUEST")
 		return CFO_INSTR::DATA_REQUEST;
 	else if (instructionBuffer == "INC")
@@ -272,6 +274,15 @@ void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if
 			if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_mode")
 			{
 				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"HEARTBEAT event_mode=\"?" << std::endl;
+				__SS_THROW__;
+			}
+			break;
+
+		case CFO_INSTR::MARKER:
+			if (parameterBuffer_ != 0 && identifierBuffer_.empty())
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ". MARKER has extraneous arguments("
+						  << parameterBuffer_ << "_" << identifierBuffer_ << ")" << std::endl;
 				__SS_THROW__;
 			}
 			break;
@@ -500,6 +511,10 @@ void CFOLib::CFO_Compiler::transcribeInstruction()  // Outputs a byte stream bas
 			// Instructions with value;
 		case CFO_INSTR::HEARTBEAT:
 			outParameter(parameterBuffer_);
+			break;
+
+		case CFO_INSTR::MARKER:
+			outParameter(0);
 			break;
 
 		case CFO_INSTR::DATA_REQUEST:

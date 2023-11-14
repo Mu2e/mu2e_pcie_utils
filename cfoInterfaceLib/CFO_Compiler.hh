@@ -43,6 +43,8 @@ public:
 		DO_LOOP = 7,
 		REPEAT = 8,
 		END = 9,
+		MARKER = 10, //Event Marker 0x1C10-0x1CEF
+		GOTO = 11,
 		// AND = 5,
 		// OR = 6,
 		INVALID = 0xFF,

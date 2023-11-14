@@ -45,7 +45,7 @@ enum CFO_Register : uint16_t
 	CFO_Register_NUMDTCs = 0x918C,
 	CFO_Register_FIFOFullErrorFlag0 = 0x9190,
 	CFO_Register_ReceivePacketError = 0x919C,
-	CFO_Register_EventWindowEmulatorIntervalTime = 0x91A0,
+	// CFO_Register_EventWindowEmulatorIntervalTime = 0x91A0, //register deleted in Firmware version: Nov/09/2023 11:00   raw-data: 0x23110911
 	CFO_Register_EventWindowHoldoffTime = 0x91A4,
 	CFO_Register_EventWindowTimeoutError = 0x91A8,
 	CFO_Register_EventWindowTimeoutValue = 0x91AC,

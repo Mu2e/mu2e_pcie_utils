@@ -106,6 +106,11 @@ public:
 	/// <returns>mu2edev* pointer</returns>
 	mu2edev* GetDevice() { return &device_; }
 
+	/// <summary>
+	/// Get the current DTC UID for this instance
+	/// </summary>
+	/// <returns>The current DTC UID for this instance</returns>
+	std::string getDeviceUID() { return GetDevice()->getDeviceUID(); }
 
 	//
 	// Register IO Functions
