@@ -13,15 +13,8 @@ namespace DTCLib {
 enum DTC_Register : uint16_t
 {
 	#include "CFOandDTC_Register.def"
-	// DTC_Register_DesignVersion = 0x9000,
-	// DTC_Register_DesignDate = 0x9004,
-	// DTC_Register_DesignStatus = 0x9008,
 	DTC_Register_VivadoVersion = 0x900C,
-	// DTC_Register_FPGA_Temperature = 0x9010,
-	// DTC_Register_FPGA_VCCINT = 0x9014,
-	// DTC_Register_FPGA_VCCAUX = 0x9018,
-	// DTC_Register_FPGA_VCCBRAM = 0x901C,
-	// DTC_Register_FPGA_MonitorAlarm = 0x9020,
+
 	DTC_Register_Scratch = 0x9030,
 	DTC_Register_KernelDriverVersion = 0x9040,
 	DTC_Register_DTCControl = 0x9100,
@@ -374,13 +367,6 @@ public:
 						   bool skipInit = false, const std::string& uid = "");
 
 	virtual ~DTC_Registers();
-	DTC_Register reg_;
-
-	// /// <summary>
-	// /// Get a pointer to the device handle
-	// /// </summary>
-	// /// <returns>mu2edev* pointer</returns>
-	// mu2edev* GetDevice() { return &device_; }
 
 	//
 	// DTC Sim Mode Virtual Register
@@ -402,30 +388,9 @@ public:
 	std::string SERDESErrorsRegDump(int width);
 	std::string PacketCountersRegDump(int width);
 
-	// /// <summary>
-	// /// Initializes a RegisterFormatter for the given DTC_Register
-	// /// </summary>
-	// /// <param name="address">Address of register to format</param>
-	// /// <returns>RegisterFormatter with address and raw value set</returns>
-	// RegisterFormatter CreateFormatter(const DTC_Register& address)
-	// {
-	// 	RegisterFormatter form;
-	// 	form.descWidth = formatterWidth_;
-	// 	form.address = address;
-	// 	form.value = ReadRegister_(address);
-	// 	return form;
-	// }
-
 	//
 	// Register IO Functions
 	//
-
-	// // Desgin Version/Date Registers
-	// std::string ReadDesignVersion();
-	// RegisterFormatter FormatDesignVersion();
-	// std::string ReadDesignDate();
-	// RegisterFormatter FormatDesignDate();
-	// std::string ReadDesignVersionNumber();
 
 	// Design Status Register
 	bool ReadDDRInterfaceReset();
@@ -437,37 +402,6 @@ public:
 	// Vivado Version Register
 	std::string ReadVivadoVersionNumber(uint32_t* val = 0) override;
 	RegisterFormatter FormatVivadoVersion() override;
-
-	// // FPGA Temperature Register
-	// double ReadFPGATemperature();
-	// RegisterFormatter FormatFPGATemperature();
-
-	// // FPGA VCCINT Voltage Register
-	// double ReadFPGAVCCINTVoltage();
-	// RegisterFormatter FormatFPGAVCCINT();
-
-	// // FPGA VCCAUX Voltage Register
-	// double ReadFPGAVCCAUXVoltage();
-	// RegisterFormatter FormatFPGAVCCAUX();
-
-	// // FPGA VCCBRAM Voltage Register
-	// double ReadFPGAVCCBRAMVoltage();
-	// RegisterFormatter FormatFPGAVCCBRAM();
-
-	// // FPGA Monitor Alarm Register
-	// bool ReadFPGADieTemperatureAlarm();
-	// void ResetFPGADieTemperatureAlarm();
-	// bool ReadFPGAAlarms();
-	// void ResetFPGAAlarms();
-	// bool ReadVCCBRAMAlarm();
-	// void ResetVCCBRAMAlarm();
-	// bool ReadVCCAUXAlarm();
-	// void ResetVCCAUXAlarm();
-	// bool ReadVCCINTAlarm();
-	// void ResetVCCINTAlarm();
-	// bool ReadFPGAUserTemperatureAlarm();
-	// void ResetFPGAUserTemperatureAlarm();
-	// RegisterFormatter FormatFPGAAlarms();
 
 	// DTC Control Register
 	void ClearDTCControlRegister();    
@@ -598,8 +532,6 @@ public:
 	RegisterFormatter FormatSERDESReset();
 
 	// Link Diagnostic FIFOs
-	//DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRXDiagFifo(DTC_Link_ID const& link);
-	//DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXDiagFifo(DTC_Link_ID const& link);
 	DTCLib::RegisterFormatter FormatRXDiagFifo(DTC_Link_ID const& link);
 	DTCLib::RegisterFormatter FormatTXDiagFifo(DTC_Link_ID const& link);
 
@@ -1392,19 +1324,7 @@ public:
 	void WriteCurrentProgram(uint64_t program, DTC_OscillatorType oscillator);
 
 private:
-
-	// void WriteRegister_(uint32_t data, const DTC_Register& address);
-	// uint32_t ReadRegister_(const DTC_Register& address);
 	void VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite) override;
-
-	// bool GetBit_(const DTC_Register& address, size_t bit);
-	// void SetBit_(const DTC_Register& address, size_t bit, bool value);
-	// bool ToggleBit_(const DTC_Register& address, size_t bit)
-	// {
-	// 	auto val = GetBit_(address, bit);
-	// 	SetBit_(address, bit, !val);
-	// 	return !val;
-	// }
 
 	int DecodeHighSpeedDivider_(int input);
 	int DecodeOutputDivider_(int input) { return input + 1; }
@@ -1424,16 +1344,9 @@ private:
 	bool WaitForLinkReady_(DTC_Link_ID const& link, size_t interval, double timeout = 2.0 /*seconds*/);
 
 protected:
-	// mu2edev device_;                     ///< Device handle
 	DTC_SimMode simMode_;                ///< Simulation mode
 	bool usingDetectorEmulator_{false};  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;                   ///< Size of DMAs, in bytes (default 32k)
-	// int formatterWidth_ = 28;            ///< Description field width, in characters (must be initialized or RegisterFormatter can resize to crazy large values!)
-
-
-	/// <summary>
-	/// Functions needed to print regular register map
-	/// </summary>
 
 
  public:

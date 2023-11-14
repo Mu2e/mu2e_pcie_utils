@@ -137,127 +137,6 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 	return simMode_;
 }
 
-// //
-// // CFO Register Dumps
-// //
-// std::string CFOLib::CFO_Registers::FormattedRegDump(int width)
-// {
-// 	std::string divider(width, '=');
-// 	formatterWidth_ = width - 27 - 65;
-// 	if (formatterWidth_ < 28)
-// 	{
-// 		formatterWidth_ = 28;
-// 	}
-// 	std::string spaces(formatterWidth_ - 4, ' ');
-// 	std::ostringstream o;
-// 	o << "Memory Map: " << std::endl;
-// 	o << "    Address | Value      | Name " << spaces << "| Translation" << std::endl;
-// 	for (auto i : formattedDumpFunctions_)
-// 	{
-// 		o << divider << std::endl;
-// 		o << i();
-// 	}
-// 	return o.str();
-// }
-
-// std::string CFOLib::CFO_Registers::LinkCountersRegDump(int width)
-// {
-// 	std::string divider(width, '=');
-// 	formatterWidth_ = width - 27 - 65;
-// 	if (formatterWidth_ < 28)
-// 	{
-// 		formatterWidth_ = 28;
-// 	}
-// 	std::string spaces(formatterWidth_ - 4, ' ');
-// 	std::ostringstream o;
-// 	o << "SERDES Byte/Packet Counters: " << std::endl;
-// 	o << "    Address | Value      | Name " << spaces << "| Translation" << std::endl;
-// 	for (auto i : formattedCounterFunctions_)
-// 	{
-// 		o << divider << std::endl;
-// 		o << i();
-// 	}
-// 	return o.str();
-// }
-
-//
-// Register IO Functions
-//
-
-// // Desgin Version/Date Registers
-// std::string CFOLib::CFO_Registers::ReadDesignVersion()
-// {
-// 	auto data = ReadRegister_(CFO_Register_DesignVersion) & 0xFFFFFF;
-// 	int minorHex = data & 0xFF;
-// 	auto minor = ((minorHex & 0xF0) >> 4) * 10 + (minorHex & 0xF);
-// 	int majorHex = (data & 0xFFFF00) >> 8;
-// 	auto major = ((majorHex & 0xF000) >> 12) * 1000 + ((majorHex & 0xF00) >> 8) * 100 + ((majorHex & 0xF0) >> 4) * 10 +
-// 				 (majorHex & 0xF);
-// 	std::ostringstream o;
-// 	o << "v" << std::setw(4) << std::setfill('0') << major << "." << std::setw(2) << std::setfill('0') << minor;
-// 	return o.str();
-// }
-
-// DTCLib::DTC_SerdesClockSpeed CFOLib::CFO_Registers::ReadSERDESVersion()
-// {
-// 	auto data = (ReadRegister_(CFO_Register_DesignVersion) & 0xF0000000) >> 28;
-// 	if (data == 3) return DTC_SerdesClockSpeed_3125Gbps;
-// 	return DTC_SerdesClockSpeed_48Gbps;
-// }
-
-// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignVersion()
-// {
-// 	auto form = CreateFormatter(CFO_Register_DesignVersion);
-// 	form.description = "CFO Firmware Design Version";
-// 	form.vals.push_back(ReadDesignVersion());
-// 	form.vals.push_back(std::string("Intrinsic Clock Speed: ") +
-// 						(ReadSERDESVersion() == DTC_SerdesClockSpeed_3125Gbps ? "3.125 Gbps" : "4.8 Gbps"));
-// 	return form;
-// }
-
-
-// /// <summary>
-// /// Read the modification date of the CFO firmware
-// /// </summary>
-// /// <returns>Design date in MON/DD/20YY HH:00 format</returns>
-// std::string CFOLib::CFO_Registers::ReadDesignDate()
-// {
-// 	auto readData = ReadRegister_(CFO_Register_DesignDate);
-// 	std::ostringstream o;
-// 	std::vector<std::string> months({"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"});
-// 	int mon =  ((readData>>20)&0xF)*10 + ((readData>>16)&0xF);
-// 	o << months[mon-1] << "/" << 
-// 		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
-// 		((readData>>28)&0xF) << ((readData>>24)&0xF) << " " <<
-// 		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData;
-	
-
-// 	// auto data = ReadRegister_(CFO_Register_DesignDate);
-// 	// std::ostringstream o;
-// 	// int yearHex = (data & 0xFF000000) >> 24;
-// 	// auto year = ((yearHex & 0xF0) >> 4) * 10 + (yearHex & 0xF);
-// 	// int monthHex = (data & 0xFF0000) >> 16;
-// 	// auto month = ((monthHex & 0xF0) >> 4) * 10 + (monthHex & 0xF);
-// 	// int dayHex = (data & 0xFF00) >> 8;
-// 	// auto day = ((dayHex & 0xF0) >> 4) * 10 + (dayHex & 0xF);
-// 	// int hour = ((data & 0xF0) >> 4) * 10 + (data & 0xF);
-// 	// o << "20" << std::setfill('0') << std::setw(2) << year << "-";
-// 	// o << std::setfill('0') << std::setw(2) << month << "-";
-// 	// o << std::setfill('0') << std::setw(2) << day << "-";
-// 	// o << std::setfill('0') << std::setw(2) << hour;
-// 	// // std::cout << o.str() << std::endl;
-// 	return o.str();
-// }
-
-// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignDate()
-// {
-// 	auto form = CreateFormatter(CFO_Register_DesignDate);
-// 	form.description = "CFO Firmware Design Date";
-// 	form.vals.push_back(ReadDesignDate());
-// 	return form;
-// }
-
-
 /// <summary>
 /// Read the Vivado Version Number
 /// </summary>
@@ -3218,29 +3097,6 @@ void CFOLib::CFO_Registers::DisableAllOutputs()
 // Private Functions
 void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite)
 {
-	// CFOandDTC_Registers::WriteRegister_ used instead of DTC_Registers::WriteRegister_	
-			
-	// auto retry = 3;
-	// int errorCode;
-	// do
-	// {
-	// 	errorCode = device_.write_register(address, 100, dataToWrite);
-	// 	--retry;
-	// } while (retry > 0 && errorCode != 0);
-	// if (errorCode != 0)
-	// {
-	// 	throw DTC_IOErrorException(errorCode);
-	// }
-
-	// {
-	// 	std::stringstream o;
-	// 	o << device_.getDeviceUID() << " - " << 
-	// 		"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
-	// 		<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-	// 		std::endl;
-	// 	CFO_TLOG(TLVL_DEBUG) << o.str();
-	// }
-
 	//verify register readback
 	if(1)
 	{
@@ -3305,34 +3161,6 @@ void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 
 	} //end verify register readback
 }
-
-// uint32_t CFOLib::CFO_Registers::ReadRegister_(const CFO_Register& address)
-// {
-// 	auto retry = 3;
-// 	int errorCode;
-// 	uint32_t data;
-// 	do
-// 	{
-// 		errorCode = device_.read_register(address, 100, &data);
-// 		--retry;
-// 	} while (retry > 0 && errorCode != 0);
-// 	if (errorCode != 0)
-// 	{
-// 		throw DTC_IOErrorException(errorCode);
-// 	}
-
-// 	if(address != 0x916c)
-// 	{
-// 		std::stringstream o;
-// 		o << device_.getDeviceUID() << " - " << 
-// 			"read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
-// 			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-// 			std::endl;
-// 		CFO_TLOG(TLVL_DEBUG) << o.str();
-// 	}
-
-// 	return data;
-// }
 
 int CFOLib::CFO_Registers::DecodeHighSpeedDivider_(int input)
 {

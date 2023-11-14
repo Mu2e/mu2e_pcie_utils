@@ -17,9 +17,6 @@ namespace CFOLib {
 enum CFO_Register : uint16_t
 {
 	#include "dtcInterfaceLib/CFOandDTC_Register.def"
-	// CFO_Register_DesignVersion = 0x9000,
-	// CFO_Register_DesignDate = 0x9004,
-	// CFO_Register_DesignStatus = 0x9008,
 	CFO_Register_KernelDriverVersion = 0x9040,
 	CFO_Register_VivadoVersion = 0x9080,
 	CFO_Register_CFOControl = 0x9100,
@@ -163,12 +160,6 @@ public:
 	/// </summary>
 	virtual ~CFO_Registers();
 
-	// /// <summary>
-	// /// Get a pointer to the device handle
-	// /// </summary>
-	// /// <returns>cfodev* pointer</returns>
-	// mu2edev* GetDevice() { return &device_; }
-
 	//
 	// CFO Sim Mode Virtual Register
 	//
@@ -188,69 +179,7 @@ public:
 	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO, 
 							bool skipInit = false, const std::string& uid = "");
 
-	// //
-	// // CFO Register Dumps
-	// //
-	// /// <summary>
-	// /// Perform a register dump
-	// /// </summary>
-	// // /// <param name="width">Printable width of description fields</param>
-	// // /// <returns>StLink containing all registers, with their human-readable representations</returns>
-	// // std::string FormattedRegDump(int width);
-	// /// <summary>
-	// /// Dump the Link byte/packet counters
-	// /// </summary>
-	// /// <param name="width">Printable width of description fields</param>
-	// /// <returns>StLink containing the Link counter registers, with their human-readable representations</returns>
-	// std::string LinkCountersRegDump(int width);
-
-	// /// <summary>
-	// /// Initializes a RegisterFormatter for the given CFO_Register
-	// /// </summary>
-	// /// <param name="address">Address of register to format</param>
-	// /// <returns>RegisterFormatter with address and raw value set</returns>
-	// RegisterFormatter CreateFormatter(const CFO_Register& address)
-	// {
-	// 	RegisterFormatter form;
-	// 	form.descWidth = formatterWidth_;
-	// 	form.address = address;
-	// 	form.value = ReadRegister_(address);
-	// 	return form;
-	// }
-
-	// //
-	// // Register IO Functions
-	// //
-
-	// // Desgin Version/Date Registers
-	// /// <summary>
-	// /// Read the design version
-	// /// </summary>
-	// /// <returns>The design version in vXXXX.YY format</returns>
-	// std::string ReadDesignVersion();
-	// /// <summary>
-	// /// Determine the native clock speed for the SERDES in the loaded firmware
-	// /// </summary>
-	// /// <returns>Either CFO_SerdesClockSpeed_48Gbps or CFO_SerdesClockSpeed_3125Gbps</returns>
-	// DTC_SerdesClockSpeed ReadSERDESVersion();
-	// /// <summary>
-	// /// Formats the register's current value for register dumps
-	// /// </summary>
-	// /// <returns>RegisterFormatter object containing register information</returns>
-	// RegisterFormatter FormatDesignVersion();
-
-	// /// <summary>
-	// /// Read the modification date of the CFO firmware
-	// /// </summary>
-	// /// <returns>Design date in 20YY-MM-DD-HH format</returns>
-	// std::string ReadDesignDate();
-	// /// <summary>
-	// /// Formats the register's current value for register dumps
-	// /// </summary>
-	// /// <returns>RegisterFormatter object containing register information</returns>
-	// RegisterFormatter FormatDesignDate();
-
-
+	
 	// Vivado Version Register
 	std::string ReadVivadoVersionNumber(uint32_t* val = 0) override;
 	RegisterFormatter FormatVivadoVersion() override;
@@ -272,17 +201,6 @@ public:
 	/// <returns>RegisterFormatter object containing register information</returns>
 	RegisterFormatter FormatDesignStatus();
 
-	// // Vivado Version Register
-	// /// <summary>
-	// /// Read the Vivado Version register
-	// /// </summary>
-	// /// <returns>The version of Vivado which generated the firmware bitfile</returns>
-	// std::string ReadVivadoVersion();
-	// /// <summary>
-	// /// Formats the register's current value for register dumps
-	// /// </summary>
-	// /// <returns>RegisterFormatter object containing register information</returns>
-	// RegisterFormatter FormatVivadoVersion();
 
 	// CFO Control Register
 	/// <summary>
@@ -1608,8 +1526,6 @@ public:
 	void DisableAllOutputs();
 
 private:
-	// void WriteRegister_(uint32_t data, const CFO_Register& address);
-	// uint32_t ReadRegister_(const CFO_Register& address);
 	void VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite) override;
 
 	int DecodeHighSpeedDivider_(int input);
@@ -1622,13 +1538,11 @@ private:
 											   uint64_t currentProgram);
 
 protected:
-	// mu2edev device_;              ///< Device handle
 	DTC_SimMode simMode_;         ///< Simulation mode
 	uint32_t maxDTCs_;            ///< Map of active DTCs
 	bool usingDetectorEmulator_;  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;            ///< Size of DMAs, in bytes (default 32k)
-	// int formatterWidth_ = 28;     ///< Description field width, in characters (must be initialized or RegisterFormatter can resize to crazy large values!)
-
+	
 public:
 	/// <summary>
 	/// Functions needed to print regular register map
