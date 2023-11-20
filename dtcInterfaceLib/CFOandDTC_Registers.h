@@ -5,6 +5,7 @@
 //#include <cstdint> // uint8_t, uint16_t
 #include <functional>  // std::bind, std::function
 #include <vector>      // std::vector
+#include <optional>
 
 #include "mu2edev.h"
 
