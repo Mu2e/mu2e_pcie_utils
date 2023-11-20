@@ -18,7 +18,7 @@ fcldir      -
 
 #
 product             version     optional
-artdaq_core_mu2e    v2_01_00
+artdaq_core_mu2e    v2_01_02
 cetmodules          v3_22_02    -    only_for_build
 end_product_list
 
