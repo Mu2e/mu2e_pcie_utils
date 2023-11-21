@@ -12,7 +12,7 @@ namespace DTCLib {
 // struct DTC_Register : public DTCLib::CFOandDTC_Register { 
 enum DTC_Register : uint16_t
 {
-	#include "CFOandDTC_Register.def"
+	DTCLIB_COMMON_REGISTERS,
 	DTC_Register_VivadoVersion = 0x900C,
 
 	DTC_Register_Scratch = 0x9030,

@@ -16,7 +16,7 @@ namespace CFOLib {
 // struct CFO_Register : public DTCLib::CFOandDTC_Register { 
 enum CFO_Register : uint16_t
 {
-	#include "dtcInterfaceLib/CFOandDTC_Register.def"
+	DTCLIB_COMMON_REGISTERS,
 	CFO_Register_KernelDriverVersion = 0x9040,
 	CFO_Register_VivadoVersion = 0x9080,
 	CFO_Register_CFOControl = 0x9100,

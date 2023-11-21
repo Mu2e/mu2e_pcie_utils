@@ -22,7 +22,7 @@ using namespace DTCLib;
 // struct CFOandDTC_Register { 
 enum CFOandDTC_Register : uint16_t
 {
-	#include "CFOandDTC_Register.def"
+	DTCLIB_COMMON_REGISTERS
 };
 
 // }; //end CFOandDTC_Register enum

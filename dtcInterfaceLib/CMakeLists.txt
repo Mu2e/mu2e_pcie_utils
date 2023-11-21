@@ -14,6 +14,7 @@ cet_make_library(LIBRARY_NAME DTCInterface
     LIBRARIES PUBLIC 
       TRACE::MF
       artdaq_core_mu2e::artdaq-core-mu2e_Overlays
+      Threads::Threads
 )
 
 cet_make_exec(NAME mu2eUtil SOURCE util_main.cc Mu2eUtil.cpp LIBRARIES mu2e_pcie_utils::DTCInterface)
