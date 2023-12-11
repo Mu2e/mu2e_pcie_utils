@@ -52,14 +52,6 @@ public:
 		INVALID = 0xFF,
 	};
 
-	// /// <summary>
-	// /// Macro names
-	// /// </summary>
-	// enum class CFO_MACRO : uint8_t
-	// {	
-	// 	NON_MACRO = 254,
-	// };
-
 	static const std::string	MAIN_GOTO_LABEL;
 	static const std::map<CFOLib::CFO_Compiler::CFO_INSTR, std::string> CODE_to_OP_TRANSLATION;
 	static const std::map<std::string, CFOLib::CFO_Compiler::CFO_INSTR> OP_to_CODE_TRANSLATION;
@@ -73,7 +65,6 @@ public:
 
 private:
 
-
 	bool 				isComment						(const std::string& line);
 
 	CFO_INSTR 			parseInstruction				(const std::string& instructionBuffer);
@@ -81,29 +72,6 @@ private:
 	void 				processOp						(void);
 	uint64_t			calculateParameterAndErrorCheck	(CFO_INSTR);
 	void 				outParameter					(uint64_t);
-
-	// CFO_MACRO 			parseMacro						(const std::string& instructionBuffer);
-	// void 				processMacro					(CFO_MACRO);
-	// void 				macroErrorCheck					(CFO_MACRO);
-
-
-	
-
-	// void 				readLine					(std::string& line);
-	// bool 				isMacro							(void);
-
-
-	// void 				transcribeInstruction		(void);
-	// void 				transcribeMacro				(void);
-	// void 				errorCheck					(CFO_INSTR);
-	// std::string 		readInstruction				(std::string& line);
-	// void 				readMacro					(std::string& line);
-	// void 				feedInstruction				(const std::string& instruction, const std::string& argument, uint64_t parameter, const std::string& identifier);
-	// void 				macroSetup					(const std::string& instructionBuffer);
-	// 
-	//
-	// 
-	// 
 
 	std::vector<uint64_t /* line number */> loopStack_;
 	std::map<std::string /* label */, 
@@ -114,16 +82,6 @@ private:
 	
 	const uint64_t 							FPGAClock_ = (1e9/(40e6) /* 40MHz FPGAClock for calculating delays */); //period of FPGA clock in ns
 	
-	// std::deque<std::string> 	macroArgument_;
-	// std::string 				instructionBuffer_;
-	// std::string 				argumentBuffer_;
-	// std::string 				identifierBuffer_;
-	// std::string 				parameterBufferString_;
-	// uint64_t 					parameterBuffer_;
-	// int 						macroArgCount_;
-	// CFO_MACRO 					macroOpcode_;
-	// bool 						macroFlag_;
-
 	size_t 									txtLineNumber_, binLineNumber_;
 	std::deque<char> 						output_;
 };
