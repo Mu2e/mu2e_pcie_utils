@@ -627,7 +627,7 @@ public:
 
 	// Jitter Attenuator CSR Register
 	std::bitset<2> ReadJitterAttenuatorSelect();
-	void SetJitterAttenuatorSelect(std::bitset<2> data);
+	void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
 	bool ReadJitterAttenuatorReset();
 	void ResetJitterAttenuator();
 	RegisterFormatter FormatJitterAttenuatorCSR();

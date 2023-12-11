@@ -907,23 +907,34 @@ std::bitset<2> CFOLib::CFO_Registers::ReadJitterAttenuatorSelect()
 /// Set the Jitter Attenuator Select bits
 /// </summary>
 /// <param name="data">Value to set</param>
-void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
+void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA /* = false */)
 {
 	__COUT__ << "JA select " << data << " = " <<
 		(data == 0? "Local oscillator":(data == 1? "RTF copper clock": "undefined source!"));
 
 	std::bitset<32> regdata = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-	// detection if already locked may not work
-	// if(regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
-	// {
-	// 	__COUT__ << "JA already locked with selected input " << data;
-	// 	return;
-	// }
+
+	// attempt detection if already locked with same input mux select, early exit
+	if(regdata[0] == 0 && regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
+	{
+		__COUT__ << "JA already locked with selected input " << data;
+		return;
+	}
+
 	//For CFO - 0 ==> Local oscillator
 	//For CFO - 1 ==> RTF copper clock
 	regdata[4] = data[0];
 	regdata[5] = data[1];
 	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);
+
+
+	if(!alsoResetJA || regdata[8] == 0) //if locked, then do not reconfigure JA (JA only needs a reset after a cold start, usually indicated by lock)
+	{
+		__COUT__ << "JA select done with no reset for input " << data;
+		return;
+	} 
+
+	__COUT__ << "JA reset...";
 
 	//now reset the JA a la CFOLib::CFO_Registers::ResetJitterAttenuator()
 	
@@ -937,7 +948,7 @@ void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
 
 	ConfigureJitterAttenuator();
 	__COUT__ << "JA select done for input " << data;
-}
+} //end SetJitterAttenuatorSelect()
 
 /// <summary>
 /// Read the Jitter Attenuator Reset bit

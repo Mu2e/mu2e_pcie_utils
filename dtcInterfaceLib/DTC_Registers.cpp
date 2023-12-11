@@ -5031,7 +5031,7 @@ void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool 
 		;
 	std::bitset<32> regdata = ReadRegister_(DTC_Register_JitterAttenuatorCSR);
 
-	// detection if already locked may not work
+	// attempt detection if already locked with same input mux select, early exit
 		// form.vals.push_back(std::string("JA in Reset:   [") + (data[0] ? "YES" : "No") + "]");
 		// form.vals.push_back(std::string("JA Loss-of-Lock:   [") + (data[8] ? "Not Locked" : "LOCKED") + "]");
 		// form.vals.push_back(std::string("JA Input-0 Upstream Control Link Rx Recovered Clock:   [") + (data[9] ? "Missing" : "OK") + "]");
@@ -5066,7 +5066,7 @@ void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool 
 
 	ConfigureJitterAttenuator();
 	__COUT__ << "JA select done for input " << data;
-}
+} //end SetJitterAttenuatorSelect()
 
 /// <summary>
 /// Read the Jitter Attenuator Reset bit
