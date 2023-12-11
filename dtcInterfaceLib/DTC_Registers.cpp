@@ -9,17 +9,23 @@
 
 #include "TRACE/tracemf.h"
 
-#define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << this->getDeviceUID() << ": "
-#define TLVL_ResetDTC TLVL_DEBUG + 5
-#define TLVL_AutogenDRP TLVL_DEBUG + 6
-#define TLVL_SERDESReset TLVL_DEBUG + 7
-#define TLVL_CalculateFreq TLVL_DEBUG + 8
-#define TLVL_ReadRegister TLVL_DEBUG + 20
+// #define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << this->getDeviceUID() << ": "
+#define TLVL_ResetDTC 		TLVL_DEBUG + 5
+#define TLVL_AutogenDRP 	TLVL_DEBUG + 6
+#define TLVL_SERDESReset 	TLVL_DEBUG + 7
+#define TLVL_CalculateFreq 	TLVL_DEBUG + 8
+#define TLVL_Detail 		TLVL_DEBUG + 11
+#define TLVL_ReadRegister 	TLVL_DEBUG + 20
 
-#define __SHORTFILE__ 		(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
-#define __SS__ 				std::stringstream ss; ss << "|" << "CFO " << this->getDeviceUID() << ": " << __SHORTFILE__ << ":" << std::dec << __LINE__ << " |\t"
-#define __SS_THROW__    	{ DTC_TLOG(TLVL_ERROR) << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
-#define __E__ 				std::endl
+#include "dtcInterfaceLib/otsStyleCoutMacros.h"
+
+#undef __COUT_HDR__
+#define __COUT_HDR__  "DTC " << this->getDeviceUID() << ": "
+
+// #define __SHORTFILE__ 		(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
+// #define __SS__ 				std::stringstream ss; ss << "|" << "CFO " << this->getDeviceUID() << ": " << __SHORTFILE__ << ":" << std::dec << __LINE__ << " |\t"
+// #define __SS_THROW__    	{ __COUT_ERR__ << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
+// #define __E__ 				std::endl
 
 /// <summary>
 /// Construct an instance of the DTC register map
@@ -90,25 +96,28 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 	device_.init(simMode_, dtc, simMemoryFile, uid);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
-		throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
+		__SS__ << "Version mismatch! Expected DTC version is '" << expectedDesignVersion <<
+			"' while the readback version was '" << ReadDesignVersion() << ".'" << __E__;
+		__SS_THROW__;
+		// throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
 	}
 
 	//if (skipInit || true)
 	if (skipInit) 
 	{
-		DTC_TLOG(TLVL_INFO) << "SKIPPING Initializing device";
+		__COUT_INFO__ << "SKIPPING Initializing device";
 		return simMode_;
 	}
 
-	DTC_TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
+	__COUT__ << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	
-	DTC_TLOG(TLVL_DEBUG+11) << "Setting up DTC links...";
+	TLOG(TLVL_Detail) << __COUT_HDR__ << "Setting up DTC links...";
 	for (auto link : DTC_Links)
 	{
 		bool linkEnabled = ((rocMask >> (link * 4)) & 0x1) != 0;
 		if (!linkEnabled)
 		{
-			DTC_TLOG(TLVL_DEBUG+11) << "Disabling Link " << (int)link;				
+			TLOG(TLVL_Detail) << __COUT_HDR__ << "Disabling Link " << (int)link;				
 			DisableLink(link);
 			
 			DisableROCEmulator(link);
@@ -116,14 +125,14 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 		}
 		else
 		{
-			DTC_TLOG(TLVL_DEBUG+11) << "Enabling Link " << (int)link;				
+			TLOG(TLVL_Detail) << __COUT_HDR__ << "Enabling Link " << (int)link;				
 			EnableLink(link, DTC_LinkEnableMode(true, true));
 		}
 	}
 
 	if (simMode_ != DTC_SimMode_Disabled)
 	{
-		DTC_TLOG(TLVL_DEBUG+11) << "Setting up simulation modes in Hardware...";
+		TLOG(TLVL_Detail) << __COUT_HDR__ << "Setting up simulation modes in Hardware...";
 		// Set up hardware simulation mode: Link 0 Tx/Rx Enabled, Loopback Enabled, ROC Emulator Enabled. All other links
 		// disabled. for (auto link : DTC_Links)
 		// 	{
@@ -134,19 +143,19 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 		{
 			if (simMode_ == DTC_SimMode_Loopback)
 			{
-				DTC_TLOG(TLVL_DEBUG+11) << "Setting up simulation of Loopback in Hardware... Link " << (int)link;
+				TLOG(TLVL_Detail) << __COUT_HDR__ << "Setting up simulation of Loopback in Hardware... Link " << (int)link;
 				SetSERDESLoopbackMode(link, DTC_SERDESLoopbackMode_NearPCS);
 				//			SetMaxROCNumber(DTC_Link_0, DTC_ROC_0);
 			}
 			else if (simMode_ == DTC_SimMode_ROCEmulator)
 			{
-				DTC_TLOG(TLVL_DEBUG+11) << "Setting up simulation of ROC in Hardware... Link " << (int)link;
+				TLOG(TLVL_Detail) << __COUT_HDR__ << "Setting up simulation of ROC in Hardware... Link " << (int)link;
 				EnableROCEmulator(link);
 				// SetMaxROCNumber(DTC_Link_0, DTC_ROC_0);
 			}
 			else
 			{
-				DTC_TLOG(TLVL_DEBUG+11) << "Turning off simulation in Hardware... Link " << (int)link;
+				TLOG(TLVL_Detail) << __COUT_HDR__ << "Turning off simulation in Hardware... Link " << (int)link;
 				SetSERDESLoopbackMode(link, DTC_SERDESLoopbackMode_Disabled);
 				DisableROCEmulator(link);
 			}
@@ -159,7 +168,7 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 	}
 	ReadMinDMATransferLength();
 
-	DTC_TLOG(TLVL_DEBUG) << "Done setting device registers";
+	__COUT__ << "Done setting device registers";
 	return simMode_;
 }
 
@@ -264,7 +273,7 @@ void DTCLib::DTC_Registers::ClearDTCControlRegister()
 /// </summary>
 void DTCLib::DTC_Registers::ResetDTC()
 {
-	DTC_TLOG(TLVL_ResetDTC) << "ResetDTC start";
+	TLOG(TLVL_ResetDTC) << __COUT_HDR__ << "ResetDTC start";
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	data[31] = 1;  // DTC Reset bit
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
@@ -454,7 +463,7 @@ bool DTCLib::DTC_Registers::ReadCFOEmulatorDRP()
 /// </summary>
 void DTCLib::DTC_Registers::EnableAutogenDRP()
 {
-	DTC_TLOG(TLVL_AutogenDRP) << "EnableAutogenDRP start";
+	TLOG(TLVL_AutogenDRP) << __COUT_HDR__ << "EnableAutogenDRP start";
 	std::bitset<32> data = ReadRegister_(DTC_Register_DTCControl);
 	data[23] = 1;
 	WriteRegister_(data.to_ulong(), DTC_Register_DTCControl);
@@ -1293,7 +1302,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatLinkEnable()
 /// <param name="interval">Polling interval, in microseconds</param>
 void DTCLib::DTC_Registers::ResetSERDESTX(DTC_Link_ID const& link, int interval)
 {
-	DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES TX Reset Loop for Link " << link;
+	TLOG(TLVL_INFO)     << __COUT_HDR__ << "Entering SERDES TX Reset Loop for Link " << link;
 	std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
 	if(link == DTC_Link_ALL)
 	{	
@@ -1332,13 +1341,14 @@ void DTCLib::DTC_Registers::ResetSERDESTX(DTC_Link_ID const& link, int interval)
 		// else
 		// 	resetDone = ReadResetTXSERDESDone(link);
 		
-		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES TX Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
+		TLOG(TLVL_INFO)     << __COUT_HDR__ << "End of SERDES TX Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
 	}
 
 	if(loops >= 10)
 	{
-		DTC_TLOG(TLVL_ERROR) << "Timeout waiting for SERDES TX Reset loop.";
-		throw DTC_IOErrorException("Timeout waiting for SERDES TX Reset loop.");
+		__SS__ << "Timeout waiting for SERDES TX Reset loop.";
+		__SS_THROW__;
+		// throw DTC_IOErrorException("Timeout waiting for SERDES TX Reset loop.");
 	}
 }
 
@@ -1362,7 +1372,7 @@ bool DTCLib::DTC_Registers::ReadResetSERDESTX(DTC_Link_ID const& link)
 void DTCLib::DTC_Registers::ResetSERDESRX(DTC_Link_ID const& link, int interval)
 {
 
-	DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES RX Reset Loop for Link " << link;
+	TLOG(TLVL_INFO)     << __COUT_HDR__ << "Entering SERDES RX Reset Loop for Link " << link;
 	std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
 	if(link == DTC_Link_ALL)
 	{	
@@ -1401,13 +1411,14 @@ void DTCLib::DTC_Registers::ResetSERDESRX(DTC_Link_ID const& link, int interval)
 		// else
 		// 	resetDone = ReadResetRXSERDESDone(link);
 
-		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES RX Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
+		TLOG(TLVL_INFO)     << __COUT_HDR__ << "End of SERDES RX Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
 	}
 
 	if(loops >= 10)
 	{
-		DTC_TLOG(TLVL_ERROR) << "Timeout waiting for SERDES RX Reset loop.";
-		throw DTC_IOErrorException("Timeout waiting for SERDES RX Reset loop.");
+		__SS__ << "Timeout waiting for SERDES RX Reset loop.";
+		__SS_THROW__;
+		// throw DTC_IOErrorException("Timeout waiting for SERDES RX Reset loop.");
 	}
 }
 
@@ -1459,9 +1470,8 @@ bool DTCLib::DTC_Registers::ReadResetSERDESPLL(const DTC_PLL_ID& pll)
 /// <param name="link">Link to reset</param>
 /// <param name="interval">Polling interval, in microseconds</param>
 void DTCLib::DTC_Registers::ResetSERDES(DTC_Link_ID const& link, int interval)
-{
-	
-	DTC_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
+{	
+	TLOG(TLVL_INFO)     << __COUT_HDR__ << "Entering SERDES Reset Loop for Link " << link;
 	std::bitset<32> data = ReadRegister_(DTC_Register_SERDES_Reset);
 	if(link == DTC_Link_ALL)
 	{	
@@ -1503,19 +1513,20 @@ void DTCLib::DTC_Registers::ResetSERDES(DTC_Link_ID const& link, int interval)
 			resetDone = ReadResetRXSERDESDone(link);
 			resetDone = resetDone && ReadResetTXSERDESDone(link);
 		}
-		DTC_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
+		TLOG(TLVL_INFO)     << __COUT_HDR__ << "End of SERDES Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
 	}
 
 	if(loops >= 100)
 	{
-		DTC_TLOG(TLVL_ERROR) << "Timeout waiting for SERDES Reset loop=" << loops;
-		throw DTC_IOErrorException("Timeout waiting for SERDES Reset loop.");
+		__SS__ << "Timeout waiting for SERDES Reset loop=" << loops;
+		__SS_THROW__;
+		// throw DTC_IOErrorException("Timeout waiting for SERDES Reset loop.");
 	}
 }
 
 DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRXDiagFifo(DTC_Link_ID const& link)
 {
-	DTC_TLOG(TLVL_DEBUG) << "FormatRXDiagFifo.";
+	__COUT__ << "FormatRXDiagFifo.";
 	DTC_Register reg;
 	switch (link)
 	{
@@ -1541,7 +1552,11 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRXDiagFifo(DTC_Link_ID co
 			reg = DTC_Register_RXDataDiagnosticFIFO_LinkCFO;
 			break;
 		default:
-			throw std::runtime_error("Invalid DTC Link");
+		{
+			__SS__ << "Invalid DTC Link";
+			__SS_THROW__;
+			// throw std::runtime_error("Invalid DTC Link");
+		}
 	}
 
 	auto form = CreateFormatter(reg);
@@ -1549,7 +1564,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRXDiagFifo(DTC_Link_ID co
 	form.vals.push_back(""); //translation
 	for(uint8_t i=0;i<100;++i)
 	{	
-	 	DTC_TLOG(TLVL_DEBUG) << "FormatRXDiagFifo loop." << i;
+	 	__COUT__ << "FormatRXDiagFifo loop." << i;
 		std::ostringstream o; 
 		o << std::hex << std::setfill('0');
 		o << "    0x" << std::setw(4) << static_cast<int>(form.address) << "  | 0x" << std::setw(8)
@@ -1557,7 +1572,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRXDiagFifo(DTC_Link_ID co
 		form.vals.push_back(o.str());
 	}
 
-	DTC_TLOG(TLVL_DEBUG) << "FormatRXDiagFifo loop done.";
+	__COUT__ << "FormatRXDiagFifo loop done.";
 	return form;
 }
 
@@ -1588,7 +1603,11 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXDiagFifo(DTC_Link_ID co
 			reg = DTC_Register_TXDataDiagnosticFIFO_LinkCFO;
 			break;
 		default:
-			throw std::runtime_error("Invalid DTC Link");
+		{
+			__SS__ << "Invalid DTC Link";
+			__SS_THROW__;
+			// throw std::runtime_error("Invalid DTC Link");
+		}
 	}
 	auto form = CreateFormatter(reg);
 	form.description = "Tx Diag FIFO";
@@ -2295,8 +2314,12 @@ void DTCLib::DTC_Registers::SetSERDESOscillatorReferenceFrequency(DTCLib::DTC_II
 			WriteRegister_(freq, DTC_Register_SERDESReferenceClockFrequency);
 			break;
 		default:
-			throw std::runtime_error("Invalid device for set SERDES ref frequency: " + std::to_string(device));
-			return;
+		{
+			__SS__ << "Invalid device for set SERDES ref frequency: " + std::to_string(device);
+			__SS_THROW__;
+			// throw std::runtime_error("Invalid device for set SERDES ref frequency: " + std::to_string(device));
+			// return;
+		}
 	}
 	return;
 }
@@ -5003,7 +5026,7 @@ std::bitset<2> DTCLib::DTC_Registers::ReadJitterAttenuatorSelect()
 /// <param name="data">Value to set</param>
 void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA /* = false */)
 {
-	DTC_TLOG(TLVL_DEBUG) << "JA select " << data << " = " <<
+	__COUT__ << "JA select " << data << " = " <<
 		(data == 0? "CFO control link":(data == 1? "RTF copper clock": (data == 2? "FPGA FMC":"undefined source!")));
 		;
 	std::bitset<32> regdata = ReadRegister_(DTC_Register_JitterAttenuatorCSR);
@@ -5016,20 +5039,20 @@ void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool 
 		// form.vals.push_back(std::string("JA Input-2 Timing Card Selectable, SFP+ or FPGA, Input Clock:   [") + (data[11] ? "Missing" : "OK") + "]");
 	if(regdata[0] == 0 && regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
 	{
-		DTC_TLOG(TLVL_DEBUG) << "JA already locked with selected input " << data;
+		__COUT__ << "JA already locked with selected input " << data;
 		return;
 	}
 	regdata[4] = data[0];
 	regdata[5] = data[1];
 	regdata = WriteRegister_(regdata.to_ulong(), DTC_Register_JitterAttenuatorCSR);
 	
-	if(!alsoResetJA && regdata[8] == 0)
+	if(!alsoResetJA || regdata[8] == 0) //if locked, then do not reconfigure JA (JA only needs a reset after a cold start, usually indicated by lock)
 	{
-		DTC_TLOG(TLVL_DEBUG) << "JA select done with no reset for input " << data;
+		__COUT__ << "JA select done with no reset for input " << data;
 		return;
 	} 
 
-	DTC_TLOG(TLVL_DEBUG) << "JA reset...";
+	__COUT__ << "JA reset...";
 
 	//now reset the JA a la DTCLib::DTC_Registers::ResetJitterAttenuator()
 	
@@ -5042,7 +5065,7 @@ void DTCLib::DTC_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool 
 	sleep(1);
 
 	ConfigureJitterAttenuator();
-	DTC_TLOG(TLVL_DEBUG) << "JA select done for input " << data;
+	__COUT__ << "JA select done for input " << data;
 }
 
 /// <summary>
@@ -9323,8 +9346,9 @@ void DTCLib::DTC_Registers::SetAllEventModeWords(uint32_t data)
 		} while (retry > 0 && errorCode != 0);
 		if (errorCode != 0)
 		{
-			DTC_TLOG(TLVL_ERROR) << "Error writing register " << address;
-			throw DTC_IOErrorException(errorCode);
+			__SS__ << "Error writing register " << address;
+			__SS_THROW__;
+			// throw DTC_IOErrorException(errorCode);
 		}
 	}
 }
@@ -9348,8 +9372,9 @@ void DTCLib::DTC_Registers::SetEventModeWord(uint8_t which, uint32_t data)
 		} while (retry > 0 && errorCode != 0);
 		if (errorCode != 0)
 		{
-			DTC_TLOG(TLVL_ERROR) << "Error writing register " << address;
-			throw DTC_IOErrorException(errorCode);
+			__SS__ << "Error writing register " << address;
+			__SS_THROW__;
+			// throw DTC_IOErrorException(errorCode);
 		}
 	}
 }
@@ -9374,8 +9399,9 @@ uint32_t DTCLib::DTC_Registers::ReadEventModeWord(uint8_t which)
 		} while (retry > 0 && errorCode != 0);
 		if (errorCode != 0)
 		{
-			DTC_TLOG(TLVL_ERROR) << "Error writing register " << address;
-			throw DTC_IOErrorException(errorCode);
+			__SS__ << "Error writing register " << address;
+			__SS_THROW__;
+			// throw DTC_IOErrorException(errorCode);
 		}
 
 		return data;
@@ -9394,20 +9420,20 @@ bool DTCLib::DTC_Registers::SetNewOscillatorFrequency(DTC_OscillatorType oscilla
 {
 	auto currentFrequency = ReadCurrentFrequency(oscillator);
 	auto currentProgram = ReadCurrentProgram(oscillator);
-	DTC_TLOG(TLVL_DEBUG) << "Target Frequency: " << targetFrequency << ", Current Frequency: " << currentFrequency
+	__COUT__ << "Target Frequency: " << targetFrequency << ", Current Frequency: " << currentFrequency
 						 << ", Current Program: " << std::showbase << std::hex << currentProgram;
 
 	// Check if targetFrequency is essentially the same as the current frequency...
 	if (fabs(currentFrequency - targetFrequency) < targetFrequency * 30 / 1000000)
 	{
-		DTC_TLOG(TLVL_INFO) << "New frequency and old frequency are within 30 ppm of each other, not reprogramming!";
+		__COUT_INFO__ << "New frequency and old frequency are within 30 ppm of each other, not reprogramming!";
 		return false;
 	}
 
 	auto newParameters = CalculateFrequencyForProgramming_(targetFrequency, currentFrequency, currentProgram);
 	if (newParameters == 0)
 	{
-		DTC_TLOG(TLVL_WARNING) << "New program calculated as 0! Check parameters!";
+		__COUT_WARN__ << "New program calculated as 0! Check parameters!";
 		return false;
 	}
 	WriteCurrentProgram(newParameters, oscillator);
@@ -9531,7 +9557,7 @@ void DTCLib::DTC_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 					readbackValue = ReadRegister_(address);
 					usleep(100);
 					if((++i % 10) == 9)
-						DTC_TLOG(TLVL_DEBUG) << "I2C waited " << i + 1 << " times..." << std::endl;
+						__COUT__ << "I2C waited " << i + 1 << " times..." << std::endl;
 				}
 				dataToWrite &= ~1;
 				readbackValue &= ~1;
@@ -9567,16 +9593,25 @@ void DTCLib::DTC_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 
 		if(readbackValue != dataToWrite)
 		{
-			std::stringstream ss;
-			ss << device_.getDeviceUID() << " - " << 
-					"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
-					<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-					"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) <<
-					std::endl << std::endl <<
-					"If you do not understand this error, try checking the DTC firmware version." << std::endl;
-			DTC_TLOG(TLVL_ERROR) << ss.str();
-			throw DTC_IOErrorException(ss.str());
-			// __FE_COUT_ERR__ << ss.str(); 
+			try
+			{					
+				__SS__ << "Write check mismatch - " <<
+						"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+						<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+						"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
+						std::endl << std::endl <<
+						"If you do not understand this error, try checking the DTC firmware version: " << ReadDesignDate() << std::endl;					
+				__SS_THROW_ONLY__;
+				// __COUT_ERR__ << ss.str();
+				// throw DTC_IOErrorException(ss.str());
+			}
+			catch(const std::runtime_error& e)
+			{
+				std::stringstream ss;
+				ss << e.what();
+				ss << "\n\nThe stack trace is as follows:\n" << otsStyleStackTrace() << __E__; //artdaq::debug::getStackTraceCollector().print_stacktrace() << __E__;	
+				__SS_THROW__;
+			}
 		}
 		// return readbackReturnValue;
 	} //end verify register readback
@@ -9634,17 +9669,17 @@ int DTCLib::DTC_Registers::EncodeOutputDivider_(int input)
 uint64_t DTCLib::DTC_Registers::CalculateFrequencyForProgramming_(double targetFrequency, double currentFrequency,
 																  uint64_t currentProgram)
 {
-	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: targetFrequency=" << targetFrequency << ", currentFrequency=" << currentFrequency
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: targetFrequency=" << targetFrequency << ", currentFrequency=" << currentFrequency
 								 << ", currentProgram=" << std::showbase << std::hex << static_cast<unsigned long long>(currentProgram);
 	auto currentHighSpeedDivider = DecodeHighSpeedDivider_((currentProgram >> 45) & 0x7);
 	auto currentOutputDivider = DecodeOutputDivider_((currentProgram >> 38) & 0x7F);
 	auto currentRFREQ = DecodeRFREQ_(currentProgram & 0x3FFFFFFFFF);
-	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: Current HSDIV=" << currentHighSpeedDivider << ", N1=" << currentOutputDivider << ", RFREQ=" << currentRFREQ;
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: Current HSDIV=" << currentHighSpeedDivider << ", N1=" << currentOutputDivider << ", RFREQ=" << currentRFREQ;
 	const auto minFreq = 4850000000;  // Hz
 	const auto maxFreq = 5670000000;  // Hz
 
 	auto fXTAL = currentFrequency * currentHighSpeedDivider * currentOutputDivider / currentRFREQ;
-	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: fXTAL=" << fXTAL;
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: fXTAL=" << fXTAL;
 
 	std::vector<int> hsdiv_values = {11, 9, 7, 6, 5, 4};
 	std::vector<std::pair<int, double>> parameter_values;
@@ -9660,7 +9695,7 @@ uint64_t DTCLib::DTC_Registers::CalculateFrequencyForProgramming_(double targetF
 			thisN += 2;
 		}
 		auto fdco_new = hsdiv * thisN * targetFrequency;
-		DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: Adding solution: HSDIV=" << hsdiv << ", N1=" << thisN << ", fdco_new=" << fdco_new;
+		TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: Adding solution: HSDIV=" << hsdiv << ", N1=" << thisN << ", fdco_new=" << fdco_new;
 		parameter_values.push_back(std::make_pair(thisN, fdco_new));
 	}
 
@@ -9679,27 +9714,27 @@ uint64_t DTCLib::DTC_Registers::CalculateFrequencyForProgramming_(double targetF
 		newRFREQ = values.second / fXTAL;
 		break;
 	}
-	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: New Program: HSDIV=" << newHighSpeedDivider << ", N1=" << newOutputDivider << ", RFREQ=" << newRFREQ;
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: New Program: HSDIV=" << newHighSpeedDivider << ", N1=" << newOutputDivider << ", RFREQ=" << newRFREQ;
 
 	if (EncodeHighSpeedDivider_(newHighSpeedDivider) == -1)
 	{
-		DTC_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid HSDIV " << newHighSpeedDivider << "!";
+		__COUT_ERR__ << "ERROR: CalculateFrequencyForProgramming: Invalid HSDIV " << newHighSpeedDivider << "!";
 		return 0;
 	}
 	if (newOutputDivider > 128 || newOutputDivider < 0)
 	{
-		DTC_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid N1 " << newOutputDivider << "!";
+		__COUT_ERR__ << "ERROR: CalculateFrequencyForProgramming: Invalid N1 " << newOutputDivider << "!";
 		return 0;
 	}
 	if (newRFREQ <= 0)
 	{
-		DTC_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid RFREQ " << newRFREQ << "!";
+		__COUT_ERR__ << "ERROR: CalculateFrequencyForProgramming: Invalid RFREQ " << newRFREQ << "!";
 		return 0;
 	}
 
 	auto output = (static_cast<uint64_t>(EncodeHighSpeedDivider_(newHighSpeedDivider)) << 45) +
 				  (static_cast<uint64_t>(EncodeOutputDivider_(newOutputDivider)) << 38) + EncodeRFREQ_(newRFREQ);
-	DTC_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: New Program: " << std::showbase << std::hex << static_cast<unsigned long long>(output);
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: New Program: " << std::showbase << std::hex << static_cast<unsigned long long>(output);
 	return output;
 }
 
@@ -9793,12 +9828,12 @@ bool DTCLib::DTC_Registers::WaitForLinkReady_(DTC_Link_ID const& link, size_t in
 		ready = ReadSERDESPLLLocked(link) && ReadResetRXSERDESDone(link) && ReadResetTXSERDESDone(link) && ReadSERDESRXCDRLock(link);
 		if (std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(std::chrono::steady_clock::now() - last_print).count() > 5.0)
 		{
-			DTC_TLOG(TLVL_DEBUG) << "DTC_Registers: WaitForLinkReady_: ROC Link " << link << ": PLL Locked: " << std::boolalpha << ReadSERDESPLLLocked(link) << ", RX Reset Done: " << ReadResetRXSERDESDone(link) << ", TX Reset Done: " << ReadResetTXSERDESDone(link) << ", CDR Lock: " << ReadSERDESRXCDRLock(link);
+			__COUT__ << "DTC_Registers: WaitForLinkReady_: ROC Link " << link << ": PLL Locked: " << std::boolalpha << ReadSERDESPLLLocked(link) << ", RX Reset Done: " << ReadResetRXSERDESDone(link) << ", TX Reset Done: " << ReadResetTXSERDESDone(link) << ", CDR Lock: " << ReadSERDESRXCDRLock(link);
 			last_print = std::chrono::steady_clock::now();
 		}
 		if (std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(std::chrono::steady_clock::now() - start).count() > timeout)
 		{
-			DTC_TLOG(TLVL_ERROR) << "DTC_Registers: WaitForLinkReady_ ABORTING: ROC Link " << link << ": PLL Locked: " << std::boolalpha << ReadSERDESPLLLocked(link) << ", RX Reset Done: " << ReadResetRXSERDESDone(link) << ", TX Reset Done: " << ReadResetTXSERDESDone(link) << ", CDR Lock: " << ReadSERDESRXCDRLock(link);
+			__COUT_ERR__ << "DTC_Registers: WaitForLinkReady_ ABORTING: ROC Link " << link << ": PLL Locked: " << std::boolalpha << ReadSERDESPLLLocked(link) << ", RX Reset Done: " << ReadResetRXSERDESDone(link) << ", TX Reset Done: " << ReadResetTXSERDESDone(link) << ", CDR Lock: " << ReadSERDESRXCDRLock(link);
 			return false;
 		}
 	}

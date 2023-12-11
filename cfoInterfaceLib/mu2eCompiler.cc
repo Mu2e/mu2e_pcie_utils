@@ -193,43 +193,45 @@ int main(int argc, char* argv[])
 	// }
 
 	std::cout << "Start " << std::endl;
-	CFOLib::CFO_Compiler compiler( 40000000 /* 40MHz FPGAClock for calculating delays */);
 
-	std::ifstream inFile;
-	std::ofstream outFile;
+	// std::ifstream inFile;
+	// std::ofstream outFile;
 
 	std::string inFileName = 
 		"/home/mu2ehwdev/ots/srcs/mu2e_pcie_utils/cfoInterfaceLib/Commands.txt";
 	std::string outFileName = 
 		"/home/mu2ehwdev/ots/srcs/mu2e_pcie_utils/cfoInterfaceLib/Commands.bin";
 
-	inFile.open(inFileName.c_str(), std::ios::in);
-	if (!(inFile.is_open()))
-	{
-		throw std::runtime_error("Input File (" + inFileName + ") didn't open. Does it exist?");
-	}
+	CFOLib::CFO_Compiler compiler;
+	compiler.processFile(inFileName, outFileName);
+	
+	// inFile.open(inFileName.c_str(), std::ios::in);
+	// if (!(inFile.is_open()))
+	// {
+	// 	throw std::runtime_error("Input File (" + inFileName + ") didn't open. Does it exist?");
+	// }
 
-	outFile.open(outFileName.c_str(), std::ios::out | std::ios::binary);
+	// outFile.open(outFileName.c_str(), std::ios::out | std::ios::binary);
 
-	if (!(outFile.is_open()))
-	{
-		throw std::runtime_error("Output File (" + outFileName + ") didn't open. Does it exist?");
-	}
+	// if (!(outFile.is_open()))
+	// {
+	// 	throw std::runtime_error("Output File (" + outFileName + ") didn't open. Does it exist?");
+	// }
 
-	std::vector<std::string> lines;
-	while (!inFile.eof())
-	{
-		std::string line;
-		getline(inFile, line);
-		lines.push_back(line);
-	}
-	inFile.close();
+	// std::vector<std::string> lines;
+	// while (!inFile.eof())
+	// {
+	// 	std::string line;
+	// 	getline(inFile, line);
+	// 	lines.push_back(line);
+	// }
+	// inFile.close();
 
-	std::deque<char> output = compiler.processFile(lines);
-	for (auto c : output)
-	{
-		outFile << c;
-	}
-	outFile.close();
+	// std::deque<char> output = compiler.processFile(lines);
+	// for (auto c : output)
+	// {
+	// 	outFile << c;
+	// }
+	// outFile.close();
 	std::cout << "Done " << std::endl;
 }

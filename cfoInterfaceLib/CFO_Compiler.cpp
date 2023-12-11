@@ -1,475 +1,762 @@
 #include "cfoInterfaceLib/CFO_Compiler.hh"
 
 #include <iostream>
+#include <set>
 
 #define TRACE_NAME "CFO_Compiler"
 
-#define __FILENAME__ 		(__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1 : __FILE__)
-#define __MF_SUBJECT__ 		__FILENAME__
-#define __MF_DECOR__		(__MF_SUBJECT__)
-#define __SHORTFILE__ 		(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
-#define __COUT_HDR_L__ 		"[" << std::dec        << __LINE__ << "]\t"
-#define __COUT_HDR_FL__ 	__SHORTFILE__ << " "   << __COUT_HDR_L__
-#define __COUT_ERR__ 		TLOG(TLVL_ERROR) 
-#define __COUT_INFO__ 		TLOG(TLVL_INFO) 
-#define __COUT__			TLOG(TLVL_DEBUG) //std::cout << __MF_DECOR__ << __COUT_HDR_FL__
+#include "dtcInterfaceLib/otsStyleCoutMacros.h"
 
-#define __SS__            	std::stringstream ss; ss << ":" << __MF_DECOR__ << ":" << __COUT_HDR_FL__
-#define __SS_THROW__        { __COUT_ERR__ << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
-#define __E__ 				std::endl
 
+template<class T>
+std::string 			vectorToString				( // defined in included .icc source
+	const std::vector<T>& 									setToReturn,
+	const std::string&    									delimeter 			= ", ");
+
+void 				getVectorFromString			(
+	    const std::string&        								inputString,
+	    std::vector<std::string>& 								listToReturn,
+	    const std::set<char>&     								delimiter        	= {',', '|', '&'},
+	    const std::set<char>&     								whitespace       	= {' ', '\t', '\n', '\r'},
+	    std::vector<char>*        								listOfDelimiters 	= 0/*,
+		//bool													decodeURIComponents = false */);
+	
+template<class T>
+bool        			getNumber					(const std::string& s, T& retValue); 
+
+
+const std::string	CFOLib::CFO_Compiler::MAIN_GOTO_LABEL = "MAIN";
 
 //========================================================================
-std::deque<char> CFOLib::CFO_Compiler::processFile(std::vector<std::string> lines)
+std::string CFOLib::CFO_Compiler::processFile(const std::string& sourceCodeFile, 
+	const std::string& binaryOutputFile)
+try
 {
 	__COUT_INFO__ << "CFO_Compiler::processFile BEGIN";
+
+	FILE* fp = fopen(sourceCodeFile.c_str(),"r");
+	if(!fp)
+	{
+		__SS__ << "Input File (" << sourceCodeFile << ") didn't open. Does it exist?" << __E__;
+		__SS_THROW__;
+	}
+	
+	std::string line;
+	char lineChars[100];
+		
+
 	txtLineNumber_ = 0;
 	binLineNumber_ = 0;
+	hasRequiredPlanEndOp_ = false; //require at least one END, REPEAT, or GOTO MAIN command to give a handle on switch Run Plan buffers to the CFO firmware
+
+	loopStack_.clear();
+	labelMap_.clear();
+
 	output_.clear();
 
-	while (txtLineNumber_ < lines.size())
+	//main line processing loop
+	while(fgets(lineChars,100,fp))
 	{
-		__COUT__ << "Line number " << txtLineNumber_ << ": " << lines[txtLineNumber_] << __E__;
-		auto line = trim(lines[txtLineNumber_]);
-		if (!isComment(line))
-		{
-			readLine(line);  // Reading line
-			__COUT__ << txtLineNumber_ << ": Instruction buffer: " << instructionBuffer_ << __E__;
-
-			// Transcription into output file.
-			if (!macroFlag_)			
-				transcribeInstruction();
-			else
-				transcribeMacro();
+		line = lineChars;
+		while(strlen(lineChars) && lineChars[strlen(lineChars)-1] != '\n' && fgets(lineChars,100,fp))
+			line += lineChars;
+	
+		++txtLineNumber_; 
+		__COUT__ << "Line number " << txtLineNumber_ << ": " << line << __E__;
+		
+		if (isComment(line)) 
+		{ 
+			__COUT__ << txtLineNumber_ << ": is comment" << __E__; 
+			continue; 
 		}
-		else
-			__COUT__ << txtLineNumber_ << ": is comment" << __E__;
 
-		txtLineNumber_++;
+		//read all arguments
+		opArguments_.clear();
+		getVectorFromString(line,opArguments_, 
+			{',', ' ', '\t', ';', '='} /*delimiter*/,
+			{'\n','\r'} /*white space (empty because white space is a delimiter)*/);
+
+		//clean up empty strings (because of white space delimiter) and comments
+		for(size_t i=0;i<opArguments_.size();++i)
+			if(opArguments_[i].length() == 0) 
+				opArguments_.erase(opArguments_.begin() + i--); //erase and rewind
+			else if(opArguments_[i].length() > 2  && 
+				opArguments_[i][0] == '/' && opArguments_[i][1] == '/') //comment to the end
+			{
+				//erase remainder of arguments because they are commented out
+				while(i<opArguments_.size())
+					opArguments_.erase(opArguments_.begin() + i); //erase
+				break;
+			}
+
+		__COUTV__(opArguments_.size());
+		__COUTV__(vectorToString(opArguments_));
+
+		if(!opArguments_.size()) //skip no arguments		
+		{ 
+			__COUT__ << txtLineNumber_ << ": is empty" << __E__; 
+			continue; 
+		}
+
+		// CFOLib::CFO_Compiler::CFO_MACRO macroOpTest = parseMacro(opArguments_[0]);
+		// if(macroOpTest == CFO_MACRO::NON_MACRO)
+		processOp();
+		// else
+		// 	processMacro(macroOpTest);
+
 	} //end main processing loop
 
+	if(!hasRequiredPlanEndOp_)
+	{
+		__SS__ << "The Run Plan is missing an concluding operation that can be used as a moment to dynamically swith to the next run plan."
+			" At least one of these commands is required in your run plan: END, REPEAT, or GOTO MAIN." << __E__;
+		__SS_THROW__;
+	}
+
+	
+	std::stringstream resultSs;
+	resultSs << "Run plan text file: " << sourceCodeFile << __E__ <<
+		"was compiled to binary: " << binaryOutputFile << __E__;
+	resultSs << "\n\nBinary Result:\n";
+	int cnt = 0;
+
+	// to view output file with 8-byte rows
+	// hexdump -e '"%08_ax " 1/8 "%016x "' -e '"\n"' srcs/mu2e_pcie_utils/cfoInterfaceLib/Commands.bin
+	std::ofstream outFile;
+	outFile.open(binaryOutputFile.c_str(), std::ios::out | std::ios::binary);
+
+	if (!(outFile.is_open()))
+	{
+		__SS__ << "Output File (" << binaryOutputFile << ") didn't open. Does it exist?" << __E__;
+		__SS_THROW__;
+	}
+	char outStr[20];
+	std::string binaryLine; //build least-significant byte on right display
+	std::string tabStr = "";
+	for (auto c : output_)
+	{
+		outFile << c;
+		if(cnt%8 == 0) 
+		{
+			binaryLine = ""; //clear
+			sprintf(outStr,"%5d",(cnt/8 + 1));
+			resultSs << "\n" << tabStr << outStr << ": 0x";			
+		}
+		else if(cnt%4 == 0) 
+			binaryLine = " " + binaryLine;
+
+		sprintf(outStr,"%2.2x",(uint16_t)c & 0x0FF);
+		binaryLine = outStr + binaryLine;
+		
+		//show command for easier human understanding of binary
+		if(cnt%8 == 7) 	//last byte in output is most-significant (and the opcode)
+		{
+			resultSs << binaryLine << "     // " << 
+				translateOpCode(CFOLib::CFO_Compiler::CFO_INSTR(c));	
+			__COUTV__(binaryLine);
+			if(CFOLib::CFO_Compiler::CFO_INSTR(c) == CFO_INSTR::LOOP)
+				tabStr += '\t';
+			else if(CFOLib::CFO_Compiler::CFO_INSTR(c) == CFO_INSTR::DO_LOOP && tabStr.length())
+				tabStr = tabStr.substr(0,tabStr.length()-1);
+		}
+
+		++cnt;
+	}
+	resultSs << "\n";
+	outFile.close();	
+
+	// to view output file with 8-byte rows
+	// hexdump -e '"%08_ax " 1/8 "%016x "' -e '"\n"' srcs/mu2e_pcie_utils/cfoInterfaceLib/Commands.bin
+
 	__COUT_INFO__ << "CFO_Compiler::processFile Parsing Complete!";
-	return output_;
+	return resultSs.str();
 } //end processFile()
-
-//========================================================================
-//  *Read/Input Functions
-void CFOLib::CFO_Compiler::readLine(std::string& line)  // Reads one line and stores into instruction, parameter, argument and identifier
-													   // Buffers.
+catch(const std::runtime_error& e)
 {
-	__COUT__ << "Reading line instruction" << __E__;
-	instructionBuffer_ = readInstruction(line);
+	__SS__ << "Error caught wile compiling source text at '" <<
+		"<FILE>" <<
+		sourceCodeFile << "</FILE>' into binary run plan at '" <<
+		"<FILE>" <<
+		binaryOutputFile << "</FILE>.'\n" << e.what() << __E__;
 
-	macroFlag_ = isMacro();
-	__COUT__ << "Is macro: " << std::boolalpha << macroFlag_ << __E__;
-
-	parameterBufferString_.clear();
-
-	if (!(isComment(line)) && !(macroFlag_))
-	{
-		if (std::isdigit(line[0]))  //
-		{
-			__COUT__ << "Detected parameter, reading" << __E__;
-			argumentBuffer_.clear();
-			parameterBufferString_ = readInstruction(line);
-			parameterBuffer_ = atoi(parameterBufferString_.c_str());
-		}
-		else
-		{
-			__COUT__ << "Detected argument, reading argument and parameter" << __E__;
-			argumentBuffer_ = readInstruction(line);
-			__COUT__ << "argumentBuffer_: " << argumentBuffer_;
-			parameterBufferString_ = readInstruction(line);
-			__COUT__ << "parameterBufferString_: " << parameterBufferString_;
-			parameterBuffer_ = atoi(parameterBufferString_.c_str());
-			__COUT__ << "parameterBuffer_: " << parameterBuffer_;
-		}
-
-		if (!(isComment(line)))
-		{
-			__COUT__ << "Reading identifier"  << __E__;
-			identifierBuffer_ = readInstruction(line);
-			__COUT__ << "identifierBuffer_: " << identifierBuffer_;
-		}
-		else
-		{
-			__COUT__ << "Comment, clearing identifier";
-			identifierBuffer_.clear();
-		}
-	}
-	else if (macroFlag_)
-	{
-		__COUT__ << "Reading macro"  << __E__;
-		argumentBuffer_.clear();
-		parameterBuffer_ = 0;
-		identifierBuffer_.clear();
-
-		readMacro(line);
-	}
-	else
-	{
-		__COUT__ << "Comment or blank line detected, not parsing!"  << __E__;
-		argumentBuffer_.clear();
-		parameterBuffer_ = 0;
-		identifierBuffer_.clear();
-	}
-
-	__COUT__ << "Instruction: " << instructionBuffer_ << 
-		" Parameter: '" << argumentBuffer_ << "' = " << parameterBuffer_  <<
-		" " << identifierBuffer_ << __E__;
-} //end readLine()
-
-//========================================================================
-// Basic Read Algorithms
-std::string
-CFOLib::CFO_Compiler::readInstruction(std::string& line)  // reads on space separated word (with an exception for DATA REQ and DO LOOP)
+	__SS_THROW__;
+}
+catch(...)
 {
-	TLOG(TLVL_TRACE) << "readInstruction: Searching " << line << " for first = or space";
-	std::string insString;
-
-	auto breakPos = line.find_first_of(" =");
-	if (breakPos != std::string::npos)
+	__SS__ << "Unknown error caught wile compiling source text at '" <<
+		"<FILE>" <<
+		sourceCodeFile << "</FILE>' into binary run plan at '" <<
+		"<FILE>" <<
+		binaryOutputFile << "</FILE>.'\n" << __E__;
+	try	{ throw; } //one more try to printout extra info
+	catch(const std::exception &e)
 	{
-		insString = line.substr(0, breakPos);
-		line.erase(0, breakPos + 1);
+		ss << "Exception message: " << e.what();
 	}
-	else
-	{
-		insString = line;
-		line = "";
-	}
+	catch(...){}
+	__COUT_ERR__ << "\n" << ss.str();
+	throw;
+}	// end processFile() error handling
 
-	insString = trim(insString);
-	line = trim(line);
+// //========================================================================
+// //  *Read/Input Functions
+// void CFOLib::CFO_Compiler::readLine(const std::string& line)  // Reads one line and stores into instruction, parameter, argument and identifier
+// 													   // Buffers.
+// {	
+	
 
-	TLOG(TLVL_TRACE) << "readInstruction: Returning instruction " << insString << ", remaining line: " << line;
-	return insString;
-} //end readInstruction()
+// 	// instructionBuffer_ = readInstruction(line);
 
-//========================================================================
-// macro artificial instruction forming.
-void CFOLib::CFO_Compiler::feedInstruction(const std::string& instruction, 
-											const std::string& argument, 
-											uint64_t parameter,
-										   	const std::string& identifier)
-{
-	instructionBuffer_ = instruction;
-	argumentBuffer_ = argument;
-	parameterBuffer_ = parameter;
-	identifierBuffer_ = identifier;
-} //end feedInstruction()
+// 	// macroFlag_ = isMacro();
+// 	// __COUT__ << "Is macro: " << std::boolalpha << macroFlag_ << __E__;
 
-//========================================================================
-// Macro Argument Reading
-void CFOLib::CFO_Compiler::readMacro(std::string& line)
-{
-	macroSetup(instructionBuffer_);
+// 	// parameterBufferString_.clear();
 
-	for (int i = 0; i < macroArgCount_; i++)
-		macroArgument_.push_back(readInstruction(line));
-} //end readMacro()
+// 	// if (!(isComment(line)) && !(macroFlag_))
+// 	// {
+// 	// 	if (std::isdigit(line[0]))  //
+// 	// 	{
+// 	// 		__COUT__ << "Detected parameter, reading" << __E__;
+// 	// 		argumentBuffer_.clear();
+// 	// 		parameterBufferString_ = readInstruction(line);
+// 	// 		parameterBuffer_ = atoi(parameterBufferString_.c_str());
+// 	// 	}
+// 	// 	else
+// 	// 	{
+// 	// 		__COUT__ << "Detected argument, reading argument and parameter" << __E__;
+// 	// 		argumentBuffer_ = readInstruction(line);
+// 	// 		__COUT__ << "argumentBuffer_: " << argumentBuffer_;
+// 	// 		parameterBufferString_ = readInstruction(line);
+// 	// 		__COUT__ << "parameterBufferString_: " << parameterBufferString_;
+// 	// 		parameterBuffer_ = atoi(parameterBufferString_.c_str());
+// 	// 		__COUT__ << "parameterBuffer_: " << parameterBuffer_;
+// 	// 	}
+
+// 	// 	if (!(isComment(line)))
+// 	// 	{
+// 	// 		__COUT__ << "Reading identifier"  << __E__;
+// 	// 		identifierBuffer_ = readInstruction(line);
+// 	// 		__COUT__ << "identifierBuffer_: " << identifierBuffer_;
+// 	// 	}
+// 	// 	else
+// 	// 	{
+// 	// 		__COUT__ << "Comment, clearing identifier";
+// 	// 		identifierBuffer_.clear();
+// 	// 	}
+// 	// }
+// 	// else if (macroFlag_)
+// 	// {
+// 	// 	__COUT__ << "Reading macro"  << __E__;
+// 	// 	argumentBuffer_.clear();
+// 	// 	parameterBuffer_ = 0;
+// 	// 	identifierBuffer_.clear();
+
+// 	// 	readMacro(line);
+// 	// }
+// 	// else
+// 	// {
+// 	// 	__COUT__ << "Comment or blank line detected, not parsing!"  << __E__;
+// 	// 	argumentBuffer_.clear();
+// 	// 	parameterBuffer_ = 0;
+// 	// 	identifierBuffer_.clear();
+// 	// }
+
+// 	// __COUT__ << "Instruction: " << instructionBuffer_ << 
+// 	// 	" Parameter: '" << argumentBuffer_ << "' = " << parameterBuffer_  <<
+// 	// 	" " << identifierBuffer_ << __E__;
+// } //end readLine()
+
+// //========================================================================
+// // Basic Read Algorithms
+// std::string
+// CFOLib::CFO_Compiler::readInstruction(std::string& line)  // reads on space separated word (with an exception for DATA REQ and DO LOOP)
+// {
+// 	TLOG(TLVL_TRACE) << "readInstruction: Searching " << line << " for first = or space";
+// 	std::string insString;
+
+// 	auto breakPos = line.find_first_of(" =");
+// 	if (breakPos != std::string::npos)
+// 	{
+// 		insString = line.substr(0, breakPos);
+// 		line.erase(0, breakPos + 1);
+// 	}
+// 	else
+// 	{
+// 		insString = line;
+// 		line = "";
+// 	}
+
+// 	insString = trim(insString);
+// 	line = trim(line);
+
+// 	TLOG(TLVL_TRACE) << "readInstruction: Returning instruction " << insString << ", remaining line: " << line;
+// 	return insString;
+// } //end readInstruction()
+
+// //========================================================================
+// // macro artificial instruction forming.
+// void CFOLib::CFO_Compiler::feedInstruction(const std::string& instruction, 
+// 											const std::string& argument, 
+// 											uint64_t parameter,
+// 										   	const std::string& identifier)
+// {
+// 	instructionBuffer_ = instruction;
+// 	argumentBuffer_ = argument;
+// 	parameterBuffer_ = parameter;
+// 	identifierBuffer_ = identifier;
+// } //end feedInstruction()
+
+// //========================================================================
+// // Macro Argument Reading
+// void CFOLib::CFO_Compiler::readMacro(std::string& line)
+// {
+// 	macroSetup(instructionBuffer_);
+
+// 	for (int i = 0; i < macroArgCount_; i++)
+// 		macroArgument_.push_back(readInstruction(line));
+// } //end readMacro()
 
 //========================================================================
 // Boolean Operators
 bool CFOLib::CFO_Compiler::isComment(const std::string& line)  // Checks if line has a comment.
 {
-	if (line.size() == 0) return true;
-
-	if (line[0] == '/')
+	for(size_t i=0;i<line.length()-1;++i)
 	{
-		if (line[1] != '/')
+		if(line[i] == ' ' || 
+			line[i] == '\t' ||
+			line[i] == '\r' ||
+			line[i] == '\n') continue; //skip white space
+
+		if(line[i] != '/') return false; //some non-comment char found
+		if(line[i+1] != '/') 		
 		{
-			__SS__ << "Singled slash found; missing double slash for comment. (Line " << txtLineNumber_ << ")" << __E__;
+			__SS__ << "Single slash found; missing double slash for comment. (Line " << txtLineNumber_ << ")" << __E__;
 			__SS_THROW__;
 		}
-		return true;
-	}
-		
-	return false;
+		return true; //comment // string found
+	}		
+	return true; //for empty string, consider as comment
 } // end isComment()
 
-//========================================================================
-bool CFOLib::CFO_Compiler::isMacro()
-{
-	macroOpcode_ = parse_macro(instructionBuffer_);
-	if (macroOpcode_ == CFO_MACRO::NON_MACRO)
-		return false;
+// //========================================================================
+// bool CFOLib::CFO_Compiler::isMacro()
+// {
+// 	macroOpcode_ = parseMacro(instructionBuffer_);
+// 	if (macroOpcode_ == CFO_MACRO::NON_MACRO)
+// 		return false;
+// 	return true;
+// } //end isMacro()
 
-	return true;
-} //end isMacro()
+const std::map<std::string, CFOLib::CFO_Compiler::CFO_INSTR> CFOLib::CFO_Compiler::OP_to_CODE_TRANSLATION = {
+	{	"HEARTBEAT",			CFO_INSTR::HEARTBEAT },
+	{	"MARKER",				CFO_INSTR::MARKER },
+	{ 	"DATA_REQUEST",			CFO_INSTR::DATA_REQUEST },
+	{	"SET_TAG",				CFO_INSTR::SET_TAG },
+	{	"INC_TAG",				CFO_INSTR::INC_TAG },
+	{	"LOOP",					CFO_INSTR::LOOP },
+	{	"DO_LOOP",				CFO_INSTR::DO_LOOP },
+	{	"REPEAT",				CFO_INSTR::REPEAT },
+	{	"WAIT",					CFO_INSTR::WAIT },
+	{	"END",					CFO_INSTR::END },
+	{	"GOTO_LABEL",			CFO_INSTR::GOTO },
+	{	"LABEL",				CFO_INSTR::LABEL },
+	{	"CLEAR_MODE_BITS",		CFO_INSTR::CLEAR_MODE_BITS },
+	{	"SET_MODE_BITS",		CFO_INSTR::SET_MODE_BITS },
+	{	"AND_MODE_BITS",		CFO_INSTR::AND_MODE_BITS },
+	{	"OR_MODE_BITS",			CFO_INSTR::OR_MODE_BITS },
+	{	"SET_MODE",				CFO_INSTR::SET_MODE },
+};
 
 //========================================================================
 // Switch Conversions
 // Turns strings into integers for switch statements.
-CFOLib::CFO_Compiler::CFO_INSTR CFOLib::CFO_Compiler::parse_instruction(const std::string& instructionBuffer)
+CFOLib::CFO_Compiler::CFO_INSTR CFOLib::CFO_Compiler::parseInstruction(const std::string& op)
 {
-	if (instructionBuffer == "HEARTBEAT")
-		return CFO_INSTR::HEARTBEAT;
-	else if (instructionBuffer == "MARKER")
-		return CFO_INSTR::MARKER;
-	else if (instructionBuffer == "DATA_REQUEST")
-		return CFO_INSTR::DATA_REQUEST;
-	else if (instructionBuffer == "INC")
-		return CFO_INSTR::INC;
-	else if (instructionBuffer == "SET")
-		return CFO_INSTR::SET;
-	// else if (instructionBuffer == "AND")
-	// {
-	// 	return CFO_INSTR::AND;
-	// }
-	// else if (instructionBuffer == "OR")
-	// {
-	// 	return CFO_INSTR::OR;
-	// }
-	else if (instructionBuffer == "LOOP")
-		return CFO_INSTR::LOOP;
-	else if (instructionBuffer == "DO_LOOP")
-		return CFO_INSTR::DO_LOOP;
-	else if (instructionBuffer == "REPEAT")
-		return CFO_INSTR::REPEAT;
-	else if (instructionBuffer == "WAIT")
-		return CFO_INSTR::WAIT;
-	else if (instructionBuffer == "END")
-		return CFO_INSTR::END;
-	return CFO_INSTR::INVALID;
-} //end parse_instruction()
-
-//========================================================================
-// Macro Switch
-// Turns strings into integers for switch statements.
-CFOLib::CFO_Compiler::CFO_MACRO CFOLib::CFO_Compiler::parse_macro(const std::string& instructionBuffer) 
-{
-	if (instructionBuffer == "SLICE")
-		return CFO_MACRO::SLICE;
-	return CFO_MACRO::NON_MACRO;
-} //end parse_macro()
-
-//========================================================================
-// Macro Argument and Instruction Counts
-void CFOLib::CFO_Compiler::macroSetup(const std::string& instructionBuffer)
-{
-	if (instructionBuffer == "SLICE")
+	try
 	{
-		macroArgCount_ = CFO_MACRO_SLICE_ARG_COUNT;
+		return OP_to_CODE_TRANSLATION.at(op);
 	}
-	else
+	catch(...)
 	{
-		macroArgCount_ = 0;
+		return CFO_INSTR::INVALID;
 	}
-} //end macroSetup()
+} //end parseInstruction()
+
+const std::map<CFOLib::CFO_Compiler::CFO_INSTR, std::string> CFOLib::CFO_Compiler::CODE_to_OP_TRANSLATION = {
+	{CFOLib::CFO_Compiler::CFO_INSTR::HEARTBEAT,  		"HEARTBEAT"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::MARKER,  			"MARKER"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::DATA_REQUEST,  	"DATA_REQUEST"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::SET_TAG,  		"SET_TAG"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::INC_TAG, 			"INC_TAG"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::LOOP,  			"LOOP"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::DO_LOOP, 			"DO_LOOP"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::REPEAT,  			"REPEAT"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::WAIT,  			"WAIT"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::END,  			"END"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::GOTO,  			"GOTO_LABEL"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::LABEL,  			"LABEL"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::NOOP, 			"LABEL"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::CLEAR_MODE_BITS,  "CLEAR_MODE_BITS"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::SET_MODE_BITS,  	"SET_MODE_BITS"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::AND_MODE_BITS,  	"AND_MODE_BITS"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::OR_MODE_BITS,  	"OR_MODE_BITS"},
+	{CFOLib::CFO_Compiler::CFO_INSTR::SET_MODE,  		"SET_MODE"},
+};
 
 //========================================================================
-// Error Checking
-void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if there are any misplaced arguments
+const std::string& CFOLib::CFO_Compiler::translateOpCode(CFOLib::CFO_Compiler::CFO_INSTR opCode)
 {
-	switch (instructionOpcode)
+	try
 	{
-		case CFO_INSTR::HEARTBEAT:
-			if (parameterBuffer_ == 0 && parameterBufferString_ != "0")
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". HEARTBEAT has a null or invalid argument (HEARTBEAT 0 Event)"
-						  << std::endl;
-				__SS_THROW__;
-			}
-			if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_mode")
-			{
-				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"HEARTBEAT event_mode=\"?" << std::endl;
-				__SS_THROW__;
-			}
-			break;
+		return CODE_to_OP_TRANSLATION.at(opCode);
+	}
+	catch(...)
+	{
+		__SS__ << "No tranlation found for opCode " << (int)opCode << __E__;
+		__SS_THROW__;
+	}
+} //end translateOpCode()
 
-		case CFO_INSTR::MARKER:
-			if (parameterBuffer_ != 0 && identifierBuffer_.empty())
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". MARKER has extraneous arguments("
-						  << parameterBuffer_ << "_" << identifierBuffer_ << ")" << std::endl;
-				__SS_THROW__;
-			}
-			break;
+// //========================================================================
+// // Macro Switch
+// // Turns strings into integers for switch statements.
+// CFOLib::CFO_Compiler::CFO_MACRO CFOLib::CFO_Compiler::parseMacro(const std::string& instructionBuffer) 
+// {
+// 	if (instructionBuffer == "CLEAR_MODE_BITS")
+// 		return CFO_MACRO::CLEAR_MODE_BITS;
+// 	if (instructionBuffer == "SET_MODE_BITS")
+// 		return CFO_MACRO::SET_MODE_BITS;
+// 	if (instructionBuffer == "AND_MODE_BITS")
+// 		return CFO_MACRO::AND_MODE_BITS;
+// 	if (instructionBuffer == "OR_MODE_BITS")
+// 		return CFO_MACRO::OR_MODE_BITS;
+// 	if (instructionBuffer == "SET_MODE")
+// 		return CFO_MACRO::SET_MODE;
+// 	return CFO_MACRO::NON_MACRO;
+// } //end parseMacro()
 
-		case CFO_INSTR::DATA_REQUEST:
-			if (parameterBuffer_ == 0 && argumentBuffer_ != "CURRENT")
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". DATA REQ has a null  or invalid argument (DATA REQ 0 Event)"
-						  << std::endl;
-				__SS_THROW__;
-			}
-			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "request_tag" && argumentBuffer_ != "CURRENT")
-			{
-				__SS__ << "On Line" << txtLineNumber_
-						  << ". did you mean \"DATA_REQUEST request_tag=\" or DATA_REQUEST CURRENT?" << std::endl;
-				__SS_THROW__;
-			}
-			break;
+// //========================================================================
+// // Macro Argument and Instruction Counts
+// void CFOLib::CFO_Compiler::macroSetup(const std::string& instructionBuffer)
+// {
+// 	if (instructionBuffer == "SLICE")
+// 	{
+// 		macroArgCount_ = CFO_MACRO_SLICE_ARG_COUNT;
+// 	}
+// 	else
+// 	{
+// 		macroArgCount_ = 0;
+// 	}
+// } //end macroSetup()
 
-		case CFO_INSTR::INC:
-			if (identifierBuffer_.empty() == false)
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". INC has an extraneous identifier" << std::endl;
-				__SS_THROW__;
-			}
-			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_by" && argumentBuffer_ != "event_tag")
-			{
-				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"INC event_by=\" or \"INC event_tag\?"
-						  << std::endl;
-				__SS_THROW__;
-			}
-			break;
-		case CFO_INSTR::SET:
-			if (parameterBuffer_ == 0)
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". SET has a null  or invalid argument (SET 0 Event)"
-						  << std::endl;
-				__SS_THROW__;
-			}
-			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_tag")
-			{
-				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"SET event_tag=\"?" << std::endl;
-				__SS_THROW__;
-			}
-			break;
-		// case CFO_INSTR::AND:
+// //========================================================================
+// // Error Checking
+// void CFOLib::CFO_Compiler::errorCheck(CFO_INSTR instructionOpcode)  // Checks if there are any misplaced arguments
+// {
+// 	switch (instructionOpcode)
+// 	{
+		// case CFO_INSTR::HEARTBEAT:
+		// 	if (parameterBuffer_ == 0 && parameterBufferString_ != "0")
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ", HEARTBEAT has a null or invalid argument (HEARTBEAT 0 Event)"
+		// 				  << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_mode")
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ", did you mean \"HEARTBEAT event_mode=\"?" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	break;
+
+		// case CFO_INSTR::MARKER:
+		// 	if (parameterBuffer_ != 0 && identifierBuffer_.empty())
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ", MARKER has extraneous arguments("
+		// 				  << parameterBuffer_ << "_" << identifierBuffer_ << ")" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	break;
+
+		// case CFO_INSTR::DATA_REQUEST:
+		// 	if (parameterBuffer_ == 0 && argumentBuffer_ != "CURRENT")
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". DATA REQ has a null  or invalid argument (DATA REQ 0 Event)"
+		// 				  << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	else if (argumentBuffer_.empty() == false && argumentBuffer_ != "request_tag" && argumentBuffer_ != "CURRENT")
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_
+		// 				  << ". did you mean \"DATA_REQUEST request_tag=\" or DATA_REQUEST CURRENT?" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	break;
+
+		// case CFO_INSTR::INC_TAG:
+		// 	if (identifierBuffer_.empty() == false)
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". INC has an extraneous identifier" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	else if (argumentBuffer_.empty() == false && argumentBuffer_ != "add_value")
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". did you mean \"INC add_value=\"\?"
+		// 				  << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+			// break;
+		// case CFO_INSTR::SET_TAG:
 		// 	if (parameterBuffer_ == 0)
 		// 	{
-		// 		__SS__ << "On Line " << txtLineNumber_ << ". AND has a null  or invalid argument (AND 0 Event)"
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". SET has a null  or invalid argument (SET 0 Event)"
 		// 				  << std::endl;
-		// 		throw std::exception();
+		// 		__SS_THROW__;
 		// 	}
 		// 	else if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_tag")
 		// 	{
-		// 		__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"AND event_tag=\"?" << std::endl;
-		// 		throw std::exception();
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". did you mean \"SET event_tag=\"?" << std::endl;
+		// 		__SS_THROW__;
 		// 	}
 		// 	break;
-		// case CFO_INSTR::OR:
+		// case CFO_INSTR::LOOP:
 		// 	if (parameterBuffer_ == 0)
 		// 	{
-		// 		__SS__ << "On Line " << txtLineNumber_ << ". OR has a null  or invalid argument (OR 0 Event)"
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". LOOP has a null  or invalid argument (Looping 0 times)"
 		// 				  << std::endl;
-		// 		throw std::exception();
+		// 		__SS_THROW__;
 		// 	}
-		// 	else if (argumentBuffer_.empty() == false && argumentBuffer_ != "event_tag")
+		// 	else if (identifierBuffer_.empty() == 0 && identifierBuffer_ != "times")
 		// 	{
-		// 		__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"OR event_tag=\"?" << std::endl;
-		// 		throw std::exception();
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". LOOP has an invalid identifier ("
+		// 				  << identifierBuffer_ << ")" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	else if (argumentBuffer_.empty() == false && argumentBuffer_ != "count")
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". did you mean \"LOOP count=\"?" << std::endl;
+		// 		__SS_THROW__;
 		// 	}
 		// 	break;
-		case CFO_INSTR::LOOP:
-			if (parameterBuffer_ == 0)
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". LOOP has a null  or invalid argument (Looping 0 times)"
-						  << std::endl;
-				__SS_THROW__;
-			}
-			else if (identifierBuffer_.empty() == 0 && identifierBuffer_ != "times")
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". LOOP has an invalid identifier ("
-						  << identifierBuffer_ << ")" << std::endl;
-				__SS_THROW__;
-			}
-			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "count")
-			{
-				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"LOOP count=\"?" << std::endl;
-				__SS_THROW__;
-			}
-			break;
-		case CFO_INSTR::DO_LOOP:
-			if (parameterBuffer_ != 0)
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". DO LOOP has an extraneous argument("
-						  << parameterBuffer_ << ")" << std::endl;
-				__SS_THROW__;
-			}
-			break;
-		case CFO_INSTR::WAIT:
-			if (identifierBuffer_.empty() == 0 && identifierBuffer_ != "clocks" && identifierBuffer_ != "ns" &&
-				identifierBuffer_ != "sec" && identifierBuffer_ != "ms" && identifierBuffer_ != "us")
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". WAIT has an invalid identifier("
-						  << identifierBuffer_ << ")" << std::endl <<
-						 "Options for third argument are [empty] ns ms sec" << std::endl;
-				__SS_THROW__;
-			}
-			else if (argumentBuffer_.empty() == false && argumentBuffer_ != "period" && argumentBuffer_ != "NEXT")
-			{
-				__SS__ << "On Line" << txtLineNumber_ << ". did you mean \"WAIT period=\"?" << std::endl;
-				__SS_THROW__;
-			}
+		// case CFO_INSTR::DO_LOOP:
+		// 	if (parameterBuffer_ != 0)
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". DO LOOP has an extraneous argument("
+		// 				  << parameterBuffer_ << ")" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	break;
+		// case CFO_INSTR::WAIT:
+		// 	if (identifierBuffer_.empty() == 0 && identifierBuffer_ != "clocks" && identifierBuffer_ != "ns" &&
+		// 		identifierBuffer_ != "sec" && identifierBuffer_ != "ms" && identifierBuffer_ != "us")
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". WAIT has an invalid identifier("
+		// 				  << identifierBuffer_ << ")" << std::endl <<
+		// 				 "Options for third argument are [empty] ns ms sec" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	else if (argumentBuffer_.empty() == false && argumentBuffer_ != "period" && argumentBuffer_ != "NEXT")
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". did you mean \"WAIT period=\"?" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
 
-			break;
-		case CFO_INSTR::REPEAT:
-			if (parameterBuffer_ != 0 && identifierBuffer_.empty())
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". REPEAT has extraneous arguments("
-						  << parameterBuffer_ << "_" << identifierBuffer_ << ")" << std::endl;
-				__SS_THROW__;
-			}
-			break;
-		case CFO_INSTR::END:
-			if (parameterBuffer_ != 0 && identifierBuffer_.empty())
-			{
-				__SS__ << "On Line " << txtLineNumber_ << ". END has extraneous arguments("
-						  << parameterBuffer_ << "_" << identifierBuffer_ << ")" << std::endl;
-				__SS_THROW__;
-			}
-			break;
-		default:
-			{
-				__SS__ << "Invalid opcode: " << (uint8_t)instructionOpcode << __E__;
-				__SS_THROW__;
-			}
-			break;
-	}
-} //end errorCheck()
+		// 	break;
+		// case CFO_INSTR::REPEAT:
+		// 	if (parameterBuffer_ != 0 && identifierBuffer_.empty())
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". REPEAT has extraneous arguments("
+		// 				  << parameterBuffer_ << "_" << identifierBuffer_ << ")" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	break;
+		// case CFO_INSTR::END:
+		// 	if (parameterBuffer_ != 0 && identifierBuffer_.empty())
+		// 	{
+		// 		__SS__ << "On Line " << txtLineNumber_ << ". END has extraneous arguments("
+		// 				  << parameterBuffer_ << "_" << identifierBuffer_ << ")" << std::endl;
+		// 		__SS_THROW__;
+		// 	}
+		// 	break;
+	// 	case CFO_INSTR::LABEL:
+	// 		if (argumentBuffer_.empty() == true || argumentBuffer_ == "")
+	// 		{
+	// 			__SS__ << "On Line " << txtLineNumber_ << ", empty label found. LABEL must have a name argument (e.g. 'LABEL my_label')." << std::endl;
+	// 			__SS_THROW__;
+	// 		}
+	// 		break;
+	// 	case CFO_INSTR::GOTO:
+	// 		if (argumentBuffer_.empty() == true || argumentBuffer_ == "")
+	// 		{
+	// 			__SS__ << "On Line " << txtLineNumber_ << ", empty GOTO label found. GOTO must have a target name argument (e.g. 'GOTO my_label')." << std::endl;
+	// 			__SS_THROW__;
+	// 		}
+	// 		break;
+	// 	default:
+	// 		{
+	// 			__SS__ << "On Line " << txtLineNumber_ << ", invalid instruction op-code '" << (uint16_t)instructionOpcode << "' derived from '" <<
+	// 				instructionBuffer_ << ".'" << __E__;
+	// 			__SS_THROW__;
+	// 		}
+	// 		break;
+	// }
+//} //end errorCheck()
 
-//========================================================================
-void CFOLib::CFO_Compiler::macroErrorCheck(CFO_MACRO macroInt)
-{
-	switch (macroInt)
-	{
-		case CFO_MACRO::SLICE:
-			if (macroArgument_[0] != "bitposition")
-			{
-				__SS__<< "On Line (" << txtLineNumber_ << ") " << 
-					"1st parameter should be bitposition=" << __E__;
-				__SS_THROW__;
-			}
-			else if ((atoi(macroArgument_[1].c_str()) > 48) || (atoi(macroArgument_[1].c_str()) < 1))
-			{
-				__SS__ << "On Line (" << txtLineNumber_ << ") " << 
-					"2nd parameter, integer must be between 1 and 48" << __E__;
-				__SS_THROW__;
-			}
-			else if (macroArgument_[2] != "bitwidth")
-			{
-				__SS__ << "On Line (" << txtLineNumber_ << ") " << 
-					"3rd parameter should be bitwidth=" << __E__;
-				__SS_THROW__;
-			}
-			else if ((atoi(macroArgument_[3].c_str()) + atoi(macroArgument_[1].c_str()) - 1 > 48) ||
-					 (atoi(macroArgument_[3].c_str()) < 1))
-			{
-				__SS__ << "On Line (" << txtLineNumber_ << ") " <<
-					"4th parameter, integer must be between 1 and must add with bitposition to less than 48" << __E__;
-				__SS_THROW__;
-			}
-			else if (macroArgument_[4] != "event_tag")
-			{
-				__SS__ << "On Line (" << txtLineNumber_ << ") " << 
-					"5th parameter should be event_tag=" << __E__;
-				__SS_THROW__;
-			}
-			else if ((atoi(macroArgument_[5].c_str()) > 1536))
-			{
-				__SS__ << "On Line (" << txtLineNumber_ << ") " <<
-					"6th and last parameter, integer must be between 1 and 1536" << __E__;
-				__SS_THROW__;
-			}
-			break;
-		default:
-			break;
-	}
-} //end macroErrorCheck()
+// //========================================================================
+// void CFOLib::CFO_Compiler::macroErrorCheck(CFO_MACRO macroOpCode)
+// {
+// 	size_t opArgCount = opArguments_.size();
+
+// 	switch (macroOpCode)
+// 	{
+// 		case CFO_MACRO::SET_MODE_BITS:
+// 		case CFO_MACRO::AND_MODE_BITS:
+// 		case CFO_MACRO::OR_MODE_BITS:		
+// 		{				
+// 			if(opArgCount != 7 || 
+// 				opArguments_[1] != "start_bit" || 
+// 				opArguments_[3] != "bit_count" || 
+// 				opArguments_[5] != "value")
+// 			{
+// 				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 7 arguments, and " <<
+// 					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " start_bit=[value] bit_count=[value] value=[value]\" ... "
+// 					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+// 					"For the number values, hex 0x### and binary b### syntax is allowed, otherwise decimal is inferred." << __E__;
+// 				__SS_THROW__;
+// 			}
+			
+// 			uint16_t startBit; 
+// 			if(!getNumber(opArguments_[2], startBit))
+// 			{
+// 				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+// 					"start_bit value '" << opArguments_[2] << "' is not a valid number. " <<
+// 					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+// 				__SS_THROW__;
+// 			}
+			
+// 			if (startBit > 47)
+// 			{
+// 				__SS__ << "On Line (" << txtLineNumber_ << "), " << 
+// 					"start_bit value must be an integer between 0 and 47." << __E__;
+// 				__SS_THROW__;
+// 			}
+						
+// 			uint16_t bitCount; 
+// 			if(!getNumber(opArguments_[4], bitCount))
+// 			{
+// 				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+// 					"bit_count value '" << opArguments_[4] << "' is not a valid number. " <<
+// 					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+// 				__SS_THROW__;
+// 			}
+
+// 			if (startBit + bitCount > 48 || bitCount == 0)
+// 			{
+// 				__SS__ << "On Line (" << txtLineNumber_ << "), " <<
+// 					"bit_count value must be a positive integer and fit within 48-bits range 0-to-47 with offset start_bit=" << 
+// 					startBit << ". The end bit was calculated as end_bit=" <<
+// 					startBit + bitCount - 1 << __E__;
+// 				__SS_THROW__;
+// 			}
+		
+// 			uint64_t value;
+// 			if(!getNumber(opArguments_[6], value))
+// 			{
+// 				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+// 					"bit_count value '" << opArguments_[6] << "' is not a valid number. " <<
+// 					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+// 				__SS_THROW__;
+// 			}
+
+// 			if (value >= (uint64_t(1) << bitCount) && 
+// 				opArguments_[6][0] != '~') //only if not an inverted value
+// 			{
+// 				__SS__ << "On Line (" << txtLineNumber_ << "), " <<
+// 					"the set value range is defined by bit_count, and so must be an integer between 0 and 2^" << 
+// 					bitCount << "(bit_count) - 1. The value is " << value << " which is greater than or equal to max range " <<
+// 					(uint64_t(1) << bitCount) << __E__;
+// 				__SS_THROW__;
+// 			}
+// 			break;
+// 		}
+// 		case CFO_MACRO::CLEAR_MODE_BITS:
+// 		{				
+// 			if(opArgCount != 5 || 
+// 				opArguments_[1] != "start_bit" || 
+// 				opArguments_[3] != "bit_count")
+// 			{
+// 				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 5 arguments, and " <<
+// 					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " start_bit=[value] bit_count=[value]\" ... "
+// 					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+// 					"For the number values, hex 0x### and binary b### syntax is allowed, otherwise decimal is inferred." << __E__;
+// 				__SS_THROW__;
+// 			}
+			
+// 			uint16_t startBit; 
+// 			if(!getNumber(opArguments_[2], startBit))
+// 			{
+// 				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+// 					"start_bit value '" << opArguments_[2] << "' is not a valid number. " <<
+// 					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+// 				__SS_THROW__;
+// 			}
+			
+// 			if (startBit > 47)
+// 			{
+// 				__SS__ << "On Line (" << txtLineNumber_ << "), " << 
+// 					"start_bit value must be an integer between 0 and 47." << __E__;
+// 				__SS_THROW__;
+// 			}
+			
+// 			uint16_t bitCount; 
+// 			if(!getNumber(opArguments_[4], bitCount))
+// 			{
+// 				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+// 					"bit_count value '" << opArguments_[4] << "' is not a valid number. " <<
+// 					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+// 				__SS_THROW__;
+// 			}
+
+// 			if (startBit + bitCount > 48 || bitCount == 0)
+// 			{
+// 				__SS__ << "On Line (" << txtLineNumber_ << "), " <<
+// 					"bit_count value must be a positive integer and fit within 48-bits range 0:47 with offset start_bit=" << 
+// 					startBit << ". The end bit was calculated as end_bit=" <<
+// 					startBit + bitCount - 1 << __E__;
+// 				__SS_THROW__;
+// 			}		
+			
+// 			break;
+// 		}
+// 		case CFO_MACRO::SET_MODE:
+// 		{				
+// 			if(opArgCount != 2)
+// 			{
+// 				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 5 arguments, and " <<
+// 					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " [value]\" ... "
+// 					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+// 					"For the Event Mode value, hex 0x### and binary b### syntax is allowed, otherwise decimal is inferred." << __E__;
+// 				__SS_THROW__;
+// 			}
+			
+// 			uint64_t eventMode; 
+// 			if(!getNumber(opArguments_[1], eventMode))
+// 			{
+// 				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+// 					"start_bit value '" << opArguments_[1] << "' is not a valid number. " <<
+// 					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+// 				__SS_THROW__;
+// 			}			
+// 			break;
+// 		}
+// 		default:
+// 		{
+// 			__COUTV__((int)macroOpCode);
+// 			__SS__ << "On Line " << txtLineNumber_ << ", invalid instruction '" << opArguments_[0] << "' encountered.'" << __E__;
+// 			__SS_THROW__;
+// 		}
+// 	} //end primary switch statement
+// } //end macroErrorCheck()
 
 //========================================================================
 void CFOLib::CFO_Compiler::outParameter(uint64_t paramBuf)  // Writes the 6 byte parameter out based on a given integer.
@@ -479,235 +766,948 @@ void CFOLib::CFO_Compiler::outParameter(uint64_t paramBuf)  // Writes the 6 byte
 	for (int i = 0; i < 6; ++i)
 	{
 		output_.push_back(paramBufPtr[i]);
-		__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
+		__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << ((uint16_t)output_.back() & 0x0FF) << __E__;
 	}
 } //end outParameter()
 
 //========================================================================
-// Transcription
-void CFOLib::CFO_Compiler::transcribeInstruction()  // Outputs a byte stream based on the buffers.
+// processOp
+// 		Outputs a byte stream based on the buffers.
+//		opArguments_ must be checked before to be size >= 1
+void CFOLib::CFO_Compiler::processOp()  
 {
 	//calculate line numbers that match this hexdump call (all usage of bin is relative/differences):
 	//		hexdump -e '"%08_ax | " 1/8 "%016x "' -e '"\n"'  CFOCommands.bin | cat -n
 	binLineNumber_ = 1 + output_.size()/8;
 	__COUT__ << "binLineNumber_: " << (int)binLineNumber_ << __E__;
 
-	CFO_INSTR instructionOpcode = parse_instruction(instructionBuffer_);
-
-	if (instructionOpcode == CFO_INSTR::INVALID)
+	CFO_INSTR instructionOpcode = parseInstruction(opArguments_[0]);
+	if(instructionOpcode == CFO_INSTR::INVALID)
 	{
-		__SS__ << "ERROR: INVALID INSTRUCTION: " << instructionBuffer_ << std::endl;
+		__SS__ << "On Line " << txtLineNumber_ << ", invalid instruction '" << 
+			opArguments_[0] << "' found. " << __E__;
 		__SS_THROW__;
 	}
 
-	int64_t parameterCalc = calcParameter(instructionOpcode);
-	__COUT__ << "instructionOpcode: " << (int)instructionOpcode << __E__;
-	__COUT__ << "parameterCalc: " << parameterCalc << __E__;
+	int64_t parameterCalc = calculateParameterAndErrorCheck(instructionOpcode);
+	__COUTV__((int)instructionOpcode);
+	__COUTV__(parameterCalc);
 
-	errorCheck(instructionOpcode);
-
-	switch (instructionOpcode)
+	if(instructionOpcode == CFO_INSTR::SET_MODE_BITS || 
+		instructionOpcode == CFO_INSTR::SET_MODE)
 	{
-			// Instructions with value;
-		case CFO_INSTR::HEARTBEAT:
-			outParameter(parameterBuffer_);
-			break;
+		__COUT__ << "MASK off 0x" << std::hex << modeClearMask_ << __E__;
+		//treat as two ops: an AND and an OR
+		outParameter(modeClearMask_);
+		output_.push_back(0x00);
+		__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
+		output_.push_back(static_cast<char>(CFO_INSTR::AND_MODE_BITS));
+		__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
 
-		case CFO_INSTR::MARKER:
-			outParameter(0);
-			break;
-
-		case CFO_INSTR::DATA_REQUEST:
-			if (argumentBuffer_ != "CURRENT")
-				outParameter(parameterBuffer_);
-			else
-				outParameter(0xFFFFFFFFFFFF);
-			break;
-
-		case CFO_INSTR::INC:
-			outParameter(parameterCalc);
-			break;
-
-		case CFO_INSTR::SET:
-			outParameter(parameterBuffer_);
-			break;
-
-		// case CFO_INSTR::AND:
-		// 	outParameter(parameterBuffer_);
-		// 	break;
-
-		// case CFO_INSTR::OR:
-		// 	outParameter(parameterBuffer_);
-		// 	break;
-
-		case CFO_INSTR::LOOP:
-			__COUT__ << "loopStack_ = " << binLineNumber_ << " at " << loopStack_.size() << " w/parameterBuffer_=" << parameterBuffer_;
-			loopStack_.push(binLineNumber_);
-			outParameter(parameterBuffer_);
-			break;
-
-		case CFO_INSTR::DO_LOOP:
-			__COUT__ << "DO_LOOP loopStack_ " << loopStack_.size() << " w/parameterCalc=" << parameterCalc;
-			outParameter(parameterCalc);
-			break;
-
-		case CFO_INSTR::REPEAT:
-			outParameter(0);
-			break;
-
-		case CFO_INSTR::WAIT:
-			__COUT__ << "parameterCalc = " << std::dec << parameterCalc << " clocks"
-				<< std::hex << " = 0x" << parameterCalc << " clocks" << __E__;
-			outParameter(parameterCalc);
-			break;
-
-		case CFO_INSTR::END:
-			outParameter(0);
-			break;
-
-		default:
-			{
-				__SS__ << "ERROR: INVALID INSTRUCTION Opcode: " << (uint8_t)instructionOpcode << " from " <<
-					instructionBuffer_ << std::endl;
-				__SS_THROW__;
-			}
+		instructionOpcode = CFO_INSTR::OR_MODE_BITS;
+		__COUT__ << "MASK on 0x" << std::hex << parameterCalc << __E__;
 	}
+
+	outParameter(parameterCalc);
+
+	if(instructionOpcode == CFO_INSTR::REPEAT ||
+		instructionOpcode == CFO_INSTR::END ||
+		instructionOpcode == CFO_INSTR::GOTO)
+			hasRequiredPlanEndOp_ = true;	
+	else if(instructionOpcode == CFO_INSTR::LABEL) //in binary, treat as NOOP
+		instructionOpcode = CFO_INSTR::NOOP;
+	else if(instructionOpcode == CFO_INSTR::CLEAR_MODE_BITS) //treat clear as AND
+		instructionOpcode = CFO_INSTR::AND_MODE_BITS;
 
 	output_.push_back(0x00);
 	__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
 	output_.push_back(static_cast<char>(instructionOpcode));
 	__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
 
-} //end transcribeInstruction()
+} //end processOp()
 
-//========================================================================
-void CFOLib::CFO_Compiler::transcribeMacro()
-{
-	switch (macroOpcode_)
-	{
-		case CFO_MACRO::SLICE:
-		{
-			// Arg 1: bitposition=
-			// Arg 2: value
-			// Arg 3: bitwidth=
-			// Arg 4: value
-			// Arg 5: event_tag=
-			// Arg 6: value
+// //========================================================================
+// //Macros do not get output to the binary file, they only affect 
+// //	local compiler variables.
+// void CFOLib::CFO_Compiler::processMacro(CFO_Compiler::CFO_MACRO macroOpCode)
+// {
+// 	// Checking Errors in parameters
+// 	macroErrorCheck(macroOpCode);
 
-			// Checking Errors in parameters
-			macroErrorCheck(macroOpcode_);
+// 	//now process macro, and affect registered event mode
 
-			// Calculating Macro Parameters
-			int64_t parameterAND;
-			int64_t parameterOR;
-			int bitbeginning = atoi(macroArgument_[1].c_str());  // cant be more than 48
-			int bitwidth = atoi(macroArgument_[3].c_str());      // cant be more than (48 - bitbeginning)
-			int64_t event_tag = atoi(macroArgument_[5].c_str());
-			int64_t exponentHelper = (int64_t)(0x0000FFFFFFFFFFFF >> (48 - bitwidth));
+// 	uint16_t startBit, bitCount; 
+// 	uint64_t value;
+// 	uint64_t bitmask = 0;
 
-			parameterAND = ~(exponentHelper << (bitbeginning - 1));
-			parameterOR = event_tag << (bitbeginning - 1);
+// 	switch (macroOpCode)
+// 	{
+// 		case CFO_MACRO::SET_MODE_BITS:
 
-			// Feeding instructions
-			feedInstruction("AND", "", parameterAND, "");
-			transcribeInstruction();
-			feedInstruction("OR", "", parameterOR, "");
-			transcribeInstruction();
-			break;
-		}
-		default:
-			break;
-	}
-	// Clearing Macro Deque
-	macroArgument_.clear();
-} //end transcribeMacro()
+// 			// Arg 1: start_bit=
+// 			// Arg 2: value
+// 			// Arg 3: bit_count=
+// 			// Arg 4: value
+// 			// Arg 5: value=
+// 			// Arg 6: value
+
+// 			getNumber(opArguments_[2], startBit);
+// 			getNumber(opArguments_[4], bitCount);
+// 			getNumber(opArguments_[6], value);			
+// 			for(uint16_t i = startBit; i < startBit + bitCount; ++i)
+// 				bitmask |= (uint64_t(1)<<i);
+// 			value <<= startBit; //shift then mask
+// 			value &= bitmask; //force bitcount in case of ~ inverted value
+// 			registeredEventMode_ &= ~bitmask; //clear
+// 			registeredEventMode_ |= value; //set			
+// 			break;
+// 		case CFO_MACRO::CLEAR_MODE_BITS:
+// 			// Arg 1: start_bit=
+// 			// Arg 2: value
+// 			// Arg 3: bit_count=
+// 			// Arg 4: value
+
+// 			getNumber(opArguments_[2], startBit);
+// 			getNumber(opArguments_[4], bitCount);
+// 			for(uint16_t i = startBit; i < startBit + bitCount; ++i)
+// 				bitmask |= (uint64_t(1)<<i);
+// 			registeredEventMode_ &= ~bitmask; //clear		
+// 			break;
+// 		case CFO_MACRO::AND_MODE_BITS:
+// 			// Arg 1: start_bit=
+// 			// Arg 2: value
+// 			// Arg 3: bit_count=
+// 			// Arg 4: value
+// 			// Arg 5: value=
+// 			// Arg 6: value
+
+// 			getNumber(opArguments_[2], startBit);
+// 			getNumber(opArguments_[4], bitCount);
+// 			getNumber(opArguments_[6], value);
+// 			for(uint16_t i = startBit; i < startBit + bitCount; ++i)
+// 				bitmask |= (uint64_t(1)<<i);
+// 			value <<= startBit; //shift then mask
+// 			value |= ~bitmask; //force ignore outside of bitcount in case of ~ inverted value
+// 			registeredEventMode_ &= value; //AND			
+// 			break;
+// 		case CFO_MACRO::OR_MODE_BITS:
+// 		{
+// 			// Arg 1: start_bit=
+// 			// Arg 2: value
+// 			// Arg 3: bit_count=
+// 			// Arg 4: value
+// 			// Arg 5: value=
+// 			// Arg 6: value
+
+// 			getNumber(opArguments_[2], startBit);
+// 			getNumber(opArguments_[4], bitCount);
+// 			getNumber(opArguments_[5], value);
+// 			for(uint16_t i = startBit; i < startBit + bitCount; ++i)
+// 				bitmask |= (uint64_t(1)<<i);
+// 			value <<= startBit; //shift then mask
+// 			value &= bitmask; //force ignore outside of bitcount in case of ~ inverted value
+// 			registeredEventMode_ |= value; //OR			
+// 			break;
+// 		}	
+// 		case CFO_MACRO::SET_MODE:
+// 		{
+// 			// Arg 1: value
+// 			getNumber(opArguments_[1], value);
+// 			registeredEventMode_ = value;
+// 			break;
+// 		}			
+// 		default:
+// 		{
+// 			__COUTV__((int)macroOpCode);
+// 			__SS__ << "On Line " << txtLineNumber_ << ", invalid instruction '" << opArguments_[0] << "' encountered.'" << __E__;
+// 			__SS_THROW__;
+// 		}
+// 	}
+
+// } //end processMacro()
 
 //========================================================================
 // Parameter Calculations
-uint64_t CFOLib::CFO_Compiler::calcParameter(CFO_INSTR instructionOpcode)  // Calculates the parameter for the
-																		  // instruction (if needed)
+// 	Calculates the parameter for the instruction (if needed) and does error checking
+uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instructionOpcode)  
 {
-	__COUT__ << "calcParameter... Instruction: " << instructionBuffer_ << 
-		", Parameter: '" << argumentBuffer_ << "' = " << parameterBuffer_  <<
-		" [" << identifierBuffer_ << "]" << __E__;
+	size_t opArgCount = opArguments_.size();
+	modeClearMask_ = 0; //clear
 
-	uint64_t loopLine;
+	__COUT__ << "calculateParameterAndErrorCheck... Instruction: " << opArguments_[0] << 
+		", Parameter count: " << opArgCount << __E__;
+	
+	uint64_t value;
+
 	switch (instructionOpcode)
 	{
-		case CFO_INSTR::INC:
-			if (parameterBuffer_ == 0 || argumentBuffer_ == "event_tag")
+		case CFO_INSTR::HEARTBEAT:
+			if(opArgCount != 3 || opArguments_[1] != "event_mode")
 			{
-				return 1;
+				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 1 named parameter, and " <<
+					opArgCount/2 << " were found. Here is the syntax := \"" << opArguments_[0] << " event_mode=[value]\" ... "
+					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+					"The event_mode value can be the string \"registered\" to use the locally maintained event_mode value of the compiler,"
+					" otherwise a number (hex 0x### and binary b### syntax allowed) for event_mode should be specified (0 for null HEARTBEAT)." << __E__;
+				__SS_THROW__;
 			}
-			else
+
+			if(opArguments_[2] == "registered")
+				return -1; //indicate to FPGA to use registered event mode
+
+			if(!getNumber(opArguments_[2],value))
 			{
-				return parameterBuffer_;
+				__SS__<< "On Line (" << txtLineNumber_ << "), for instruction '" << opArguments_[0] << ",' " << 
+					"the parameter value '" << opArguments_[1] << " = " << opArguments_[2] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			return value;
+
+		case CFO_INSTR::MARKER:
+			if(opArgCount != 1)
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", '" << opArguments_[0] << "' has extraneous arguments; there must be no additional arguments." << std::endl;
+				__SS_THROW__;
 			}
 			break;
 
-		case CFO_INSTR::WAIT:
-			__COUT__ << "FPGAClock_ = " << FPGAClock_ << " ns" << __E__;
-			if (parameterBuffer_ == 0 && argumentBuffer_ != "NEXT")
-				return 1;
-			else if (parameterBuffer_ == 0 && argumentBuffer_ == "NEXT")
-				return -1;
-			else if (identifierBuffer_ == "sec")  // Wait wanted in seconds
-				return parameterBuffer_ * 1e9 / FPGAClock_;
-			else if (identifierBuffer_ == "ms")  // Wait wanted in milliseconds
-				return parameterBuffer_ * 1e6 / FPGAClock_;
-			else if (identifierBuffer_ == "us")  // Wait wanted in microseconds
-				return parameterBuffer_ * 1e3 / FPGAClock_;
-			else if (identifierBuffer_ == "ns")  // Wait wanted in nanoseconds
+		case CFO_INSTR::DATA_REQUEST:
+			if(opArgCount != 3 || opArguments_[1] != "request_tag")
 			{
-				if ((parameterBuffer_ % FPGAClock_) != 0)
+				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 1 named parameter, and " <<
+					opArgCount/2 << " were found. Here is the syntax := \"" << opArguments_[0] << " request_tag=[value]\n\n\""
+					" The request_tag value can be the string \"current\" to request the most recent Event Window Tag data,"
+					" otherwise a number (hex 0x### and binary b### syntax allowed) for request_tag should be specified." << __E__;
+				__SS_THROW__;
+			}			
+			if(opArguments_[2] == "current")
+				return -1;				
+			if(!getNumber(opArguments_[2],value))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), for instruction '" << opArguments_[0] << ",' " << 
+					"the parameter value '" << opArguments_[1] << " = " << opArguments_[2] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			return value;
+
+		case CFO_INSTR::SET_TAG:
+			if(opArgCount != 2)
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 2 arguments, and " <<
+					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " [value]\" ... "
+					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+					"For the set tag number, hex 0x### and binary b### syntax is allowed, otherwise decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			if(!getNumber(opArguments_[1],value))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), for instruction '" << opArguments_[0] << ",' " << 
+					"the parameter value '" << opArguments_[1] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			return value;
+
+		case CFO_INSTR::INC_TAG:
+			if(opArgCount == 1) // default to increment by 1 if no value
+				return 1;		
+			if(opArgCount != 3 || opArguments_[1] != "add_value")
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 0 or 1 named parameter, and " <<
+					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " add_value=[value]\" ... "
+					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+					" If no named parameter, then increment by 1 is assumed,"
+					" otherwise a number (hex 0x### and binary b### syntax allowed) for add_value should be specified." << __E__;
+				__SS_THROW__;
+			}			
+			
+			if(!getNumber(opArguments_[2],value))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), for instruction '" << opArguments_[0] << ",' " << 
+					"the parameter value '" << opArguments_[1] << " = " << opArguments_[2] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			return value;
+			
+		case CFO_INSTR::WAIT:
+		{
+			if(opArgCount != 3 || 
+				(opArguments_[2] != "clocks" && opArguments_[2] != "ns" &&
+				opArguments_[2] != "s" && opArguments_[2] != "ms" && opArguments_[2] != "us" &&
+				opArguments_[2] != "RF0") || 
+				(opArguments_[1] != "NEXT" && opArguments_[2] == "RF0"))
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 3 arguments, and " <<
+					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " [value] [units]\" or \"" << opArguments_[0] << " NEXT RF0\" ... "
+					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+					"For the units, accepted unit strings are clocks, ns, us, ms, and s.\n\n" <<
+					"If NEXT RF0 is provided, then the '" << opArguments_[0] << "' will last until the next RF-0 accelerator marker is received.\n\n" <<
+					"For the wait value, hex 0x### and binary b### syntax is allowed, otherwise decimal is inferred." <<
+					__E__;
+				__SS_THROW__;
+			}
+			if(opArguments_[1] == "NEXT" )
+				return -1; //use all 1s to indicate wait for next RF-0 marker
+
+			if(!getNumber(opArguments_[1],value))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), for instruction '" << opArguments_[0] << ",' " << 
+					"the parameter value '" << opArguments_[1] << " " << opArguments_[2] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			//test floating point in case integer conversion dropped something
+			double timeValue = strtod(opArguments_[1].c_str(), 0);
+			__COUTV__(timeValue);
+			if(timeValue < value)
+				timeValue = value;
+
+			__COUTV__(FPGAClock_);
+			__COUTV__(value);
+			__COUTV__(timeValue);
+			
+			if (opArguments_[2] == "s")  // Wait wanted in seconds
+				return timeValue * 1e9 / FPGAClock_;
+			else if (opArguments_[2] == "ms")  // Wait wanted in milliseconds
+				return timeValue * 1e6 / FPGAClock_;
+			else if (opArguments_[2] == "us")  // Wait wanted in microseconds
+				return timeValue * 1e3 / FPGAClock_;
+			else if (opArguments_[2] == "ns")  // Wait wanted in nanoseconds
+			{
+				if ((value % FPGAClock_) != 0)
 				{
 					__SS__ << "FPGA can only wait in multiples of " <<
-						FPGAClock_ << " ns: " << parameterBuffer_ << " has remainder " <<
-						(parameterBuffer_ % FPGAClock_) << __E__;
+						FPGAClock_ << " ns: " << value << " has remainder " <<
+						(value % FPGAClock_) << __E__;
 					__SS_THROW__;
 				}
-				return parameterBuffer_ / FPGAClock_;
+				return value / FPGAClock_;
 			}
-			else if (identifierBuffer_ == "clocks")  // Wait wanted in FPGA clocks
+			else if (opArguments_[2] == "clocks")  // Wait wanted in FPGA clocks
+				return value;
+			else //impossible
 			{
-				return parameterBuffer_;
-			}
-			else
+				__SS__ << "WAIT command is missing unit type after parameter. Accepted unit types are clocks, ns, us, ms, and s." << __E__; 
+				__SS_THROW__;
+			}			
+		}	
+		case CFO_INSTR::LOOP:
+			if(opArgCount != 2)
 			{
-				__SS__ << "WAIT command is missing unit type after parameter. Command found as" <<
-					"... Parameter: '" << argumentBuffer_ << "' = " << parameterBuffer_  <<
-					" [" << identifierBuffer_ << "]. Accepted unit types are clocks, ns, us, ms, sec." << __E__; 
+				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 2 arguments, and " <<
+					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " [value]\" ... "
+					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+					"For the loop count, hex 0x### and binary b### syntax is allowed, otherwise decimal is inferred." << __E__;
 				__SS_THROW__;
 			}
-			break;
+			if(!getNumber(opArguments_[1],value))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), for instruction '" << opArguments_[0] << ",' " << 
+					"the parameter value '" << opArguments_[1] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			__COUT__ << "loopStack_ = " << binLineNumber_ << " at " << loopStack_.size() << __E__;			
+			loopStack_.push_back(binLineNumber_);
+			return value;
 
 		case CFO_INSTR::DO_LOOP:
+			if(opArgCount != 1)
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", '" << opArguments_[0] << 
+					"' has extraneous arguments; there must be no additional arguments." << std::endl;
+				__SS_THROW__;
+			}		
 			if (!loopStack_.empty())
 			{
-				loopLine = loopStack_.top();
+				uint64_t loopLine;
+				loopLine = loopStack_.back();
+				value = (binLineNumber_ - loopLine);
 				__COUT__ << "DO_LOOP from [" << binLineNumber_ << 
 					"], loop line popped = " << loopLine <<
-					", must go back	" << binLineNumber_ - loopLine << " lines.";
-				loopStack_.pop();
-				return (binLineNumber_ - loopLine);
+					", must go back	" << value << " lines.";
+				loopStack_.pop_back();
+				__COUT__ << "DO_LOOP loopStack_ " << loopStack_.size() << " w/parameterCalc=" << value;				
+				return value;
 			}
 			else
 			{
-				__SS__ << "LOOP/DO_LOOP counts don't match. (More DO_LOOP's)";
+				__SS__ << "Identified at Line " << txtLineNumber_ << ", LOOP/DO_LOOP counts don't match. (There are more DO_LOOP's)";
 				__SS_THROW__;
 			}
-			break;
-
+			break; //impossible to get here
+		case CFO_INSTR::REPEAT:
 		case CFO_INSTR::END:
-			if (!loopStack_.empty())
+			if(opArgCount != 1)
 			{
-				__SS__ << "LOOP/DO_LOOP counts don't match (Less DO_LOOP's)";
+				__SS__ << "On Line " << txtLineNumber_ << ", '" << opArguments_[0] << "' has extraneous arguments; there must be no additional arguments." << std::endl;
+				__SS_THROW__;
+			}			
+			if (!loopStack_.empty()) //loop stack must be empty at END or REPEAT
+			{
+				__SS__ << "Identified at Line " << txtLineNumber_ << ", LOOP/DO_LOOP counts don't match (There are less DO_LOOP's)";
 				__SS_THROW__;
 			}
-		default:
 			break;
+
+		case CFO_INSTR::GOTO:
+			if(opArgCount != 1)
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", '" << opArguments_[0] << "' has extraneous arguments; there must be no additional arguments." << std::endl;
+				__SS_THROW__;
+			}			
+
+			if (!loopStack_.empty()) //loop stack must be empty at GOTO
+			{
+				__SS__ << "Identified at Line " << txtLineNumber_ << ", LOOP/DO_LOOP counts don't match (There are less DO_LOOP's); a GOTO can not be used to exit a loop.";
+				__SS_THROW__;
+			}
+			opArguments_.push_back(MAIN_GOTO_LABEL); //force label MAIN because only one GOTO ever makes sense if jumping in and out of loops is not allowed (since there are on IF statements)
+			opArguments_[1] = MAIN_GOTO_LABEL; //in case of comments, push_back doesnt work
+			__COUT__ << "Goto lookup label '" << opArguments_[1] << "'" << __E__;
+			
+			if(labelMap_.find(opArguments_[1]) == labelMap_.end())
+			{
+				for(auto& labelPair: labelMap_)
+					__COUTV__(labelPair.first);
+				__SS__ << "Missing label '" << opArguments_[1] << "' needed for GOTO at line " << txtLineNumber_ << __E__;					
+				__SS_THROW__;
+			}
+			return labelMap_.at(opArguments_[1]);
+
+		case CFO_INSTR::LABEL:
+			if(opArgCount != 1)
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", '" << opArguments_[0] << "' has extraneous arguments; there must be no additional arguments." << std::endl;
+				__SS_THROW__;
+			}			
+
+			if (!loopStack_.empty()) //loop stack must be empty at GOTO
+			{
+				__SS__ << "Identified at Line " << txtLineNumber_ << ", LOOP/DO_LOOP counts don't match (There are less DO_LOOP's); a GOTO_LABEL can not be used to enter a loop.";
+				__SS_THROW__;
+			}
+			
+			//for now, leave label map in case if statements exist in the future, and more lables are allowed.
+			opArguments_.push_back(MAIN_GOTO_LABEL); 
+			opArguments_[1] = MAIN_GOTO_LABEL; //in case of comments, push_back doesnt work
+
+			__COUT__ << "Saving map for label '" << opArguments_[1] << "' to line " << binLineNumber_ << __E__;
+			if(labelMap_.find(opArguments_[1]) != labelMap_.end())
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", " << opArguments_[0] << " encountered when one already exists in the run plan. Only one " << opArguments_[0] << " allowed in a run plan." << __E__;					
+				__SS_THROW__;
+			}
+			labelMap_[opArguments_[1]] = binLineNumber_;
+			return 1; //indicate MAIN LABEL to CFO firmware as valid location to dynamically switch run plans
+			//otherwise, a normal noop label
+		case CFO_INSTR::SET_MODE_BITS:
+		case CFO_INSTR::AND_MODE_BITS:
+		case CFO_INSTR::OR_MODE_BITS:		
+		{				
+			if(opArgCount != 7 || 
+				opArguments_[1] != "start_bit" || 
+				opArguments_[3] != "bit_count" || 
+				opArguments_[5] != "value")
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 7 arguments, and " <<
+					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " start_bit=[value] bit_count=[value] value=[value]\" ... "
+					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+					"For the number values, hex 0x### and binary b### syntax is allowed, otherwise decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			
+			uint16_t startBit; 
+			if(!getNumber(opArguments_[2], startBit))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+					"start_bit value '" << opArguments_[2] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			
+			if (startBit > 47)
+			{
+				__SS__ << "On Line (" << txtLineNumber_ << "), " << 
+					"start_bit value must be an integer between 0 and 47." << __E__;
+				__SS_THROW__;
+			}
+						
+			uint16_t bitCount; 
+			if(!getNumber(opArguments_[4], bitCount))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+					"bit_count value '" << opArguments_[4] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+
+			if (startBit + bitCount > 48 || bitCount == 0)
+			{
+				__SS__ << "On Line (" << txtLineNumber_ << "), " <<
+					"bit_count value must be a positive integer and fit within 48-bits range 0-to-47 with offset start_bit=" << 
+					startBit << ". The end bit was calculated as end_bit=" <<
+					startBit + bitCount - 1 << __E__;
+				__SS_THROW__;
+			}
+		
+			if(!getNumber(opArguments_[6], value))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+					"bit_count value '" << opArguments_[6] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+
+			if (value >= (uint64_t(1) << bitCount) && 
+				opArguments_[6][0] != '~') //only if not an inverted value
+			{
+				__SS__ << "On Line (" << txtLineNumber_ << "), " <<
+					"the set value range is defined by bit_count, and so must be an integer between 0 and 2^" << 
+					bitCount << "(bit_count) - 1. The value is " << value << " which is greater than or equal to max range " <<
+					(uint64_t(1) << bitCount) << __E__;
+				__SS_THROW__;
+			}
+
+			__COUTV__(startBit);
+			__COUTV__(bitCount);
+			__COUTV__(value);
+			uint64_t bitmask = 0;
+			for(uint16_t i = startBit; i < startBit + bitCount; ++i)
+				bitmask |= (uint64_t(1)<<i);
+
+					
+			switch (instructionOpcode)
+			{
+				case CFO_INSTR::SET_MODE_BITS: //treat SET_MODE_BITS as two ops in hardware: an AND and an OR	
+						
+					__COUT__ << "bitmask 0x" << std::hex << bitmask << __E__;
+					value <<= startBit; //shift then mask
+					value &= bitmask; //force bitcount in case of ~ inverted value
+					modeClearMask_ = ~bitmask; //CLEAR
+					__COUT__ << "modeClearMask_ 0x" << std::hex << modeClearMask_ << __E__;
+					return value; //SET
+			
+				case CFO_INSTR::AND_MODE_BITS:
+
+					value <<= startBit; //shift then mask
+					value |= ~bitmask; //force ignore outside of bitcount in case of ~ inverted value
+					return value; //AND		
+
+				case CFO_INSTR::OR_MODE_BITS:
+
+					value <<= startBit; //shift then mask
+					value &= bitmask; //force ignore outside of bitcount in case of ~ inverted value
+					return value; //OR			
+
+				default:
+				{
+					__COUTV__((int)instructionOpcode);
+					__SS__ << "On Line " << txtLineNumber_ << ", invalid instruction '" << opArguments_[0] << "' encountered.'" << __E__;
+					__SS_THROW__;
+				}
+			}
+		}
+		case CFO_INSTR::CLEAR_MODE_BITS:
+		{				
+			if(opArgCount != 5 || 
+				opArguments_[1] != "start_bit" || 
+				opArguments_[3] != "bit_count")
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 5 arguments, and " <<
+					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " start_bit=[value] bit_count=[value]\" ... "
+					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+					"For the number values, hex 0x### and binary b### syntax is allowed, otherwise decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			
+			uint16_t startBit; 
+			if(!getNumber(opArguments_[2], startBit))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+					"start_bit value '" << opArguments_[2] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			
+			if (startBit > 47)
+			{
+				__SS__ << "On Line (" << txtLineNumber_ << "), " << 
+					"start_bit value must be an integer between 0 and 47." << __E__;
+				__SS_THROW__;
+			}
+			
+			uint16_t bitCount; 
+			if(!getNumber(opArguments_[4], bitCount))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+					"bit_count value '" << opArguments_[4] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+
+			if (startBit + bitCount > 48 || bitCount == 0)
+			{
+				__SS__ << "On Line (" << txtLineNumber_ << "), " <<
+					"bit_count value must be a positive integer and fit within 48-bits range 0:47 with offset start_bit=" << 
+					startBit << ". The end bit was calculated as end_bit=" <<
+					startBit + bitCount - 1 << __E__;
+				__SS_THROW__;
+			}		
+				
+			uint64_t bitmask = 0;
+			for(uint16_t i = startBit; i < startBit + bitCount; ++i)
+				bitmask |= (uint64_t(1)<<i);
+			return ~bitmask; //CLEAR	
+		}
+		case CFO_INSTR::SET_MODE:  //treat SET_MODE as two ops in hardware: an AND and an OR
+		{				
+			if(opArgCount != 2)
+			{
+				__SS__ << "On Line " << txtLineNumber_ << ", invalid '" << opArguments_[0] << "' arguments found. There must be 5 arguments, and " <<
+					opArgCount << " were found. Here is the syntax := \"" << opArguments_[0] << " [value]\" ... "
+					"The source instruction was \"" << vectorToString(opArguments_," " /*delimieter*/) << ".\"\n\n"
+					"For the Event Mode value, hex 0x### and binary b### syntax is allowed, otherwise decimal is inferred." << __E__;
+				__SS_THROW__;
+			}
+			
+			if(!getNumber(opArguments_[1], value))
+			{
+				__SS__<< "On Line (" << txtLineNumber_ << "), the " << 
+					"start_bit value '" << opArguments_[1] << "' is not a valid number. " <<
+					"Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
+				__SS_THROW__;
+			}		
+
+			 //treat SET_MODE as two ops in hardware: an AND and an OR
+			modeClearMask_ = 0; //CLEAR
+			return value; //SET
+		}
+		default:
+		{
+			__COUTV__((int)instructionOpcode);
+			__SS__ << "On Line " << txtLineNumber_ << ", invalid instruction '" << opArguments_[0] << "' encountered.'" << __E__;
+			__SS_THROW__;
+		}
+	} //end primary switch statement
+
+	return 0; //default parameter value
+} //end calculateParameterAndErrorCheck()
+
+//==============================================================================
+// static template function (copied from ots::StringMacros)
+//	for all numbers, but not bools (bools has a specialized template definition)
+//	return false if string is not a number
+template<class T>
+bool getNumber(const std::string& s, T& retValue)
+{
+	//__COUTV__(s);
+
+	// extract set of potential numbers and operators
+	std::vector<std::string> numbers;
+	std::vector<char>        ops;
+
+	getVectorFromString(s,
+		numbers,
+		/*delimiter*/ std::set<char>({'+', '-', '*', '/', '~'}),
+		/*whitespace*/ std::set<char>({' ', '\t', '\n', '\r'}),
+		&ops);
+
+	// __COUTV__(vectorToString(numbers));
+	// __COUTV__(vectorToString(ops));
+
+	retValue = 0;  // initialize
+
+	T tmpValue;
+
+	unsigned int i    = 0;
+	unsigned int opsi = 0;
+	unsigned int blankNumberCount = 0;
+	bool         verified;
+	for(const auto& number : numbers)
+	{
+		if(number.size() == 0)
+		{
+			++blankNumberCount;
+			continue;  // skip empty numbers
+		}
+
+		// verify that this number looks like a number
+		//	for integer types, allow hex and binary
+		//	for all types allow base10
+
+		verified = false;
+
+		// __COUTV__(number);
+
+		// check integer types
+		if(typeid(unsigned int) == typeid(retValue) || typeid(int) == typeid(retValue) || typeid(unsigned long long) == typeid(retValue) ||
+		   typeid(long long) == typeid(retValue) || typeid(unsigned long) == typeid(retValue) || typeid(long) == typeid(retValue) ||
+		   typeid(unsigned short) == typeid(retValue) || typeid(short) == typeid(retValue) || typeid(uint8_t) == typeid(retValue))
+		{
+			if(number.find("0x") == 0)  // indicates hex
+			{
+				// __COUT__ << "0x found" << __E__;
+				for(unsigned int i = 2; i < number.size(); ++i)
+				{
+					if(!((number[i] >= '0' && number[i] <= '9') || (number[i] >= 'A' && number[i] <= 'F') || (number[i] >= 'a' && number[i] <= 'f')))
+					{
+						__COUT__ << "prob " << number[i] << __E__;
+						return false;
+					}
+				}
+				verified = true;
+			}
+			else if(number[0] == 'b')  // indicates binary
+			{
+				// __COUT__ << "b found" << __E__;
+
+				for(unsigned int i = 1; i < number.size(); ++i)
+				{
+					if(!((number[i] >= '0' && number[i] <= '1')))
+					{
+						__COUT__ << "prob " << number[i] << __E__;
+						return false;
+					}
+				}
+				verified = true;
+			}
+		}
+
+		// if not verified above, for all types, check base10
+		if(!verified)
+			for(unsigned int i = 0; i < number.size(); ++i)
+				if(!((number[i] >= '0' && number[i] <= '9') || number[i] == '.' || number[i] == '+' || number[i] == '-'))
+					return false;
+
+		// at this point, this number is confirmed to be a number of some sort
+		// so convert to temporary number
+		if(typeid(double) == typeid(retValue))
+			tmpValue = strtod(number.c_str(), 0);
+		else if(typeid(float) == typeid(retValue))
+			tmpValue = strtof(number.c_str(), 0);
+		else if(typeid(unsigned int) == typeid(retValue) || typeid(int) == typeid(retValue) || typeid(unsigned long long) == typeid(retValue) ||
+		        typeid(long long) == typeid(retValue) || typeid(unsigned long) == typeid(retValue) || typeid(long) == typeid(retValue) ||
+		        typeid(unsigned short) == typeid(retValue) || typeid(short) == typeid(retValue) || typeid(uint8_t) == typeid(retValue))
+		{
+			// __COUTV__(number[1]);
+			if(number.size() > 2 && number[1] == 'x')  // assume hex value
+				tmpValue = (T)strtol(number.c_str(), 0, 16);
+			else if(number.size() > 1 && number[0] == 'b')             // assume binary value
+				tmpValue = (T)strtol(number.substr(1).c_str(), 0, 2);  // skip first 'b' character
+			else
+				tmpValue = (T)strtol(number.c_str(), 0, 10);
+		}
+		else //just try!
+		{
+			// __COUTV__(number[1]);
+			if(number.size() > 2 && number[1] == 'x')  // assume hex value
+				tmpValue = (T)strtol(number.c_str(), 0, 16);
+			else if(number.size() > 1 && number[0] == 'b')             // assume binary value
+				tmpValue = (T)strtol(number.substr(1).c_str(), 0, 2);  // skip first 'b' character
+			else
+				tmpValue = (T)strtol(number.c_str(), 0, 10);
+			// __SS__ << "Invalid type '" << StringMacros::demangleTypeName(typeid(retValue).name()) << "' requested for a numeric string. Data was '" << number
+			//        << "'" << __E__;
+			// __SS_THROW__;
+		}
+
+		// __COUTV__(tmpValue);
+
+		// apply operation
+		if(i == 0)  // first value, no operation, just take value
+		{		
+			retValue = tmpValue;
+
+			if(ops.size() == numbers.size() - blankNumberCount)  // then there is a leading operation, so apply
+			{
+				if(ops[opsi] == '-')  // only meaningful op is negative sign
+					retValue *= -1;
+				else if(ops[opsi] == '~') //handle bit invert
+					retValue = ~tmpValue;
+				__COUT__ << "Op " << (ops.size()?ops[opsi]:'_') << " intermediate value = " << 
+						std::dec << retValue << " 0x" << std::hex << retValue << __E__;
+				opsi++;  // jump to first internal op
+			}
+		}
+		else  // there is some sort of op
+		{
+			if(0 && i == 1)  // display what we are dealing with
+			{
+				__COUTV__(vectorToString(numbers));
+				__COUTV__(vectorToString(ops));
+			}
+			__COUTV__(opsi);
+			__COUTV__(ops[opsi]);
+			__COUTV__(tmpValue);
+			__COUT__ << "Intermediate value = " << std::dec << retValue <<
+				" 0x" << std::hex << retValue << __E__;
+
+			switch(ops[opsi])
+			{
+				case '+':
+					retValue += tmpValue;
+					break;
+				case '-':
+					retValue -= tmpValue;
+					break;
+				case '*':
+					retValue *= tmpValue;
+					break;
+				case '/':
+					retValue /= tmpValue;
+					break;
+				default:
+					__SS__ << "Unrecognized operation '" << ops[opsi] << "' found!" << 
+						__E__ << "Numbers: " << vectorToString(numbers) << __E__
+						<< "Operations: " << vectorToString(ops) << __E__;
+					__SS_THROW__;
+			}
+			
+			__COUT__ << "Op " << (ops.size()?ops[opsi]:'_') << " intermediate value = " << 
+					std::dec << retValue << " 0x" << std::hex << retValue << __E__;
+			++opsi;
+		}
+		__COUT__ << i << ": Op intermediate value = " << 
+				std::dec << retValue << " 0x" << std::hex << retValue << __E__;
+
+		++i;  // increment index for next number/op
+
+	}  // end number loop
+
+	return true;  // number was valid and is passed by reference in retValue
+}  // end static getNumber<T>()
+
+//==============================================================================
+// getVectorFromString (copied from ots::StringMacros)
+//	extracts the list of elements from string that uses a delimiter
+//		ignoring whitespace
+//	optionally returns the list of delimiters encountered, which may be useful
+//		for extracting which operator was used.
+//
+//
+//	Note: lists are returned as vectors
+//	Note: the size() of delimiters will be one less than the size() of the returned values
+//		unless there is a leading delimiter, in which case vectors will have the same
+// size.
+void getVectorFromString(const std::string&        inputString,
+						std::vector<std::string>& listToReturn,
+						const std::set<char>&     delimiter,
+						const std::set<char>&     whitespace,
+						std::vector<char>*        listOfDelimiters
+						/* dont care about URI in compiler ,
+						bool                      decodeURIComponents */)
+{
+	unsigned int             i = 0;
+	unsigned int             j = 0;
+	unsigned int             c = 0;
+	std::set<char>::iterator delimeterSearchIt;
+	char                     lastDelimiter = 0;
+	bool                     isDelimiter;
+	// bool foundLeadingDelimiter = false;
+
+	// __COUT__ << inputString << __E__;
+	// __COUTV__(inputString.length());
+
+	// go through the full string extracting elements
+	// add each found element to set
+	for(; c < inputString.size(); ++c)
+	{
+		// __COUT__ << (char)inputString[c] << __E__;
+
+		delimeterSearchIt = delimiter.find(inputString[c]);
+		isDelimiter       = delimeterSearchIt != delimiter.end();
+
+		// __COUT__ << (char)inputString[c] << " " << isDelimiter << __E__;
+
+		if(whitespace.find(inputString[c]) != whitespace.end()  // ignore leading white space
+		   && i == j)
+		{
+			++i;
+			++j;
+			// if(isDelimiter)
+			//	foundLeadingDelimiter = true;
+		}
+		else if(whitespace.find(inputString[c]) != whitespace.end() && i != j)  // trailing white space, assume possible end of element
+		{
+			// do not change j or i
+		}
+		else if(isDelimiter)  // delimiter is end of element
+		{
+			// __COUT__ << "Set element found: " <<
+			// 		inputString.substr(i,j-i) << " sz=" << inputString.substr(i,j-i).length() << std::endl;
+
+			if(listOfDelimiters && listToReturn.size())  // || foundLeadingDelimiter))
+			                                             // //accept leading delimiter
+			                                             // (especially for case of
+			                                             // leading negative in math
+			                                             // parsing)
+			{
+				//__COUTV__(lastDelimiter);
+				listOfDelimiters->push_back(lastDelimiter);
+			}
+			listToReturn.push_back(//decodeURIComponents ? StringMacros::decodeURIComponent(inputString.substr(i, j - i)) : 
+				inputString.substr(i, j - i));
+
+			// setup i and j for next find
+			i = c + 1;
+			j = c + 1;
+		}
+		else  // part of element, so move j, not i
+			j = c + 1;
+
+		if(isDelimiter)
+			lastDelimiter = *delimeterSearchIt;
+		//__COUTV__(lastDelimiter);
 	}
-	return 0;
-} //end calcParameter()
 
+	if(1)  // i != j) //last element check (for case when no concluding ' ' or delimiter)
+	{
+		// __COUT__ << "Last element found: " <<
+		// 		inputString.substr(i,j-i) << std::endl;
 
+		if(listOfDelimiters && listToReturn.size())  // || foundLeadingDelimiter))
+		                                             // //accept leading delimiter
+		                                             // (especially for case of leading
+		                                             // negative in math parsing)
+		{
+			//__COUTV__(lastDelimiter);
+			listOfDelimiters->push_back(lastDelimiter);
+		}
+		listToReturn.push_back(//decodeURIComponents ? StringMacros::decodeURIComponent(inputString.substr(i, j - i)) : 
+			inputString.substr(i, j - i));
+	}
+
+	// assert that there is one less delimiter than values
+	if(listOfDelimiters && listToReturn.size() - 1 != listOfDelimiters->size() && listToReturn.size() != listOfDelimiters->size())
+	{
+		__SS__ << "There is a mismatch in delimiters to entries (should be equal or one "
+		          "less delimiter): "
+		       << listOfDelimiters->size() << " vs " << listToReturn.size() << __E__ << 
+			   "Entries: " << vectorToString(listToReturn) << __E__
+		       << "Delimiters: " << vectorToString(*listOfDelimiters) << __E__;
+		__SS_THROW__;
+	}
+
+}  // end getVectorFromString()
+
+//==============================================================================
+// static template function (copied from ots::StringMacros)
+template<class T>
+std::string vectorToString(const std::vector<T>& setToReturn, const std::string& delimeter /*= ", "*/)
+{
+	std::stringstream ss;
+	bool              first = true;
+	for(auto& setValue : setToReturn)
+	{
+		if(first)
+			first = false;
+		else
+			ss << delimeter;
+		ss << setValue;
+	}
+	return ss.str();
+}  // end vectorToString<T>()

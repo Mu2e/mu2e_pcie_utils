@@ -1,11 +1,6 @@
 
-#define __SHORTFILE__ \
-	(strstr(&__FILE__[0], "/srcs/") ? strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
-#define __COUT__ std::cout << __SHORTFILE__ << " [" << std::dec << __LINE__ << "]\t"
-#define __E__ std::endl
-#define Q(X) #X
-#define QUOTE(X) Q(X)
-#define __COUTV__(X) __COUT__ << QUOTE(X) << " = " << X << __E__
+
+#include "dtcInterfaceLib/otsStyleCoutMacros.h"
 
 #include "Mu2eUtil.h"
 

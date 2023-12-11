@@ -23,7 +23,7 @@
 
 using namespace CFOLib;
 
-bool rawOutput = false;
+// bool rawOutput = false;
 std::string rawOutputFile = "/tmp/cfoUtil.raw";
 std::string inputFile = "/tmp/cfoUtil.raw";
 bool compileInputFile = false;
@@ -187,7 +187,7 @@ int main(int argc, char* argv[])
 			switch (argv[optind][1])
 			{
 				case 'f':
-					rawOutput = true;
+					// rawOutput = true;
 					rawOutputFile = getOptionString(&optind, &argv);
 					break;
 				case 'F':
@@ -232,56 +232,56 @@ int main(int argc, char* argv[])
 
 	std::cout.setf(std::ios_base::boolalpha);
 	std::cout << "Options are: "
-			  << "Operation: " << std::string(op) << ", CFO: " << dtc;
-	if (rawOutput)
-	{
-		std::cout << ", Raw output file: " << rawOutputFile;
-	}
-	std::cout << std::endl;
-	if (rawOutput) outputStream.open(rawOutputFile, std::ios::out | std::ios::trunc | std::ios::binary);
+			  << "Operation: " << std::string(op) << ", CFO: " << dtc << std::endl;
 
 	if (op == "write_program")
 	{
-		mu2e_databuff_t inputData;
 
 		if (compileInputFile)
 		{
-			std::vector<std::string> lines;
-			std::ifstream ifstr(inputFile);
-			while (!ifstr.eof())
-			{
-				std::string line;
-				getline(ifstr, line);
-				lines.push_back(line);
-			}
-			ifstr.close();
+			std::cout << "Raw output file: " << rawOutputFile << std::endl;
 
-			std::deque<char> inputBytes;
-			auto compiler = new CFO_Compiler(clockSpeed);
-			inputBytes = compiler->processFile(lines);
+			CFO_Compiler compiler;
+			compiler.processFile(inputFile, rawOutputFile);
+			return 0;
 
-			if (rawOutput)
-			{
-				for (auto ch : inputBytes)
-				{
-					outputStream << ch;
-				}
-			}
-			else
-			{
-				size_t offset = 8;
-				auto inputSize = inputBytes.size();
-				//*reinterpret_cast<uint64_t*>(inputData) = inputBytes.size();
-				memcpy(&inputData[0], &inputSize, sizeof(uint64_t));
-				for (auto ch : inputBytes)
-				{
-					inputData[offset++] = ch;
-				}
-				return 0;
-			}
+			// std::vector<std::string> lines;
+			// std::ifstream ifstr(inputFile);
+			// while (!ifstr.eof())
+			// {
+			// 	std::string line;
+			// 	getline(ifstr, line);
+			// 	lines.push_back(line);
+			// }
+			// ifstr.close();
+
+			// std::deque<char> inputBytes;
+			// CFO_Compiler compiler;
+			// inputBytes = compiler.processFile(lines);
+
+			// if (rawOutput)
+			// {
+			// 	for (auto ch : inputBytes)
+			// 	{
+			// 		outputStream << ch;
+			// 	}
+			// }
+			// else
+			// {
+			// 	size_t offset = 8;
+			// 	auto inputSize = inputBytes.size();
+			// 	//*reinterpret_cast<uint64_t*>(inputData) = inputBytes.size();
+			// 	memcpy(&inputData[0], &inputSize, sizeof(uint64_t));
+			// 	for (auto ch : inputBytes)
+			// 	{
+			// 		inputData[offset++] = ch;
+			// 	}
+			// 	return 0;
+			// }
 		}
 		else
 		{
+			mu2e_databuff_t inputData;
 			std::ifstream file(inputFile, std::ios::binary | std::ios::ate);
 			if (file.eof())
 			{
@@ -294,10 +294,7 @@ int main(int argc, char* argv[])
 			memcpy(&inputData[0], &dmaSize, sizeof(uint64_t));
 			file.read(reinterpret_cast<char*>(&inputData[8]), inputSize);
 			file.close();
-		}
 
-		if (!rawOutput)
-		{
 			auto thisCFO = new CFO_Registers(DTC_SimMode_NoCFO, dtc);
 			thisCFO->GetDevice()->write_data(DTC_DMA_Engine_DAQ, inputData, sizeof(inputData));
 			delete thisCFO;
@@ -332,6 +329,6 @@ int main(int argc, char* argv[])
 		printHelpMsg();
 	}
 
-	if (rawOutput) outputStream.close();
+	// if (rawOutput) outputStream.close();
 	return 0;
 }  // main

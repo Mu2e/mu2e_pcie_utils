@@ -7,18 +7,20 @@
 #include <iomanip>  // std::setw, std::setfill
 #include <sstream>  // Convert uint to hex stLink
 
+#include "artdaq-core/Utilities/ExceptionHandler.hh" /*for artdaq::ExceptionHandler*/
+#include "artdaq-core/Utilities/ExceptionStackTrace.hh" /*for artdaq::ExceptionStackTrace*/
+
 #include "TRACE/tracemf.h"
-#define CFO_TLOG(lvl) TLOG(lvl) << "CFO " << this->getDeviceUID() << ": "
+// #define CFO_TLOG(lvl) TLOG(lvl) << "CFO " << this->getDeviceUID() << ": "
 #define TLVL_ResetCFO TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
 #define TLVL_SERDESReset TLVL_DEBUG + 7
 #define TLVL_CalculateFreq TLVL_DEBUG + 8
 
-#define __SHORTFILE__ 		(__builtin_strstr(&__FILE__[0], "/srcs/") ? __builtin_strstr(&__FILE__[0], "/srcs/") + 6 : __FILE__)
-#define __SS__ 				std::stringstream ss; ss << "|" << "CFO " << this->getDeviceUID() << ": " << __SHORTFILE__ << ":" << std::dec << __LINE__ << " |\t"
-#define __SS_THROW__    	{ CFO_TLOG(TLVL_ERROR) << "\n" << ss.str(); throw std::runtime_error(ss.str()); } //put in {}'s to prevent surprises, e.g. if ... else __SS_THROW__;
-#define __E__ 				std::endl
+#include "dtcInterfaceLib/otsStyleCoutMacros.h"
 
+#undef __COUT_HDR__
+#define __COUT_HDR__  "CFO " << this->getDeviceUID() << ": "
 
 CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int cfo, std::string expectedDesignVersion,
 									 bool skipInit, const std::string& uid)
@@ -94,16 +96,20 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 	device_.init(simMode_, cfo, /* simMemoryFile */ "", uid);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
-		throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
+		__SS__ << "Version mismatch! Expected CFO version is '" << expectedDesignVersion <<
+			"' while the readback version was '" << ReadDesignVersion() << ".'" << __E__;
+		__SS_THROW__;
+
+		// throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
 	}
 
 	if (skipInit)
 	{
-		CFO_TLOG(TLVL_INFO) << "SKIPPING Initializing device";
+		__COUT_INFO__ << "SKIPPING Initializing device";
 		return simMode_;
 	} 
 
-	CFO_TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
+	__COUT__ << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	for (auto link : CFO_Links)
 	{
 		bool LinkEnabled = ((maxDTCs_ >> (link * 4)) & 0xF) != 0;
@@ -136,7 +142,7 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 	}
 	ReadMinDMATransferLength();
 
-	CFO_TLOG(TLVL_DEBUG) << "Done setting device registers";
+	__COUT__ << "Done setting device registers";
 	return simMode_;
 }
 
@@ -197,7 +203,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignStatus()
 // CFO Control Register
 void CFOLib::CFO_Registers::ResetCFO()
 {
-	CFO_TLOG(TLVL_ResetCFO) << "ResetCFO start";
+	TLOG(TLVL_ResetCFO) << __COUT_HDR__ << "ResetCFO start";
 	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
 	data[31] = 1;  // CFO Reset bit
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
@@ -219,7 +225,7 @@ void CFOLib::CFO_Registers::ClearCFOControlRegister()
 
 void CFOLib::CFO_Registers::ResetCFORunPlan()
 {
-	CFO_TLOG(TLVL_ResetCFO) << "ResetCFO Run Plan start";
+	TLOG(TLVL_ResetCFO) << __COUT_HDR__ << "ResetCFO Run Plan start";
 	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
 	data[27] = 1;  // CFO Run Plan Reset bit
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
@@ -235,7 +241,7 @@ bool CFOLib::CFO_Registers::ReadResetCFORunPlan()
 
 void CFOLib::CFO_Registers::EnableAutogenDRP()
 {
-	CFO_TLOG(TLVL_AutogenDRP) << "EnableAutogenDRP start";
+	TLOG(TLVL_AutogenDRP) << __COUT_HDR__ << "EnableAutogenDRP start";
 	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
 	data[23] = 1;
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
@@ -498,7 +504,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatLinkEnable()
 // SERDES Reset Register
 void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 {
-	CFO_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
+	TLOG(TLVL_SERDESReset) << __COUT_HDR__ << "Entering SERDES Reset Loop for Link " << link;
 	std::bitset<32> data = ReadRegister_(CFO_Register_SERDESReset);
 	if(link == CFO_Link_ALL)
 	{	
@@ -535,12 +541,13 @@ void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 		}
 		else
 			resetDone = ReadResetSERDESDone(link);
-		CFO_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
+		TLOG(TLVL_SERDESReset) << __COUT_HDR__ << "End of SERDES Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
 	}
 	if(loops >= 100)
 	{
-		CFO_TLOG(TLVL_ERROR) << "Timeout waiting for SERDES Reset loop=" << loops;
-		throw DTC_IOErrorException("Timeout waiting for SERDES Reset loop.");
+		__SS__ << "Timeout waiting for SERDES Reset loop=" << loops;
+		__SS_THROW__;
+		// throw DTC_IOErrorException("Timeout waiting for SERDES Reset loop.");
 	}
 }
 
@@ -735,14 +742,16 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnTimerPreset()
 void CFOLib::CFO_Registers::EnableBeamOnMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOnMode);
-	data[link] = 1;
+	data[0] = 1; //Enable beam on processing a single global flag as of December 2023
+	// data[link] = 1;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOnMode);
 }
 
 void CFOLib::CFO_Registers::DisableBeamOnMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOnMode);
-	data[link] = 0;
+	data[0] = 0; //Enable beam on processing a single global flag as of December 2023
+	// data[link] = 0;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOnMode);
 }
 
@@ -757,36 +766,39 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnMode()
 	auto form = CreateFormatter(CFO_Register_EnableBeamOnMode);
 	form.description = "Enable Beam On Mode Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOnMode(r) ? "x" : " ") + "]");
-	}
+	form.vals.push_back(std::string("Beam On Processing ") + ": [" + (ReadBeamOnMode(CFO_Link_ALL) ? "x" : " ") + "]");
+	// for (auto r : CFO_Links)
+	// {
+	// 	form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOnMode(r) ? "x" : " ") + "]");
+	// }
 	return form;
 }
 
 void CFOLib::CFO_Registers::EnableBeamOffMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
-	if(link == CFO_Link_ALL)
-	{	
-		for(uint8_t i=0;i<8;++i)
-			data[i] = 1;
-	}
-	else
-		data[link] = 1;
+	data[0] = 1; //Enable beam off processing a single global flag as of December 2023
+	// if(link == CFO_Link_ALL)
+	// {	
+	// 	for(uint8_t i=0;i<8;++i)
+	// 		data[i] = 1;
+	// }
+	// else
+	// 	data[link] = 1;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOffMode);
 }
 
 void CFOLib::CFO_Registers::DisableBeamOffMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
-	if(link == CFO_Link_ALL)
-	{	
-		for(uint8_t i=0;i<8;++i)
-			data[i] = 0;
-	}
-	else
-		data[link] = 0;
+	data[0] = 0; //Enable off processing a single global flag as of December 2023
+	// if(link == CFO_Link_ALL)
+	// {	
+	// 	for(uint8_t i=0;i<8;++i)
+	// 		data[i] = 0;
+	// }
+	// else
+	// 	data[link] = 0;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOffMode);
 }
 
@@ -801,10 +813,11 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOffMode()
 	auto form = CreateFormatter(CFO_Register_EnableBeamOffMode);
 	form.description = "Enable Beam Off Mode Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOffMode(r) ? "x" : " ") + "]");
-	}
+	form.vals.push_back(std::string("Beam Off Processing ") + ": [" + (ReadBeamOffMode(CFO_Link_ALL) ? "x" : " ") + "]");
+	// for (auto r : CFO_Links)
+	// {
+	// 	form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOffMode(r) ? "x" : " ") + "]");
+	// }
 	return form;
 }
 
@@ -896,14 +909,14 @@ std::bitset<2> CFOLib::CFO_Registers::ReadJitterAttenuatorSelect()
 /// <param name="data">Value to set</param>
 void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
 {
-	CFO_TLOG(TLVL_DEBUG) << "JA select " << data << " = " <<
+	__COUT__ << "JA select " << data << " = " <<
 		(data == 0? "Local oscillator":(data == 1? "RTF copper clock": "undefined source!"));
 
 	std::bitset<32> regdata = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
 	// detection if already locked may not work
 	// if(regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
 	// {
-	// 	CFO_TLOG(TLVL_DEBUG) << "JA already locked with selected input " << data;
+	// 	__COUT__ << "JA already locked with selected input " << data;
 	// 	return;
 	// }
 	//For CFO - 0 ==> Local oscillator
@@ -923,7 +936,7 @@ void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
 	sleep(1);
 
 	ConfigureJitterAttenuator();
-	CFO_TLOG(TLVL_DEBUG) << "JA select done for input " << data;
+	__COUT__ << "JA select done for input " << data;
 }
 
 /// <summary>
@@ -3066,20 +3079,20 @@ bool CFOLib::CFO_Registers::SetNewOscillatorFrequency(double targetFrequency)
 {
 	auto currentFrequency = ReadSERDESOscillatorFrequency();
 	auto currentProgram = ReadSERDESOscillatorParameters();
-	CFO_TLOG(TLVL_DEBUG) << "Target Frequency: " << targetFrequency << ", Current Frequency: " << currentFrequency
+	__COUT__ << "Target Frequency: " << targetFrequency << ", Current Frequency: " << currentFrequency
 						 << ", Current Program: " << std::showbase << std::hex << currentProgram;
 
 	// Check if targetFrequency is essentially the same as the current frequency...
 	if (fabs(currentFrequency - targetFrequency) < targetFrequency * 30 / 1000000)
 	{
-		CFO_TLOG(TLVL_INFO) << "New frequency and old frequency are within 30 ppm of each other, not reprogramming!";
+		__COUT_INFO__ << "New frequency and old frequency are within 30 ppm of each other, not reprogramming!";
 		return false;
 	}
 
 	auto newParameters = CalculateFrequencyForProgramming_(targetFrequency, currentFrequency, currentProgram);
 	if (newParameters == 0)
 	{
-		CFO_TLOG(TLVL_WARNING) << "New program calculated as 0! Check parameters!";
+		__COUT_WARN__ << "New program calculated as 0! Check parameters!";
 		return false;
 	}
 	SetSERDESOscillatorParameters(newParameters);
@@ -3089,25 +3102,25 @@ bool CFOLib::CFO_Registers::SetNewOscillatorFrequency(double targetFrequency)
 
 void CFOLib::CFO_Registers::DisableLinks()
 {
-	CFO_TLOG(TLVL_INFO) << "CFO disable serdes transmit and receive";
+	__COUT_INFO__ << "CFO disable serdes transmit and receive";
 	WriteRegister_(0, CFO_Register_LinkEnable);
 }
 
 void CFOLib::CFO_Registers::DisableAllOutputs()
 {
-	CFO_TLOG(TLVL_INFO) << "CFO disable Event Start character output";
+	__COUT_INFO__ << "CFO disable Event Start character output";
 	WriteRegister_(0,CFO_Register_CFOControl);
 
-	CFO_TLOG(TLVL_INFO) << "CFO disable serdes transmit and receive";
+	__COUT_INFO__ << "CFO disable serdes transmit and receive";
 	WriteRegister_(0,CFO_Register_LinkEnable);
 
-	CFO_TLOG(TLVL_INFO) << "CFO turn off Event Windows";
+	__COUT_INFO__ << "CFO turn off Event Windows";
 	// WriteRegister_(0,CFO_Register_EventWindowEmulatorIntervalTime);
 	DisableBeamOnMode(CFOLib::CFO_Link_ID::CFO_Link_ALL);
 	DisableBeamOffMode(CFOLib::CFO_Link_ID::CFO_Link_ALL);
 	
 
-	CFO_TLOG(TLVL_INFO) << "CFO turn off 40MHz marker interval";
+	__COUT_INFO__ << "CFO turn off 40MHz marker interval";
 	WriteRegister_(0,CFO_Register_ClockMarkerIntervalCount);
 }
 
@@ -3147,7 +3160,7 @@ void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 					readbackValue = ReadRegister_(address);
 					usleep(100);
 					if((++i % 10) == 9)
-						CFO_TLOG(TLVL_DEBUG) << "I2C waited " << i + 1 << " times..." << std::endl;
+						__COUT__ << "I2C waited " << i + 1 << " times..." << std::endl;
 				}
 				dataToWrite &= ~1;
 				readbackValue &= ~1;
@@ -3165,15 +3178,26 @@ void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 
 		if(readbackValue != dataToWrite)
 		{
-			std::stringstream ss;
-			ss << device_.getDeviceUID() << " - " << 
-					"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
-					<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-					"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
-					std::endl << std::endl <<
-					"If you do not understand this error, try checking the CFO firmware version: " << ReadDesignDate() << std::endl;
-			CFO_TLOG(TLVL_ERROR) << ss.str();
-			throw DTC_IOErrorException(ss.str());
+			try
+			{					
+				__SS__ << "Write check mismatch - " <<
+						"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+						<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+						"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
+						std::endl << std::endl <<
+						"If you do not understand this error, try checking the CFO firmware version: " << ReadDesignDate() << std::endl;					
+				__SS_THROW_ONLY__;
+			}
+			catch(const std::runtime_error& e)
+			{
+				std::stringstream ss;
+				ss << e.what();
+				ss << "\n\nThe stack trace is as follows:\n" << otsStyleStackTrace() << __E__; //artdaq::debug::getStackTraceCollector().print_stacktrace() << __E__;	
+				__SS_THROW__;
+			}
+		
+			// __COUT_ERR__ << ss.str();
+			// throw DTC_IOErrorException(ss.str());
 			// __FE_COUT_ERR__ << ss.str(); 
 		}
 
@@ -3231,18 +3255,18 @@ int CFOLib::CFO_Registers::EncodeOutputDivider_(int input)
 
 uint64_t CFOLib::CFO_Registers::CalculateFrequencyForProgramming_(double targetFrequency, double currentFrequency,
 																  uint64_t currentProgram)
-{
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: targetFrequency=" << targetFrequency << ", currentFrequency=" << currentFrequency
+{	
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: targetFrequency=" << targetFrequency << ", currentFrequency=" << currentFrequency
 				<< ", currentProgram=" << std::showbase << std::hex << static_cast<unsigned long long>(currentProgram);
 	auto currentHighSpeedDivider = DecodeHighSpeedDivider_((currentProgram >> 45) & 0x7);
 	auto currentOutputDivider = DecodeOutputDivider_((currentProgram >> 38) & 0x7F);
 	auto currentRFREQ = DecodeRFREQ_(currentProgram & 0x3FFFFFFFFF);
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: Current HSDIV=" << currentHighSpeedDivider << ", N1=" << currentOutputDivider << ", RFREQ=" << currentRFREQ;
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: Current HSDIV=" << currentHighSpeedDivider << ", N1=" << currentOutputDivider << ", RFREQ=" << currentRFREQ;
 	const auto minFreq = 4850000000;  // Hz
 	const auto maxFreq = 5670000000;  // Hz
 
 	auto fXTAL = currentFrequency * currentHighSpeedDivider * currentOutputDivider / currentRFREQ;
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: fXTAL=" << fXTAL;
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: fXTAL=" << fXTAL;
 
 	std::vector<int> hsdiv_values = {11, 9, 7, 6, 5, 4};
 	std::vector<std::pair<int, double>> parameter_values;
@@ -3258,7 +3282,7 @@ uint64_t CFOLib::CFO_Registers::CalculateFrequencyForProgramming_(double targetF
 			thisN += 2;
 		}
 		auto fdco_new = hsdiv * thisN * targetFrequency;
-		CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: Adding solution: HSDIV=" << hsdiv << ", N1=" << thisN << ", fdco_new=" << fdco_new;
+		TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: Adding solution: HSDIV=" << hsdiv << ", N1=" << thisN << ", fdco_new=" << fdco_new;
 		parameter_values.push_back(std::make_pair(thisN, fdco_new));
 	}
 
@@ -3277,27 +3301,27 @@ uint64_t CFOLib::CFO_Registers::CalculateFrequencyForProgramming_(double targetF
 		newRFREQ = values.second / fXTAL;
 		break;
 	}
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: New Program: HSDIV=" << newHighSpeedDivider << ", N1=" << newOutputDivider << ", RFREQ=" << newRFREQ;
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: New Program: HSDIV=" << newHighSpeedDivider << ", N1=" << newOutputDivider << ", RFREQ=" << newRFREQ;
 
 	if (EncodeHighSpeedDivider_(newHighSpeedDivider) == -1)
 	{
-		CFO_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid HSDIV " << newHighSpeedDivider << "!";
+		__COUT_ERR__ << "ERROR: CalculateFrequencyForProgramming: Invalid HSDIV " << newHighSpeedDivider << "!";
 		return 0;
 	}
 	if (newOutputDivider > 128 || newOutputDivider < 0)
 	{
-		CFO_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid N1 " << newOutputDivider << "!";
+		__COUT_ERR__ << "ERROR: CalculateFrequencyForProgramming: Invalid N1 " << newOutputDivider << "!";
 		return 0;
 	}
 	if (newRFREQ <= 0)
 	{
-		CFO_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid RFREQ " << newRFREQ << "!";
+		__COUT_ERR__ << "ERROR: CalculateFrequencyForProgramming: Invalid RFREQ " << newRFREQ << "!";
 		return 0;
 	}
 
 	auto output = (static_cast<uint64_t>(EncodeHighSpeedDivider_(newHighSpeedDivider)) << 45) +
 				  (static_cast<uint64_t>(EncodeOutputDivider_(newOutputDivider)) << 38) + EncodeRFREQ_(newRFREQ);
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: New Program: " << std::showbase << std::hex << static_cast<unsigned long long>(output);
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: New Program: " << std::showbase << std::hex << static_cast<unsigned long long>(output);
 	return output;
 }
 

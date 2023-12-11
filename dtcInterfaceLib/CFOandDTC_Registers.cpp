@@ -9,7 +9,12 @@
 
 #include "TRACE/tracemf.h"
 
-#define CFO_DTC_TLOG(lvl) TLOG(lvl) << "CFO-DTC " << device_.getDeviceUID() << ": "
+#include "dtcInterfaceLib/otsStyleCoutMacros.h"
+
+
+#undef 	__COUT_HDR__ 
+#define __COUT_HDR__ 		"CFOandDTC " << device_.getDeviceUID() << ": "
+// #define CFO_DTC_TLOG(lvl) TLOG(lvl) << "CFO-DTC " << device_.getDeviceUID() << ": "
 #define TLVL_ResetDTC TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
 #define TLVL_SERDESReset TLVL_DEBUG + 7
@@ -104,8 +109,11 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignDate()
 	std::vector<std::string> months({"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"});
 	int mon =  ((readData>>20)&0xF)*10 + ((readData>>16)&0xF);
 	if(mon-1 > 11)
-	{
-		throw std::runtime_error("Invalid register read for firmware design date: " + std::to_string(mon));
+	{ 
+		__SS__ << "Invalid register read for firmware design date: " + std::to_string(mon) << 
+			". If the value is 165, this likely means the PCIe in not initialized and perhaps a PCIe reset of the linux system would fix the issue.";				
+		__SS_THROW__;
+		// throw std::runtime_error("Invalid register read for firmware design date: " + std::to_string(mon));
 	}
 	o << months[mon-1] << "/" << 
 		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
@@ -136,7 +144,7 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignVersionNumber()
 	int minor = data & 0xFF;
 	int major = (data & 0xFF00) >> 8;
 
-	CFO_DTC_TLOG(TLVL_INFO) << "Driver Version: " << GetDevice()->get_driver_version();
+	__COUT_INFO__ << "Driver Version: " << GetDevice()->get_driver_version();
 	return "v" + std::to_string(major) + "." + std::to_string(minor);
 } // end ReadDesignVersionNumber()
 
@@ -407,8 +415,10 @@ uint32_t DTCLib::CFOandDTC_Registers::WriteRegister_(uint32_t dataToWrite, const
 	} while (retry > 0 && errorCode != 0);
 	if (errorCode != 0)
 	{
-		CFO_DTC_TLOG(TLVL_ERROR) << "Error writing register 0x" << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
-		throw DTC_IOErrorException(errorCode);
+		__SS__ << "Error writing register 0x" << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
+		// CFO_DTC_TLOG(TLVL_ERROR) << ss.str();		
+		__SS_THROW__;
+		// throw DTC_IOErrorException(errorCode);
 	}
 
 	{	//trace seems to ignore the std::setfill, so using stringstream
@@ -416,7 +426,7 @@ uint32_t DTCLib::CFOandDTC_Registers::WriteRegister_(uint32_t dataToWrite, const
 		o << "write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
 				<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 				std::endl;
-		CFO_DTC_TLOG(TLVL_DEBUG) << o.str();
+		__COUT__ << o.str();
 	}
 
 	//verify register readback
@@ -440,8 +450,9 @@ uint32_t DTCLib::CFOandDTC_Registers::ReadRegister_(const CFOandDTC_Register& ad
 	} while (retry > 0 && errorCode != 0);
 	if (errorCode != 0)
 	{
-		CFO_DTC_TLOG(TLVL_ERROR) << "Error reading register 0x" << std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
-		throw DTC_IOErrorException(errorCode);
+		__SS__ << "Error reading register 0x" << std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << " " << errorCode;
+		__SS_THROW__;
+		// throw DTC_IOErrorException(errorCode);
 	}
 
 	if(address != 0x916c)
@@ -450,7 +461,7 @@ uint32_t DTCLib::CFOandDTC_Registers::ReadRegister_(const CFOandDTC_Register& ad
 		o << "read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
 			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 			std::endl;
-		CFO_DTC_TLOG(TLVL_DEBUG) << o.str();
+		__COUT__ << o.str();
 	}
 
 	return data;
@@ -460,8 +471,9 @@ bool DTCLib::CFOandDTC_Registers::GetBit_(const CFOandDTC_Register& address, siz
 {
 	if (bit > 31)
 	{
-		CFO_DTC_TLOG(TLVL_ERROR) << "Cannot read bit " << bit << ", as it is out of range";
-		throw std::out_of_range("Cannot read bit " + std::to_string(bit) + ", as it is out of range");
+		__SS__ << "Cannot read bit " << bit << ", as it is out of range";
+		__SS_THROW__;
+		// throw std::out_of_range("Cannot read bit " + std::to_string(bit) + ", as it is out of range");
 	}
 	return std::bitset<32>(ReadRegister_(address))[bit];
 }
@@ -470,8 +482,9 @@ void DTCLib::CFOandDTC_Registers::SetBit_(const CFOandDTC_Register& address, siz
 {
 	if (bit > 31)
 	{
-		CFO_DTC_TLOG(TLVL_ERROR) << "Cannot set bit " << bit << ", as it is out of range";
-		throw std::out_of_range("Cannot set bit " + std::to_string(bit) + ", as it is out of range");
+		__SS__ << "Cannot set bit " << bit << ", as it is out of range";
+		__SS_THROW__;
+		// throw std::out_of_range("Cannot set bit " + std::to_string(bit) + ", as it is out of range");
 	}
 	auto regVal = std::bitset<32>(ReadRegister_(address));
 	regVal[bit] = value;

@@ -1578,7 +1578,7 @@ public:
 		[this]() { return this->FormatNUMDTCs(); },
 		[this]() { return this->FormatFIFOFullErrorFlag0(); },
 		[this]() { return this->FormatReceivePacketError(); },
-		[this]() { return this->FormatEventWindowEmulatorIntervalTime(); },
+		// [this]() { return this->FormatEventWindowEmulatorIntervalTime(); },
 		[this]() { return this->FormatEventWindowHoldoffTime(); },
 		[this]() { return this->FormatEventWindowTimeoutError(); },
 		[this]() { return this->FormatEventWindowTimeoutInterval(); },

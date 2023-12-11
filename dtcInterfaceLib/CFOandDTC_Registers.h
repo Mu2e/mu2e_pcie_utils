@@ -87,7 +87,8 @@ struct RegisterFormatter
 			{
 				std::string placeholder = "";
 				placeholder.resize(reg.descWidth, ' ');
-				stream << "                           " << placeholder << " | ";
+				stream << //"                           " << 
+					placeholder << " | ";
 			}
 			stream << i << std::endl;
 			first = false;
