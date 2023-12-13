@@ -174,7 +174,15 @@ public:
 	bool ReadFPGAUserTemperatureAlarm(std::optional<uint32_t> val);
 	void ResetFPGAUserTemperatureAlarm(std::optional<uint32_t> val);
 	RegisterFormatter FormatFPGAAlarms();
-	
+
+	std::bitset<2> ReadJitterAttenuatorSelect(CFOandDTC_Register JAreg);
+	void SetJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::bitset<2> data, bool alsoResetJA);
+	bool ReadJitterAttenuatorReset(CFOandDTC_Register JAreg);
+	void ResetJitterAttenuator(CFOandDTC_Register JAreg);
+	RegisterFormatter FormatJitterAttenuatorCSR(CFOandDTC_Register JAreg);
+	virtual void ConfigureJitterAttenuator() = 0; //pure virtual
+	void ConfigureJitterAttenuator(CFOandDTC_Register IICLowReg, CFOandDTC_Register IICHighReg);
+
 	std::string FormattedRegDump(int width, const std::vector<std::function<RegisterFormatter()>>& regVec);
 
 protected:
