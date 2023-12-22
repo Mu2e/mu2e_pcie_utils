@@ -15,6 +15,7 @@ include(${ROOT_USE_FILE})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ../ 
                     $ENV{TRACE_INC} 
+                    $ENV{ARTDAQ_CORE_MU2E_DIR}/artdaq-core-mu2e/Overlays
                     $ENV{MESSAGEFACILITY_INC}
                     $ENV{CETLIB_INC}
                     $ENV{CETLIB_EXCEPT_INC}
