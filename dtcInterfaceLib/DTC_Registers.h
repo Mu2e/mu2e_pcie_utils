@@ -393,10 +393,10 @@ public:
 	//
 
 	// Design Status Register
-	bool ReadDDRInterfaceReset();
+	bool ReadDDRInterfaceReset(std::optional<uint32_t> val = std::nullopt);
 	void SetDDRInterfaceReset(bool reset);
 	void ResetDDRInterface();
-	bool ReadDDRAutoCalibrationDone();
+	bool ReadDDRAutoCalibrationDone(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDesignStatus();
 
 	// Vivado Version Register
@@ -406,106 +406,106 @@ public:
 	// DTC Control Register
 	void ClearDTCControlRegister();    
 	void ResetDTC();             // B31
-	bool ReadResetDTC();         // B31
+	bool ReadResetDTC(std::optional<uint32_t> val = std::nullopt);         // B31
 	void EnableCFOEmulation();   // B30
 	void DisableCFOEmulation();  // B30
-	bool ReadCFOEmulation();     // B30
+	bool ReadCFOEmulation(std::optional<uint32_t> val = std::nullopt);     // B30
 	// Bit 29 Reserved
 	void EnableCFOLoopback();         // B28
 	void DisableCFOLoopback();        // B28
-	bool ReadCFOLoopback();           // B28
+	bool ReadCFOLoopback(std::optional<uint32_t> val = std::nullopt);           // B28
 	void ResetDDRWriteAddress();      // B27
-	bool ReadResetDDRWriteAddress();  // B27
+	bool ReadResetDDRWriteAddress(std::optional<uint32_t> val = std::nullopt);  // B27
 	void ResetDDRReadAddress();       // B26
-	bool ReadResetDDRReadAddress();   // B26
+	bool ReadResetDDRReadAddress(std::optional<uint32_t> val = std::nullopt);   // B26
 	void ResetDDR();                  // B25
-	bool ReadResetDDR();              // B25	
+	bool ReadResetDDR(std::optional<uint32_t> val = std::nullopt);              // B25	
 	void EnableCFOEmulatorDRP();      // B24
 	void DisableCFOEmulatorDRP();     // B24
-	bool ReadCFOEmulatorDRP();        // B24
+	bool ReadCFOEmulatorDRP(std::optional<uint32_t> val = std::nullopt);        // B24
 	void EnableAutogenDRP();          // B23
 	void DisableAutogenDRP();         // B23
-	bool ReadAutogenDRP();            // B23
+	bool ReadAutogenDRP(std::optional<uint32_t> val = std::nullopt);            // B23
 	void EnableSoftwareDRP();         // B22
 	void DisableSoftwareDRP();        // B22
-	bool ReadSoftwareDRP();           // B22
+	bool ReadSoftwareDRP(std::optional<uint32_t> val = std::nullopt);           // B22
 	void ResetPCIe();                 // B21
-	bool ReadResetPCIe();             // B21
+	bool ReadResetPCIe(std::optional<uint32_t> val = std::nullopt);             // B21
 	// Bit 20 Reserved
 	void EnableDownLED0();         // B19
 	void DisableDownLED0();        // B19
-	bool ReadDownLED0State();      // B19
+	bool ReadDownLED0State(std::optional<uint32_t> val = std::nullopt);      // B19
 	void EnableUpLED1();           // B18
 	void DisableUpLED1();          // B18
-	bool ReadUpLED1State();        // B18
+	bool ReadUpLED1State(std::optional<uint32_t> val = std::nullopt);        // B18
 	void EnableUpLED0();           // B17
 	void DisableUpLED0();          // B17
-	bool ReadUpLED0State();        // B17
+	bool ReadUpLED0State(std::optional<uint32_t> val = std::nullopt);        // B17
 	void EnableLED6();             // B16
 	void DisableLED6();            // B16
-	bool ReadLED6State();          // B16
+	bool ReadLED6State(std::optional<uint32_t> val = std::nullopt);          // B16
 	void EnableLEDs();
 	void DisableLEDs();
 	void FlashLEDs();
 
 	void SetCFOEmulationMode();    // B15
 	void ClearCFOEmulationMode();  // B15
-	bool ReadCFOEmulationMode();   // B15
+	bool ReadCFOEmulationMode(std::optional<uint32_t> val = std::nullopt);   // B15
 	// Bit 14 Reserved
 	void SetDataFilterEnable();               // B13
 	void ClearDataFilterEnable();             // B13
-	bool ReadDataFilterEnable();              // B13
+	bool ReadDataFilterEnable(std::optional<uint32_t> val = std::nullopt);              // B13
 	void SetDRPPrefetchEnable();              // B12
 	void ClearDRPPrefetchEnable();            // B12
-	bool ReadDRPPrefetchEnable();             // B12
+	bool ReadDRPPrefetchEnable(std::optional<uint32_t> val = std::nullopt);             // B12
 	void ROCInterfaceSoftReset();             // B11
-	bool ReadROCInterfaceSoftReset();         // B11
+	bool ReadROCInterfaceSoftReset(std::optional<uint32_t> val = std::nullopt);         // B11
 	void SetSequenceNumberDisable();          // B10
 	void ClearSequenceNumberDisable();        // B10
-	bool ReadSequenceNumberDisable();         // B10
+	bool ReadSequenceNumberDisable(std::optional<uint32_t> val = std::nullopt);         // B10
 	void SetPunchEnable();                    // B9
 	void ClearPunchEnable();                  // B9
-	bool ReadPunchEnable();                   // B9
+	bool ReadPunchEnable(std::optional<uint32_t> val = std::nullopt);                   // B9
 	void ResetSERDES();                       // B8
-	bool ReadResetSERDES();                   // B8
+	bool ReadResetSERDES(std::optional<uint32_t> val = std::nullopt);                   // B8
 	void SetRxPacketErrorFeedbackEnable();    // B6
 	void ClearRxPacketErrorFeedbackEnable();  // B6
-	bool ReadRxPacketErrorFeedbackEnable();   // B6
+	bool ReadRxPacketErrorFeedbackEnable(std::optional<uint32_t> val = std::nullopt);   // B6
 	void SetCommaToleranceEnable();           // B5
 	void ClearCommaToleranceEnable();         // B5
-	bool ReadCommaToleranceEnable();          // B5
+	bool ReadCommaToleranceEnable(std::optional<uint32_t> val = std::nullopt);          // B5
 	void SetExternalFanoutClockInput();       // B4
 	void SetInternalFanoutClockInput();       // B4
-	bool ReadFanoutClockInput();              // B4
+	bool ReadFanoutClockInput(std::optional<uint32_t> val = std::nullopt);              // B4
 	// Bit 3 Reserved
 	void EnableDCSReception();   // B2
 	void DisableDCSReception();  // B2
-	bool ReadDCSReception();     // B2
+	bool ReadDCSReception(std::optional<uint32_t> val = std::nullopt);     // B2
 	// Bit 1 Reserved
 	// Bit 0 Reserved
 	RegisterFormatter FormatDTCControl();
 
 	// DMA Transfer Length Register
 	void SetTriggerDMATransferLength(uint16_t length);
-	uint16_t ReadTriggerDMATransferLength();
+	uint16_t ReadTriggerDMATransferLength(std::optional<uint32_t> val = std::nullopt);
 	void SetMinDMATransferLength(uint16_t length);
-	uint16_t ReadMinDMATransferLength();
+	uint16_t ReadMinDMATransferLength(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDMATransferLength();
 
 	// SERDES Loopback Enable Register
 	void SetSERDESLoopbackMode(DTC_Link_ID const& link, const DTC_SERDESLoopbackMode& mode);
-	DTC_SERDESLoopbackMode ReadSERDESLoopback(DTC_Link_ID const& link);
+	DTC_SERDESLoopbackMode ReadSERDESLoopback(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESLoopbackEnable();
 
 	// Clock Status Register
-	bool ReadSERDESOscillatorIICError();
-	bool ReadDDROscillatorIICError();
+	bool ReadSERDESOscillatorIICError(std::optional<uint32_t> val = std::nullopt);
+	bool ReadDDROscillatorIICError(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatClockOscillatorStatus();
 
 	// ROC Emulation Enable Register
 	void EnableROCEmulator(DTC_Link_ID const& link);
 	void DisableROCEmulator(DTC_Link_ID const& link);
-	bool ReadROCEmulator(DTC_Link_ID const& link);
+	bool ReadROCEmulator(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetROCEmulatorMask(uint32_t rocEnableMask);
 	uint32_t ReadROCEmulatorMask();
 	RegisterFormatter FormatROCEmulationEnable();
@@ -517,18 +517,18 @@ public:
 	void DisableTransmitCFOLink();
 	void EnableLink(DTC_Link_ID const& link, const DTC_LinkEnableMode& mode = DTC_LinkEnableMode());
 	void DisableLink(DTC_Link_ID const& link, const DTC_LinkEnableMode& mode = DTC_LinkEnableMode());
-	DTC_LinkEnableMode ReadLinkEnabled(DTC_Link_ID const& link);
+	DTC_LinkEnableMode ReadLinkEnabled(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatLinkEnable();
 
 	// SERDES Reset Register
 	void ResetSERDESTX(DTC_Link_ID const& link, int interval = 100000);
-	bool ReadResetSERDESTX(DTC_Link_ID const& link);
+	bool ReadResetSERDESTX(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ResetSERDESRX(DTC_Link_ID const& link, int interval = 100000);
-	bool ReadResetSERDESRX(DTC_Link_ID const& link);
+	bool ReadResetSERDESRX(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ResetSERDESPLL(const DTC_PLL_ID& pll, int interval = 100000);
 	bool ReadResetSERDESPLL(const DTC_PLL_ID& pll);
 	void ResetSERDES(DTC_Link_ID const& link, int interval = 100000);
-	bool ReadResetSERDES(DTC_Link_ID const& link);
+	bool ReadResetSERDES(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESReset();
 
 	// Link Diagnostic FIFOs
@@ -537,41 +537,41 @@ public:
 
 
 	// SERDES RX Disparity Error Register
-	DTC_SERDESRXDisparityError ReadSERDESRXDisparityError(DTC_Link_ID const& link);
+	DTC_SERDESRXDisparityError ReadSERDESRXDisparityError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESRXDisparityError();
 
 	// SERDES Character Not In Table Error Register
-	DTC_CharacterNotInTableError ReadSERDESRXCharacterNotInTableError(DTC_Link_ID const& link);
+	DTC_CharacterNotInTableError ReadSERDESRXCharacterNotInTableError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESRXCharacterNotInTableError();
 
 	// SERDES Unlock Error Register
-	bool ReadSERDESCDRUnlockError(DTC_Link_ID const& link);
+	bool ReadSERDESCDRUnlockError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	bool ReadSERDESPLLUnlockError(const DTC_PLL_ID& pll);
 	RegisterFormatter FormatSERDESUnlockError();
 
 	// SERDES PLL Locked Register
-	bool ReadSERDESPLLLocked(DTC_Link_ID const& link);
+	bool ReadSERDESPLLLocked(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESPLLLocked();
 
 	// SERDES PLL Power Down
 	void EnableSERDESPLL(DTC_Link_ID const& link);
 	void DisableSERDESPLL(DTC_Link_ID const& link);
-	bool ReadSERDESPLLPowerDown(DTC_Link_ID const& link);
+	bool ReadSERDESPLLPowerDown(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESPLLPowerDown();
 
 	// SERDES RX Status Register
-	DTC_RXStatus ReadSERDESRXStatus(DTC_Link_ID const& link);
+	DTC_RXStatus ReadSERDESRXStatus(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESRXStatus();
 
 	// SERDES Reset Done Register
-	bool ReadResetRXFSMSERDESDone(DTC_Link_ID const& link);
-	bool ReadResetRXSERDESDone(DTC_Link_ID const& link);
-	bool ReadResetTXFSMSERDESDone(DTC_Link_ID const& link);
-	bool ReadResetTXSERDESDone(DTC_Link_ID const& link);
+	bool ReadResetRXFSMSERDESDone(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	bool ReadResetRXSERDESDone(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	bool ReadResetTXFSMSERDESDone(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	bool ReadResetTXSERDESDone(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESResetDone();
 
 	// SERDES CDR Lock Register
-	bool ReadSERDESRXCDRLock(DTC_Link_ID const& link);
+	bool ReadSERDESRXCDRLock(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatRXCDRLockStatus();
 
 	// DMA Timeout Preset Regsiter
@@ -586,29 +586,29 @@ public:
 
 	// ROC Timeout Error Register
 	void ClearROCTimeoutError(DTC_Link_ID const& link);
-	bool ReadROCTimeoutError(DTC_Link_ID const& link);
+	bool ReadROCTimeoutError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatROCReplyTimeoutError();
 
 	// EVB Network Partition ID / EVB Network Local MAC Index Register
 	void SetEVBInfo(uint8_t dtcid, uint8_t mode, uint8_t partitionId, uint8_t macByte);
 	void SetDTCID(uint8_t dtcid);
-	uint8_t ReadDTCID();
+	uint8_t ReadDTCID(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBMode(uint8_t mode);
-	uint8_t ReadEVBMode();
+	uint8_t ReadEVBMode(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBLocalParitionID(uint8_t id);
-	uint8_t ReadEVBLocalParitionID();
+	uint8_t ReadEVBLocalParitionID(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBLocalMACAddress(uint8_t macByte);
-	uint8_t ReadEVBLocalMACAddress();
+	uint8_t ReadEVBLocalMACAddress(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatEVBLocalParitionIDMACIndex();
 
 	// EVB Buffer Config
 	void SetEVBBufferInfo(uint8_t bufferCount, uint8_t startNode, uint8_t numOfNodes);
 	void SetEVBNumberInputBuffers(uint8_t count);
-	uint8_t ReadEVBNumberInputBuffers();
+	uint8_t ReadEVBNumberInputBuffers(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBStartNode(uint8_t node);
-	uint8_t ReadEVBStartNode();
+	uint8_t ReadEVBStartNode(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBNumberOfDestinationNodes(uint8_t number);
-	uint8_t ReadEVBNumberOfDestinationNodes();
+	uint8_t ReadEVBNumberOfDestinationNodes(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatEVBNumberOfDestinationNodes();
 
 	// SERDES Oscillator Registers
@@ -650,16 +650,16 @@ public:
 
 	// FIFO Full Error Flags Registers
 	void ClearFIFOFullErrorFlags(DTC_Link_ID const& link);
-	DTC_FIFOFullErrorFlags ReadFIFOFullErrorFlags(DTC_Link_ID const& link);
+	DTC_FIFOFullErrorFlags ReadFIFOFullErrorFlags(DTC_Link_ID const& link, std::optional<uint32_t> val0 = std::nullopt, std::optional<uint32_t> val1 = std::nullopt, std::optional<uint32_t> val2 = std::nullopt);
 	RegisterFormatter FormatFIFOFullErrorFlag0();
 	RegisterFormatter FormatFIFOFullErrorFlag1();
 	RegisterFormatter FormatFIFOFullErrorFlag2();
 
 	// Receive Packet Error Register
 	void ClearPacketError(DTC_Link_ID const& link);
-	bool ReadPacketError(DTC_Link_ID const& link);
+	bool ReadPacketError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearPacketCRCError(DTC_Link_ID const& link);
-	bool ReadPacketCRCError(DTC_Link_ID const& link);
+	bool ReadPacketCRCError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatReceivePacketError();
 
 	// CFO Emulation Timestamp Registers
@@ -680,7 +680,7 @@ public:
 
 	// CFO Emulation Number of Packets Registers
 	void SetCFOEmulationNumPackets(DTC_Link_ID const& link, uint16_t numPackets);
-	uint16_t ReadCFOEmulationNumPackets(DTC_Link_ID const& link);
+	uint16_t ReadCFOEmulationNumPackets(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulationNumPacketsLink01();
 	RegisterFormatter FormatCFOEmulationNumPacketsLink23();
 	RegisterFormatter FormatCFOEmulationNumPacketsLink45();
@@ -707,7 +707,7 @@ public:
 	RegisterFormatter FormatCFOEmulationDebugPacketType();
 
 	// RX Packet Count Error Flags Register
-	bool ReadRXPacketCountErrorFlags(DTC_Link_ID const& link);
+	bool ReadRXPacketCountErrorFlags(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearRXPacketCountErrorFlags(DTC_Link_ID const& link);
 	void ClearRXPacketCountErrorFlags();
 	RegisterFormatter FormatRXPacketCountErrorFlags();
@@ -725,11 +725,11 @@ public:
 	// Detector Emulation Control Registers
 	void EnableDetectorEmulatorMode();
 	void DisableDetectorEmulatorMode();
-	bool ReadDetectorEmulatorMode();
+	bool ReadDetectorEmulatorMode(std::optional<uint32_t> val = std::nullopt);
 	void EnableDetectorEmulator();
 	void DisableDetectorEmulator();
-	bool ReadDetectorEmulatorEnable();
-	bool ReadDetectorEmulatorEnableClear();
+	bool ReadDetectorEmulatorEnable(std::optional<uint32_t> val = std::nullopt);
+	bool ReadDetectorEmulatorEnableClear(std::optional<uint32_t> val = std::nullopt);
 	/// <summary>
 	/// Return the current value of the "Detector Emulator In Use" virtual register
 	/// </summary>
@@ -774,9 +774,9 @@ public:
 	RegisterFormatter FormatCFOEmulation40MHzMarkerInterval();
 
 	// CFO Emulation Marker Enables
-	bool ReadCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link);
+	bool ReadCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, bool enable);
-	bool ReadCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link);
+	bool ReadCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link, bool enable);
 	RegisterFormatter FormatCFOEmulationMarkerEnables();
 
@@ -787,13 +787,13 @@ public:
 
 	// SERDES Counter Registers
 	void ClearReceiveByteCount(DTC_Link_ID const& link);
-	uint32_t ReadReceiveByteCount(DTC_Link_ID const& link);
+	uint32_t ReadReceiveByteCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearReceivePacketCount(DTC_Link_ID const& link);
-	uint32_t ReadReceivePacketCount(DTC_Link_ID const& link);
+	uint32_t ReadReceivePacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearTransmitByteCount(DTC_Link_ID const& link);
-	uint32_t ReadTransmitByteCount(DTC_Link_ID const& link);
+	uint32_t ReadTransmitByteCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearTransmitPacketCount(DTC_Link_ID const& link);
-	uint32_t ReadTransmitPacketCount(DTC_Link_ID const& link);
+	uint32_t ReadTransmitPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatReceiveByteCountLink0();
 	RegisterFormatter FormatReceiveByteCountLink1();
 	RegisterFormatter FormatReceiveByteCountLink2();
@@ -851,16 +851,16 @@ public:
 	RegisterFormatter FormatFireflyTXRXIICParameterHigh();
 
 	// SERDES TX PRBS Control
-	bool ReadTXPRBSForceError(DTC_Link_ID const& link);
+	bool ReadTXPRBSForceError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetTXPRBSForceError(DTC_Link_ID const& link);
 	void ClearTXPRBSForceError(DTC_Link_ID const& link);
-	DTC_PRBSMode ReadTXPRBSMode(DTC_Link_ID const& link);
+	DTC_PRBSMode ReadTXPRBSMode(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetTXPRBSMode(DTC_Link_ID const& link, DTC_PRBSMode mode);
 	RegisterFormatter FormatSERDESTXPRBSControl();
 
 	// SERDES RX PRBS Control
-	bool ReadRXPRBSError(DTC_Link_ID const& link);
-	DTC_PRBSMode ReadRXPRBSMode(DTC_Link_ID const& link);
+	bool ReadRXPRBSError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	DTC_PRBSMode ReadRXPRBSMode(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetRXPRBSMode(DTC_Link_ID const& link, DTC_PRBSMode mode);
 	RegisterFormatter FormatSERDESRXPRBSControl();
 
@@ -879,9 +879,9 @@ public:
 	RegisterFormatter FormatDDRMemoryTestRegister();
 
 	// SERDES Serial Inversion Enable Register
-	bool ReadInvertSERDESRXInput(DTC_Link_ID const& link);
+	bool ReadInvertSERDESRXInput(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetInvertSERDESRXInput(DTC_Link_ID const& link, bool invert);
-	bool ReadInvertSERDESTXOutput(DTC_Link_ID const& link);
+	bool ReadInvertSERDESTXOutput(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetInvertSERDESTXOutput(DTC_Link_ID const& link, bool invert);
 	RegisterFormatter FormatSERDESSerialInversionEnable();
 
@@ -889,6 +889,7 @@ public:
 	std::bitset<2> ReadJitterAttenuatorSelect();
 	void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
 	bool ReadJitterAttenuatorReset();
+	bool ReadJitterAttenuatorLocked();
 	void ResetJitterAttenuator();
 	RegisterFormatter FormatJitterAttenuatorCSR();
 
@@ -904,7 +905,7 @@ public:
 	RegisterFormatter FormatSFPIICParameterHigh();
 
 	// Retransmit Request Count Registers
-	uint32_t ReadRetransmitRequestCount(DTC_Link_ID const& link);
+	uint32_t ReadRetransmitRequestCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearRetransmitRequestCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatRetransmitRequestCountLink0();
 	RegisterFormatter FormatRetransmitRequestCountLink1();
@@ -914,7 +915,7 @@ public:
 	RegisterFormatter FormatRetransmitRequestCountLink5();
 
 	// Missed CFO Packet Count Registers
-	uint32_t ReadMissedCFOPacketCount(DTC_Link_ID const& link);
+	uint32_t ReadMissedCFOPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearMissedCFOPacketCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatMissedCFOPacketCountLink0();
 	RegisterFormatter FormatMissedCFOPacketCountLink1();
@@ -948,41 +949,41 @@ public:
 	RegisterFormatter FormatEVBSERDESPRBSControl();
 
 	// Event Builder Error Register
-	bool ReadEventBuilder_SubEventReceiverFlagsBufferError();
-	bool ReadEventBuilder_EthernetInputFIFOFull();
-	bool ReadEventBuilder_LinkError();
-	bool ReadEventBuilder_TXPacketError();
-	bool ReadEventBuilder_LocalDataPointerFIFOQueueError();
-	bool ReadEventBuilder_TransmitDMAByteCountFIFOFull();
+	bool ReadEventBuilder_SubEventReceiverFlagsBufferError(std::optional<uint32_t> val = std::nullopt);
+	bool ReadEventBuilder_EthernetInputFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadEventBuilder_LinkError(std::optional<uint32_t> val = std::nullopt);
+	bool ReadEventBuilder_TXPacketError(std::optional<uint32_t> val = std::nullopt);
+	bool ReadEventBuilder_LocalDataPointerFIFOQueueError(std::optional<uint32_t> val = std::nullopt);
+	bool ReadEventBuilder_TransmitDMAByteCountFIFOFull(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatEventBuilderErrorRegister();
 
 	// SERDES VFIFO Error Register
-	bool ReadSERDESVFIFO_EgressFIFOFull();
-	bool ReadSERDESVFIFO_IngressFIFOFull();
-	bool ReadSERDESVFIFO_EventByteCountTotalError();
-	bool ReadSERDESVFIFO_LastWordWrittenTimeoutError();
-	bool ReadSERDESVFIFO_FragmentCountError();
-	bool ReadSERDESVFIFO_DDRFullError();
+	bool ReadSERDESVFIFO_EgressFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadSERDESVFIFO_IngressFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadSERDESVFIFO_EventByteCountTotalError(std::optional<uint32_t> val = std::nullopt);
+	bool ReadSERDESVFIFO_LastWordWrittenTimeoutError(std::optional<uint32_t> val = std::nullopt);
+	bool ReadSERDESVFIFO_FragmentCountError(std::optional<uint32_t> val = std::nullopt);
+	bool ReadSERDESVFIFO_DDRFullError(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESVFIFOError();
 
 	// PCI VFIFO Error Register
-	bool ReadPCIVFIFO_DDRFull();
-	bool ReadPCIVFIFO_MemoryMappedWriteCompleteFIFOFull();
-	bool ReadPCIVFIFO_PCIWriteEventFIFOFull();
-	bool ReadPCIVFIFO_LocalDataPointerFIFOFull();
-	bool ReadPCIVFIFO_EgressFIFOFull();
-	bool ReadPCIVFIFO_RXBufferSelectFIFOFull();
-	bool ReadPCIVFIFO_IngressFIFOFull();
-	bool ReadPCIVFIFO_EventByteCountTotalError();
+	bool ReadPCIVFIFO_DDRFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadPCIVFIFO_MemoryMappedWriteCompleteFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadPCIVFIFO_PCIWriteEventFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadPCIVFIFO_LocalDataPointerFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadPCIVFIFO_EgressFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadPCIVFIFO_RXBufferSelectFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadPCIVFIFO_IngressFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadPCIVFIFO_EventByteCountTotalError(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatPCIVFIFOError();
 
 	// ROC Link Error Registers
-	bool ReadROCLink_ROCDataRequestSyncError(DTC_Link_ID const& link);
-	bool ReadROCLink_RXPacketCountError(DTC_Link_ID const& link);
-	bool ReadROCLink_RXPacketError(DTC_Link_ID const& link);
-	bool ReadROCLink_RXPacketCRCError(DTC_Link_ID const& link);
-	bool ReadROCLink_DataPendingTimeoutError(DTC_Link_ID const& link);
-	bool ReadROCLink_ReceiveDataPacketCountError(DTC_Link_ID const& link);
+	bool ReadROCLink_ROCDataRequestSyncError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	bool ReadROCLink_RXPacketCountError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	bool ReadROCLink_RXPacketError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	bool ReadROCLink_RXPacketCRCError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	bool ReadROCLink_DataPendingTimeoutError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	bool ReadROCLink_ReceiveDataPacketCountError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatRocLink0Error();
 	RegisterFormatter FormatRocLink1Error();
 	RegisterFormatter FormatRocLink2Error();
@@ -999,40 +1000,40 @@ public:
 	RegisterFormatter FormatLinkMuxError();
 
 	// Firefly CSR Register
-	bool ReadTXRXFireflyPresent();
-	bool ReadRXFireflyPresent();
-	bool ReadTXFireflyPresent();
-	bool ReadTXRXFireflyInterrupt();
-	bool ReadRXFireflyInterrupt();
-	bool ReadTXFireflyInterrupt();
-	bool ReadTXRXFireflySelect();
+	bool ReadTXRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
+	bool ReadRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
+	bool ReadTXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
+	bool ReadTXRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
+	bool ReadRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
+	bool ReadTXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
+	bool ReadTXRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
 	void SetTXRXFireflySelect(bool select);
-	bool ReadTXFireflySelect();
+	bool ReadTXFireflySelect(std::optional<uint32_t> val = std::nullopt);
 	void SetTXFireflySelect(bool select);
-	bool ReadRXFireflySelect();
+	bool ReadRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
 	void SetRXFireflySelect(bool select);
-	bool ReadResetTXRXFirefly();
+	bool ReadResetTXRXFirefly(std::optional<uint32_t> val = std::nullopt);
 	void ResetTXRXFirefly();
-	bool ReadResetTXFirefly();
+	bool ReadResetTXFirefly(std::optional<uint32_t> val = std::nullopt);
 	void ResetTXFirefly();
-	bool ReadResetRXFirefly();
+	bool ReadResetRXFirefly(std::optional<uint32_t> val = std::nullopt);
 	void ResetRXFirefly();
 	RegisterFormatter FormatFireflyCSR();
 
 	// SFP Control Status Register
-	bool ReadSFPPresent();
-	bool ReadSFPLOS();
-	bool ReadSFPTXFault();
+	bool ReadSFPPresent(std::optional<uint32_t> val = std::nullopt);
+	bool ReadSFPLOS(std::optional<uint32_t> val = std::nullopt);
+	bool ReadSFPTXFault(std::optional<uint32_t> val = std::nullopt);
 	void EnableSFPRateSelect();
 	void DisableSFPRateSelect();
-	bool ReadSFPRateSelect();
+	bool ReadSFPRateSelect(std::optional<uint32_t> val = std::nullopt);
 	void DisableSFPTX();
 	void EnableSFPTX();
-	bool ReadSFPTXDisable();
+	bool ReadSFPTXDisable(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSFPControlStatus();
 
 	// RX CDR Unlock Count Registers
-	uint32_t ReadRXCDRUnlockCount(DTC_Link_ID const& link);
+	uint32_t ReadRXCDRUnlockCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearRXCDRUnlockCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatRXCDRUnlockCountLink0();
 	RegisterFormatter FormatRXCDRUnlockCountLink1();
@@ -1081,37 +1082,37 @@ public:
 
 	// FPGA Core Access Register
 	void ReloadFPGAFirmware();
-	bool ReadFPGACoreAccessFIFOFull();
-	bool ReadFPGACoreAccessFIFOEmpty();
+	bool ReadFPGACoreAccessFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadFPGACoreAccessFIFOEmpty(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGACoreAccess();
 
 	// Slow Optical Links Control/Status Register
-	bool ReadRXOKErrorSlowOpticalLink3();
-	bool ReadRXOKErrorSlowOpticalLink2();
-	bool ReadRXOKErrorSlowOpticalLink1();
-	bool ReadRXOKErrorSlowOpticalLink0();
-	bool ReadLatchedSpareSMAInputOKError();
+	bool ReadRXOKErrorSlowOpticalLink3(std::optional<uint32_t> val = std::nullopt);
+	bool ReadRXOKErrorSlowOpticalLink2(std::optional<uint32_t> val = std::nullopt);
+	bool ReadRXOKErrorSlowOpticalLink1(std::optional<uint32_t> val = std::nullopt);
+	bool ReadRXOKErrorSlowOpticalLink0(std::optional<uint32_t> val = std::nullopt);
+	bool ReadLatchedSpareSMAInputOKError(std::optional<uint32_t> val = std::nullopt);
 	void ClearLatchedSpareSMAInputOKError();
-	bool ReadLatchedEventMarkerSMAInputOKError();
+	bool ReadLatchedEventMarkerSMAInputOKError(std::optional<uint32_t> val = std::nullopt);
 	void ClearLatchedEventMarkerSMASMAInputOKError();
-	bool ReadLatchedRXOKErrorSlowOpticalLink3();
+	bool ReadLatchedRXOKErrorSlowOpticalLink3(std::optional<uint32_t> val = std::nullopt);
 	void ClearLatchedRXOKErrorSlowOpticalLink3();
-	bool ReadLatchedRXOKErrorSlowOpticalLink2();
+	bool ReadLatchedRXOKErrorSlowOpticalLink2(std::optional<uint32_t> val = std::nullopt);
 	void ClearLatchedRXOKErrorSlowOpticalLink2();
-	bool ReadLatchedRXOKErrorSlowOpticalLink1();
+	bool ReadLatchedRXOKErrorSlowOpticalLink1(std::optional<uint32_t> val = std::nullopt);
 	void ClearLatchedRXOKErrorSlowOpticalLink1();
-	bool ReadLatchedRXOKErrorSlowOpticalLink0();
+	bool ReadLatchedRXOKErrorSlowOpticalLink0(std::optional<uint32_t> val = std::nullopt);
 	void ClearLatchedRXOKErrorSlowOpticalLink0();
 	RegisterFormatter FormatSlowOpticalLinkControlStatus();
 
 	// Diagnostic SERDES Induce Error Enable Register
-	bool ReadSERDESInduceErrorEnable(DTC_Link_ID const& link);
+	bool ReadSERDESInduceErrorEnable(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void EnableSERDESInduceError(DTC_Link_ID const& link);
 	void DisableSERDESInduceError(DTC_Link_ID const& link);
 	RegisterFormatter FormatSERDESInduceErrorEnable();
 
 	// Diagnostic SERDES Incude Error Link Registers
-	uint32_t ReadSERDESInduceErrorSequenceNumber(DTC_Link_ID const& link);
+	uint32_t ReadSERDESInduceErrorSequenceNumber(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetSERDESInduceErrorSequenceNumber(DTC_Link_ID const& link, uint32_t sequence);
 	RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink0();
 	RegisterFormatter FormatSERDESInduceErrorSequenceNumberLink1();
@@ -1154,7 +1155,7 @@ public:
 	RegisterFormatter FormatDDREventBuilderBufferFullFlags3();
 
 	// Data Pending Diagnostic Timer Registers
-	uint32_t ReadDataPendingDiagnosticTimer(DTC_Link_ID const& link);
+	uint32_t ReadDataPendingDiagnosticTimer(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ResetDataPendingDiagnosticTimerFIFO(DTC_Link_ID const& link);
 	RegisterFormatter FormatDataPendingDiagnosticTimerLink0();
 	RegisterFormatter FormatDataPendingDiagnosticTimerLink1();
@@ -1164,13 +1165,13 @@ public:
 	RegisterFormatter FormatDataPendingDiagnosticTimerLink5();
 
 	// ROC Emulator Induce Timeout Error Control
-	bool ReadEnableROCEmulatorPeriodicTimeoutError(DTC_Link_ID const& link);
+	bool ReadEnableROCEmulatorPeriodicTimeoutError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void EnableROCEmulatorPeriodicTimeoutError(DTC_Link_ID const& link);
 	void DisableROCEmulatorPeriodicTimeoutError(DTC_Link_ID const& link);
-	bool ReadEnableROCEmulatorTimeoutErrorOutputPartialData(DTC_Link_ID const& link);
+	bool ReadEnableROCEmulatorTimeoutErrorOutputPartialData(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void EnableROCEmulatorTimeoutErrorOutputPartialData(DTC_Link_ID const& link);
 	void DisableROCEmulatorTimeoutErrorOutputPartialData(DTC_Link_ID const& link);
-	uint32_t ReadROCEmulatorTimeoutErrorTimestamp(DTC_Link_ID const& link);
+	uint32_t ReadROCEmulatorTimeoutErrorTimestamp(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetROCEmulatorTimeoutErrorTimestamp(DTC_Link_ID const& link, uint32_t timestamp);
 	RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink0();
 	RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink1();
@@ -1180,10 +1181,10 @@ public:
 	RegisterFormatter FormatROCEmulatorInduceTimeoutErrorLink5();
 
 	// ROC Emulator Induce Extra Word Error
-	bool ReadEnableROCEmulatorExtraWordError(DTC_Link_ID const& link);
+	bool ReadEnableROCEmulatorExtraWordError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void EnableROCEmulatorExtraWordError(DTC_Link_ID const& link);
 	void DisableROCEmulatorExtraWordError(DTC_Link_ID const& link);
-	uint32_t ReadROCEmulatorExtraWordErrorTimestamp(DTC_Link_ID const& link);
+	uint32_t ReadROCEmulatorExtraWordErrorTimestamp(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetROCEmulatorExtraWordErrorTimestamp(DTC_Link_ID const& link, uint32_t timestamp);
 	RegisterFormatter FormatROCEmulatorExtraWordErrorLink0();
 	RegisterFormatter FormatROCEmulatorExtraWordErrorLink1();
@@ -1193,7 +1194,7 @@ public:
 	RegisterFormatter FormatROCEmulatorExtraWordErrorLink5();
 
 	// SERDES CNIT Error Count
-	uint32_t ReadSERDESCharacterNotInTableErrorCount(DTC_Link_ID const& link);
+	uint32_t ReadSERDESCharacterNotInTableErrorCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearSERDESCharacterNotInTableErrorCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink0();
 	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountLink1();
@@ -1204,7 +1205,7 @@ public:
 	RegisterFormatter FormatSERDESCharacterNotInTableErrorCountCFOLink();
 
 	// SERDES RX Disparity Error Count
-	uint32_t ReadSERDESRXDisparityErrorCount(DTC_Link_ID const& link);
+	uint32_t ReadSERDESRXDisparityErrorCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearSERDESRXDisparityErrorCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatSERDESRXDisparityErrorCountLink0();
 	RegisterFormatter FormatSERDESRXDisparityErrorCountLink1();
@@ -1215,7 +1216,7 @@ public:
 	RegisterFormatter FormatSERDESRXDisparityErrorCountCFOLink();
 
 	// SERDES RX PRBS Error Count
-	uint32_t ReadSERDESRXPRBSErrorCount(DTC_Link_ID const& link);
+	uint32_t ReadSERDESRXPRBSErrorCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearSERDESRXPRBSErrorCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatSERDESRXPRBSErrorCountLink0();
 	RegisterFormatter FormatSERDESRXPRBSErrorCountLink1();
@@ -1226,7 +1227,7 @@ public:
 	RegisterFormatter FormatSERDESRXPRBSErrorCountCFOLink();
 
 	// SERDES RX CRC Error Count
-	uint32_t ReadSERDESRXCRCErrorCount(DTC_Link_ID const& link);
+	uint32_t ReadSERDESRXCRCErrorCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearSERDESRXCRCErrorCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatSERDESRXCRCErrorCountLink0();
 	RegisterFormatter FormatSERDESRXCRCErrorCountLink1();
@@ -1237,7 +1238,7 @@ public:
 	RegisterFormatter FormatSERDESRXCRCErrorCountCFOLink();
 
 	// SERDES RX CRC Error Control
-	bool ReadEnableInduceSERDESRXCRCError(DTC_Link_ID const& link);
+	bool ReadEnableInduceSERDESRXCRCError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void EnableInduceSERDESRXCRCError(DTC_Link_ID const& link);
 	void DisableInduceSERDESRXCRCError(DTC_Link_ID const& link);
 	RegisterFormatter FormatSERDESRXCRCErrorControl();
@@ -1257,7 +1258,7 @@ public:
 	RegisterFormatter FormatJitterAttenuatorExternalClockLOSCount();
 
 	// ROC Emulator Interpacket Delay
-	uint32_t ReadROCEmulatorInterpacketDelay(DTC_Link_ID const& link);
+	uint32_t ReadROCEmulatorInterpacketDelay(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetROCEmulatorInterpacketDelay(DTC_Link_ID const& link, uint32_t delay);
 	RegisterFormatter FormatROCEmulatorInterpacketDelayLink0();
 	RegisterFormatter FormatROCEmulatorInterpacketDelayLink1();
@@ -1267,7 +1268,7 @@ public:
 	RegisterFormatter FormatROCEmulatorInterpacketDelayLink5();
 
 	// TX Data Request Packet Count
-	uint32_t ReadTXDataRequestPacketCount(DTC_Link_ID const& link);
+	uint32_t ReadTXDataRequestPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearTXDataRequetsPacketCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatTXDataRequestPacketCountLink0();
 	RegisterFormatter FormatTXDataRequestPacketCountLink1();
@@ -1277,7 +1278,7 @@ public:
 	RegisterFormatter FormatTXDataRequestPacketCountLink5();
 
 	// TX Heartbeat Packet Count
-	uint32_t ReadTXHeartbeatPacketCount(DTC_Link_ID const& link);
+	uint32_t ReadTXHeartbeatPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearTXHeartbeatPacketCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatTXHeartbeatPacketCountLink0();
 	RegisterFormatter FormatTXHeartbeatPacketCountLink1();
@@ -1287,7 +1288,7 @@ public:
 	RegisterFormatter FormatTXHeartbeatPacketCountLink5();
 
 	// RX Data Header Packet Count
-	uint32_t ReadRXDataHeaderPacketCount(DTC_Link_ID const& link);
+	uint32_t ReadRXDataHeaderPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearRXDataHeaderPacketCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatRXDataHeaderPacketCountLink0();
 	RegisterFormatter FormatRXDataHeaderPacketCountLink1();
@@ -1297,7 +1298,7 @@ public:
 	RegisterFormatter FormatRXDataHeaderPacketCountLink5();
 
 	// RX Data Packet Count
-	uint32_t ReadRXDataPacketCount(DTC_Link_ID const& link);
+	uint32_t ReadRXDataPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ClearRXDataPacketCount(DTC_Link_ID const& link);
 	RegisterFormatter FormatRXDataPacketCountLink0();
 	RegisterFormatter FormatRXDataPacketCountLink1();

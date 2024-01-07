@@ -64,10 +64,21 @@ std::string DTCLib::CFOandDTC_Registers::FormattedRegDump(int width,
 	{
 		formatterWidth_ = 28;
 	}
-	std::string spaces(formatterWidth_ - 4, ' ');
+	std::string spaces(formatterWidth_ - 4 - 9, ' ');
 	std::ostringstream o;
-	o << "Memory Map: " << std::endl;
-	o << "    Address | Value      | Name " << spaces << "| Translation" << std::endl;
+	o << "Register Dump: " << std::endl;
+	o << divider << std::endl;
+	{ //move address to right-align with values
+		std::string placeholder = "";
+		placeholder.resize(formatterWidth_ - 7, ' ');
+		o << placeholder;
+	}
+	o << "Address | Hex Value  |\nRegister Name " << spaces << "| Translation" << std::endl;
+	{ //move address to right-align with values
+		std::string placeholder = "";
+		placeholder.resize(formatterWidth_ , ' ');
+		o << placeholder << " | Decorated Values" << std::endl;
+	}
 	for (auto i : regVec)
 	{
 		o << divider << std::endl;
@@ -115,9 +126,16 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignDate()
 		__SS_THROW__;
 		// throw std::runtime_error("Invalid register read for firmware design date: " + std::to_string(mon));
 	}
+	if(((readData>>28)&0xF) == 0xC)
+		o << "CFO-";
+	else if(((readData>>28)&0xF) == 0xD)
+		o << "DTC-";
+	else if(((readData>>28)&0xF) == 0xE)
+		o << "CRVDTC-";
 	o << months[mon-1] << "/" << 
-		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
-		((readData>>28)&0xF) << ((readData>>24)&0xF) << " " <<
+		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/202" << 
+		// ((readData>>28)&0xF) << 
+		((readData>>24)&0xF) << " " <<
 		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData;
 	return o.str();
 }
@@ -570,6 +588,17 @@ bool DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorReset(CFOandDTC_Register J
 
 //========================================================================
 /// <summary>
+/// Read the Jitter Attenuator Locked bit
+/// </summary>
+/// <returns>Inverted Value of the Jitter Attenuator Loss-of-Lock bit</returns>
+bool DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorLocked(CFOandDTC_Register JAreg)
+{
+	std::bitset<32> regdata = ReadRegister_(JAreg);
+	return !regdata[8];
+} //end ReadJitterAttenuatorLocked()
+
+//========================================================================
+/// <summary>
 /// Reset the Jitter Attenuator
 /// </summary>
 void DTCLib::CFOandDTC_Registers::ResetJitterAttenuator(CFOandDTC_Register JAreg)
@@ -597,9 +626,9 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatJitterAttenuatorCSR
 	JAinputSelect[1] = data[5];
 	form.description = "Jitter Attenuator CSR";
 	form.vals.push_back("<field> : [<value>]"); //first value describes format
-	form.vals.push_back(std::string("JA Input Select: [") + 
-		(JAinputSelect.to_ulong() == 0 ? "Upstream Control Link Rx Recovered Clock"
-	             : (JAinputSelect.to_ulong() == 1 ? "RJ45 Upstream Clock"
+	form.vals.push_back(std::string("JA Source Clock Select: [") + 
+		(JAinputSelect.to_ulong() == 0 ? "from CFO"
+	             : (JAinputSelect.to_ulong() == 1 ? "from RJ45"
 	                         : "Timing Card Selectable (SFP+ or FPGA) Input Clock")) + "]");	
 	form.vals.push_back(std::string("JA in Reset:   [") + (data[0] ? "YES" : "No") + "]");
 	form.vals.push_back(std::string("JA Loss-of-Lock:   [") + (data[8] ? "Not Locked" : "LOCKED") + "]");

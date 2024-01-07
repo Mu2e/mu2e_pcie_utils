@@ -955,6 +955,7 @@ void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool 
 /// </summary>
 /// <returns>Value of the Jitter Attenuator Reset bit</returns>
 bool CFOLib::CFO_Registers::ReadJitterAttenuatorReset() { return CFOandDTC_Registers::ReadJitterAttenuatorReset(CFO_Register_JitterAttenuatorCSR); }
+bool CFOLib::CFO_Registers::ReadJitterAttenuatorLocked() { return CFOandDTC_Registers::ReadJitterAttenuatorLocked(CFO_Register_JitterAttenuatorCSR); }
 // {
 // 	std::bitset<32> regdata = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
 // 	return regdata[0];

@@ -73,11 +73,16 @@ struct RegisterFormatter
 	friend std::ostream& operator<<(std::ostream& stream, const RegisterFormatter& reg)
 	{
 		stream << std::hex << std::setfill('0');
-		stream << "    0x" << std::setw(4) << static_cast<int>(reg.address) << "  | 0x" << std::setw(8)
+		{ //move address to right-align with values
+			std::string placeholder = "";
+			placeholder.resize(reg.descWidth - 6, ' ');
+			stream << placeholder;
+		}
+		stream << "0x" << std::setw(4) << static_cast<int>(reg.address) << " | 0x" << std::setw(8)
 			   << static_cast<int>(reg.value) << " | ";
 		auto tmp = reg.description;
 		tmp.resize(reg.descWidth, ' ');
-		stream << tmp << " | ";
+		stream << '\n' << tmp << " | ";
 
 		if (!reg.vals.empty()) {
 		auto first = true;
@@ -161,23 +166,24 @@ public:
 	RegisterFormatter FormatFPGAVCCBRAM();
 
 	// FPGA Monitor Alarm Register
-	bool ReadFPGADieTemperatureAlarm(std::optional<uint32_t> val);
-	void ResetFPGADieTemperatureAlarm(std::optional<uint32_t> val);
-	bool ReadFPGAAlarms(std::optional<uint32_t> val);
-	void ResetFPGAAlarms(std::optional<uint32_t> val);
-	bool ReadVCCBRAMAlarm(std::optional<uint32_t> val);
-	void ResetVCCBRAMAlarm(std::optional<uint32_t> val);
-	bool ReadVCCAUXAlarm(std::optional<uint32_t> val);
-	void ResetVCCAUXAlarm(std::optional<uint32_t> val);
-	bool ReadVCCINTAlarm(std::optional<uint32_t> val);
-	void ResetVCCINTAlarm(std::optional<uint32_t> val);
-	bool ReadFPGAUserTemperatureAlarm(std::optional<uint32_t> val);
-	void ResetFPGAUserTemperatureAlarm(std::optional<uint32_t> val);
+	bool ReadFPGADieTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetFPGADieTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
+	bool ReadFPGAAlarms(std::optional<uint32_t> val = std::nullopt);
+	void ResetFPGAAlarms(std::optional<uint32_t> val = std::nullopt);
+	bool ReadVCCBRAMAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetVCCBRAMAlarm(std::optional<uint32_t> val = std::nullopt);
+	bool ReadVCCAUXAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetVCCAUXAlarm(std::optional<uint32_t> val = std::nullopt);
+	bool ReadVCCINTAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetVCCINTAlarm(std::optional<uint32_t> val = std::nullopt);
+	bool ReadFPGAUserTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetFPGAUserTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAAlarms();
 
 	std::bitset<2> ReadJitterAttenuatorSelect(CFOandDTC_Register JAreg);
 	void SetJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::bitset<2> data, bool alsoResetJA);
 	bool ReadJitterAttenuatorReset(CFOandDTC_Register JAreg);
+	bool ReadJitterAttenuatorLocked(CFOandDTC_Register JAreg);
 	void ResetJitterAttenuator(CFOandDTC_Register JAreg);
 	RegisterFormatter FormatJitterAttenuatorCSR(CFOandDTC_Register JAreg);
 	virtual void ConfigureJitterAttenuator() = 0; //pure virtual

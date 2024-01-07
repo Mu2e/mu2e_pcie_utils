@@ -629,6 +629,7 @@ public:
 	std::bitset<2> ReadJitterAttenuatorSelect();
 	void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
 	bool ReadJitterAttenuatorReset();
+	bool ReadJitterAttenuatorLocked();
 	void ResetJitterAttenuator();
 	RegisterFormatter FormatJitterAttenuatorCSR();
 
