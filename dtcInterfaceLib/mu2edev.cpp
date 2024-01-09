@@ -82,6 +82,7 @@ int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simM
 		char devfile[11];
 		snprintf(devfile, 11, "/dev/" MU2E_DEV_FILE, activeDeviceIndex_);
 		int sts;
+		if(devfd_) ::close(devfd_); 
 		devfd_ = open(devfile, O_RDWR);
 		if (devfd_ == -1 || devfd_ == 0)
 		{
@@ -496,6 +497,11 @@ void mu2edev::close()
 	{
 		delete simulator_;
 		simulator_ = nullptr;
+	}
+	else
+	{
+		::close(devfd_); 
+		devfd_ = 0;
 	}
 }
 

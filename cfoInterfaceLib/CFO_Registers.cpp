@@ -150,9 +150,9 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 /// Read the Vivado Version Number
 /// </summary>
 /// <returns>The Vivado Version number</returns>
-std::string CFOLib::CFO_Registers::ReadVivadoVersionNumber(uint32_t* val /* = 0 */)
+std::string CFOLib::CFO_Registers::ReadVivadoVersionNumber(std::optional<uint32_t> val)
 {
-	auto data = val?(*val):ReadRegister_(CFO_Register_VivadoVersion);
+	auto data = val.has_value()?(*val):ReadRegister_(CFO_Register_VivadoVersion);
 	std::ostringstream o;
 	int yearHex = (data & 0xFFFF0000) >> 16;
 	auto year = ((yearHex & 0xF000) >> 12) * 1000 + ((yearHex & 0xF00) >> 8) * 100 + ((yearHex & 0xF0) >> 4) * 10 +
@@ -173,20 +173,20 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatVivadoVersion()
 {
 	auto form = CreateFormatter(CFO_Register_VivadoVersion);
 	form.description = "CFO Firmware Vivado Version";
-	form.vals.push_back(ReadVivadoVersionNumber(&form.value));
+	form.vals.push_back(ReadVivadoVersionNumber(form.value));
 	return form;
 }
 
 
-bool CFOLib::CFO_Registers::ReadDDRFIFOEmpty()
+bool CFOLib::CFO_Registers::ReadDDRFIFOEmpty(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_DesignStatus);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignStatus);
 	return data[2];
 }
 
-bool CFOLib::CFO_Registers::ReadDDRClockCalibrationDone()
+bool CFOLib::CFO_Registers::ReadDDRClockCalibrationDone(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_DesignStatus);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignStatus);
 	return data[0];
 }
 
@@ -195,8 +195,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignStatus()
 	auto form = CreateFormatter(CFOandDTC_Register_DesignStatus);
 	form.description = "Design Status Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("DDR FIFO Empty:             [") + (ReadDDRFIFOEmpty() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("DDR Clock Calibration Done: [") + (ReadDDRClockCalibrationDone() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("DDR FIFO Empty:             [") + (ReadDDRFIFOEmpty(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("DDR Clock Calibration Done: [") + (ReadDDRClockCalibrationDone(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -212,9 +212,9 @@ void CFOLib::CFO_Registers::ResetCFO()
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
 }
 
-bool CFOLib::CFO_Registers::ReadResetCFO()
+bool CFOLib::CFO_Registers::ReadResetCFO(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
 	return dataSet[31];
 }
 
@@ -233,9 +233,9 @@ void CFOLib::CFO_Registers::ResetCFORunPlan()
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
 }
 
-bool CFOLib::CFO_Registers::ReadResetCFORunPlan()
+bool CFOLib::CFO_Registers::ReadResetCFORunPlan(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
 	return dataSet[27];
 }
 
@@ -254,9 +254,9 @@ void CFOLib::CFO_Registers::DisableAutogenDRP()
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
 }
 
-bool CFOLib::CFO_Registers::ReadAutogenDRP()
+bool CFOLib::CFO_Registers::ReadAutogenDRP(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
 	return data[23];
 }
 
@@ -274,9 +274,9 @@ void CFOLib::CFO_Registers::DisableEventWindowInput()
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
 }
 
-bool CFOLib::CFO_Registers::ReadEventWindowInput()
+bool CFOLib::CFO_Registers::ReadEventWindowInput(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
 	return data[2];
 }
 
@@ -294,9 +294,9 @@ void CFOLib::CFO_Registers::SetInternalSystemClock()
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
 }
 
-bool CFOLib::CFO_Registers::ReadSystemClock()
+bool CFOLib::CFO_Registers::ReadSystemClock(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
 	return data[1];
 }
 
@@ -314,9 +314,9 @@ void CFOLib::CFO_Registers::DisableTiming()
 	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
 }
 
-bool CFOLib::CFO_Registers::ReadTimingEnable()
+bool CFOLib::CFO_Registers::ReadTimingEnable(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
 	return data[0];
 }
 
@@ -325,11 +325,11 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 	auto form = CreateFormatter(CFO_Register_CFOControl);
 	form.description = "CFO Control";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("Reset:                [") + (ReadResetCFO() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Autogenerate DRP: [") + (ReadAutogenDRP() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Event Window Input:   [") + (ReadEventWindowInput() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("System Clock Select:  [") + (ReadSystemClock() ? "Ext" : "Int") + "]");
-	form.vals.push_back(std::string("Timing Enable:        [") + (ReadTimingEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Reset:                [") + (ReadResetCFO(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("CFO Autogenerate DRP: [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Event Window Input:   [") + (ReadEventWindowInput(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("System Clock Select:  [") + (ReadSystemClock(form.value) ? "Ext" : "Int") + "]");
+	form.vals.push_back(std::string("Timing Enable:        [") + (ReadTimingEnable(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -341,9 +341,9 @@ void CFOLib::CFO_Registers::SetTriggerDMATransferLength(uint16_t length)
 	WriteRegister_(data, CFO_Register_DMATransferLength);
 }
 
-uint16_t CFOLib::CFO_Registers::ReadTriggerDMATransferLength()
+uint16_t CFOLib::CFO_Registers::ReadTriggerDMATransferLength(std::optional<uint32_t> val)
 {
-	auto data = ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = val.has_value()?*val:ReadRegister_(CFO_Register_DMATransferLength);
 	data >>= 16;
 	return static_cast<uint16_t>(data);
 }
@@ -355,9 +355,9 @@ void CFOLib::CFO_Registers::SetMinDMATransferLength(uint16_t length)
 	WriteRegister_(data, CFO_Register_DMATransferLength);
 }
 
-uint16_t CFOLib::CFO_Registers::ReadMinDMATransferLength()
+uint16_t CFOLib::CFO_Registers::ReadMinDMATransferLength(std::optional<uint32_t> val)
 {
-	auto data = ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = val.has_value()?*val:ReadRegister_(CFO_Register_DMATransferLength);
 	data = data & 0x0000FFFF;
 	dmaSize_ = static_cast<uint16_t>(data);
 	return dmaSize_;
@@ -369,10 +369,10 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMATransferLength()
 	form.description = "DMA Transfer Length";
 	form.vals.push_back(""); //translation
 	std::stringstream o;
-	o << "Trigger Length: 0x" << std::hex << ReadTriggerDMATransferLength();
+	o << "Trigger Length: 0x" << std::hex << ReadTriggerDMATransferLength(form.value);
 	form.vals.push_back(o.str());
 	std::stringstream p;
-	p << "Minimum Length: 0x" << std::hex << ReadMinDMATransferLength();
+	p << "Minimum Length: 0x" << std::hex << ReadMinDMATransferLength(form.value);
 	form.vals.push_back(p.str());
 	return form;
 }
@@ -388,9 +388,9 @@ void CFOLib::CFO_Registers::SetSERDESLoopbackMode(const CFO_Link_ID& link, const
 	WriteRegister_(data.to_ulong(), CFO_Register_SERDESLoopbackEnable);
 }
 
-DTCLib::DTC_SERDESLoopbackMode CFOLib::CFO_Registers::ReadSERDESLoopback(const CFO_Link_ID& link)
+DTCLib::DTC_SERDESLoopbackMode CFOLib::CFO_Registers::ReadSERDESLoopback(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<3> dataSet = ReadRegister_(CFO_Register_SERDESLoopbackEnable) >> (3 * link);
+	std::bitset<3> dataSet = (val.has_value()?*val:ReadRegister_(CFO_Register_SERDESLoopbackEnable)) >> (3 * link);
 	return static_cast<DTC_SERDESLoopbackMode>(dataSet.to_ulong());
 }
 
@@ -400,23 +400,21 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESLoopbackEnable()
 	form.description = "SERDES Loopback Enable";
 	form.vals.push_back(""); //translation
 	for (auto r : CFO_Links)
-	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": " +
-							DTC_SERDESLoopbackModeConverter(ReadSERDESLoopback(r)).toString());
-	}
+							DTC_SERDESLoopbackModeConverter(ReadSERDESLoopback(r, form.value)).toString());
 	return form;
 }
 
 // Clock Status Register
-bool CFOLib::CFO_Registers::ReadSERDESOscillatorIICError()
+bool CFOLib::CFO_Registers::ReadSERDESOscillatorIICError(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_ClockOscillatorStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_ClockOscillatorStatus);
 	return dataSet[2];
 }
 
-bool CFOLib::CFO_Registers::ReadSERDESOscillatorInitializationComplete()
+bool CFOLib::CFO_Registers::ReadSERDESOscillatorInitializationComplete(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_ClockOscillatorStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_ClockOscillatorStatus);
 	return dataSet[1];
 }
 
@@ -433,9 +431,9 @@ bool CFOLib::CFO_Registers::WaitForSERDESOscillatorInitializationComplete(double
 	return ReadSERDESOscillatorInitializationComplete();
 }
 
-bool CFOLib::CFO_Registers::ReadTimingClockPLLLocked()
+bool CFOLib::CFO_Registers::ReadTimingClockPLLLocked(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_ClockOscillatorStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_ClockOscillatorStatus);
 	return dataSet[0];
 }
 
@@ -444,10 +442,10 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockOscillatorStatus()
 	auto form = CreateFormatter(CFO_Register_ClockOscillatorStatus);
 	form.description = "Clock Oscillator Status";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("SERDES IIC Error:      [") + (ReadSERDESOscillatorIICError() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("SERDES IIC Error:      [") + (ReadSERDESOscillatorIICError(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("SERDES Init.Complete:  [") +
-						(ReadSERDESOscillatorInitializationComplete() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Timing Clock PLL Lock: [") + (ReadTimingClockPLLLocked() ? "x" : " ") + "]");
+						(ReadSERDESOscillatorInitializationComplete(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Timing Clock PLL Lock: [") + (ReadTimingClockPLLLocked(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -481,9 +479,9 @@ void CFOLib::CFO_Registers::DisableLink(const CFO_Link_ID& link, const DTC_LinkE
 	WriteRegister_(data.to_ulong(), CFO_Register_LinkEnable);
 }
 
-DTCLib::DTC_LinkEnableMode CFOLib::CFO_Registers::ReadLinkEnabled(const CFO_Link_ID& link)
+DTCLib::DTC_LinkEnableMode CFOLib::CFO_Registers::ReadLinkEnabled(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_LinkEnable);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_LinkEnable);
 	return DTC_LinkEnableMode(dataSet[link], dataSet[link + 8]);
 }
 
@@ -564,9 +562,9 @@ void CFOLib::CFO_Registers::ResetAllSERDESTx()
 	sleep(3);
 }
 
-bool CFOLib::CFO_Registers::ReadResetSERDES(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadResetSERDES(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SERDESReset);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESReset);
 	return dataSet[link];
 }
 
@@ -576,16 +574,16 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESReset()
 	form.description = "SERDES Reset";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadResetSERDES(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadResetSERDES(r, form.value) ? "x" : " ") + "]");
+	
 	return form;
 }
 
 // SERDES RX Disparity Error Register
-DTCLib::DTC_SERDESRXDisparityError CFOLib::CFO_Registers::ReadSERDESRXDisparityError(const CFO_Link_ID& link)
+DTCLib::DTC_SERDESRXDisparityError CFOLib::CFO_Registers::ReadSERDESRXDisparityError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	return DTC_SERDESRXDisparityError(ReadRegister_(CFO_Register_SERDESRXDisparityError), static_cast<DTC_Link_ID>(link));
+	return DTC_SERDESRXDisparityError(val.has_value()?*val:ReadRegister_(CFO_Register_SERDESRXDisparityError), static_cast<DTC_Link_ID>(link));
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXDisparityError()
@@ -595,7 +593,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXDisparityError()
 	form.vals.push_back("       ([H,L])");
 	for (auto r : CFO_Links)
 	{
-		auto re = ReadSERDESRXDisparityError(r);
+		auto re = ReadSERDESRXDisparityError(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + std::to_string(re.GetData()[1]) + "," +
 							std::to_string(re.GetData()[0]) + "]");
 	}
@@ -603,10 +601,9 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXDisparityError()
 }
 
 // SERDES RX Character Not In Table Error Register
-DTCLib::DTC_CharacterNotInTableError CFOLib::CFO_Registers::ReadSERDESRXCharacterNotInTableError(
-	const CFO_Link_ID& link)
+DTCLib::DTC_CharacterNotInTableError CFOLib::CFO_Registers::ReadSERDESRXCharacterNotInTableError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	return DTC_CharacterNotInTableError(ReadRegister_(CFO_Register_SERDESRXCharacterNotInTableError),
+	return DTC_CharacterNotInTableError(val.has_value()?*val:ReadRegister_(CFO_Register_SERDESRXCharacterNotInTableError),
 										static_cast<DTC_Link_ID>(link));
 }
 
@@ -617,7 +614,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCharacterNotInTab
 	form.vals.push_back("       ([H,L])");
 	for (auto r : CFO_Links)
 	{
-		auto re = ReadSERDESRXCharacterNotInTableError(r);
+		auto re = ReadSERDESRXCharacterNotInTableError(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + std::to_string(re.GetData()[1]) + "," +
 							std::to_string(re.GetData()[0]) + "]");
 	}
@@ -625,9 +622,9 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCharacterNotInTab
 }
 
 // SERDES Unlock Error Register
-bool CFOLib::CFO_Registers::ReadSERDESUnlockError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESUnlockError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SERDESUnlockError);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESUnlockError);
 	return dataSet[link];
 }
 
@@ -637,17 +634,16 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESUnlockError()
 	form.description = "SERDES Unlock Error";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESUnlockError(r) ? "x" : " ") +
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadSERDESUnlockError(r, form.value) ? "x" : " ") +
 							"]");
-	}
 	return form;
 }
 
 // SERDES PLL Locked Register
-bool CFOLib::CFO_Registers::ReadSERDESPLLLocked(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESPLLLocked(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SERDESPLLLocked);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESPLLLocked);
 	return dataSet[link];
 }
 
@@ -657,16 +653,15 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPLLLocked()
 	form.description = "SERDES PLL Locked";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESPLLLocked(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadSERDESPLLLocked(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
 // SERDES RX Status Register
-DTCLib::DTC_RXStatus CFOLib::CFO_Registers::ReadSERDESRXStatus(const CFO_Link_ID& link)
+DTCLib::DTC_RXStatus CFOLib::CFO_Registers::ReadSERDESRXStatus(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	auto data = ReadRegister_(CFO_Register_SERDESRXStatus);
+	auto data = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESRXStatus);
 	data = (data >> (3 * link)) & 0x7;
 	return static_cast<DTC_RXStatus>(data);
 }
@@ -678,7 +673,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXStatus()
 	form.vals.push_back(""); //translation
 	for (auto r : CFO_Links)
 	{
-		auto re = ReadSERDESRXStatus(r);
+		auto re = ReadSERDESRXStatus(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": " + DTC_RXStatusConverter(re).toString());
 	}
 
@@ -686,9 +681,9 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXStatus()
 }
 
 // SERDES Reset Done Register
-bool CFOLib::CFO_Registers::ReadResetSERDESDone(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadResetSERDESDone(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SERDESResetDone);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESResetDone);
 	return dataSet[link];
 }
 
@@ -698,17 +693,16 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESResetDone()
 	form.description = "SERDES Reset Done";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadResetSERDESDone(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadResetSERDESDone(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
 // SFP / SERDES Status Register
 
-bool CFOLib::CFO_Registers::ReadSERDESRXCDRLock(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESRXCDRLock(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SFPSERDESStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SFPSERDESStatus);
 	return dataSet[link];
 }
 
@@ -718,9 +712,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCDRLock()
 	form.description = "SERDES CDR Lock";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESRXCDRLock(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadSERDESRXCDRLock(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -729,13 +722,13 @@ void CFOLib::CFO_Registers::SetBeamOnTimerPreset(uint32_t preset)
 	WriteRegister_(preset, CFO_Register_BeamOnTimerPreset);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadBeamOnTimerPreset() { return ReadRegister_(CFO_Register_BeamOnTimerPreset); }
+uint32_t CFOLib::CFO_Registers::ReadBeamOnTimerPreset(std::optional<uint32_t> val) { return val.has_value()?*val:ReadRegister_(CFO_Register_BeamOnTimerPreset); }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnTimerPreset()
 {
 	auto form = CreateFormatter(CFO_Register_BeamOnTimerPreset);
 	form.description = "Beam On Timer Preset Register";
-	form.vals.push_back(std::to_string(ReadBeamOnTimerPreset()));
+	form.vals.push_back(std::to_string(ReadBeamOnTimerPreset(form.value)));
 	return form;
 }
 
@@ -755,9 +748,9 @@ void CFOLib::CFO_Registers::DisableBeamOnMode(const CFO_Link_ID& link)
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOnMode);
 }
 
-bool CFOLib::CFO_Registers::ReadBeamOnMode(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadBeamOnMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOnMode);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_EnableBeamOnMode);
 	return data[link];
 }
 
@@ -802,9 +795,9 @@ void CFOLib::CFO_Registers::DisableBeamOffMode(const CFO_Link_ID& link)
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOffMode);
 }
 
-bool CFOLib::CFO_Registers::ReadBeamOffMode(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadBeamOffMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_EnableBeamOffMode);
 	return data[link];
 }
 
@@ -826,9 +819,9 @@ void CFOLib::CFO_Registers::SetClockMarkerIntervalCount(uint32_t data)
 	WriteRegister_(data, CFO_Register_ClockMarkerIntervalCount);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadClockMarkerIntervalCount()
+uint32_t CFOLib::CFO_Registers::ReadClockMarkerIntervalCount(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_ClockMarkerIntervalCount);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_ClockMarkerIntervalCount);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockMarkerIntervalCount()
@@ -840,17 +833,17 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockMarkerIntervalCount(
 }
 
 // SEREDES Oscillator Registers
-uint32_t CFOLib::CFO_Registers::ReadSERDESOscillatorFrequency()
+uint32_t CFOLib::CFO_Registers::ReadSERDESOscillatorFrequency(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_SERDESOscillatorFrequency);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_SERDESOscillatorFrequency);
 }
 void CFOLib::CFO_Registers::SetSERDESOscillatorFrequency(uint32_t freq)
 {
 	WriteRegister_(freq, CFO_Register_SERDESOscillatorFrequency);
 }
-bool CFOLib::CFO_Registers::ReadSERDESOscillatorIICInterfaceReset()
+bool CFOLib::CFO_Registers::ReadSERDESOscillatorIICInterfaceReset(std::optional<uint32_t> val)
 {
-	auto dataSet = std::bitset<32>(ReadRegister_(CFO_Register_SERDESClock_IICBusControl));
+	auto dataSet = std::bitset<32>(val.has_value()?*val:ReadRegister_(CFO_Register_SERDESClock_IICBusControl));
 	return dataSet[31];
 }
 
@@ -895,9 +888,9 @@ uint8_t CFOLib::CFO_Registers::ReadSERDESIICInterface(DTC_IICSERDESBusAddress de
 /// Read the value of the Jitter Attenuator Select
 /// </summary>
 /// <returns>Jitter Attenuator Select value</returns>
-std::bitset<2> CFOLib::CFO_Registers::ReadJitterAttenuatorSelect() { return CFOandDTC_Registers::ReadJitterAttenuatorSelect(CFO_Register_JitterAttenuatorCSR); }
+std::bitset<2> CFOLib::CFO_Registers::ReadJitterAttenuatorSelect(std::optional<uint32_t> val) { return CFOandDTC_Registers::ReadJitterAttenuatorSelect(CFO_Register_JitterAttenuatorCSR, val); }
 // {
-// 	std::bitset<32> data = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
+// 	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_JitterAttenuatorCSR);
 // 	std::bitset<2> output;
 // 	output[0] = data[4];
 // 	output[1] = data[5];
@@ -954,10 +947,10 @@ void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool 
 /// Read the Jitter Attenuator Reset bit
 /// </summary>
 /// <returns>Value of the Jitter Attenuator Reset bit</returns>
-bool CFOLib::CFO_Registers::ReadJitterAttenuatorReset() { return CFOandDTC_Registers::ReadJitterAttenuatorReset(CFO_Register_JitterAttenuatorCSR); }
-bool CFOLib::CFO_Registers::ReadJitterAttenuatorLocked() { return CFOandDTC_Registers::ReadJitterAttenuatorLocked(CFO_Register_JitterAttenuatorCSR); }
+bool CFOLib::CFO_Registers::ReadJitterAttenuatorReset(std::optional<uint32_t> val) { return CFOandDTC_Registers::ReadJitterAttenuatorReset(CFO_Register_JitterAttenuatorCSR, val); }
+bool CFOLib::CFO_Registers::ReadJitterAttenuatorLocked(std::optional<uint32_t> val) { return CFOandDTC_Registers::ReadJitterAttenuatorLocked(CFO_Register_JitterAttenuatorCSR, val); }
 // {
-// 	std::bitset<32> regdata = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
+// 	std::bitset<32> regdata = val.has_value()?*val:ReadRegister_(CFO_Register_JitterAttenuatorCSR);
 // 	return regdata[0];
 // }
 /// <summary>
@@ -978,27 +971,8 @@ void CFOLib::CFO_Registers::ResetJitterAttenuator() { CFOandDTC_Registers::Reset
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatJitterAttenuatorCSR() { return CFOandDTC_Registers::FormatJitterAttenuatorCSR(CFO_Register_JitterAttenuatorCSR); }
-// {
-// 	auto form = CreateFormatter(CFO_Register_JitterAttenuatorCSR);
-// 	std::bitset<32> data = form.value;//ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-// 	std::bitset<2> JAinputSelect;
-// 	JAinputSelect[0] = data[4];
-// 	JAinputSelect[1] = data[5];
-// 	form.description = "Jitter Attenuator CSR";
-// 	form.vals.push_back("<field> : [<value>]"); //first value describes format
-// 	form.vals.push_back(std::string("JA Input Select: [") + 
-// 		(JAinputSelect.to_ulong() == 0 ? "Local oscillator"
-// 	             : (JAinputSelect.to_ulong() == 1 ? "RTF Copper Clock"
-// 	                        : "Undefined")) + "]");	
-// 	form.vals.push_back(std::string("JA in Reset:   [") + (data[0] ? "YES" : "No") + "]");
-// 	form.vals.push_back(std::string("JA Loss-of-Lock:   [") + (data[8] ? "Not Locked" : "LOCKED") + "]");
-// 	form.vals.push_back(std::string("JA Input-0 Local oscillator:   [") + (data[9] ? "Missing" : "OK") + "]");
-// 	form.vals.push_back(std::string("JA Input-1 RTF Copper Clock:   [") + (data[10] ? "Missing" : "OK") + "]");
-// 	// form.vals.push_back(std::string("JA Input-2 Undefined:   [") + (data[11] ? "Missing" : "OK") + "]");
-// 	return form;
-// }
 
-uint64_t CFOLib::CFO_Registers::ReadSERDESOscillatorParameters()
+uint64_t CFOLib::CFO_Registers::ReadSERDESOscillatorParameters(std::optional<uint32_t> val)
 {
 	uint64_t data = (static_cast<uint64_t>(ReadSERDESIICInterface(DTC_IICSERDESBusAddress_EVB, 7)) << 40) +
 					(static_cast<uint64_t>(ReadSERDESIICInterface(DTC_IICSERDESBusAddress_EVB, 8)) << 32) +
@@ -1023,9 +997,9 @@ void CFOLib::CFO_Registers::SetSERDESOscillatorParameters(uint64_t program)
 	WriteSERDESIICInterface(DTC_IICSERDESBusAddress_EVB, 0x87, 0x40);
 }
 
-DTCLib::DTC_SerdesClockSpeed CFOLib::CFO_Registers::ReadSERDESOscillatorClock()
+DTCLib::DTC_SerdesClockSpeed CFOLib::CFO_Registers::ReadSERDESOscillatorClock(std::optional<uint32_t> val)
 {
-	auto freq = ReadSERDESOscillatorFrequency();
+	auto freq = ReadSERDESOscillatorFrequency(val);
 
 	// Clocks should be accurate to 30 ppm
 	if (freq > 156250000 - 4687.5 && freq < 156250000 + 4687.5) return DTC_SerdesClockSpeed_3125Gbps;
@@ -1064,7 +1038,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorFrequency
 	auto form = CreateFormatter(CFO_Register_SERDESOscillatorFrequency);
 	form.description = "SERDES Oscillator Frequency";
 	std::stringstream o;
-	o << std::dec << ReadSERDESOscillatorFrequency();
+	o << std::dec << ReadSERDESOscillatorFrequency(form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1081,7 +1055,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameter
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusLow);
 	form.description = "SERDES Oscillator IIC Bus Low";
 	form.vals.push_back(""); //translation
-	auto data = ReadRegister_(CFO_Register_SERDESClock_IICBusLow);
+	auto data = form.value;
 	std::ostringstream s1, s2, s3, s4;
 	s1 << "Device:     " << std::showbase << std::hex << ((data & 0xFF000000) >> 24);
 	form.vals.push_back(s1.str());
@@ -1096,12 +1070,11 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameter
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameterHigh()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusHigh);
+	auto data = form.value;
 	form.description = "SERDES Oscillator IIC Bus High";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("Write:  [") +
-						(ReadRegister_(CFO_Register_SERDESClock_IICBusHigh) & 0x1 ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Read:   [") +
-						(ReadRegister_(CFO_Register_SERDESClock_IICBusHigh) & 0x2 ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Write:  [") + (data & 0x1 ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Read:   [") + (data & 0x2 ? "x" : " ") + "]");
 	return form;
 }
 
@@ -1117,9 +1090,9 @@ void CFOLib::CFO_Registers::SetEventWindowTagPreset(const DTC_EventWindowTag& pr
 	WriteRegister_(timestampHigh, CFO_Register_TimestampPreset1);
 }
 
-DTCLib::DTC_EventWindowTag CFOLib::CFO_Registers::ReadTimestampPreset()
+DTCLib::DTC_EventWindowTag CFOLib::CFO_Registers::ReadTimestampPreset(std::optional<uint32_t> val)
 {
-	auto timestampLow = ReadRegister_(CFO_Register_TimestampPreset0);
+	auto timestampLow = val.has_value()?*val:ReadRegister_(CFO_Register_TimestampPreset0);
 	DTC_EventWindowTag output;
 	output.SetEventWindowTag(timestampLow, static_cast<uint16_t>(ReadRegister_(CFO_Register_TimestampPreset1)));
 	return output;
@@ -1165,11 +1138,11 @@ void CFOLib::CFO_Registers::SetMaxDTCNumber(const CFO_Link_ID& link, const uint8
 	WriteRegister_(maxDTCs_, CFO_Register_NUMDTCs);
 }
 
-uint8_t CFOLib::CFO_Registers::ReadLinkDTCCount(const CFO_Link_ID& link, bool local)
+uint8_t CFOLib::CFO_Registers::ReadLinkDTCCount(const CFO_Link_ID& link, bool local, std::optional<uint32_t> val)
 {
 	if (!local)
 	{
-		auto data = ReadRegister_(CFO_Register_NUMDTCs);
+		auto data = val.has_value()?*val:ReadRegister_(CFO_Register_NUMDTCs);
 		maxDTCs_ = data;
 	}
 	return (maxDTCs_ >> (link * 4)) & 0xF;
@@ -1181,10 +1154,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatNUMDTCs()
 	form.description = "Number of DTCs Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadLinkDTCCount(r, false) ? "x" : " ") +
-							"]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadLinkDTCCount(r, false, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -1199,9 +1170,9 @@ void CFOLib::CFO_Registers::ClearFIFOFullErrorFlags(const CFO_Link_ID& link)
 	WriteRegister_(data0.to_ulong(), CFO_Register_FIFOFullErrorFlag0);
 }
 
-DTCLib::DTC_FIFOFullErrorFlags CFOLib::CFO_Registers::ReadFIFOFullErrorFlags(const CFO_Link_ID& link)
+DTCLib::DTC_FIFOFullErrorFlags CFOLib::CFO_Registers::ReadFIFOFullErrorFlags(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data0 = ReadRegister_(CFO_Register_FIFOFullErrorFlag0);
+	std::bitset<32> data0 = val.has_value()?*val:ReadRegister_(CFO_Register_FIFOFullErrorFlag0);
 	DTC_FIFOFullErrorFlags flags;
 
 	flags.CFOLinkInput = data0[link];
@@ -1216,7 +1187,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFIFOFullErrorFlag0()
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
-		auto re = ReadFIFOFullErrorFlags(r);
+		auto re = ReadFIFOFullErrorFlags(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (re.CFOLinkInput ? "x" : " ") + "]");
 	}
 	return form;
@@ -1230,9 +1201,9 @@ void CFOLib::CFO_Registers::ClearRXElasticBufferUnderrun(const CFO_Link_ID& link
 	WriteRegister_(data.to_ulong(), CFO_Register_ReceivePacketError);
 }
 
-bool CFOLib::CFO_Registers::ReadRXElasticBufferUnderrun(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadRXElasticBufferUnderrun(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_ReceivePacketError);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_ReceivePacketError);
 	return data[static_cast<int>(link) + 24];
 }
 
@@ -1243,9 +1214,9 @@ void CFOLib::CFO_Registers::ClearRXElasticBufferOverrun(const CFO_Link_ID& link)
 	WriteRegister_(data.to_ulong(), CFO_Register_ReceivePacketError);
 }
 
-bool CFOLib::CFO_Registers::ReadRXElasticBufferOverrun(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadRXElasticBufferOverrun(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_ReceivePacketError);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_ReceivePacketError);
 	return data[static_cast<int>(link) + 16];
 }
 
@@ -1256,9 +1227,9 @@ void CFOLib::CFO_Registers::ClearPacketError(const CFO_Link_ID& link)
 	WriteRegister_(data.to_ulong(), CFO_Register_ReceivePacketError);
 }
 
-bool CFOLib::CFO_Registers::ReadPacketError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadPacketError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_ReceivePacketError);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_ReceivePacketError);
 	return data[static_cast<int>(link) + 8];
 }
 
@@ -1269,9 +1240,9 @@ void CFOLib::CFO_Registers::ClearPacketCRCError(const CFO_Link_ID& link)
 	WriteRegister_(data.to_ulong(), CFO_Register_ReceivePacketError);
 }
 
-bool CFOLib::CFO_Registers::ReadPacketCRCError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadPacketCRCError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_ReceivePacketError);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_ReceivePacketError);
 	return data[static_cast<int>(link)];
 }
 
@@ -1281,11 +1252,11 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketError()
 	form.description = "Receive Packet Error";
 	form.vals.push_back("       ([CRC, PacketError, RX Overrun, RX Underrun])");
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadPacketCRCError(r) ? "x" : " ") + "," +
-							(ReadPacketError(r) ? "x" : " ") + "," + (ReadRXElasticBufferOverrun(r) ? "x" : " ") + "," +
-							(ReadRXElasticBufferUnderrun(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+							(ReadPacketCRCError(r, form.value) ? "x" : " ") + "," +
+							(ReadPacketError(r, form.value) ? "x" : " ") + "," + 
+							(ReadRXElasticBufferOverrun(r, form.value) ? "x" : " ") + "," +
+							(ReadRXElasticBufferUnderrun(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -1298,13 +1269,13 @@ void CFOLib::CFO_Registers::SetEventWindowEmulatorInterval(const uint32_t& data)
 	// WriteRegister_(data, CFO_Register_EventWindowEmulatorIntervalTime);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadEventWindowEmulatorInterval()
+uint32_t CFOLib::CFO_Registers::ReadEventWindowEmulatorInterval(std::optional<uint32_t> val)
 {
 	__SS__ << "Access attempt of CFO_Register_EventWindowEmulatorIntervalTime = 0x91A0,.."
 	 "this register was deleted in Firmware version: Nov/09/2023 11:00   raw-data: 0x23110911; "
 	 "please update the software to use the CFO Run Plan to control the Event Window duration." << __E__;
 	 __SS_THROW__;
-	// return ReadRegister_(CFO_Register_EventWindowEmulatorIntervalTime);
+	// return val.has_value()?*val:ReadRegister_(CFO_Register_EventWindowEmulatorIntervalTime);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowEmulatorIntervalTime()
@@ -1324,22 +1295,22 @@ void CFOLib::CFO_Registers::SetEventWindowHoldoffTime(const uint32_t& data)
 	WriteRegister_(data, CFO_Register_EventWindowHoldoffTime);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadEventWindowHoldoffTime()
+uint32_t CFOLib::CFO_Registers::ReadEventWindowHoldoffTime(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_EventWindowHoldoffTime);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_EventWindowHoldoffTime);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowHoldoffTime()
 {
 	auto form = CreateFormatter(CFO_Register_EventWindowHoldoffTime);
 	form.description = "Event Window Holdoff Time";
-	form.vals.push_back(std::to_string(ReadEventWindowHoldoffTime()));
+	form.vals.push_back(std::to_string(ReadEventWindowHoldoffTime(form.value)));
 	return form;
 }
 
-bool CFOLib::CFO_Registers::ReadEventWindowTimeoutError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadEventWindowTimeoutError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_EventWindowTimeoutError);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_EventWindowTimeoutError);
 	return dataSet[link];
 }
 
@@ -1356,10 +1327,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowTimeoutError()
 	form.description = "Event Window Timeout Error";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" +
-							(ReadEventWindowTimeoutError(r) ? "x" : " ") + "]");
-	}
+							(ReadEventWindowTimeoutError(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -1368,9 +1337,9 @@ void CFOLib::CFO_Registers::SetEventWindowTimeoutInterval(const uint32_t& data)
 	WriteRegister_(data, CFO_Register_EventWindowTimeoutValue);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadEventWindowTimeoutInterval()
+uint32_t CFOLib::CFO_Registers::ReadEventWindowTimeoutInterval(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_EventWindowTimeoutValue);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_EventWindowTimeoutValue);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowTimeoutInterval()
@@ -1412,34 +1381,50 @@ void CFOLib::CFO_Registers::ClearReceiveByteCount(const CFO_Link_ID& link)
 			reg = CFO_Register_ReceiveByteCountDataLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(0, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadReceiveByteCount(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadReceiveByteCount(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink0);
+			reg = CFO_Register_ReceiveByteCountDataLink0;
+			break;
 		case CFO_Link_1:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink1);
+			reg = CFO_Register_ReceiveByteCountDataLink1;
+			break;
 		case CFO_Link_2:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink2);
+			reg = CFO_Register_ReceiveByteCountDataLink2;
+			break;
 		case CFO_Link_3:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink3);
+			reg = CFO_Register_ReceiveByteCountDataLink3;
+			break;
 		case CFO_Link_4:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink4);
+			reg = CFO_Register_ReceiveByteCountDataLink4;
+			break;
 		case CFO_Link_5:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink5);
+			reg = CFO_Register_ReceiveByteCountDataLink5;
+			break;
 		case CFO_Link_6:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink6);
+			reg = CFO_Register_ReceiveByteCountDataLink6;
+			break;
 		case CFO_Link_7:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink7);
+			reg = CFO_Register_ReceiveByteCountDataLink7;
+			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	return val.has_value()?*val:ReadRegister_(reg);
 }
 
 void CFOLib::CFO_Registers::ClearReceivePacketCount(const CFO_Link_ID& link)
@@ -1472,34 +1457,50 @@ void CFOLib::CFO_Registers::ClearReceivePacketCount(const CFO_Link_ID& link)
 			reg = CFO_Register_ReceivePacketCountDataLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(0, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadReceivePacketCount(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadReceivePacketCount(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink0);
+			reg = CFO_Register_ReceivePacketCountDataLink0;
+			break;
 		case CFO_Link_1:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink1);
+			reg = CFO_Register_ReceivePacketCountDataLink1;
+			break;
 		case CFO_Link_2:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink2);
+			reg = CFO_Register_ReceivePacketCountDataLink2;
+			break;
 		case CFO_Link_3:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink3);
+			reg = CFO_Register_ReceivePacketCountDataLink3;
+			break;
 		case CFO_Link_4:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink4);
+			reg = CFO_Register_ReceivePacketCountDataLink4;
+			break;
 		case CFO_Link_5:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink5);
+			reg = CFO_Register_ReceivePacketCountDataLink5;
+			break;
 		case CFO_Link_6:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink6);
+			reg = CFO_Register_ReceivePacketCountDataLink6;
+			break;
 		case CFO_Link_7:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink7);
+			reg = CFO_Register_ReceivePacketCountDataLink7;
+			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	return val.has_value()?*val:ReadRegister_(reg);
 }
 
 void CFOLib::CFO_Registers::ClearTransmitByteCount(const CFO_Link_ID& link)
@@ -1532,34 +1533,51 @@ void CFOLib::CFO_Registers::ClearTransmitByteCount(const CFO_Link_ID& link)
 			reg = CFO_Register_TransmitByteCountDataLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(0, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadTransmitByteCount(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadTransmitByteCount(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
+
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink0);
+			reg = CFO_Register_TransmitByteCountDataLink0;
+			break;
 		case CFO_Link_1:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink1);
+			reg = CFO_Register_TransmitByteCountDataLink1;
+			break;
 		case CFO_Link_2:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink2);
+			reg = CFO_Register_TransmitByteCountDataLink2;
+			break;
 		case CFO_Link_3:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink3);
+			reg = CFO_Register_TransmitByteCountDataLink3;
+			break;
 		case CFO_Link_4:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink4);
+			reg = CFO_Register_TransmitByteCountDataLink4;
+			break;
 		case CFO_Link_5:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink5);
+			reg = CFO_Register_TransmitByteCountDataLink5;
+			break;
 		case CFO_Link_6:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink6);
+			reg = CFO_Register_TransmitByteCountDataLink6;
+			break;
 		case CFO_Link_7:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink7);
+			reg = CFO_Register_TransmitByteCountDataLink7;
+			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	return val.has_value()?*val:ReadRegister_(reg);
 }
 
 void CFOLib::CFO_Registers::ClearTransmitPacketCount(const CFO_Link_ID& link)
@@ -1592,34 +1610,50 @@ void CFOLib::CFO_Registers::ClearTransmitPacketCount(const CFO_Link_ID& link)
 			reg = CFO_Register_TransmitPacketCountDataLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(0, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadTransmitPacketCount(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadTransmitPacketCount(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink0);
+			reg = CFO_Register_TransmitPacketCountDataLink0;
+			break;
 		case CFO_Link_1:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink1);
+			reg = CFO_Register_TransmitPacketCountDataLink1;
+			break;
 		case CFO_Link_2:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink2);
+			reg = CFO_Register_TransmitPacketCountDataLink2;
+			break;
 		case CFO_Link_3:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink3);
+			reg = CFO_Register_TransmitPacketCountDataLink3;
+			break;
 		case CFO_Link_4:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink4);
+			reg = CFO_Register_TransmitPacketCountDataLink4;
+			break;
 		case CFO_Link_5:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink5);
+			reg = CFO_Register_TransmitPacketCountDataLink5;
+			break;
 		case CFO_Link_6:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink6);
+			reg = CFO_Register_TransmitPacketCountDataLink6;
+			break;
 		case CFO_Link_7:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink7);
+			reg = CFO_Register_TransmitPacketCountDataLink7;
+			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	return val.has_value()?*val:ReadRegister_(reg);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink0()
@@ -1627,7 +1661,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink0()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink0);
 	form.description = "Receive Byte Count: Link 0";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_0);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_0, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1637,7 +1671,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink1()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink1);
 	form.description = "Receive Byte Count: Link 1";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_1);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_1, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1647,7 +1681,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink2()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink2);
 	form.description = "Receive Byte Count: Link 2";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_2);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_2, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1657,7 +1691,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink3()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink3);
 	form.description = "Receive Byte Count: Link 3";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_3);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_3, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1667,7 +1701,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink4()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink4);
 	form.description = "Receive Byte Count: Link 4";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_4);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_4, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1677,7 +1711,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink5()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink5);
 	form.description = "Receive Byte Count: Link 5";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_5);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_5, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1687,7 +1721,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink6()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink6);
 	form.description = "Receive Byte Count: Link 6";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_6);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_6, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1697,7 +1731,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink7()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink7);
 	form.description = "Receive Byte Count: Link 7";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_7);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_7, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1948,16 +1982,16 @@ void CFOLib::CFO_Registers::SetDMAWriteStartAddress(const uint32_t& address)
 	WriteRegister_(address, CFO_Register_DDRMemoryDMAWriteStartAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDMAWriteStartAddress()
+uint32_t CFOLib::CFO_Registers::ReadDMAWriteStartAddress(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_DDRMemoryDMAWriteStartAddress);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_DDRMemoryDMAWriteStartAddress);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAWriteStartAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRMemoryDMAWriteStartAddress);
 	form.description = "DDR Memory DMA Write Start Address";
-	form.vals.push_back(std::to_string(ReadDMAWriteStartAddress()));
+	form.vals.push_back(std::to_string(ReadDMAWriteStartAddress(form.value)));
 	return form;
 }
 
@@ -1966,16 +2000,16 @@ void CFOLib::CFO_Registers::SetDMAReadStartAddress(const uint32_t& address)
 	WriteRegister_(address, CFO_Register_DDRMemoryDMAReadStartAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDMAReadStartAddress()
+uint32_t CFOLib::CFO_Registers::ReadDMAReadStartAddress(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_DDRMemoryDMAReadStartAddress);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_DDRMemoryDMAReadStartAddress);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAReadStartAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRMemoryDMAWriteStartAddress);
 	form.description = "DDR Memory DMA Read Start Address";
-	form.vals.push_back(std::to_string(ReadDMAReadStartAddress()));
+	form.vals.push_back(std::to_string(ReadDMAReadStartAddress(form.value)));
 	return form;
 }
 
@@ -1984,13 +2018,13 @@ void CFOLib::CFO_Registers::SetDMAReadByteCount(const uint32_t& bytes)
 	WriteRegister_(bytes, CFO_Register_DDRMemoryDMAReadByteCount);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDMAReadByteCount() { return ReadRegister_(CFO_Register_DDRMemoryDMAReadByteCount); }
+uint32_t CFOLib::CFO_Registers::ReadDMAReadByteCount(std::optional<uint32_t> val) { return val.has_value()?*val:ReadRegister_(CFO_Register_DDRMemoryDMAReadByteCount); }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAReadByteCount()
 {
 	auto form = CreateFormatter(CFO_Register_DDRMemoryDMAWriteStartAddress);
 	form.description = "DDR Memory DMA Read Byte Count/Enable";
-	form.vals.push_back(std::to_string(ReadDMAReadByteCount()));
+	form.vals.push_back(std::to_string(ReadDMAReadByteCount(form.value)));
 	return form;
 }
 
@@ -1999,13 +2033,13 @@ void CFOLib::CFO_Registers::SetDDRBeamOnBaseAddress(const uint32_t& address)
 	WriteRegister_(address, CFO_Register_DDRBeamOnBaseAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDDRBeamOnBaseAddress() { return ReadRegister_(CFO_Register_DDRBeamOnBaseAddress); }
+uint32_t CFOLib::CFO_Registers::ReadDDRBeamOnBaseAddress(std::optional<uint32_t> val) { return val.has_value()?*val:ReadRegister_(CFO_Register_DDRBeamOnBaseAddress); }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOnBaseAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRBeamOnBaseAddress);
 	form.description = "DDR Memory Beam On Base Address";
-	form.vals.push_back(std::to_string(ReadDDRBeamOnBaseAddress()));
+	form.vals.push_back(std::to_string(ReadDDRBeamOnBaseAddress(form.value)));
 	return form;
 }
 
@@ -2014,9 +2048,9 @@ void CFOLib::CFO_Registers::SetDDRBeamOffBaseAddress(const uint32_t& address)
 	WriteRegister_(address, CFO_Register_DDRBeamOffBaseAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDDRBeamOffBaseAddress()
+uint32_t CFOLib::CFO_Registers::ReadDDRBeamOffBaseAddress(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_DDRBeamOffBaseAddress);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_DDRBeamOffBaseAddress);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOffBaseAddress()
@@ -2028,39 +2062,39 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOffBaseAddress()
 }
 
 // Firefly CSR Register
-bool CFOLib::CFO_Registers::ReadFireflyTXRXPresent()
+bool CFOLib::CFO_Registers::ReadFireflyTXRXPresent(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[26];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyRXPresent()
+bool CFOLib::CFO_Registers::ReadFireflyRXPresent(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[25];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXPresent()
+bool CFOLib::CFO_Registers::ReadFireflyTXPresent(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[24];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXRXInterrupt()
+bool CFOLib::CFO_Registers::ReadFireflyTXRXInterrupt(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[18];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyRXInterrupt()
+bool CFOLib::CFO_Registers::ReadFireflyRXInterrupt(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[17];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXInterrupt()
+bool CFOLib::CFO_Registers::ReadFireflyTXInterrupt(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[16];
 }
 
@@ -2085,21 +2119,21 @@ void CFOLib::CFO_Registers::SetFireflyTXSelect(bool select)
 	WriteRegister_(dataSet.to_ulong(), CFO_Register_FireflyCSRRegister);
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXRXSelect()
+bool CFOLib::CFO_Registers::ReadFireflyTXRXSelect(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[10];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyRXSelect()
+bool CFOLib::CFO_Registers::ReadFireflyRXSelect(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[9];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXSelect()
+bool CFOLib::CFO_Registers::ReadFireflyTXSelect(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[8];
 }
 
@@ -2124,21 +2158,21 @@ void CFOLib::CFO_Registers::SetFireflyTXReset(bool reset)
 	WriteRegister_(dataSet.to_ulong(), CFO_Register_FireflyCSRRegister);
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXRXReset()
+bool CFOLib::CFO_Registers::ReadFireflyTXRXReset(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[2];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyRXReset()
+bool CFOLib::CFO_Registers::ReadFireflyRXReset(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[1];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXReset()
+bool CFOLib::CFO_Registers::ReadFireflyTXReset(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[0];
 }
 
@@ -2147,57 +2181,27 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFireflyCSR()
 	auto form = CreateFormatter(CFO_Register_FireflyCSRRegister);
 	form.description = "Firefly CSR Register";
 	form.vals.push_back("      ([Present, Interrupt, Select, Reset])");
-	form.vals.push_back(std::string("TX/RX: [") + (ReadFireflyTXRXPresent() ? "x" : " ") +
-						(ReadFireflyTXRXInterrupt() ? "x" : " ") + (ReadFireflyTXRXSelect() ? "x" : " ") +
-						(ReadFireflyTXRXReset() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("RX:    [") + (ReadFireflyRXPresent() ? "x" : " ") +
-						(ReadFireflyRXInterrupt() ? "x" : " ") + (ReadFireflyRXSelect() ? "x" : " ") +
-						(ReadFireflyRXReset() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("TX:    [") + (ReadFireflyTXPresent() ? "x" : " ") +
-						(ReadFireflyTXInterrupt() ? "x" : " ") + (ReadFireflyTXSelect() ? "x" : " ") +
-						(ReadFireflyTXReset() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("TX/RX: [") + 
+						(ReadFireflyTXRXPresent(form.value) ? "x" : " ") +
+						(ReadFireflyTXRXInterrupt(form.value) ? "x" : " ") + 
+						(ReadFireflyTXRXSelect(form.value) ? "x" : " ") +
+						(ReadFireflyTXRXReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("RX:    [") + 
+						(ReadFireflyRXPresent(form.value) ? "x" : " ") +
+						(ReadFireflyRXInterrupt(form.value) ? "x" : " ") + 
+						(ReadFireflyRXSelect(form.value) ? "x" : " ") +
+						(ReadFireflyRXReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("TX:    [") + 
+						(ReadFireflyTXPresent(form.value) ? "x" : " ") +
+						(ReadFireflyTXInterrupt(form.value) ? "x" : " ") + 
+						(ReadFireflyTXSelect(form.value) ? "x" : " ") +
+						(ReadFireflyTXReset(form.value) ? "x" : " ") + "]");
 
 	return form;
 }
 
 // SERDES PRBS Control Registers
-bool CFOLib::CFO_Registers::ReadSERDESPRBSErrorFlag(const CFO_Link_ID& link)
-{
-	std::bitset<32> dataSet;
-	switch (link)
-	{
-		case CFO_Link_0:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink0);
-			break;
-		case CFO_Link_1:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink1);
-			break;
-		case CFO_Link_2:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink2);
-			break;
-		case CFO_Link_3:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink3);
-			break;
-		case CFO_Link_4:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink4);
-			break;
-		case CFO_Link_5:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink5);
-			break;
-		case CFO_Link_6:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink6);
-			break;
-		case CFO_Link_7:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink7);
-			break;
-		default:
-			dataSet = 0;
-			break;
-	}
-	return dataSet[31];
-}
-
-uint8_t CFOLib::CFO_Registers::ReadSERDESTXPRBSSEL(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESPRBSErrorFlag(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	CFO_Register reg;
 	switch (link)
@@ -2227,9 +2231,52 @@ uint8_t CFOLib::CFO_Registers::ReadSERDESTXPRBSSEL(const CFO_Link_ID& link)
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
-	auto data = ReadRegister_(reg);
+
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(reg);
+	return dataSet[31];
+}
+
+uint8_t CFOLib::CFO_Registers::ReadSERDESTXPRBSSEL(const CFO_Link_ID& link, std::optional<uint32_t> val)
+{
+	CFO_Register reg;
+	switch (link)
+	{
+		case CFO_Link_0:
+			reg = CFO_Register_SERDESPRBSControlLink0;
+			break;
+		case CFO_Link_1:
+			reg = CFO_Register_SERDESPRBSControlLink1;
+			break;
+		case CFO_Link_2:
+			reg = CFO_Register_SERDESPRBSControlLink2;
+			break;
+		case CFO_Link_3:
+			reg = CFO_Register_SERDESPRBSControlLink3;
+			break;
+		case CFO_Link_4:
+			reg = CFO_Register_SERDESPRBSControlLink4;
+			break;
+		case CFO_Link_5:
+			reg = CFO_Register_SERDESPRBSControlLink5;
+			break;
+		case CFO_Link_6:
+			reg = CFO_Register_SERDESPRBSControlLink6;
+			break;
+		case CFO_Link_7:
+			reg = CFO_Register_SERDESPRBSControlLink7;
+			break;
+		default:
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
+	}
+	auto data = val.has_value()?*val:ReadRegister_(reg);
 	return (data >> 12) & 0xF;
 }
 
@@ -2263,12 +2310,15 @@ void CFOLib::CFO_Registers::SetSERDESTXPRBSSEL(const CFO_Link_ID& link, uint8_t 
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(byte, reg);
 }
 
-uint8_t CFOLib::CFO_Registers::ReadSERDESRXPRBSSEL(const CFO_Link_ID& link)
+uint8_t CFOLib::CFO_Registers::ReadSERDESRXPRBSSEL(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	CFO_Register reg;
 	switch (link)
@@ -2298,9 +2348,12 @@ uint8_t CFOLib::CFO_Registers::ReadSERDESRXPRBSSEL(const CFO_Link_ID& link)
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
-	auto data = ReadRegister_(reg);
+	auto data = val.has_value()?*val:ReadRegister_(reg);
 	return (data >> 8) & 0xF;
 }
 
@@ -2334,44 +2387,51 @@ void CFOLib::CFO_Registers::SetSERDESRXPRBSSEL(const CFO_Link_ID& link, uint8_t 
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(byte, reg);
 }
 
-bool CFOLib::CFO_Registers::ReadSERDESTXPRBSForceError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESTXPRBSForceError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet;
+
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink0);
+			reg = CFO_Register_SERDESPRBSControlLink0;
 			break;
 		case CFO_Link_1:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink1);
+			reg = CFO_Register_SERDESPRBSControlLink1;
 			break;
 		case CFO_Link_2:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink2);
+			reg = CFO_Register_SERDESPRBSControlLink2;
 			break;
 		case CFO_Link_3:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink3);
+			reg = CFO_Register_SERDESPRBSControlLink3;
 			break;
 		case CFO_Link_4:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink4);
+			reg = CFO_Register_SERDESPRBSControlLink4;
 			break;
 		case CFO_Link_5:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink5);
+			reg = CFO_Register_SERDESPRBSControlLink5;
 			break;
 		case CFO_Link_6:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink6);
+			reg = CFO_Register_SERDESPRBSControlLink6;
 			break;
 		case CFO_Link_7:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink7);
+			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			dataSet = 0;
-			break;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(reg);
 	return dataSet[1];
 }
 
@@ -2405,7 +2465,10 @@ void CFOLib::CFO_Registers::SetSERDESTXPRBSForceError(const CFO_Link_ID& link, b
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	std::bitset<32> dataSet = ReadRegister_(reg);
 	dataSet[1] = flag;
@@ -2414,6 +2477,7 @@ void CFOLib::CFO_Registers::SetSERDESTXPRBSForceError(const CFO_Link_ID& link, b
 
 void CFOLib::CFO_Registers::ToggleSERDESTXPRBSForceError(const CFO_Link_ID& link)
 {
+	
 	CFO_Register reg;
 	switch (link)
 	{
@@ -2442,46 +2506,53 @@ void CFOLib::CFO_Registers::ToggleSERDESTXPRBSForceError(const CFO_Link_ID& link
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	std::bitset<32> dataSet = ReadRegister_(reg);
 	dataSet[1] = !dataSet[1];
 	WriteRegister_(dataSet.to_ulong(), reg);
 }
 
-bool CFOLib::CFO_Registers::ReadSERDESRXPRBSCountReset(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESRXPRBSCountReset(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet;
+
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink0);
+			reg = CFO_Register_SERDESPRBSControlLink0;
 			break;
 		case CFO_Link_1:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink1);
+			reg = CFO_Register_SERDESPRBSControlLink1;
 			break;
 		case CFO_Link_2:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink2);
+			reg = CFO_Register_SERDESPRBSControlLink2;
 			break;
 		case CFO_Link_3:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink3);
+			reg = CFO_Register_SERDESPRBSControlLink3;
 			break;
 		case CFO_Link_4:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink4);
+			reg = CFO_Register_SERDESPRBSControlLink4;
 			break;
 		case CFO_Link_5:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink5);
+			reg = CFO_Register_SERDESPRBSControlLink5;
 			break;
 		case CFO_Link_6:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink6);
+			reg = CFO_Register_SERDESPRBSControlLink6;
 			break;
 		case CFO_Link_7:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink7);
+			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			dataSet = 0;
-			break;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(reg);
 	return dataSet[0];
 }
 
@@ -2565,23 +2636,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink0()
 	form.description = "SERDES PRBS Control Link 0";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_0);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_0, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_0));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_0, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_0));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_0, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_0);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_0, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_0);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_0, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2594,23 +2665,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink1()
 	form.description = "SERDES PRBS Control Link 1";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_1);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_1, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_1));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_1, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_1));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_1, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_1);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_1, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_1);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_1, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2623,23 +2694,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink2()
 	form.description = "SERDES PRBS Control Link 2";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_2);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_2, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_2));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_2, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_2));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_2, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_2);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_2, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_2);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_2, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2652,23 +2723,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink3()
 	form.description = "SERDES PRBS Control Link 3";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_3);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_3, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_3));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_3, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_3));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_3, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_3);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_3, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_3);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_3, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2681,23 +2752,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink4()
 	form.description = "SERDES PRBS Control Link 4";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_4);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_4, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_4));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_4, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_4));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_4, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_4);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_4, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_4);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_4, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2710,23 +2781,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink5()
 	form.description = "SERDES PRBS Control Link 5";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_5);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_5, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_5));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_5, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_5));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_5, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_5);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_5, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_5);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_5, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2739,23 +2810,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink6()
 	form.description = "SERDES PRBS Control Link 6";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_6);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_6, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_6));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_6, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_6));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_6, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_6);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_6, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_6);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_6, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2768,23 +2839,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink7()
 	form.description = "SERDES PRBS Control Link 7";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_7);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_7, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_7));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_7, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_7));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_7, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_7);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_7, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_7);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_7, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2826,12 +2897,12 @@ void CFOLib::CFO_Registers::SetCableDelayValue(const CFO_Link_ID& link, const ui
 	WriteRegister_(delay, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadCableDelayValue(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadCableDelayValue(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_CableDelayValueLink0);
+			return val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayValueLink0);
 		case CFO_Link_1:
 			return ReadRegister_(CFO_Register_CableDelayValueLink1);
 		case CFO_Link_2:
@@ -2921,15 +2992,15 @@ void CFOLib::CFO_Registers::ResetDelayRegister()
 }
 
 
-bool CFOLib::CFO_Registers::ReadDelayMeasureError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadDelayMeasureError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
 	return dataSet[24 + link];
 }
 
-bool CFOLib::CFO_Registers::ReadDelayExternalLoopbackEnable()
+bool CFOLib::CFO_Registers::ReadDelayExternalLoopbackEnable(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
 	return dataSet[16];
 }
 
@@ -2954,9 +3025,9 @@ void CFOLib::CFO_Registers::DisableDelayMeasureMode(const CFO_Link_ID& link)
 	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
 }
 
-bool CFOLib::CFO_Registers::ReadDelayMeasureMode(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadDelayMeasureMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
 	return dataSet[8 + link];
 }
 
@@ -2974,9 +3045,9 @@ void CFOLib::CFO_Registers::DisableDelayMeasureNow(const CFO_Link_ID& link)
 	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
 }
 
-bool CFOLib::CFO_Registers::ReadDelayMeasureNow(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadDelayMeasureNow(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
 	return dataSet[link];
 }
 
@@ -2986,27 +3057,26 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayControl()
 	form.description = "Cabel Delay Control and Status";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("Delay External Loopback Enable: [") +
-						(ReadDelayExternalLoopbackEnable() ? "x" : " ") + std::string("]"));
+						(ReadDelayExternalLoopbackEnable(form.value) ? "x" : " ") + std::string("]"));
 	form.vals.push_back(std::string("Delay Measure Flags:           ([Error, Enabled, Now])"));
 	for (auto r : CFO_Links)
-	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ":                         [" +
-							(ReadDelayMeasureError(r) ? "x" : " ") + "," + (ReadDelayMeasureMode(r) ? "x" : " ") + "," +
-							(ReadDelayMeasureNow(r) ? "x" : " ") + "]");
-	}
+							(ReadDelayMeasureError(r, form.value) ? "x" : " ") + "," + 
+							(ReadDelayMeasureMode(r, form.value) ? "x" : " ") + "," +
+							(ReadDelayMeasureNow(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
 // FPGA PROM Program Status Register
-bool CFOLib::CFO_Registers::ReadFPGAPROMProgramFIFOFull()
+bool CFOLib::CFO_Registers::ReadFPGAPROMProgramFIFOFull(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FPGAPROMProgramStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FPGAPROMProgramStatus);
 	return dataSet[1];
 }
 
-bool CFOLib::CFO_Registers::ReadFPGAPROMReady()
+bool CFOLib::CFO_Registers::ReadFPGAPROMReady(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FPGAPROMProgramStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FPGAPROMProgramStatus);
 	return dataSet[0];
 }
 
@@ -3015,9 +3085,9 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFPGAPROMProgramStatus()
 	auto form = CreateFormatter(CFO_Register_FPGAPROMProgramStatus);
 	form.description = "FPGA PROM Program Status";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("FPGA PROM Program FIFO Full: [") + (ReadFPGAPROMProgramFIFOFull() ? "x" : " ") +
+	form.vals.push_back(std::string("FPGA PROM Program FIFO Full: [") + (ReadFPGAPROMProgramFIFOFull(form.value) ? "x" : " ") +
 						"]");
-	form.vals.push_back(std::string("FPGA PROM Ready:             [") + (ReadFPGAPROMReady() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("FPGA PROM Ready:             [") + (ReadFPGAPROMReady(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -3062,15 +3132,15 @@ void CFOLib::CFO_Registers::ReloadFPGAFirmware()
 	WriteRegister_(0x20000000, CFO_Register_FPGACoreAccess);
 }
 
-bool CFOLib::CFO_Registers::ReadFPGACoreAccessFIFOFull()
+bool CFOLib::CFO_Registers::ReadFPGACoreAccessFIFOFull(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FPGACoreAccess);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FPGACoreAccess);
 	return dataSet[1];
 }
 
-bool CFOLib::CFO_Registers::ReadFPGACoreAccessFIFOEmpty()
+bool CFOLib::CFO_Registers::ReadFPGACoreAccessFIFOEmpty(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FPGACoreAccess);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FPGACoreAccess);
 	return dataSet[0];
 }
 
@@ -3079,8 +3149,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFPGACoreAccess()
 	auto form = CreateFormatter(CFO_Register_FPGACoreAccess);
 	form.description = "FPGA Core Access";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("FPGA Core Access FIFO Full:  [") + (ReadFPGACoreAccessFIFOFull() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("FPGA Core Access FIFO Empty: [") + (ReadFPGACoreAccessFIFOEmpty() ? "x" : " ") +
+	form.vals.push_back(std::string("FPGA Core Access FIFO Full:  [") + (ReadFPGACoreAccessFIFOFull(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("FPGA Core Access FIFO Empty: [") + (ReadFPGACoreAccessFIFOEmpty(form.value) ? "x" : " ") +
 						"]");
 
 	return form;

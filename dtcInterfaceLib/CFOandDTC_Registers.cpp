@@ -101,11 +101,13 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignVersion() { return //ReadDesi
 /// <returns>RegisterFormatter object containing register information</returns>
 DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatDesignVersion()
 {
+	__COUT__ << "?";
 	auto form = CreateFormatter(CFOandDTC_Register_DesignVersion);
 	form.description = "DTC Firmware Design Version";
-	form.vals.push_back(std::string("Version Number:                [") + ReadDesignVersionNumber());
-	form.vals.push_back(std::string("Link Speed CFO link/ROC links: [") + ReadDesignLinkSpeed());
-	form.vals.push_back(std::string("Design Type (C=CFO, D=DTC):    [") + ReadDesignType());
+	form.vals.push_back(std::string("Version Number:                [") + ReadDesignVersionNumber(form.value) + "]");
+	form.vals.push_back(std::string("Link Speed CFO link/ROC links: [") + ReadDesignLinkSpeed(form.value) + "]");
+	form.vals.push_back(std::string("Design Type (C=CFO, D=DTC):    [") + ReadDesignType(form.value) + "]");
+	__COUT__ << "!";
 	return form;
 }
 
@@ -113,9 +115,9 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatDesignVersion()
 /// Read the modification date of the DTC firmware
 /// </summary>
 /// <returns>Design date in MON/DD/20YY HH:00 format</returns>
-std::string DTCLib::CFOandDTC_Registers::ReadDesignDate()
+std::string DTCLib::CFOandDTC_Registers::ReadDesignDate(std::optional<uint32_t> val)
 {
-	auto readData = ReadRegister_(CFOandDTC_Register_DesignDate);
+	auto readData = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignDate);
 	std::ostringstream o;
 	std::vector<std::string> months({"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"});
 	int mon =  ((readData>>20)&0xF)*10 + ((readData>>16)&0xF);
@@ -133,9 +135,9 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignDate()
 	else if(((readData>>28)&0xF) == 0xE)
 		o << "CRVDTC-";
 	o << months[mon-1] << "/" << 
-		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/202" << 
+		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
 		// ((readData>>28)&0xF) << 
-		((readData>>24)&0xF) << " " <<
+		20 + ((readData>>24)&0xF) << " " << //year 2020 + hex nibble at bit-24
 		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData;
 	return o.str();
 }
@@ -148,7 +150,7 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatDesignDate()
 {
 	auto form = CreateFormatter(CFOandDTC_Register_DesignDate);
 	form.description = "DTC Firmware Design Date";
-	form.vals.push_back(ReadDesignDate());
+	form.vals.push_back(ReadDesignDate(form.value));
 	return form;
 }
 
@@ -156,9 +158,9 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatDesignDate()
 /// Read the design version number
 /// </summary>
 /// <returns>The design version number, in vMM.mm format</returns>
-std::string DTCLib::CFOandDTC_Registers::ReadDesignVersionNumber()
+std::string DTCLib::CFOandDTC_Registers::ReadDesignVersionNumber(std::optional<uint32_t> val)
 {
-	auto data = ReadRegister_(CFOandDTC_Register_DesignVersion);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignVersion);
 	int minor = data & 0xFF;
 	int major = (data & 0xFF00) >> 8;
 
@@ -170,9 +172,9 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignVersionNumber()
 /// Read the design link speed
 /// </summary>
 /// <returns>The design link speed, in hex character format</returns>
-std::string DTCLib::CFOandDTC_Registers::ReadDesignLinkSpeed()
+std::string DTCLib::CFOandDTC_Registers::ReadDesignLinkSpeed(std::optional<uint32_t> val)
 {
-	auto data = ReadRegister_(CFOandDTC_Register_DesignVersion);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignVersion);
 	int cfoLinkSpeed = (data>>28) & 0xF;	//bit28: 0x4 for 4G
 	int rocLinkSpeed = (data>>24) & 0xF;	//bit24: 0x3 for 3.125G
 	return std::to_string(cfoLinkSpeed) + ".0G/" +
@@ -184,9 +186,9 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignLinkSpeed()
 /// Read the design type
 /// </summary>
 /// <returns>The design link type, 0xC for CFO and 0xD for DTC </returns>
-std::string DTCLib::CFOandDTC_Registers::ReadDesignType()
+std::string DTCLib::CFOandDTC_Registers::ReadDesignType(std::optional<uint32_t> val)
 {
-	auto data = ReadRegister_(CFOandDTC_Register_DesignVersion);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignVersion);
 	int type = (data>>16) & 0xF;	//0xC for CFO and 0xD for DTC
 	return (type==0xC?"C":(type==0xD?"D":"U")); //U for unknown!
 } // end ReadDesignLinkSpeed()
@@ -195,11 +197,11 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignType()
 /// Read the FPGA On-die Temperature sensor
 /// </summary>
 /// <returns>Temperature of the FGPA (deg. C)</returns>
-double DTCLib::CFOandDTC_Registers::ReadFPGATemperature()
+double DTCLib::CFOandDTC_Registers::ReadFPGATemperature(std::optional<uint32_t> val)
 {
-	auto val = ReadRegister_(CFOandDTC_Register_FPGA_Temperature);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_Temperature);
 
-	return ((val * 503.975) / 4096.0) - 273.15;
+	return ((data * 503.975) / 4096.0) - 273.15;
 }
 
 /// <summary>
@@ -210,7 +212,7 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatFPGATemperature()
 {
 	auto form = CreateFormatter(CFOandDTC_Register_FPGA_Temperature);
 	form.description = "FPGA Temperature";
-	form.vals.push_back(std::to_string(ReadFPGATemperature()) + " C");
+	form.vals.push_back(std::to_string(ReadFPGATemperature(form.value)) + " C");
 	return form;
 }
 
@@ -218,10 +220,10 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatFPGATemperature()
 /// Read the FPGA VCC INT Voltage (Nominal is 1.0 V)
 /// </summary>
 /// <returns>FPGA VCC INT Voltage (V)</returns>
-double DTCLib::CFOandDTC_Registers::ReadFPGAVCCINTVoltage()
+double DTCLib::CFOandDTC_Registers::ReadFPGAVCCINTVoltage(std::optional<uint32_t> val)
 {
-	auto val = ReadRegister_(CFOandDTC_Register_FPGA_VCCINT);
-	return (val / 4095.0) * 3.0;
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_VCCINT);
+	return (data / 4095.0) * 3.0;
 }
 
 /// <summary>
@@ -232,7 +234,7 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatFPGAVCCINT()
 {
 	auto form = CreateFormatter(CFOandDTC_Register_FPGA_VCCINT);
 	form.description = "FPGA VCC INT";
-	form.vals.push_back(std::to_string(ReadFPGAVCCINTVoltage()) + " V");
+	form.vals.push_back(std::to_string(ReadFPGAVCCINTVoltage(form.value)) + " V");
 	return form;
 }
 
@@ -240,10 +242,10 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatFPGAVCCINT()
 /// Read the FPGA VCC AUX Voltage (Nominal is 1.8 V)
 /// </summary>
 /// <returns>FPGA VCC AUX Voltage (V)</returns>
-double DTCLib::CFOandDTC_Registers::ReadFPGAVCCAUXVoltage()
+double DTCLib::CFOandDTC_Registers::ReadFPGAVCCAUXVoltage(std::optional<uint32_t> val)
 {
-	auto val = ReadRegister_(CFOandDTC_Register_FPGA_VCCAUX);
-	return (val / 4095.0) * 3.0;
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_VCCAUX);
+	return (data / 4095.0) * 3.0;
 }
 
 /// <summary>
@@ -254,7 +256,7 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatFPGAVCCAUX()
 {
 	auto form = CreateFormatter(CFOandDTC_Register_FPGA_VCCAUX);
 	form.description = "FPGA VCC AUX";
-	form.vals.push_back(std::to_string(ReadFPGAVCCAUXVoltage()) + " V");
+	form.vals.push_back(std::to_string(ReadFPGAVCCAUXVoltage(form.value)) + " V");
 	return form;
 }
 
@@ -262,10 +264,10 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatFPGAVCCAUX()
 /// Read the FPGA VCC BRAM Voltage (Nominal 1.0 V)
 /// </summary>
 /// <returns>FPGA VCC BRAM Voltage (V)</returns>
-double DTCLib::CFOandDTC_Registers::ReadFPGAVCCBRAMVoltage()
+double DTCLib::CFOandDTC_Registers::ReadFPGAVCCBRAMVoltage(std::optional<uint32_t> val)
 {
-	auto val = ReadRegister_(CFOandDTC_Register_FPGA_VCCBRAM);
-	return (val / 4095.0) * 3.0;
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_VCCBRAM);
+	return (data / 4095.0) * 3.0;
 }
 
 /// <summary>
@@ -276,7 +278,7 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatFPGAVCCBRAM()
 {
 	auto form = CreateFormatter(CFOandDTC_Register_FPGA_VCCBRAM);
 	form.description = "FPGA VCC BRAM";
-	form.vals.push_back(std::to_string(ReadFPGAVCCBRAMVoltage()) + " V");
+	form.vals.push_back(std::to_string(ReadFPGAVCCBRAMVoltage(form.value)) + " V");
 	return form;
 }
 
@@ -286,7 +288,7 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatFPGAVCCBRAM()
 /// <returns>Value of the bit</returns>
 bool DTCLib::CFOandDTC_Registers::ReadFPGADieTemperatureAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	return data[8];
 }
 
@@ -295,7 +297,7 @@ bool DTCLib::CFOandDTC_Registers::ReadFPGADieTemperatureAlarm(std::optional<uint
 /// </summary>
 void DTCLib::CFOandDTC_Registers::ResetFPGADieTemperatureAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	data[8] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_FPGA_MonitorAlarm);
 }
@@ -306,7 +308,7 @@ void DTCLib::CFOandDTC_Registers::ResetFPGADieTemperatureAlarm(std::optional<uin
 /// <returns>Value of the bit</returns>
 bool DTCLib::CFOandDTC_Registers::ReadFPGAAlarms(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	return data[7];
 }
 
@@ -315,7 +317,7 @@ bool DTCLib::CFOandDTC_Registers::ReadFPGAAlarms(std::optional<uint32_t> val)
 /// </summary>
 void DTCLib::CFOandDTC_Registers::ResetFPGAAlarms(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	data[7] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_FPGA_MonitorAlarm);
 }
@@ -326,7 +328,7 @@ void DTCLib::CFOandDTC_Registers::ResetFPGAAlarms(std::optional<uint32_t> val)
 /// <returns>Value of the bit</returns>
 bool DTCLib::CFOandDTC_Registers::ReadVCCBRAMAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	return data[3];
 }
 
@@ -335,7 +337,7 @@ bool DTCLib::CFOandDTC_Registers::ReadVCCBRAMAlarm(std::optional<uint32_t> val)
 /// </summary>
 void DTCLib::CFOandDTC_Registers::ResetVCCBRAMAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	data[3] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_FPGA_MonitorAlarm);
 }
@@ -346,7 +348,7 @@ void DTCLib::CFOandDTC_Registers::ResetVCCBRAMAlarm(std::optional<uint32_t> val)
 /// <returns>Value of the bit</returns>
 bool DTCLib::CFOandDTC_Registers::ReadVCCAUXAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	return data[2];
 }
 
@@ -355,7 +357,7 @@ bool DTCLib::CFOandDTC_Registers::ReadVCCAUXAlarm(std::optional<uint32_t> val)
 /// </summary>
 void DTCLib::CFOandDTC_Registers::ResetVCCAUXAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	data[2] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_FPGA_MonitorAlarm);
 }
@@ -366,7 +368,7 @@ void DTCLib::CFOandDTC_Registers::ResetVCCAUXAlarm(std::optional<uint32_t> val)
 /// <returns>Value of the bit</returns>
 bool DTCLib::CFOandDTC_Registers::ReadVCCINTAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	return data[1];
 }
 
@@ -375,7 +377,7 @@ bool DTCLib::CFOandDTC_Registers::ReadVCCINTAlarm(std::optional<uint32_t> val)
 /// </summary>
 void DTCLib::CFOandDTC_Registers::ResetVCCINTAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	data[1] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_FPGA_MonitorAlarm);
 }
@@ -386,7 +388,7 @@ void DTCLib::CFOandDTC_Registers::ResetVCCINTAlarm(std::optional<uint32_t> val)
 /// <returns>Value of the bit</returns>
 bool DTCLib::CFOandDTC_Registers::ReadFPGAUserTemperatureAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	return data[0];
 }
 
@@ -395,7 +397,7 @@ bool DTCLib::CFOandDTC_Registers::ReadFPGAUserTemperatureAlarm(std::optional<uin
 /// </summary>
 void DTCLib::CFOandDTC_Registers::ResetFPGAUserTemperatureAlarm(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.value_or(ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm));
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_FPGA_MonitorAlarm);
 	data[0] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_FPGA_MonitorAlarm);
 }
@@ -517,9 +519,9 @@ void DTCLib::CFOandDTC_Registers::SetBit_(const CFOandDTC_Register& address, siz
 /// Read the value of the Jitter Attenuator Select
 /// </summary>
 /// <returns>Jitter Attenuator Select value</returns>
-std::bitset<2> DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorSelect(CFOandDTC_Register JAreg)
+std::bitset<2> DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(JAreg);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(JAreg);
 	std::bitset<2> output;
 	output[0] = data[4];
 	output[1] = data[5];
@@ -580,9 +582,9 @@ void DTCLib::CFOandDTC_Registers::SetJitterAttenuatorSelect(CFOandDTC_Register J
 /// Read the Jitter Attenuator Reset bit
 /// </summary>
 /// <returns>Value of the Jitter Attenuator Reset bit</returns>
-bool DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorReset(CFOandDTC_Register JAreg)
+bool DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorReset(CFOandDTC_Register JAreg, std::optional<uint32_t> val)
 {
-	std::bitset<32> regdata = ReadRegister_(JAreg);
+	std::bitset<32> regdata = val.has_value()?*val:ReadRegister_(JAreg);
 	return regdata[0];
 } //end ReadJitterAttenuatorReset()
 
@@ -591,9 +593,9 @@ bool DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorReset(CFOandDTC_Register J
 /// Read the Jitter Attenuator Locked bit
 /// </summary>
 /// <returns>Inverted Value of the Jitter Attenuator Loss-of-Lock bit</returns>
-bool DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorLocked(CFOandDTC_Register JAreg)
+bool DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorLocked(CFOandDTC_Register JAreg, std::optional<uint32_t> val)
 {
-	std::bitset<32> regdata = ReadRegister_(JAreg);
+	std::bitset<32> regdata = val.has_value()?*val:ReadRegister_(JAreg);
 	return !regdata[8];
 } //end ReadJitterAttenuatorLocked()
 
@@ -601,9 +603,9 @@ bool DTCLib::CFOandDTC_Registers::ReadJitterAttenuatorLocked(CFOandDTC_Register 
 /// <summary>
 /// Reset the Jitter Attenuator
 /// </summary>
-void DTCLib::CFOandDTC_Registers::ResetJitterAttenuator(CFOandDTC_Register JAreg)
+void DTCLib::CFOandDTC_Registers::ResetJitterAttenuator(CFOandDTC_Register JAreg, std::optional<uint32_t> val)
 {
-	std::bitset<32> regdata = ReadRegister_(JAreg);
+	std::bitset<32> regdata = val.has_value()?*val:ReadRegister_(JAreg);
 	regdata[0] = 1;
 	WriteRegister_(regdata.to_ulong(), JAreg);
 	usleep(1000);
@@ -632,8 +634,8 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatJitterAttenuatorCSR
 	                         : "Timing Card Selectable (SFP+ or FPGA) Input Clock")) + "]");	
 	form.vals.push_back(std::string("JA in Reset:   [") + (data[0] ? "YES" : "No") + "]");
 	form.vals.push_back(std::string("JA Loss-of-Lock:   [") + (data[8] ? "Not Locked" : "LOCKED") + "]");
-	form.vals.push_back(std::string("JA Input-0 Upstream Control Link Rx Recovered Clock:   [") + (data[9] ? "Missing" : "OK") + "]");
-	form.vals.push_back(std::string("JA Input-1 RJ45 Upstream Rx Clock:   [") + (data[10] ? "Missing" : "OK") + "]");
+	form.vals.push_back(std::string("JA Input-0 CFO (or emulated CFO) Clock Source:   [") + (data[9] ? "Missing" : "OK") + "]");
+	form.vals.push_back(std::string("JA Input-1 RJ45 Clock Source:   [") + (data[10] ? "Missing" : "OK") + "]");
 	form.vals.push_back(std::string("JA Input-2 Timing Card Selectable, SFP+ or FPGA, Input Clock:   [") + (data[11] ? "Missing" : "OK") + "]");
 	return form;
 } //end FormatJitterAttenuatorCSR()

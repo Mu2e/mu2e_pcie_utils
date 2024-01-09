@@ -139,30 +139,30 @@ public:
 	// Desgin Version/Date Registers
 	std::string ReadDesignVersion();
 	RegisterFormatter FormatDesignVersion();
-	std::string ReadDesignDate();
+	std::string ReadDesignDate(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDesignDate();
-	std::string ReadDesignVersionNumber();
-	std::string ReadDesignLinkSpeed();
-	std::string ReadDesignType();
+	std::string ReadDesignVersionNumber(std::optional<uint32_t> val = std::nullopt);
+	std::string ReadDesignLinkSpeed(std::optional<uint32_t> val = std::nullopt);
+	std::string ReadDesignType(std::optional<uint32_t> val = std::nullopt);
 
 	// Vivado Version Register
-	virtual std::string ReadVivadoVersionNumber(uint32_t* val = 0) = 0;
+	virtual std::string ReadVivadoVersionNumber(std::optional<uint32_t> val = std::nullopt) = 0;
 	virtual RegisterFormatter FormatVivadoVersion() = 0;
 
 	// FPGA Temperature Register
-	double ReadFPGATemperature();
+	double ReadFPGATemperature(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGATemperature();
 
 	// FPGA VCCINT Voltage Register
-	double ReadFPGAVCCINTVoltage();
+	double ReadFPGAVCCINTVoltage(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAVCCINT();
 
 	// FPGA VCCAUX Voltage Register
-	double ReadFPGAVCCAUXVoltage();
+	double ReadFPGAVCCAUXVoltage(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAVCCAUX();
 
 	// FPGA VCCBRAM Voltage Register
-	double ReadFPGAVCCBRAMVoltage();
+	double ReadFPGAVCCBRAMVoltage(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAVCCBRAM();
 
 	// FPGA Monitor Alarm Register
@@ -180,11 +180,11 @@ public:
 	void ResetFPGAUserTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAAlarms();
 
-	std::bitset<2> ReadJitterAttenuatorSelect(CFOandDTC_Register JAreg);
+	std::bitset<2> ReadJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
 	void SetJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::bitset<2> data, bool alsoResetJA);
-	bool ReadJitterAttenuatorReset(CFOandDTC_Register JAreg);
-	bool ReadJitterAttenuatorLocked(CFOandDTC_Register JAreg);
-	void ResetJitterAttenuator(CFOandDTC_Register JAreg);
+	bool ReadJitterAttenuatorReset(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
+	bool ReadJitterAttenuatorLocked(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
+	void ResetJitterAttenuator(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatJitterAttenuatorCSR(CFOandDTC_Register JAreg);
 	virtual void ConfigureJitterAttenuator() = 0; //pure virtual
 	void ConfigureJitterAttenuator(CFOandDTC_Register IICLowReg, CFOandDTC_Register IICHighReg);
@@ -201,13 +201,12 @@ protected:
 	/// </summary>
 	/// <param name="address">Address of register to format</param>
 	/// <returns>RegisterFormatter with address and raw value set</returns>
-	RegisterFormatter CreateFormatter(const CFOandDTC_Register& address, bool readValue = true)
+	RegisterFormatter CreateFormatter(const CFOandDTC_Register& address)
 	{
 		RegisterFormatter form;
 		form.descWidth = formatterWidth_;
 		form.address = address;
-		if(readValue)
-			form.value = ReadRegister_(address);
+		form.value = ReadRegister_(address);
 		return form;
 	}
 

@@ -375,7 +375,7 @@ public:
 	/// Get the current DTC_SimMode of this DTC_Registers object
 	/// </summary>
 	/// <returns></returns>
-	DTC_SimMode ReadSimMode() const { return simMode_; }
+	DTC_SimMode GetSimMode() const { return simMode_; }
 
 	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int dtc, std::string simMemoryFile, unsigned linkMask,
 						   bool skipInit = false, const std::string& uid = "");
@@ -400,7 +400,7 @@ public:
 	RegisterFormatter FormatDesignStatus();
 
 	// Vivado Version Register
-	std::string ReadVivadoVersionNumber(uint32_t* val = 0) override;
+	std::string ReadVivadoVersionNumber(std::optional<uint32_t> val = std::nullopt) override;
 	RegisterFormatter FormatVivadoVersion() override;
 
 	// DTC Control Register
@@ -507,7 +507,7 @@ public:
 	void DisableROCEmulator(DTC_Link_ID const& link);
 	bool ReadROCEmulator(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void SetROCEmulatorMask(uint32_t rocEnableMask);
-	uint32_t ReadROCEmulatorMask();
+	uint32_t ReadROCEmulatorMask(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatROCEmulationEnable();
 
 	// Link Enable Register
@@ -526,7 +526,7 @@ public:
 	void ResetSERDESRX(DTC_Link_ID const& link, int interval = 100000);
 	bool ReadResetSERDESRX(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	void ResetSERDESPLL(const DTC_PLL_ID& pll, int interval = 100000);
-	bool ReadResetSERDESPLL(const DTC_PLL_ID& pll);
+	bool ReadResetSERDESPLL(const DTC_PLL_ID& pll, std::optional<uint32_t> val = std::nullopt);
 	void ResetSERDES(DTC_Link_ID const& link, int interval = 100000);
 	bool ReadResetSERDES(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESReset();
@@ -546,7 +546,7 @@ public:
 
 	// SERDES Unlock Error Register
 	bool ReadSERDESCDRUnlockError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
-	bool ReadSERDESPLLUnlockError(const DTC_PLL_ID& pll);
+	bool ReadSERDESPLLUnlockError(const DTC_PLL_ID& pll, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatSERDESUnlockError();
 
 	// SERDES PLL Locked Register
@@ -576,12 +576,12 @@ public:
 
 	// DMA Timeout Preset Regsiter
 	void SetDMATimeoutPreset(uint32_t preset);
-	uint32_t ReadDMATimeoutPreset();
+	uint32_t ReadDMATimeoutPreset(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDMATimeoutPreset();
 
 	// ROC Timeout (Header Packet to All Packets Received) Preset Register
 	void SetROCTimeoutPreset(uint32_t preset);
-	uint32_t ReadROCTimeoutPreset();
+	uint32_t ReadROCTimeoutPreset(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatROCReplyTimeout();
 
 	// ROC Timeout Error Register
@@ -612,16 +612,16 @@ public:
 	RegisterFormatter FormatEVBNumberOfDestinationNodes();
 
 	// SERDES Oscillator Registers
-	uint32_t ReadSERDESOscillatorReferenceFrequency(DTC_IICSERDESBusAddress device);
+	uint32_t ReadSERDESOscillatorReferenceFrequency(DTC_IICSERDESBusAddress device, std::optional<uint32_t> val = std::nullopt);
 	void SetSERDESOscillatorReferenceFrequency(DTC_IICSERDESBusAddress device, uint32_t freq);
 
-	bool ReadSERDESOscillatorIICInterfaceReset();
+	bool ReadSERDESOscillatorIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
 	void ResetSERDESOscillatorIICInterface();
 
 	void WriteSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address, uint8_t data);
 	uint8_t ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address);
 
-	DTC_SerdesClockSpeed ReadSERDESOscillatorClock();
+	DTC_SerdesClockSpeed ReadSERDESOscillatorClock(std::optional<uint32_t> val = std::nullopt);
 	void SetSERDESOscillatorClock(DTC_SerdesClockSpeed speed);
 	void SetTimingOscillatorClock(uint32_t freq);
 	RegisterFormatter FormatTimingSERDESOscillatorFrequency();
@@ -631,9 +631,9 @@ public:
 	RegisterFormatter FormatSERDESOscillatorParameterHigh();
 
 	// DDR Oscillator Registers
-	uint32_t ReadDDROscillatorReferenceFrequency();
+	uint32_t ReadDDROscillatorReferenceFrequency(std::optional<uint32_t> val = std::nullopt);
 	void SetDDROscillatorReferenceFrequency(uint32_t freq);
-	bool ReadDDROscillatorIICInterfaceReset();
+	bool ReadDDROscillatorIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
 	void ResetDDROscillatorIICInterface();
 
 	void WriteDDRIICInterface(DTC_IICDDRBusAddress device, uint8_t address, uint8_t data);
@@ -645,7 +645,7 @@ public:
 
 	// Data Pending Timer Register
 	void SetDataPendingTimer(uint32_t timer);
-	uint32_t ReadDataPendingTimer();
+	uint32_t ReadDataPendingTimer(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDataPendingTimer();
 
 	// FIFO Full Error Flags Registers
@@ -664,18 +664,18 @@ public:
 
 	// CFO Emulation Timestamp Registers
 	void SetCFOEmulationTimestamp(const DTC_EventWindowTag& ts);
-	DTC_EventWindowTag ReadCFOEmulationTimestamp();
+	DTC_EventWindowTag ReadCFOEmulationTimestamp(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulationTimestampLow();
 	RegisterFormatter FormatCFOEmulationTimestampHigh();
 
 	// CFO Emulation Heartbeat Interval Regsister
 	void SetCFOEmulationHeartbeatInterval(uint32_t interval);
-	uint32_t ReadCFOEmulationHeartbeatInterval();
+	uint32_t ReadCFOEmulationHeartbeatInterval(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulationHeartbeatInterval();
 
 	// CFO Emulation Number of Heartbeats Register
 	void SetCFOEmulationNumHeartbeats(uint32_t numHeartbeats);
-	uint32_t ReadCFOEmulationNumHeartbeats();
+	uint32_t ReadCFOEmulationNumHeartbeats(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulationNumHeartbeats();
 
 	// CFO Emulation Number of Packets Registers
@@ -687,23 +687,23 @@ public:
 
 	// CFO Emulation Number of Null Heartbeats Register
 	void SetCFOEmulationNumNullHeartbeats(const uint32_t& count);
-	uint32_t ReadCFOEmulationNumNullHeartbeats();
+	uint32_t ReadCFOEmulationNumNullHeartbeats(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulationNumNullHeartbeats();
 
 	// CFO Emulation Event Mode Bytes Registers
 	void SetCFOEmulationEventMode(const uint64_t& eventMode);
-	uint64_t ReadCFOEmulationEventMode();
+	uint64_t ReadCFOEmulationEventMode(std::optional<uint32_t> val = std::nullopt);
 	void SetCFOEmulationModeByte(const uint8_t& byteNum, uint8_t data);
-	uint8_t ReadCFOEmulationModeByte(const uint8_t& byteNum);
+	uint8_t ReadCFOEmulationModeByte(const uint8_t& byteNum, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulationModeBytes03();
 	RegisterFormatter FormatCFOEmulationModeBytes45();
 
 	// CFO Emulation Debug Packet Type Register
 	void EnableDebugPacketMode();
 	void DisableDebugPacketMode();
-	bool ReadDebugPacketMode();
+	bool ReadDebugPacketMode(std::optional<uint32_t> val = std::nullopt);
 	void SetCFOEmulationDebugType(DTC_DebugType type);
-	DTC_DebugType ReadCFOEmulationDebugType();
+	DTC_DebugType ReadCFOEmulationDebugType(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulationDebugPacketType();
 
 	// RX Packet Count Error Flags Register
@@ -714,12 +714,12 @@ public:
 
 	// Detector Emulation DMA Count Register
 	void SetDetectorEmulationDMACount(uint32_t count);
-	uint32_t ReadDetectorEmulationDMACount();
+	uint32_t ReadDetectorEmulationDMACount(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDetectorEmulationDMACount();
 
 	// Detector Emulation DMA Delay Count Register
 	void SetDetectorEmulationDMADelayCount(uint32_t count);
-	uint32_t ReadDetectorEmulationDMADelayCount();
+	uint32_t ReadDetectorEmulationDMADelayCount(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDetectorEmulationDMADelayCount();
 
 	// Detector Emulation Control Registers
@@ -751,25 +751,25 @@ public:
 
 	// DDR Event Data Local Start Address Register
 	void SetDDRDataLocalStartAddress(uint32_t address);
-	uint32_t ReadDDRDataLocalStartAddress();
+	uint32_t ReadDDRDataLocalStartAddress(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDDRDataLocalStartAddress();
 
 	// DDR Event Data Local End Address Register
 	void SetDDRDataLocalEndAddress(uint32_t address);
-	uint32_t ReadDDRDataLocalEndAddress();
+	uint32_t ReadDDRDataLocalEndAddress(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDDRDataLocalEndAddress();
 
 	// CFO Emulator Data Request Interpacket Delay
-	uint32_t ReadCFOEmulatorInterpacketDelay();
+	uint32_t ReadCFOEmulatorInterpacketDelay(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulatorInterpacketDelay();
 
 	// Ethernet Frame Payload Max Size
-	uint32_t ReadEthernetPayloadSize();
+	uint32_t ReadEthernetPayloadSize(std::optional<uint32_t> val = std::nullopt);
 	void SetEthernetPayloadSize(uint32_t size);
 	RegisterFormatter FormatEthernetPayloadSize();
 
 	// CFO Emulation 40 MHz Clock Marker Interval
-	uint32_t ReadCFOEmulation40MHzMarkerInterval();
+	uint32_t ReadCFOEmulation40MHzMarkerInterval(std::optional<uint32_t> val = std::nullopt);
 	void SetCFOEmulation40MHzMarkerInterval(uint32_t interval);
 	RegisterFormatter FormatCFOEmulation40MHzMarkerInterval();
 
@@ -781,7 +781,7 @@ public:
 	RegisterFormatter FormatCFOEmulationMarkerEnables();
 
 	// ROC Finish Threshold Register
-	uint8_t ReadROCCommaLimit();
+	uint8_t ReadROCCommaLimit(std::optional<uint32_t> val = std::nullopt);
 	void SetROCCommaLimit(uint8_t limit);
 	RegisterFormatter FormatROCFinishThreshold();
 
@@ -824,7 +824,7 @@ public:
 	RegisterFormatter FormatTransmitPacketCountCFO();
 
 	// Firefly TX IIC Registers
-	bool ReadFireflyTXIICInterfaceReset();
+	bool ReadFireflyTXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
 	void ResetFireflyTXIICInterface();
 	void WriteFireflyTXIICInterface(uint8_t device, uint8_t address, uint8_t data);
 	uint8_t ReadFireflyTXIICInterface(uint8_t device, uint8_t address);
@@ -833,7 +833,7 @@ public:
 	RegisterFormatter FormatFireflyTXIICParameterHigh();
 
 	// Firefly RX IIC Registers
-	bool ReadFireflyRXIICInterfaceReset();
+	bool ReadFireflyRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
 	void ResetFireflyRXIICInterface();
 	void WriteFireflyRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
 	uint8_t ReadFireflyRXIICInterface(uint8_t device, uint8_t address);
@@ -842,7 +842,7 @@ public:
 	RegisterFormatter FormatFireflyRXIICParameterHigh();
 
 	// Firefly TXRX IIC Registers
-	bool ReadFireflyTXRXIICInterfaceReset();
+	bool ReadFireflyTXRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
 	void ResetFireflyTXRXIICInterface();
 	void WriteFireflyTXRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
 	uint8_t ReadFireflyTXRXIICInterface(uint8_t device, uint8_t address);
@@ -865,16 +865,16 @@ public:
 	RegisterFormatter FormatSERDESRXPRBSControl();
 
 	// DTC Mode Lookup
-	bool ReadEventModeTableEnable();
+	bool ReadEventModeTableEnable(std::optional<uint32_t> val = std::nullopt);
 	void SetEventModeTableEnable();
 	void ClearEventModeTableEnable();
-	uint8_t ReadEventModeLookupByteSelect();
+	uint8_t ReadEventModeLookupByteSelect(std::optional<uint32_t> val = std::nullopt);
 	void SetEventModeLookupByteSelect(uint8_t byte);
 	RegisterFormatter FormatEventModeLookupTableControl();
 
 	// DDR Memory Test Register
-	bool ReadDDRMemoryTestComplete();
-	bool ReadDDRMemoryTestError();
+	bool ReadDDRMemoryTestComplete(std::optional<uint32_t> val = std::nullopt);
+	bool ReadDDRMemoryTestError(std::optional<uint32_t> val = std::nullopt);
 	void ClearDDRMemoryTestError();
 	RegisterFormatter FormatDDRMemoryTestRegister();
 
@@ -886,17 +886,17 @@ public:
 	RegisterFormatter FormatSERDESSerialInversionEnable();
 
 	// Jitter Attenuator CSR Register
-	std::bitset<2> ReadJitterAttenuatorSelect();
+	std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt);
 	void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
-	bool ReadJitterAttenuatorReset();
-	bool ReadJitterAttenuatorLocked();
+	bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt);
+	bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt);
 	void ResetJitterAttenuator();
 	RegisterFormatter FormatJitterAttenuatorCSR();
 
 	void ConfigureJitterAttenuator();
 
 	// SFP IIC Registers
-	bool ReadSFPIICInterfaceReset();
+	bool ReadSFPIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
 	void ResetSFPIICInterface();
 	void WriteSFPIICInterface(uint8_t device, uint8_t address, uint8_t data);
 	uint8_t ReadSFPIICInterface(uint8_t device, uint8_t address);
@@ -925,25 +925,25 @@ public:
 	RegisterFormatter FormatMissedCFOPacketCountLink5();
 
 	// Local Fragment Drop Count Register
-	uint32_t ReadLocalFragmentDropCount();
+	uint32_t ReadLocalFragmentDropCount(std::optional<uint32_t> val = std::nullopt);
 	void ClearLocalFragmentDropCount();
 	RegisterFormatter FormatLocalFragmentDropCount();
 
 	// EVB SubEvent Receive Timer Preset
-	uint32_t ReadEVBSubEventReceiveTimer();
+	uint32_t ReadEVBSubEventReceiveTimer(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBSubEventReceiveTimer(uint32_t timer);
 	RegisterFormatter FormatEVBSubEventReceiveTimer();
 
 	// EVB SERDES PRBS Control / Status Register
-	bool ReadEVBSERDESPRBSErrorFlag();
-	uint8_t ReadEVBSERDESTXPRBSSEL();
+	bool ReadEVBSERDESPRBSErrorFlag(std::optional<uint32_t> val = std::nullopt);
+	uint8_t ReadEVBSERDESTXPRBSSEL(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBSERDESTXPRBSSEL(uint8_t byte);
-	uint8_t ReadEVBSERDESRXPRBSSEL();
+	uint8_t ReadEVBSERDESRXPRBSSEL(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBSERDESRXPRBSSEL(uint8_t byte);
-	bool ReadEVBSERDESPRBSForceError();
+	bool ReadEVBSERDESPRBSForceError(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBSERDESPRBSForceError(bool flag);
 	void ToggleEVBSERDESPRBSForceError();
-	bool ReadEVBSERDESPRBSReset();
+	bool ReadEVBSERDESPRBSReset(std::optional<uint32_t> val = std::nullopt);
 	void SetEVBSERDESPRBSReset(bool flag);
 	void ToggleEVBSERDESPRBSReset();
 	RegisterFormatter FormatEVBSERDESPRBSControl();
@@ -995,8 +995,8 @@ public:
 	RegisterFormatter FormatCFOLinkError();
 
 	// Link Mux Error Register
-	bool ReadDCSMuxDecodeError();
-	bool ReadDataMuxDecodeError();
+	bool ReadDCSMuxDecodeError(std::optional<uint32_t> val = std::nullopt);
+	bool ReadDataMuxDecodeError(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatLinkMuxError();
 
 	// Firefly CSR Register
@@ -1044,40 +1044,40 @@ public:
 	RegisterFormatter FormatRXCDRUnlockCountCFOLink();
 
 	// RX Jitter Attenuator Unlock Count Register
-	uint32_t ReadJitterAttenuatorUnlockCount();
+	uint32_t ReadJitterAttenuatorUnlockCount(std::optional<uint32_t> val = std::nullopt);
 	void ClearJitterAttenuatorUnlockCount();
 	RegisterFormatter FormatJitterAttenuatorUnlockCount();
 
 	// RX CFO Link Event Start Character Error Count Register
-	uint32_t ReadRXCFOLinkEventStartCharacterErrorCount();
+	uint32_t ReadRXCFOLinkEventStartCharacterErrorCount(std::optional<uint32_t> val = std::nullopt);
 	void ClearRXCFOLinkEventStartCharacterErrorCount();
 	RegisterFormatter FormatRXCFOLinkEventStartCharacterErrorCount();
 
 	// RX CFO Link 40MHz Clock Character Error Count Register
-	uint32_t ReadRXCFOLink40MHzCharacterErrorCount();
+	uint32_t ReadRXCFOLink40MHzCharacterErrorCount(std::optional<uint32_t> val = std::nullopt);
 	void ClearRXCFOLink40MHzCharacterErrorCount();
 	RegisterFormatter FormatRXCFOLink40MHzCharacterErrorCount();
 
 	// Input Buffer Fragment Dump Count
-	uint32_t ReadInputBufferFragmentDumpCount();
+	uint32_t ReadInputBufferFragmentDumpCount(std::optional<uint32_t> val = std::nullopt);
 	void ClearInputBufferFragmentDumpCount();
 	RegisterFormatter FormatInputBufferFragmentDumpCount();
 
 	// Output Buffer Fragment Dump Count
-	uint32_t ReadOutputBufferFragmentDumpCount();
+	uint32_t ReadOutputBufferFragmentDumpCount(std::optional<uint32_t> val = std::nullopt);
 	void ClearOutputBufferFragmentDumpCount();
 	RegisterFormatter FormatOutputBufferFragmentDumpCount();
 
 	// ROC DCS Response Timer Preset
-	uint32_t ReadROCDCSResponseTimer();
+	uint32_t ReadROCDCSResponseTimer(std::optional<uint32_t> val = std::nullopt);
 	void SetROCDCSResponseTimer(uint32_t timer);
 	RegisterFormatter FormatROCDCSResponseTimerPreset();
 
 	// FPGA PROM Program Data Register
 
 	// FPGA PROM Program Status Register
-	bool ReadFPGAPROMProgramFIFOFull();
-	bool ReadFPGAPROMReady();
+	bool ReadFPGAPROMProgramFIFOFull(std::optional<uint32_t> val = std::nullopt);
+	bool ReadFPGAPROMReady(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAPROMProgramStatus();
 
 	// FPGA Core Access Register
@@ -1243,17 +1243,17 @@ public:
 	void DisableInduceSERDESRXCRCError(DTC_Link_ID const& link);
 	RegisterFormatter FormatSERDESRXCRCErrorControl();
 
-	uint32_t ReadEVBSERDESRXPacketErrorCounter();
+	uint32_t ReadEVBSERDESRXPacketErrorCounter(std::optional<uint32_t> val = std::nullopt);
 	void ClearEVBSERDESRXPacketErrorCounter();
 	RegisterFormatter FormatEVBSERDESRXPacketErrorCounter();
 
 	// Jitter Attenuator SERDES RX Recovered Clock LOS Counter
-	uint32_t ReadJitterAttenuatorRecoveredClockLOSCount();
+	uint32_t ReadJitterAttenuatorRecoveredClockLOSCount(std::optional<uint32_t> val = std::nullopt);
 	void ClearJitterAttenuatorRecoeveredClockLOSCount();
 	RegisterFormatter FormatJitterAttenuatorRecoveredClockLOSCount();
 
 	// Jitter Attenuator SERDES RX External Clock LOS Counter
-	uint32_t ReadJitterAttenuatorExternalClockLOSCount();
+	uint32_t ReadJitterAttenuatorExternalClockLOSCount(std::optional<uint32_t> val = std::nullopt);
 	void ClearJitterAttenuatorExternalClockLOSCount();
 	RegisterFormatter FormatJitterAttenuatorExternalClockLOSCount();
 
@@ -1308,7 +1308,7 @@ public:
 	RegisterFormatter FormatRXDataPacketCountLink5();
 
 	// EVB Diagnostic RX Packet FIFO
-	uint64_t ReadEVBDiagnosticFIFO();
+	uint64_t ReadEVBDiagnosticFIFO(std::optional<uint32_t> val = std::nullopt);
 	void ClearEVBDiagnosticFIFO();
 	// No formatters for FIFO!
 
@@ -1460,7 +1460,7 @@ protected:
 		[this] { return this->FormatLinkMuxError(); },
 		[this] { return this->FormatFireflyCSR(); },
 		[this] { return this->FormatSFPControlStatus(); },
-		[this] { return this->FormatROCDCSResponseTimerPreset(); },
+		// [this] { return this->FormatROCDCSResponseTimerPreset(); },
 		[this] { return this->FormatFPGAPROMProgramStatus(); },
 		[this] { return this->FormatFPGACoreAccess(); },
 		[this] { return this->FormatSlowOpticalLinkControlStatus(); },

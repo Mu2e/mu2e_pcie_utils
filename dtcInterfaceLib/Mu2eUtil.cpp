@@ -316,7 +316,7 @@ void DTCLib::Mu2eUtil::verify_stream()
 		thisDTC->EnableDetectorEmulator();
 	}
 
-	if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && timestampFile != "")
+	if (thisDTC->GetSimMode() != DTC_SimMode_Loopback && timestampFile != "")
 	{
 		syncRequests = false;
 		std::set<DTC_EventWindowTag> timestamps;
@@ -329,11 +329,11 @@ void DTCLib::Mu2eUtil::verify_stream()
 		number = timestamps.size();
 		cfo.SendRequestsForList(timestamps, cfodelay, heartbeatsAfter);
 	}
-	else if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && !syncRequests)
+	else if (thisDTC->GetSimMode() != DTC_SimMode_Loopback && !syncRequests)
 	{
 		cfo.SendRequestsForRange(number, DTC_EventWindowTag(timestampOffset), incrementTimestamp, cfodelay, requestsAhead, heartbeatsAfter);
 	}
-	else if (thisDTC->ReadSimMode() == DTC_SimMode_Loopback)
+	else if (thisDTC->GetSimMode() == DTC_SimMode_Loopback)
 	{
 		uint64_t ts = timestampOffset;
 		DTC_DataHeaderPacket header(DTC_Link_0, static_cast<uint16_t>(0), DTC_DataStatus_Valid, 0, DTC_Subsystem_Other, 0, DTC_EventWindowTag(ts));
@@ -423,8 +423,8 @@ void DTCLib::Mu2eUtil::verify_stream()
 			newEvt.SetupEvent();
 			subEventCount = newEvt.GetSubEventCount();
 
-			if (thisDTC->ReadSimMode() == DTC_SimMode_ROCEmulator ||
-				thisDTC->ReadSimMode() == DTC_SimMode_Performance) {
+			if (thisDTC->GetSimMode() == DTC_SimMode_ROCEmulator ||
+				thisDTC->GetSimMode() == DTC_SimMode_Performance) {
 				auto roc_mask_tmp = rocMask;
 				size_t num_rocs = 0;
 
@@ -449,8 +449,8 @@ void DTCLib::Mu2eUtil::verify_stream()
 		{
 			evt.SetupEvent();
 			subEventCount = evt.GetSubEventCount();
-			if (thisDTC->ReadSimMode() == DTC_SimMode_ROCEmulator ||
-				thisDTC->ReadSimMode() == DTC_SimMode_Performance) {
+			if (thisDTC->GetSimMode() == DTC_SimMode_ROCEmulator ||
+				thisDTC->GetSimMode() == DTC_SimMode_Performance) {
 				auto roc_mask_tmp = rocMask;
 				size_t num_rocs = 0;
 
@@ -563,7 +563,7 @@ void DTCLib::Mu2eUtil::buffer_test()
 		thisDTC->EnableDetectorEmulator();
 	}
 
-	if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && timestampFile != "")
+	if (thisDTC->GetSimMode() != DTC_SimMode_Loopback && timestampFile != "")
 	{
 		syncRequests = false;
 		std::set<DTC_EventWindowTag> timestamps;
@@ -576,7 +576,7 @@ void DTCLib::Mu2eUtil::buffer_test()
 		number = timestamps.size();
 		cfo.SendRequestsForList(timestamps, cfodelay, heartbeatsAfter);
 	}
-	else if (thisDTC->ReadSimMode() != DTC_SimMode_Loopback && !syncRequests)
+	else if (thisDTC->GetSimMode() != DTC_SimMode_Loopback && !syncRequests)
 	{
 		cfo.SendRequestsForRange(number, 
 									DTC_EventWindowTag(timestampOffset), 
@@ -585,7 +585,7 @@ void DTCLib::Mu2eUtil::buffer_test()
 									requestsAhead, 
 									heartbeatsAfter);
 	}
-	else if (thisDTC->ReadSimMode() == DTC_SimMode_Loopback)
+	else if (thisDTC->GetSimMode() == DTC_SimMode_Loopback)
 	{
 		uint64_t ts = timestampOffset;
 		DTC_DataHeaderPacket header(DTC_Link_0, static_cast<uint16_t>(0), DTC_DataStatus_Valid, 0, DTC_Subsystem_Other, 0, DTC_EventWindowTag(ts));
