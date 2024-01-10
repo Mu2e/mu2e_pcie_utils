@@ -378,16 +378,20 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			{
 				if (!mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_))
 				{
-					TRACE(20, "mu2e_ioctl: cmd=GET_INFO wait_event_interruptible_timeout jiffies=%u", tmo_jiffies);
-					if (tmo_jiffies == 0) {
+					TRACE(20, "mu2e_ioctl: cmd=GET_INFO wait_event_interruptible_timeout get_info.tmo_ms=%u jiffies=%u", get_info.tmo_ms, tmo_jiffies);
+					spin_lock_irq(get_info_wait_queue.lock);
+					if (tmo_jiffies == 0)
+					{
 						TRACE(20, "mu2e_ioctl: cmd=GET_INFO: Skipping wait due to 0 timeout");
 					}
-					else if (wait_event_interruptible_timeout(get_info_wait_queue,
-														 mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_),
-														 tmo_jiffies) == 0)
+					else if (wait_event_interruptible_lock_irq_timeout(get_info_wait_queue,
+																	   mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_),
+																	   get_info_wait_queue.lock,
+																	   tmo_jiffies) == 0)
 					{
 						TRACE(20, "mu2e_ioctl: cmd=GET_INFO tmo");
 					}
+					spin_unlock_irq(get_info_wait_queue.lock);
 				}
 			}
 			else
@@ -602,7 +606,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 
 			TRACE(10, "mu2e_ioctl: cmd=GET_VRESION v=%s", DRIVER_VERSION_STRING);
 			strncpy(ms, DRIVER_VERSION_STRING, sizeof(mu2e_string_t) - 1);
-			if (copy_to_user((mu2e_string_t*)arg, &ms, sizeof(mu2e_string_t)))
+			if (copy_to_user((mu2e_string_t *)arg, &ms, sizeof(mu2e_string_t)))
 			{
 				TRACE(0, "copy_to_user failed\n");
 				return (-EFAULT);
