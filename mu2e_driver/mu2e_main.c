@@ -379,7 +379,10 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				if (!mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_))
 				{
 					TRACE(20, "mu2e_ioctl: cmd=GET_INFO wait_event_interruptible_timeout jiffies=%u", tmo_jiffies);
-					if (wait_event_interruptible_timeout(get_info_wait_queue,
+					if (tmo_jiffies == 0) {
+						TRACE(20, "mu2e_ioctl: cmd=GET_INFO: Skipping wait due to 0 timeout");
+					}
+					else if (wait_event_interruptible_timeout(get_info_wait_queue,
 														 mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_),
 														 tmo_jiffies) == 0)
 					{
