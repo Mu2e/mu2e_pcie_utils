@@ -58,9 +58,9 @@ m_ioc_get_info_t mu2e_channel_info_[MU2E_MAX_NUM_DTCS][MU2E_MAX_CHANNELS][2];  /
 volatile void *mu2e_mmap_ptrs[MU2E_MAX_NUM_DTCS][MU2E_MAX_CHANNELS][2][2];
 
 /* for exclusion of all program flows (processes, ISRs and BHs) */
-static DEFINE_SPINLOCK(DmaStatsLock);
-static DEFINE_SPINLOCK(ReadbackLock);
-static DEFINE_SPINLOCK(DcsTransactionLock);
+static DEFINE_MUTEX(DmaStatsLock);
+static DEFINE_MUTEX(ReadbackLock);
+static DEFINE_MUTEX(DcsTransactionLock);
 
 /**
  * The get_info_wait_queue allows this module to put
@@ -265,13 +265,13 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				{
 					if (!dstatsNum[j]) continue;
 
-					spin_lock_bh(&DmaStatsLock);
+					mutex_lock(&DmaStatsLock);
 					from = DStats[j][dstatsRead[j]];
 					from.Engine = j;
 					dstatsNum[j] -= 1;
 					dstatsRead[j] += 1;
 					if (dstatsRead[j] == MAX_STATS) dstatsRead[j] = 0;
-					spin_unlock_bh(&DmaStatsLock);
+					mutex_unlock(&DmaStatsLock);
 
 					if (copy_to_user(ds, &from, sizeof(DMAStatistics)))
 					{
@@ -312,12 +312,12 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 
 				if (!tstatsNum) break;
 
-				spin_lock_bh(&DmaStatsLock);
+				mutex_lock(&DmaStatsLock);
 				from = TStats[tstatsRead];
 				tstatsNum -= 1;
 				tstatsRead += 1;
 				if (tstatsRead == MAX_STATS) tstatsRead = 0;
-				spin_unlock_bh(&DmaStatsLock);
+				mutex_unlock(&DmaStatsLock);
 
 				if (copy_to_user(ts, &from, sizeof(TRNStatistics)))
 				{
@@ -348,7 +348,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			}
 			if (reg_access.access_type)
 			{
-				if (reg_access.access_type == 2) spin_lock_bh(&ReadbackLock);  // Lock for readback
+				if (reg_access.access_type == 2) mutex_lock(&ReadbackLock);  // Lock for readback
 				TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - write dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
 				Dma_mWriteReg(base, reg_access.reg_offset, reg_access.val);
 				if (reg_access.access_type == 1) return retval;
@@ -356,7 +356,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 
 			TRACE(18, "mu2e_ioctl: cmd=REG_ACCESS - read offset=0x%x", reg_access.reg_offset);
 			reg_access.val = Dma_mReadReg(base, reg_access.reg_offset);
-			if (reg_access.access_type == 2) spin_unlock_bh(&ReadbackLock);  // Unlock for readback
+			if (reg_access.access_type == 2) mutex_unlock(&ReadbackLock);  // Unlock for readback
 			TRACE(19, "mu2e_ioctl: cmd=REG_ACCESS - read dtc=%d offset=0x%x, val=0x%x", dtc, reg_access.reg_offset, reg_access.val);
 			if (copy_to_user((void *)arg, &reg_access, sizeof(reg_access)))
 			{
@@ -570,7 +570,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			break;
 		case M_IOC_DCS_LOCK:
 			TRACE(23, "mu2e_ioctl DCS_LOCK before taking DcsTransactionLock");
-			spin_lock(&DcsTransactionLock);
+			mutex_lock(&DcsTransactionLock);
 			TRACE(23, "mu2e_ioctl DCS_LOCK after taking DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
 			if (mu2e_dcs_locks[dtc])
 			{
@@ -582,17 +582,17 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				retval = 0;
 			}
 			TRACE(23, "mu2e_ioctl DCS_LOCK before releasing DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
-			spin_unlock(&DcsTransactionLock);
+			mutex_unlock(&DcsTransactionLock);
 			TRACE(23, "mu2e_ioctl DCS_LOCK after releasing DcsTransactionLock retval=%ld", retval);
 			break;
 		case M_IOC_DCS_RELEASE:
 			TRACE(24, "mu2e_ioctl DCS_UNLOCK before taking DcsTransactionLock");
-			spin_lock(&DcsTransactionLock);
+			mutex_lock(&DcsTransactionLock);
 			TRACE(24, "mu2e_ioctl DCS_UNLOCK after taking DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
 			mu2e_dcs_locks[dtc] = 0;
 			retval = 0;
 			TRACE(24, "mu2e_ioctl DCS_UNLOCK before releasing DcsTransactionLock, locks[dtc]=%d", mu2e_dcs_locks[dtc]);
-			spin_unlock(&DcsTransactionLock);
+			mutex_unlock(&DcsTransactionLock);
 			TRACE(24, "mu2e_ioctl DCS_UNLOCK after releasing DcsTransactionLock");
 			break;
 		case M_IOC_GET_VERSION:
