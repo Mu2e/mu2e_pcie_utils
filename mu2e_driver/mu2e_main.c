@@ -61,6 +61,7 @@ volatile void *mu2e_mmap_ptrs[MU2E_MAX_NUM_DTCS][MU2E_MAX_CHANNELS][2][2];
 static DEFINE_MUTEX(DmaStatsLock);
 static DEFINE_MUTEX(ReadbackLock);
 static DEFINE_MUTEX(DcsTransactionLock);
+static DEFINE_SPINLOCK(GetInfoLock);
 
 /**
  * The get_info_wait_queue allows this module to put
@@ -379,19 +380,19 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 				if (!mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_))
 				{
 					TRACE(20, "mu2e_ioctl: cmd=GET_INFO wait_event_interruptible_timeout get_info.tmo_ms=%u jiffies=%u", get_info.tmo_ms, tmo_jiffies);
-					spin_lock_irqsave(&get_info_wait_queue.lock);
+					spin_lock_irq(&GetInfoLock);
 					if (tmo_jiffies == 0)
 					{
 						TRACE(20, "mu2e_ioctl: cmd=GET_INFO: Skipping wait due to 0 timeout");
 					}
 					else if (wait_event_interruptible_lock_irq_timeout(get_info_wait_queue,
 																	   mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_),
-																	   get_info_wait_queue.lock,
+																	   GetInfoLock,
 																	   tmo_jiffies) == 0)
 					{
 						TRACE(20, "mu2e_ioctl: cmd=GET_INFO tmo");
 					}
-					spin_unlock_irqrestore(&get_info_wait_queue.lock);
+					spin_unlock_irq(&GetInfoLock);
 				}
 			}
 			else
