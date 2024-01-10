@@ -176,12 +176,6 @@ static int mu2e_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	TRACE(1, "mu2e_pci_probe read a channel reg to quiet compiler 0x%x", Dma_mReadChnReg(dtc, 0, C2S, REG_HW_CMPLT_BD));
 
-	// clear "App 0/1" registers
-	Dma_mWriteReg(mu2e_pcie_bar_info[dtc].baseVAddr, 0x9100, 0);
-	Dma_mWriteReg(mu2e_pcie_bar_info[dtc].baseVAddr, 0x9108, 0);
-	Dma_mWriteReg(mu2e_pcie_bar_info[dtc].baseVAddr, 0x9200, 0);
-	Dma_mWriteReg(mu2e_pcie_bar_info[dtc].baseVAddr, 0x9208, 0);
-
 	/* Read DMA engine configuration and initialise data structures */
 	if (ReadDMAEngineConfiguration(pdev /*, dmaData*/) != 0) goto out2;
 	mu2e_pci_dev[dtc] = pdev; /* GLOBAL */
