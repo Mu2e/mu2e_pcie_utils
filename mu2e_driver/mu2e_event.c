@@ -73,9 +73,9 @@ irqreturn_t DmaInterrupt(int irq, void *dev_id)
    Called from timer or interrupt (indirectly via mu2e_force_poll).
  */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
-void poll_packets(unsigned long dc)
+static void poll_packets(unsigned long dc)
 #else
-void poll_packets(struct timer_list *t)
+static void poll_packets(struct timer_list *t)
 #endif
 {
 	unsigned long base;
