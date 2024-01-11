@@ -245,7 +245,8 @@ int mu2e_force_poll(int dtc)
 
 void mu2e_event_down(int dtc)
 {
-	while (packets_timer_guard[dtc] == 0) {}
+	//while (packets_timer_guard[dtc] == 0) {}
 	packets_timer_guard[dtc] = 0;  // Ensure that mu2e_force_poll won't call poll_packets again
 	del_timer_sync(&packets_timer[dtc].timer);
+	packets_timer_guard[dtc] = 0;  // Ensure that mu2e_force_poll won't call poll_packets again
 }
