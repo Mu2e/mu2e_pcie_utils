@@ -10,17 +10,30 @@
 #include "mu2edev.h"
 
 #define DTCLIB_COMMON_REGISTERS \
-CFOandDTC_Register_DesignVersion = 0x9000, \
+	CFOandDTC_Register_DesignVersion = 0x9000, \
 	CFOandDTC_Register_DesignDate = 0x9004, \
 	CFOandDTC_Register_DesignStatus = 0x9008, \
-	/* CFOandDTC_Register_VivadoVersion = 0x900C, */ \
+	CFOandDTC_Register_VivadoVersion = 0x900C, \
 	CFOandDTC_Register_FPGA_Temperature = 0x9010, \
 	CFOandDTC_Register_FPGA_VCCINT = 0x9014, \
 	CFOandDTC_Register_FPGA_VCCAUX = 0x9018, \
 	CFOandDTC_Register_FPGA_VCCBRAM = 0x901C, \
-	/* CFOandDTC_Register_Scratch = 0x9030, */ \
-	/* CFOandDTC_Register_KernelDriverVersion = 0x9040 */ \
-	CFOandDTC_Register_FPGA_MonitorAlarm = 0x9020
+	CFOandDTC_Register_FPGA_MonitorAlarm = 0x9020, \
+	CFOandDTC_Register_Scratch = 0x9030,  \
+	CFOandDTC_Register_Control = 0x9100,  \
+	CFOandDTC_Register_DMATransferLength = 0x9104,  \
+	CFOandDTC_Register_SERDES_LoopbackEnable = 0x9108, \
+	CFOandDTC_Register_ClockOscillatorStatus = 0x910C, \
+	CFOandDTC_Register_LinkEnable = 0x9114, \
+	CFOandDTC_Register_SERDES_Reset = 0x9118, \
+	CFOandDTC_Register_SERDES_RXDisparityError = 0x911C, \
+	CFOandDTC_Register_SERDES_RXCharacterNotInTableError = 0x9120, \
+	CFOandDTC_Register_SERDES_UnlockError = 0x9124, \
+	CFOandDTC_Register_SERDES_PLLLocked = 0x9128, /* not in CFO (?) */ \
+	CFOandDTC_Register_SERDES_PLLPowerDown = 0x912C, /* not in CFO (?) */ \
+	CFOandDTC_Register_SERDES_CDRLockCommaCount = 0x9130,	 \
+	CFOandDTC_Register_SERDES_RXStatus = 0x9134, \
+	CFOandDTC_Register_SERDES_ResetDone = 0x9138
 
 namespace DTCLib {
 
@@ -146,8 +159,8 @@ public:
 	std::string ReadDesignType(std::optional<uint32_t> val = std::nullopt);
 
 	// Vivado Version Register
-	virtual std::string ReadVivadoVersionNumber(std::optional<uint32_t> val = std::nullopt) = 0;
-	virtual RegisterFormatter FormatVivadoVersion() = 0;
+	virtual std::string ReadVivadoVersionNumber(std::optional<uint32_t> val = std::nullopt);
+	virtual RegisterFormatter FormatVivadoVersion();
 
 	// FPGA Temperature Register
 	double ReadFPGATemperature(std::optional<uint32_t> val = std::nullopt);
@@ -179,6 +192,11 @@ public:
 	bool ReadFPGAUserTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
 	void ResetFPGAUserTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAAlarms();
+
+	// CFO and DTC Control Register B31 is Soft Reset
+	void SoftReset();             // B31
+	bool ReadSoftReset(std::optional<uint32_t> val = std::nullopt);         // B31
+	void ClearControlRegister();   // 32-bit clear
 
 	std::bitset<2> ReadJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
 	void SetJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::bitset<2> data, bool alsoResetJA);

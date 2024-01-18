@@ -13,25 +13,25 @@ namespace DTCLib {
 enum DTC_Register : uint16_t
 {
 	DTCLIB_COMMON_REGISTERS,
-	DTC_Register_VivadoVersion = 0x900C,
+	// DTC_Register_VivadoVersion = 0x900C,
 
-	DTC_Register_Scratch = 0x9030,
-	DTC_Register_KernelDriverVersion = 0x9040,
-	DTC_Register_DTCControl = 0x9100,
-	DTC_Register_DMATransferLength = 0x9104,
-	DTC_Register_SERDESLoopbackEnable = 0x9108,
-	DTC_Register_SERDESDDRClockStatus = 0x910C,
+	// DTC_Register_Scratch = 0x9030,
+	// DTC_Register_DTCControl = 0x9100,
+	// DTC_Register_DMATransferLength = 0x9104,
+	
+	// DTC_Register_SERDESLoopbackEnable = 0x9108,
+	// DTC_Register_SERDESDDRClockStatus = 0x910C,
 	DTC_Register_ROCEmulationEnable = 0x9110,
-	DTC_Register_LinkEnable = 0x9114,
-	DTC_Register_SERDES_Reset = 0x9118,
-	DTC_Register_SERDES_RXDisparityError = 0x911C,
-	DTC_Register_SERDES_RXCharacterNotInTableError = 0x9120,
-	DTC_Register_SERDES_UnlockError = 0x9124,
-	DTC_Register_SERDES_PLLLocked = 0x9128,
-	DTC_Register_SERDES_PLLPowerDown = 0x912C,
-	DTC_Register_SERDES_CDRLockCommaCount = 0x9130,
-	DTC_Register_SERDES_RXStatus = 0x9134,
-	DTC_Register_SERDES_ResetDone = 0x9138,
+	// DTC_Register_LinkEnable = 0x9114,
+	// DTC_Register_SERDES_Reset = 0x9118,
+	// DTC_Register_SERDES_RXDisparityError = 0x911C,
+	// DTC_Register_SERDES_RXCharacterNotInTableError = 0x9120,
+	// DTC_Register_SERDES_UnlockError = 0x9124,
+	// DTC_Register_SERDES_PLLLocked = 0x9128,
+	// DTC_Register_SERDES_PLLPowerDown = 0x912C,
+	// DTC_Register_SERDES_CDRLockCommaCount = 0x9130,	
+	// DTC_Register_SERDES_RXStatus = 0x9134,
+	// DTC_Register_SERDES_ResetDone = 0x9138,
 	// 0x913C Reserved
 	DTC_Register_SERDES_RXCDRLockStatus = 0x9140,
 	DTC_Register_DMATimeoutPreset = 0x9144,
@@ -399,17 +399,10 @@ public:
 	bool ReadDDRAutoCalibrationDone(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDesignStatus();
 
-	// Vivado Version Register
-	std::string ReadVivadoVersionNumber(std::optional<uint32_t> val = std::nullopt) override;
-	RegisterFormatter FormatVivadoVersion() override;
-
 	// DTC Control Register
-	void ClearDTCControlRegister();    
-	void ResetDTC();             // B31
-	bool ReadResetDTC(std::optional<uint32_t> val = std::nullopt);         // B31
 	void EnableCFOEmulation();   // B30
 	void DisableCFOEmulation();  // B30
-	bool ReadCFOEmulation(std::optional<uint32_t> val = std::nullopt);     // B30
+	bool ReadCFOEmulationEnabled(std::optional<uint32_t> val = std::nullopt);     // B30
 	// Bit 29 Reserved
 	void EnableCFOLoopback();         // B28
 	void DisableCFOLoopback();        // B28
@@ -503,9 +496,9 @@ public:
 	RegisterFormatter FormatClockOscillatorStatus();
 
 	// ROC Emulation Enable Register
-	void EnableROCEmulator(DTC_Link_ID const& link);
-	void DisableROCEmulator(DTC_Link_ID const& link);
-	bool ReadROCEmulator(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	void EnableROCEmulator(DTC_Link_ID const& link, DTC_ROC_Emulation_Type const& type = DTC_ROC_Emulation_Type::ROC_Internal_Emulation);
+	void DisableROCEmulator(DTC_Link_ID const& link, DTC_ROC_Emulation_Type const& type = DTC_ROC_Emulation_Type::ROC_Internal_Emulation);
+	bool ReadROCEmulator(DTC_Link_ID const& link, DTC_ROC_Emulation_Type const& type = DTC_ROC_Emulation_Type::ROC_Internal_Emulation, std::optional<uint32_t> val = std::nullopt);
 	void SetROCEmulatorMask(uint32_t rocEnableMask);
 	uint32_t ReadROCEmulatorMask(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatROCEmulationEnable();
@@ -1354,10 +1347,11 @@ protected:
 
   	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
 		[this] { return this->FormatDTCControl(); },
+		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatROCEmulationEnable(); },
 		[this] { return this->FormatLinkEnable(); },
-		[this] { return this->FormatSERDESReset(); },
 		[this] { return this->FormatSERDESResetDone(); },
+		[this] { return this->FormatSERDESReset(); },
 	};
 
 	const std::vector<std::function<RegisterFormatter()>> formattedDumpFunctions_{
@@ -1371,6 +1365,7 @@ protected:
 		[this] { return this->FormatFPGAVCCBRAM(); },
 		[this] { return this->FormatFPGAAlarms(); },
 		[this] { return this->FormatDTCControl(); },
+		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatDMATransferLength(); },
 		[this] { return this->FormatSERDESLoopbackEnable(); },
 		[this] { return this->FormatClockOscillatorStatus(); },
@@ -1380,7 +1375,6 @@ protected:
 		[this] { return this->FormatSERDESRXDisparityError(); },
 		[this] { return this->FormatSERDESRXCharacterNotInTableError(); },
 		[this] { return this->FormatSERDESUnlockError(); },
-		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatSERDESPLLPowerDown(); },
 		[this] { return this->FormatSERDESRXStatus(); },
 		[this] { return this->FormatSERDESResetDone(); },

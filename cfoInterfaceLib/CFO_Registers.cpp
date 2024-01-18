@@ -146,37 +146,6 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 	return simMode_;
 }
 
-/// <summary>
-/// Read the Vivado Version Number
-/// </summary>
-/// <returns>The Vivado Version number</returns>
-std::string CFOLib::CFO_Registers::ReadVivadoVersionNumber(std::optional<uint32_t> val)
-{
-	auto data = val.has_value()?(*val):ReadRegister_(CFO_Register_VivadoVersion);
-	std::ostringstream o;
-	int yearHex = (data & 0xFFFF0000) >> 16;
-	auto year = ((yearHex & 0xF000) >> 12) * 1000 + ((yearHex & 0xF00) >> 8) * 100 + ((yearHex & 0xF0) >> 4) * 10 +
-				(yearHex & 0xF);
-	int versionHex = (data & 0xFFFF);
-	auto version = ((versionHex & 0xF000) >> 12) * 1000 + ((versionHex & 0xF00) >> 8) * 100 +
-				   ((versionHex & 0xF0) >> 4) * 10 + (versionHex & 0xF);
-	o << std::setfill('0') << std::setw(4) << year << "." << version;
-	// std::cout << o.str() << std::endl;
-	return o.str();
-}
-
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatVivadoVersion()
-{
-	auto form = CreateFormatter(CFO_Register_VivadoVersion);
-	form.description = "CFO Firmware Vivado Version";
-	form.vals.push_back(ReadVivadoVersionNumber(form.value));
-	return form;
-}
-
 
 bool CFOLib::CFO_Registers::ReadDDRFIFOEmpty(std::optional<uint32_t> val)
 {
@@ -200,132 +169,109 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignStatus()
 	return form;
 }
 
-// CFO Control Register
-void CFOLib::CFO_Registers::ResetCFO()
-{
-	TLOG(TLVL_ResetCFO) << __COUT_HDR__ << "ResetCFO start";
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
-	data[31] = 1;  // CFO Reset bit
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
-	//NOTE: CFO might self-clear the reset bit
-	data[31] = 0;  // CFO Reset bit
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
-}
-
-bool CFOLib::CFO_Registers::ReadResetCFO(std::optional<uint32_t> val)
-{
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
-	return dataSet[31];
-}
-
-void CFOLib::CFO_Registers::ClearCFOControlRegister()
-{
-	WriteRegister_(0, CFO_Register_CFOControl);
-}
-
 void CFOLib::CFO_Registers::ResetCFORunPlan()
 {
-	TLOG(TLVL_ResetCFO) << __COUT_HDR__ << "ResetCFO Run Plan start";
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	TLOG(TLVL_ResetCFO) << __COUT_HDR__ << "SoftReset Run Plan start";
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[27] = 1;  // CFO Run Plan Reset bit
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 	data[27] = 0;  // Restore CFO Run Plan Reset bit
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 bool CFOLib::CFO_Registers::ReadResetCFORunPlan(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return dataSet[27];
 }
 
 void CFOLib::CFO_Registers::EnableAutogenDRP()
 {
 	TLOG(TLVL_AutogenDRP) << __COUT_HDR__ << "EnableAutogenDRP start";
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[23] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 void CFOLib::CFO_Registers::DisableAutogenDRP()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[23] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 bool CFOLib::CFO_Registers::ReadAutogenDRP(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[23];
 }
 
 void CFOLib::CFO_Registers::EnableEventWindowInput()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[2] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 void CFOLib::CFO_Registers::DisableEventWindowInput()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[2] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 bool CFOLib::CFO_Registers::ReadEventWindowInput(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[2];
 }
 
 void CFOLib::CFO_Registers::SetExternalSystemClock()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[1] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 void CFOLib::CFO_Registers::SetInternalSystemClock()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[1] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 bool CFOLib::CFO_Registers::ReadSystemClock(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[1];
 }
 
 void CFOLib::CFO_Registers::EnableTiming()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[0] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 void CFOLib::CFO_Registers::DisableTiming()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[0] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 bool CFOLib::CFO_Registers::ReadTimingEnable(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[0];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 {
-	auto form = CreateFormatter(CFO_Register_CFOControl);
+	auto form = CreateFormatter(CFOandDTC_Register_Control);
 	form.description = "CFO Control";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("Reset:                [") + (ReadResetCFO(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Reset:                [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("CFO Autogenerate DRP: [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Event Window Input:   [") + (ReadEventWindowInput(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("System Clock Select:  [") + (ReadSystemClock(form.value) ? "Ext" : "Int") + "]");
@@ -336,28 +282,28 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 // DMA Transfer Length Register
 void CFOLib::CFO_Registers::SetTriggerDMATransferLength(uint16_t length)
 {
-	auto data = ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = ReadRegister_(CFOandDTC_Register_DMATransferLength);
 	data = (data & 0x0000FFFF) + (length << 16);
-	WriteRegister_(data, CFO_Register_DMATransferLength);
+	WriteRegister_(data, CFOandDTC_Register_DMATransferLength);
 }
 
 uint16_t CFOLib::CFO_Registers::ReadTriggerDMATransferLength(std::optional<uint32_t> val)
 {
-	auto data = val.has_value()?*val:ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DMATransferLength);
 	data >>= 16;
 	return static_cast<uint16_t>(data);
 }
 
 void CFOLib::CFO_Registers::SetMinDMATransferLength(uint16_t length)
 {
-	auto data = ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = ReadRegister_(CFOandDTC_Register_DMATransferLength);
 	data = (data & 0xFFFF0000) + length;
-	WriteRegister_(data, CFO_Register_DMATransferLength);
+	WriteRegister_(data, CFOandDTC_Register_DMATransferLength);
 }
 
 uint16_t CFOLib::CFO_Registers::ReadMinDMATransferLength(std::optional<uint32_t> val)
 {
-	auto data = val.has_value()?*val:ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DMATransferLength);
 	data = data & 0x0000FFFF;
 	dmaSize_ = static_cast<uint16_t>(data);
 	return dmaSize_;
@@ -365,7 +311,7 @@ uint16_t CFOLib::CFO_Registers::ReadMinDMATransferLength(std::optional<uint32_t>
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMATransferLength()
 {
-	auto form = CreateFormatter(CFO_Register_DMATransferLength);
+	auto form = CreateFormatter(CFOandDTC_Register_DMATransferLength);
 	form.description = "DMA Transfer Length";
 	form.vals.push_back(""); //translation
 	std::stringstream o;
@@ -380,23 +326,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMATransferLength()
 // SERDES Loopback Enable Register
 void CFOLib::CFO_Registers::SetSERDESLoopbackMode(const CFO_Link_ID& link, const DTC_SERDESLoopbackMode& mode)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_SERDESLoopbackEnable);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_SERDES_LoopbackEnable);
 	std::bitset<3> modeSet = mode;
 	data[3 * link] = modeSet[0];
 	data[3 * link + 1] = modeSet[1];
 	data[3 * link + 2] = modeSet[2];
-	WriteRegister_(data.to_ulong(), CFO_Register_SERDESLoopbackEnable);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_SERDES_LoopbackEnable);
 }
 
 DTCLib::DTC_SERDESLoopbackMode CFOLib::CFO_Registers::ReadSERDESLoopback(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<3> dataSet = (val.has_value()?*val:ReadRegister_(CFO_Register_SERDESLoopbackEnable)) >> (3 * link);
+	std::bitset<3> dataSet = (val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_LoopbackEnable)) >> (3 * link);
 	return static_cast<DTC_SERDESLoopbackMode>(dataSet.to_ulong());
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESLoopbackEnable()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESLoopbackEnable);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_LoopbackEnable);
 	form.description = "SERDES Loopback Enable";
 	form.vals.push_back(""); //translation
 	for (auto r : CFO_Links)
@@ -408,13 +354,13 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESLoopbackEnable()
 // Clock Status Register
 bool CFOLib::CFO_Registers::ReadSERDESOscillatorIICError(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_ClockOscillatorStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_ClockOscillatorStatus);
 	return dataSet[2];
 }
 
 bool CFOLib::CFO_Registers::ReadSERDESOscillatorInitializationComplete(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_ClockOscillatorStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_ClockOscillatorStatus);
 	return dataSet[1];
 }
 
@@ -433,13 +379,13 @@ bool CFOLib::CFO_Registers::WaitForSERDESOscillatorInitializationComplete(double
 
 bool CFOLib::CFO_Registers::ReadTimingClockPLLLocked(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_ClockOscillatorStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_ClockOscillatorStatus);
 	return dataSet[0];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockOscillatorStatus()
 {
-	auto form = CreateFormatter(CFO_Register_ClockOscillatorStatus);
+	auto form = CreateFormatter(CFOandDTC_Register_ClockOscillatorStatus);
 	form.description = "Clock Oscillator Status";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("SERDES IIC Error:      [") + (ReadSERDESOscillatorIICError(form.value) ? "x" : " ") + "]");
@@ -453,7 +399,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockOscillatorStatus()
 void CFOLib::CFO_Registers::EnableLink(const CFO_Link_ID& link, const DTC_LinkEnableMode& mode,
 									   const uint8_t& dtcCount)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_LinkEnable);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_LinkEnable);
 	if(link == CFO_Link_ALL)
 	{	
 		for(uint8_t i=0;i<8;++i)
@@ -467,27 +413,27 @@ void CFOLib::CFO_Registers::EnableLink(const CFO_Link_ID& link, const DTC_LinkEn
 		data[link] = mode.TransmitEnable;
 		data[link + 8] = mode.ReceiveEnable;
 	}
-	WriteRegister_(data.to_ulong(), CFO_Register_LinkEnable);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_LinkEnable);
 	SetMaxDTCNumber(link, dtcCount);
 }
 
 void CFOLib::CFO_Registers::DisableLink(const CFO_Link_ID& link, const DTC_LinkEnableMode& mode)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_LinkEnable);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_LinkEnable);
 	data[link] = data[link] && !mode.TransmitEnable;
 	data[link + 8] = data[link + 8] && !mode.ReceiveEnable;
-	WriteRegister_(data.to_ulong(), CFO_Register_LinkEnable);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_LinkEnable);
 }
 
 DTCLib::DTC_LinkEnableMode CFOLib::CFO_Registers::ReadLinkEnabled(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_LinkEnable);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_LinkEnable);
 	return DTC_LinkEnableMode(dataSet[link], dataSet[link + 8]);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatLinkEnable()
 {
-	auto form = CreateFormatter(CFO_Register_LinkEnable);
+	auto form = CreateFormatter(CFOandDTC_Register_LinkEnable);
 	form.description = "Link Enable";
 	form.vals.push_back("       ([TX, RX, Timing])");
 	for (auto r : CFO_Links)
@@ -503,7 +449,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatLinkEnable()
 void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 {
 	TLOG(TLVL_SERDESReset) << __COUT_HDR__ << "Entering SERDES Reset Loop for Link " << link;
-	std::bitset<32> data = ReadRegister_(CFO_Register_SERDESReset);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_SERDES_Reset);
 	if(link == CFO_Link_ALL)
 	{	
 		for(uint8_t i=0;i<8;++i)
@@ -511,11 +457,11 @@ void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 	}
 	else
 		data[link] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_SERDESReset);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_SERDES_Reset);
 
 	// usleep(interval);
 
-	data = ReadRegister_(CFO_Register_SERDESReset);
+	data = ReadRegister_(CFOandDTC_Register_SERDES_Reset);
 	if(link == CFO_Link_ALL)
 	{	
 		for(uint8_t i=0;i<8;++i)
@@ -523,7 +469,7 @@ void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 	}
 	else
 		data[link] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_SERDESReset);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_SERDES_Reset);
 
 
 	auto resetDone = false;
@@ -534,7 +480,7 @@ void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 
 		if(link == CFO_Link_ALL)
 		{	
-			uint32_t readData = ReadRegister_(CFO_Register_SERDESResetDone);
+			uint32_t readData = ReadRegister_(CFOandDTC_Register_SERDES_ResetDone);
 			resetDone = ((readData & 0xFF) == 0xFF);
 		}
 		else
@@ -551,26 +497,26 @@ void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 
 void CFOLib::CFO_Registers::ResetAllSERDESPlls()
 {
-	WriteRegister_(0x0000ff00, CFO_Register_SERDESReset);
-	WriteRegister_(0x0, CFO_Register_SERDESReset);
+	WriteRegister_(0x0000ff00, CFOandDTC_Register_SERDES_Reset);
+	WriteRegister_(0x0, CFOandDTC_Register_SERDES_Reset);
 	sleep(3);
 }
 void CFOLib::CFO_Registers::ResetAllSERDESTx()
 {
-	WriteRegister_(0x00ff0000, CFO_Register_SERDESReset);
-	WriteRegister_(0x0, CFO_Register_SERDESReset);
+	WriteRegister_(0x00ff0000, CFOandDTC_Register_SERDES_Reset);
+	WriteRegister_(0x0, CFOandDTC_Register_SERDES_Reset);
 	sleep(3);
 }
 
 bool CFOLib::CFO_Registers::ReadResetSERDES(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESReset);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_Reset);
 	return dataSet[link];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESReset()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESReset);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_Reset);
 	form.description = "SERDES Reset";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
@@ -583,12 +529,12 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESReset()
 // SERDES RX Disparity Error Register
 DTCLib::DTC_SERDESRXDisparityError CFOLib::CFO_Registers::ReadSERDESRXDisparityError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	return DTC_SERDESRXDisparityError(val.has_value()?*val:ReadRegister_(CFO_Register_SERDESRXDisparityError), static_cast<DTC_Link_ID>(link));
+	return DTC_SERDESRXDisparityError(val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_RXDisparityError), static_cast<DTC_Link_ID>(link));
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXDisparityError()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESRXDisparityError);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_RXDisparityError);
 	form.description = "SERDES RX Disparity Error";
 	form.vals.push_back("       ([H,L])");
 	for (auto r : CFO_Links)
@@ -603,13 +549,13 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXDisparityError()
 // SERDES RX Character Not In Table Error Register
 DTCLib::DTC_CharacterNotInTableError CFOLib::CFO_Registers::ReadSERDESRXCharacterNotInTableError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	return DTC_CharacterNotInTableError(val.has_value()?*val:ReadRegister_(CFO_Register_SERDESRXCharacterNotInTableError),
+	return DTC_CharacterNotInTableError(val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_RXCharacterNotInTableError),
 										static_cast<DTC_Link_ID>(link));
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCharacterNotInTableError()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESRXCharacterNotInTableError);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_RXCharacterNotInTableError);
 	form.description = "SERDES RX CNIT Error";
 	form.vals.push_back("       ([H,L])");
 	for (auto r : CFO_Links)
@@ -624,13 +570,13 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCharacterNotInTab
 // SERDES Unlock Error Register
 bool CFOLib::CFO_Registers::ReadSERDESUnlockError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESUnlockError);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_UnlockError);
 	return dataSet[link];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESUnlockError()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESUnlockError);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_UnlockError);
 	form.description = "SERDES Unlock Error";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
@@ -643,13 +589,13 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESUnlockError()
 // SERDES PLL Locked Register
 bool CFOLib::CFO_Registers::ReadSERDESPLLLocked(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESPLLLocked);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_PLLLocked);
 	return dataSet[link];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPLLLocked()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESPLLLocked);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_PLLLocked);
 	form.description = "SERDES PLL Locked";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
@@ -661,14 +607,14 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPLLLocked()
 // SERDES RX Status Register
 DTCLib::DTC_RXStatus CFOLib::CFO_Registers::ReadSERDESRXStatus(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	auto data = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESRXStatus);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_RXStatus);
 	data = (data >> (3 * link)) & 0x7;
 	return static_cast<DTC_RXStatus>(data);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXStatus()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESRXStatus);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_RXStatus);
 	form.description = "SERDES RX Status";
 	form.vals.push_back(""); //translation
 	for (auto r : CFO_Links)
@@ -683,13 +629,13 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXStatus()
 // SERDES Reset Done Register
 bool CFOLib::CFO_Registers::ReadResetSERDESDone(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SERDESResetDone);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_ResetDone);
 	return dataSet[link];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESResetDone()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESResetDone);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_ResetDone);
 	form.description = "SERDES Reset Done";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
@@ -3185,16 +3131,16 @@ bool CFOLib::CFO_Registers::SetNewOscillatorFrequency(double targetFrequency)
 void CFOLib::CFO_Registers::DisableLinks()
 {
 	__COUT_INFO__ << "CFO disable serdes transmit and receive";
-	WriteRegister_(0, CFO_Register_LinkEnable);
+	WriteRegister_(0, CFOandDTC_Register_LinkEnable);
 }
 
 void CFOLib::CFO_Registers::DisableAllOutputs()
 {
 	__COUT_INFO__ << "CFO disable Event Start character output";
-	WriteRegister_(0,CFO_Register_CFOControl);
+	WriteRegister_(0,CFOandDTC_Register_Control);
 
 	__COUT_INFO__ << "CFO disable serdes transmit and receive";
-	WriteRegister_(0,CFO_Register_LinkEnable);
+	WriteRegister_(0,CFOandDTC_Register_LinkEnable);
 
 	__COUT_INFO__ << "CFO turn off Event Windows";
 	// WriteRegister_(0,CFO_Register_EventWindowEmulatorIntervalTime);
@@ -3231,7 +3177,7 @@ void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 				// dataToWrite		&= 0x0000ffff; 
 				// readbackValue 	&= 0x0000ffff; 
 				// break;
-			case CFO_Register_CFOControl: //bit 31 is reset bit, which is write only 
+			case CFOandDTC_Register_Control: //bit 31 is reset bit, which is write only 
 				dataToWrite		&= 0x7fffffff;
 				readbackValue   &= 0x7fffffff; 
 				break;			

@@ -13,7 +13,7 @@
 
 
 #undef 	__COUT_HDR__ 
-#define __COUT_HDR__ 		"CFOandDTC " << device_.getDeviceUID() << ": "
+#define __COUT_HDR__ 		"core-CFO/DTC " << device_.getDeviceUID() << ": "
 // #define CFO_DTC_TLOG(lvl) TLOG(lvl) << "CFO-DTC " << device_.getDeviceUID() << ": "
 #define TLVL_ResetDTC TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
@@ -73,7 +73,7 @@ std::string DTCLib::CFOandDTC_Registers::FormattedRegDump(int width,
 		placeholder.resize(formatterWidth_ - 7, ' ');
 		o << placeholder;
 	}
-	o << "Address | Hex Value  |\nRegister Name " << spaces << "| Translation" << std::endl;
+	o << "Address | Hex Value  |\nRegister Name " << spaces << "| (Translation)" << std::endl;
 	{ //move address to right-align with values
 		std::string placeholder = "";
 		placeholder.resize(formatterWidth_ , ' ');
@@ -164,7 +164,8 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignVersionNumber(std::optional<u
 	int minor = data & 0xFF;
 	int major = (data & 0xFF00) >> 8;
 
-	__COUT_INFO__ << "Driver Version: " << GetDevice()->get_driver_version();
+	__COUT_INFO__ << "Kernel Driver Version: " << GetDevice()->get_driver_version() <<
+		"Kernel Driver Version: " << GetDevice()->get_driver_version();
 	return "v" + std::to_string(major) + "." + std::to_string(minor);
 } // end ReadDesignVersionNumber()
 
@@ -175,11 +176,26 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignVersionNumber(std::optional<u
 std::string DTCLib::CFOandDTC_Registers::ReadDesignLinkSpeed(std::optional<uint32_t> val)
 {
 	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignVersion);
-	int cfoLinkSpeed = (data>>28) & 0xF;	//bit28: 0x4 for 4G
-	int rocLinkSpeed = (data>>24) & 0xF;	//bit24: 0x3 for 3.125G
-	return std::to_string(cfoLinkSpeed) + ".0G/" +
-		std::to_string(rocLinkSpeed) + (rocLinkSpeed==3?".125":".0") +
-		"G";
+	int cfoLinkSpeed = (data>>28) & 0xF;	//bit28: 3, 4, or 5 Indicates Firmware configured for 3.125, 4.0, or 4.8 Gbps on CFO Link SERDES
+	int rocLinkSpeed = (data>>24) & 0xF;	//bit24: 3, 4, or 5 Indicates Firmware configured for 3.125, 4.0, or 4.8 Gbps on ROC Link SERDES
+
+	std::string cfoLinkSpeedStr = "?Gbps";
+	if(cfoLinkSpeed == 3)
+		cfoLinkSpeedStr = "3.125Gbps";
+	else if(cfoLinkSpeed == 4)
+		cfoLinkSpeedStr = "4.0Gbps";
+	else if(cfoLinkSpeed == 5)
+		cfoLinkSpeedStr = "4.8Gbps";
+
+	std::string rocLinkSpeedStr = "?Gbps";
+	if(rocLinkSpeed == 3)
+		rocLinkSpeedStr = "3.125Gbps";
+	else if(rocLinkSpeed == 4)
+		rocLinkSpeedStr = "4.0Gbps";
+	else if(rocLinkSpeed == 5)
+		rocLinkSpeedStr = "4.8Gbps";
+	
+	return cfoLinkSpeedStr + "/" + rocLinkSpeedStr;
 } // end ReadDesignLinkSpeed()
 
 /// <summary>
@@ -192,6 +208,72 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignType(std::optional<uint32_t> 
 	int type = (data>>16) & 0xF;	//0xC for CFO and 0xD for DTC
 	return (type==0xC?"C":(type==0xD?"D":"U")); //U for unknown!
 } // end ReadDesignLinkSpeed()
+
+/// <summary>
+/// Read the Vivado Version Number
+/// </summary>
+/// <returns>The Vivado Version number</returns>
+std::string DTCLib::CFOandDTC_Registers::ReadVivadoVersionNumber(std::optional<uint32_t> val)
+{
+	auto data = val.has_value()?(*val):ReadRegister_(CFOandDTC_Register_VivadoVersion);
+	std::ostringstream o;
+	int yearHex = (data & 0xFFFF0000) >> 16;
+	auto year = ((yearHex & 0xF000) >> 12) * 1000 + ((yearHex & 0xF00) >> 8) * 100 + ((yearHex & 0xF0) >> 4) * 10 +
+				(yearHex & 0xF);
+	int versionHex = (data & 0xFFFF);
+	auto version = ((versionHex & 0xF000) >> 12) * 1000 + ((versionHex & 0xF00) >> 8) * 100 +
+				   ((versionHex & 0xF0) >> 4) * 10 + (versionHex & 0xF);
+	o << std::setfill('0') << std::setw(4) << year << "-" << version;
+	// std::cout << o.str() << std::endl;
+	return o.str();
+}
+
+/// <summary>
+/// Formats the register's current value for register dumps
+/// </summary>
+/// <returns>RegisterFormatter object containing register information</returns>
+DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatVivadoVersion()
+{
+	auto form = CreateFormatter(CFOandDTC_Register_VivadoVersion);
+	form.description = "Firmware Project Vivado Version";
+	form.vals.push_back(ReadVivadoVersionNumber(form.value));
+	return form;
+}
+
+/// <summary>
+/// Perform a Soft Reset
+/// </summary>
+void DTCLib::CFOandDTC_Registers::SoftReset()
+{
+	TLOG(TLVL_ResetDTC) << __COUT_HDR__ << "Soft Reset start";
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);	
+	data[31] = 1;  // set Soft Reset bit
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+	//NOTE: newer DTC versions (roughly > August 2023), self-clear the reset bit
+	//NOTE: newer CFO versions (roughly > December 2023), do not self-clear the reset bit
+	data = ReadRegister_(CFOandDTC_Register_Control); //re-read in case there are defaults applied at Soft Reset moment
+	data[31] = 0;  // clear Soft Reset bit
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+}
+
+/// <summary>
+/// Read the Soft Reset control Bit
+/// </summary>
+/// <returns>True if the Soft Reset is currently resetting, false otherwise</returns>
+bool DTCLib::CFOandDTC_Registers::ReadSoftReset(std::optional<uint32_t> val)
+{
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
+	return dataSet[31];
+}
+
+/// <summary>
+/// Clear the Control Register
+/// </summary>
+void DTCLib::CFOandDTC_Registers::ClearControlRegister()
+{
+	WriteRegister_(0, CFOandDTC_Register_Control);
+}
+
 
 /// <summary>
 /// Read the FPGA On-die Temperature sensor
@@ -475,7 +557,14 @@ uint32_t DTCLib::CFOandDTC_Registers::ReadRegister_(const CFOandDTC_Register& ad
 		// throw DTC_IOErrorException(errorCode);
 	}
 
-	if(address != 0x916c)
+	if(address == CFOandDTC_Register_Control && data == uint32_t(-1))
+	{
+		__SS__ << "Invalid register read for the Control Register: " << data << 
+			". If the value is all 1s (4294967295), this likely means the FPGA-PCIe interface in not initialized and perhaps a PCIe reset of the linux system would fix the issue.";				
+		__SS_THROW__;
+	}
+
+
 	{	//trace seems to ignore the std::setfill, so using stringstream
 		std::stringstream o;
 		o << "read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)

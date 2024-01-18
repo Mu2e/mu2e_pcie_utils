@@ -17,20 +17,20 @@ namespace CFOLib {
 enum CFO_Register : uint16_t
 {
 	DTCLIB_COMMON_REGISTERS,
-	CFO_Register_KernelDriverVersion = 0x9040,
-	CFO_Register_VivadoVersion = 0x9080,
-	CFO_Register_CFOControl = 0x9100,
-	CFO_Register_DMATransferLength = 0x9104,
-	CFO_Register_SERDESLoopbackEnable = 0x9108,
-	CFO_Register_ClockOscillatorStatus = 0x910C,
-	CFO_Register_LinkEnable = 0x9114,
-	CFO_Register_SERDESReset = 0x9118,
-	CFO_Register_SERDESRXDisparityError = 0x911C,
-	CFO_Register_SERDESRXCharacterNotInTableError = 0x9120,
-	CFO_Register_SERDESUnlockError = 0x9124,
-	CFO_Register_SERDESPLLLocked = 0x9128,
-	CFO_Register_SERDESRXStatus = 0x9134,
-	CFO_Register_SERDESResetDone = 0x9138,
+	// CFO_Register_VivadoVersion = 0x9080,
+	// CFO_Register_CFOControl = 0x9100,
+	// CFO_Register_DMATransferLength = 0x9104,
+	// CFO_Register_SERDESLoopbackEnable = 0x9108,
+	// CFO_Register_ClockOscillatorStatus = 0x910C,
+	// CFO_Register_LinkEnable = 0x9114,
+	// CFO_Register_SERDESReset = 0x9118,
+	// CFO_Register_SERDESRXDisparityError = 0x911C,
+	// CFO_Register_SERDESRXCharacterNotInTableError = 0x9120,
+	// CFO_Register_SERDESUnlockError = 0x9124,
+	// CFO_Register_SERDESPLLLocked = 0x9128,
+	// CFO_Register_SERDESRXStatus = 0x9134,
+	// CFO_Register_SERDESResetDone = 0x9138,
+
 	CFO_Register_SFPSERDESStatus = 0x9140,
 	CFO_Register_BeamOnTimerPreset = 0x9144,
 	CFO_Register_EnableBeamOnMode = 0x9148,
@@ -180,10 +180,6 @@ public:
 							bool skipInit = false, const std::string& uid = "");
 
 	
-	// Vivado Version Register
-	std::string ReadVivadoVersionNumber(std::optional<uint32_t> val = std::nullopt) override;
-	RegisterFormatter FormatVivadoVersion() override;
-
 	// Design Status Register
 	/// <summary>
 	/// Determine if the DDR FIFO is empty
@@ -203,20 +199,8 @@ public:
 
 
 	// CFO Control Register
-	/// <summary>
-	/// Perform a CFO Reset
-	/// </summary>
-	void ResetCFO();
-	/// <summary>
-	/// Read the Reset CFO Bit
-	/// </summary>
-	/// <returns>True if the CFO is currently resetting, false otherwise</returns>
-	bool ReadResetCFO(std::optional<uint32_t> val = std::nullopt);
-	// CFO Control Register
-	/// <summary>
-	/// Clear CFO Control Register
-	/// </summary>
-	void ClearCFOControlRegister();
+	
+	//B31 moved to CFOandDTC_Registers core class
 	/// <summary>
 	/// Perform a CFO Run Plan Reset
 	/// </summary>

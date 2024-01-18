@@ -67,7 +67,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 	if (theDTC_->IsDetectorEmulatorInUse())
 	{
 		TLOG(TLVL_SendRequestsForTimestamp) << "Enabling Detector Emulator for 1 DMA";
-		// theDTC_->ResetDTC();
+		// theDTC_->SoftReset();
 		theDTC_->DisableDetectorEmulator();
 		theDTC_->SetDetectorEmulationDMACount(1);
 		theDTC_->EnableDetectorEmulator();
@@ -144,7 +144,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 	{
 		TLOG(TLVL_SendRequestsForRange) << "Enabling Detector Emulator for " << count << " DMAs";
 
-		// theDTC_->ResetDTC();
+		// theDTC_->SoftReset();
 		theDTC_->DisableDetectorEmulator();
 		theDTC_->SetDetectorEmulationDMACount(count + 1);
 		theDTC_->EnableDetectorEmulator();
@@ -214,7 +214,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForList(std::set<DTC_EventWindowTag> ti
 	if (theDTC_->IsDetectorEmulatorInUse())
 	{
 		TLOG(TLVL_SendRequestsForRangeImpl) << "Enabling Detector Emulator for " << timestamps.size() << " DMAs";
-		// theDTC_->ResetDTC();
+		// theDTC_->SoftReset();
 		theDTC_->DisableDetectorEmulator();
 		theDTC_->SetDetectorEmulationDMACount(timestamps.size() + 1);
 		theDTC_->EnableDetectorEmulator();

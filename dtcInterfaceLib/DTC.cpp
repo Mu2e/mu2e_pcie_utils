@@ -425,46 +425,60 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 // ROC Register Functions
 uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t address, int tmo_ms)
 {
-	dcsDMAInfo_.currentReadPtr = nullptr;
-	ReleaseBuffers(DTC_DMA_Engine_DCS);
-
-	device_.begin_dcs_transaction();
-	SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address,
-						 0x0 /*data*/, 0x0 /*address2*/, 0x0 /*data2*/,
-						 false /*quiet*/);
-
-	uint16_t data = 0xFFFF;
-
-	try
+	uint16_t retries = 0; //change to 1 to attempt reinitializing
+	do
 	{
-		auto reply = ReadNextDCSPacket(tmo_ms);
-		device_.end_dcs_transaction();
+		dcsDMAInfo_.currentReadPtr = nullptr;
+		ReleaseBuffers(DTC_DMA_Engine_DCS);
 
-		if (reply != nullptr)  //have data!
+		device_.begin_dcs_transaction();
+		SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address,
+							0x0 /*data*/, 0x0 /*address2*/, 0x0 /*data2*/,
+							false /*quiet*/);
+
+		uint16_t data = 0xFFFF;
+
+		try
 		{
-			auto replytmp = reply->GetReply(false);
-			auto linktmp = reply->GetLinkID();
-			data = replytmp.second;
+			auto reply = ReadNextDCSPacket(tmo_ms);
+			device_.end_dcs_transaction();
 
-			DTC_TLOG(TLVL_TRACE) << "Got packet, "
-									<< "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
-									<< "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
-									<< "), "
-									<< "data=" << data;
-			if(linktmp == link && replytmp.first == address)
-				return data;
+			if (reply != nullptr)  //have data!
+			{
+				auto replytmp = reply->GetReply(false);
+				auto linktmp = reply->GetLinkID();
+				data = replytmp.second;
+
+				DTC_TLOG(TLVL_TRACE) << "Got packet, "
+										<< "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
+										<< "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
+										<< "), "
+										<< "data=" << data;
+				if(linktmp == link && replytmp.first == address)
+					return data;
+			}
 		}
-	}
-	catch(const std::exception& e)
-	{
-		__SS__ << "ReadROCRegister failure attempting to read ROC at link " << static_cast<int>(link)  << 
-			" address 0x" << static_cast<int>(address) << ". Exception caught: " << e.what() << __E__;
-		__SS_THROW__;
-	}
+		catch(const std::exception& e)
+		{
+			__SS__ << "Failure attempting to read a ROC register at link " << static_cast<int>(link) << 
+				" address 0x" << std::hex << static_cast<int>(address) << ". Exception caught: " << e.what() << __E__;
+			__SS_THROW__;
+		}
+		
+		//if here then software received no response from DTC, try a software re-init to realign DMA pointers
+		if(retries) //do not reinit on last try
+		{
+			__COUT__ << "Software received no response to the DCS request from the DTC, trying a DMA re-init. retries = " << retries << __E__;
+			device_.initDMAEngine();
+		}
+
+	} while(retries--);
 		
 
 	 //throw exception for no data after retries
-	__SS__ << "ReadROCRegister returning after timeout: no valid data after " << tmo_ms << " ms from address 0x" << std::hex << address << "!" << std::endl;
+	__SS__ << "A timeout occurred attempting to read a ROC register at link " << static_cast<int>(link) << 
+				" address 0x" << std::hex << static_cast<int>(address) << ". No DCS reply packet received after " << tmo_ms << " ms! " <<
+				"Restarting the DTC software instance may fix the problem and realign DMA pointers." << std::endl;
 	__SS_THROW__;
 	
 }  //end ReadROCRegister()
@@ -948,6 +962,7 @@ std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int t
 	{
 		auto test = ReadNextPacket(DTC_DMA_Engine_DCS, tmo_ms);
 		if (test == nullptr) return nullptr;  // Couldn't read new block
+		
 		auto output = std::make_unique<DTC_DCSReplyPacket>(*test.get());
 		if(output->ROCIsCorrupt())
 		{
@@ -964,19 +979,28 @@ std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int t
 			__SS__ << "No response from the ROC at link " << output->GetLinkID() << " to the DCS request! The DTC identifed a ROC response timeout!" << __E__;
 			__SS_THROW__;
 		}
-		if(lastDTCErrorBitsValue_ != output->GetDTCErrorBits())
+		if(lastDTCErrorBitsValue_ != output->GetDTCErrorBits()) //Note: DTC Error bits are only included in DCS reply packets
 		{
+			__COUTV__((int)output->GetDTCErrorBits());
+			__COUTV__((int)lastDTCErrorBitsValue_);
 			lastDTCErrorBitsValue_ = output->GetDTCErrorBits();
+
 			__SS__ << "There is an error identified in DCS handling of its ROC:" << __E__;
 			if((lastDTCErrorBitsValue_>>0) & 0x1)
 				ss << "- SERDES PLL associated with the ROC has lost lock." << __E__;
 			if((lastDTCErrorBitsValue_>>1) & 0x1)
 				ss << "- SERDES associated with the ROC has lost clock-data-recovery lock." << __E__;
 			if((lastDTCErrorBitsValue_>>2) & 0x1)
-				ss << "- Invalid packet has been received from ROC." << __E__;
+				ss << "- Invalid packet (i.e., CRC mismatch, valid bit low, or expected packet type) has been received from ROC." << __E__;
 			if((lastDTCErrorBitsValue_>>3) & 0x1)
 				ss << "- Error in DTC handling of this ROC’s DCS requests has occurred (check the DTC error bit details)." << __E__;
 
+			__SS_THROW__;
+		}
+		if(!output->isValid())
+		{
+			__SS__ << "The valid bit is low for the received packet, which could be due to a packet transmission error from link " << 
+				output->GetLinkID() << " in response to the DCS request!" << __E__;
 			__SS_THROW__;
 		}
 

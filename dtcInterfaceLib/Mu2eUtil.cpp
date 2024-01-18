@@ -264,7 +264,7 @@ void DTCLib::Mu2eUtil::reset_detector_emulator()
 	auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
 	thisDTC->ClearDetectorEmulatorInUse();
 	thisDTC->ResetDDR();
-	thisDTC->ResetDTC();
+	thisDTC->SoftReset();
 	delete thisDTC;
 }
 
