@@ -812,59 +812,12 @@ uint8_t CFOLib::CFO_Registers::ReadSERDESIICInterface(DTC_IICSERDESBusAddress de
 /// </summary>
 /// <returns>Jitter Attenuator Select value</returns>
 std::bitset<2> CFOLib::CFO_Registers::ReadJitterAttenuatorSelect(std::optional<uint32_t> val) { return CFOandDTC_Registers::ReadJitterAttenuatorSelect(CFO_Register_JitterAttenuatorCSR, val); }
-// {
-// 	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-// 	std::bitset<2> output;
-// 	output[0] = data[4];
-// 	output[1] = data[5];
-// 	return output;
-// }
+
 /// <summary>
 /// Set the Jitter Attenuator Select bits
 /// </summary>
 /// <param name="data">Value to set</param>
 void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA /* = false */) { CFOandDTC_Registers::SetJitterAttenuatorSelect(CFO_Register_JitterAttenuatorCSR, data, alsoResetJA); }
-// {
-// 	__COUT__ << "JA select " << data << " = " <<
-// 		(data == 0? "Local oscillator":(data == 1? "RTF copper clock": "undefined source!"));
-
-// 	std::bitset<32> regdata = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-
-// 	// attempt detection if already locked with same input mux select, early exit
-// 	if(regdata[0] == 0 && regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
-// 	{
-// 		__COUT__ << "JA already locked with selected input " << data;
-// 		return;
-// 	}
-
-// 	//For CFO - 0 ==> Local oscillator
-// 	//For CFO - 1 ==> RTF copper clock
-// 	regdata[4] = data[0];
-// 	regdata[5] = data[1];
-// 	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);
-
-
-// 	if(!alsoResetJA || regdata[8] == 0) //if locked, then do not reconfigure JA (JA only needs a reset after a cold start, usually indicated by lock)
-// 	{
-// 		__COUT__ << "JA select done with no reset for input " << data;
-// 		return;
-// 	} 
-
-// 	__COUT__ << "JA reset...";
-
-// 	//now reset the JA a la CFOLib::CFO_Registers::ResetJitterAttenuator()
-	
-// 	regdata[0] = 1;
-// 	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);
-// 	usleep(1000);
-// 	regdata[0] = 0;
-// 	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);	
-	
-// 	sleep(1);
-
-// 	ConfigureJitterAttenuator();
-// 	__COUT__ << "JA select done for input " << data;
-// } //end SetJitterAttenuatorSelect()
 
 /// <summary>
 /// Read the Jitter Attenuator Reset bit
@@ -872,22 +825,11 @@ void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool 
 /// <returns>Value of the Jitter Attenuator Reset bit</returns>
 bool CFOLib::CFO_Registers::ReadJitterAttenuatorReset(std::optional<uint32_t> val) { return CFOandDTC_Registers::ReadJitterAttenuatorReset(CFO_Register_JitterAttenuatorCSR, val); }
 bool CFOLib::CFO_Registers::ReadJitterAttenuatorLocked(std::optional<uint32_t> val) { return CFOandDTC_Registers::ReadJitterAttenuatorLocked(CFO_Register_JitterAttenuatorCSR, val); }
-// {
-// 	std::bitset<32> regdata = val.has_value()?*val:ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-// 	return regdata[0];
-// }
+
 /// <summary>
 /// Reset the Jitter Attenuator
 /// </summary>
 void CFOLib::CFO_Registers::ResetJitterAttenuator() { CFOandDTC_Registers::ResetJitterAttenuator(CFO_Register_JitterAttenuatorCSR); }
-// {
-// 	std::bitset<32> regdata = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-// 	regdata[0] = 1;
-// 	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);
-// 	usleep(1000);
-// 	regdata[0] = 0;
-// 	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);
-// }
 
 /// <summary>
 /// Formats the register's current value for register dumps
