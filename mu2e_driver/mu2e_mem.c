@@ -55,22 +55,6 @@ int alloc_mem(int dtc)
 	/* Use "Dma_" routines to init FPGA "user" application ("DTC") registers.
   NOTE: a few more after dma engine setup (below).
   */
-	// Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr
-	//                , 0x9008, 0x00000002 ); // reset axi interface IP
-	// Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9100, 0x30000000);  // Oscillator resets
-	// msleep(20);
-	// Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9100,
-	// 			  0x80000000);  // DTC reset, Clear Oscillator resets
-	// msleep(20);
-	// Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9100, 0x00000000);  // Clear DTC reset
-	// msleep(20);
-	// Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9118, 0x0000003f);  // Reset all links
-	// msleep(20);
-	// Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9118,
-	// 			  0x00000000);  // Clear Link Resets
-								// Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr
-								//	              , 0x9114, 0x00003f3f ); // make sure all links are enabled
-
 	TRACE(1, "alloc_mem reset done bits: 0x%08x MU2E_NUM_RECV_CHANNELS=%d MU2E_NUM_RECV_BUFFS=%d MU2E_NUM_SEND_BUFFS=%d",
 		  Dma_mReadReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9138), MU2E_NUM_RECV_CHANNELS,
 		  MU2E_NUM_RECV_BUFFS, MU2E_NUM_SEND_BUFFS);
@@ -235,8 +219,6 @@ void free_mem(int dtc)
 
 	TRACE(1, "free_mem reset DTC");
 	// stop "app"
-	// Dma_mWriteReg(mu2e_pcie_bar_info[dtc].baseVAddr, 0x9100, 0x80000000);  // DTC reset, Clear Latched Errors
-	// msleep(10);
 
 	for (chn = 0; chn < 2; ++chn)
 	{

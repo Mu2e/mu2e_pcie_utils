@@ -54,7 +54,7 @@ irqreturn_t DmaInterrupt(int irq, void *dev_id)
 	}
 
 	TRACE(20, "DmaInterrupt: Calling poll routine");
-    /* Handle DMA and any user interrupts */
+	/* Handle DMA and any user interrupts */
 	if (mu2e_force_poll(dtc) == 0)
 	{
 		TRACE(20, "DMAInterrupt: Marking Interrupt as acked");
@@ -73,9 +73,9 @@ irqreturn_t DmaInterrupt(int irq, void *dev_id)
    Called from timer or interrupt (indirectly via mu2e_force_poll).
  */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
-void poll_packets(unsigned long dc)
+static void poll_packets(unsigned long dc)
 #else
-void poll_packets(struct timer_list *t)
+static void poll_packets(struct timer_list *t)
 #endif
 {
 	unsigned long base;
@@ -159,7 +159,6 @@ void poll_packets(struct timer_list *t)
 	}
 
 #if MU2E_RECV_INTER_ENABLED == 1
-	packets_timer_guard[dtc] = 1;
 	if (did_work)
 	{
 		// Reschedule immediately
@@ -175,6 +174,7 @@ void poll_packets(struct timer_list *t)
 	{
 		// Re-enable interrupts.
 		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d re-enabling interrupts", dtc, chn, dir, did_work);
+		packets_timer_guard[dtc] = 1;
 		Dma_mIntEnable(base);
 	}
 #else
@@ -245,7 +245,8 @@ int mu2e_force_poll(int dtc)
 
 void mu2e_event_down(int dtc)
 {
-	while (packets_timer_guard[dtc] == 0) {}
+	// while (packets_timer_guard[dtc] == 0) {}
 	packets_timer_guard[dtc] = 0;  // Ensure that mu2e_force_poll won't call poll_packets again
 	del_timer_sync(&packets_timer[dtc].timer);
+	packets_timer_guard[dtc] = 0;  // Ensure that mu2e_force_poll won't call poll_packets again
 }
