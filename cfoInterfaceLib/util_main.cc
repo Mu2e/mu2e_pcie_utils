@@ -244,40 +244,6 @@ int main(int argc, char* argv[])
 			CFO_Compiler compiler;
 			compiler.processFile(inputFile, rawOutputFile);
 			return 0;
-
-			// std::vector<std::string> lines;
-			// std::ifstream ifstr(inputFile);
-			// while (!ifstr.eof())
-			// {
-			// 	std::string line;
-			// 	getline(ifstr, line);
-			// 	lines.push_back(line);
-			// }
-			// ifstr.close();
-
-			// std::deque<char> inputBytes;
-			// CFO_Compiler compiler;
-			// inputBytes = compiler.processFile(lines);
-
-			// if (rawOutput)
-			// {
-			// 	for (auto ch : inputBytes)
-			// 	{
-			// 		outputStream << ch;
-			// 	}
-			// }
-			// else
-			// {
-			// 	size_t offset = 8;
-			// 	auto inputSize = inputBytes.size();
-			// 	//*reinterpret_cast<uint64_t*>(inputData) = inputBytes.size();
-			// 	memcpy(&inputData[0], &inputSize, sizeof(uint64_t));
-			// 	for (auto ch : inputBytes)
-			// 	{
-			// 		inputData[offset++] = ch;
-			// 	}
-			// 	return 0;
-			// }
 		}
 		else
 		{
