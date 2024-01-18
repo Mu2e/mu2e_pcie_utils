@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
 	{
 		thisDTC->WriteSimFileToDTC(simFile, true, true);
 	}
-	TRACE(1, "thisDTC->ReadSimMode: %i", thisDTC->ReadSimMode());
+	TRACE(1, "thisDTC->GetSimMode: %i", thisDTC->GetSimMode());
 	auto theCFO = new DTCSoftwareCFO(thisDTC, true);
 	long loopCounter = 0;
 	long count = 0;

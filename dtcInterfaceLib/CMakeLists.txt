@@ -11,6 +11,7 @@ cet_make_library(LIBRARY_NAME DTCInterface
       CFOandDTC_Registers.cpp
       mu2edev.cpp
       mu2esim.cpp
+      otsStyleCoutMacros.cpp
     LIBRARIES PUBLIC 
       TRACE::MF
       artdaq_core_mu2e::artdaq-core-mu2e_Overlays

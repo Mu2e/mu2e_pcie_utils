@@ -55,7 +55,6 @@ int alloc_mem(int dtc)
 	/* Use "Dma_" routines to init FPGA "user" application ("DTC") registers.
   NOTE: a few more after dma engine setup (below).
   */
-
 	TRACE(1, "alloc_mem reset done bits: 0x%08x MU2E_NUM_RECV_CHANNELS=%d MU2E_NUM_RECV_BUFFS=%d MU2E_NUM_SEND_BUFFS=%d",
 		  Dma_mReadReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9138), MU2E_NUM_RECV_CHANNELS,
 		  MU2E_NUM_RECV_BUFFS, MU2E_NUM_SEND_BUFFS);
@@ -203,8 +202,7 @@ int alloc_mem(int dtc)
 
 	TRACE(1, "alloc_mem setting DTC DMA registers");
 	/* Now, finish up with some more mu2e fpga user application stuff... */
-	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9104,
-				  0x80000040);                                                            // write max and min DMA xfer sizes
+	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9104, 0x80000040);  // write max and min DMA xfer sizes
 	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9150, 0x00000010);  // set ring packet size
 
 	TRACE(1, "alloc_mem complete");
