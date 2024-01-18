@@ -14,7 +14,6 @@
 
 #undef 	__COUT_HDR__ 
 #define __COUT_HDR__ 		"core-CFO/DTC " << device_.getDeviceUID() << ": "
-// #define CFO_DTC_TLOG(lvl) TLOG(lvl) << "CFO-DTC " << device_.getDeviceUID() << ": "
 #define TLVL_ResetDTC TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
 #define TLVL_SERDESReset TLVL_DEBUG + 7
