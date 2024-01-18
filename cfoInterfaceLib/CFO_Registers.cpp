@@ -11,7 +11,6 @@
 #include "artdaq-core/Utilities/ExceptionStackTrace.hh" /*for artdaq::ExceptionStackTrace*/
 
 #include "TRACE/tracemf.h"
-// #define CFO_TLOG(lvl) TLOG(lvl) << "CFO " << this->getDeviceUID() << ": "
 #define TLVL_ResetCFO TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
 #define TLVL_SERDESReset TLVL_DEBUG + 7
@@ -682,7 +681,6 @@ void CFOLib::CFO_Registers::EnableBeamOnMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOnMode);
 	data[0] = 1; //Enable beam on processing a single global flag as of December 2023
-	// data[link] = 1;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOnMode);
 }
 
@@ -690,7 +688,6 @@ void CFOLib::CFO_Registers::DisableBeamOnMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOnMode);
 	data[0] = 0; //Enable beam on processing a single global flag as of December 2023
-	// data[link] = 0;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOnMode);
 }
 
@@ -705,11 +702,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnMode()
 	auto form = CreateFormatter(CFO_Register_EnableBeamOnMode);
 	form.description = "Enable Beam On Mode Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
+	 //Enable beam on processing a single global flag as of December 2023
 	form.vals.push_back(std::string("Beam On Processing ") + ": [" + (ReadBeamOnMode(CFO_Link_ALL) ? "x" : " ") + "]");
-	// for (auto r : CFO_Links)
-	// {
-	// 	form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOnMode(r) ? "x" : " ") + "]");
-	// }
 	return form;
 }
 
@@ -717,13 +711,6 @@ void CFOLib::CFO_Registers::EnableBeamOffMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
 	data[0] = 1; //Enable beam off processing a single global flag as of December 2023
-	// if(link == CFO_Link_ALL)
-	// {	
-	// 	for(uint8_t i=0;i<8;++i)
-	// 		data[i] = 1;
-	// }
-	// else
-	// 	data[link] = 1;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOffMode);
 }
 
@@ -731,13 +718,6 @@ void CFOLib::CFO_Registers::DisableBeamOffMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
 	data[0] = 0; //Enable off processing a single global flag as of December 2023
-	// if(link == CFO_Link_ALL)
-	// {	
-	// 	for(uint8_t i=0;i<8;++i)
-	// 		data[i] = 0;
-	// }
-	// else
-	// 	data[link] = 0;
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOffMode);
 }
 
@@ -752,11 +732,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOffMode()
 	auto form = CreateFormatter(CFO_Register_EnableBeamOffMode);
 	form.description = "Enable Beam Off Mode Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
+	//Enable off processing a single global flag as of December 2023
 	form.vals.push_back(std::string("Beam Off Processing ") + ": [" + (ReadBeamOffMode(CFO_Link_ALL) ? "x" : " ") + "]");
-	// for (auto r : CFO_Links)
-	// {
-	// 	form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOffMode(r) ? "x" : " ") + "]");
-	// }
 	return form;
 }
 
