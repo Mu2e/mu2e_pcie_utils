@@ -1,5 +1,5 @@
 # Include python
-find_package(Python REQUIRED)
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
 include_directories(${PYTHON_INCLUDE_PATH}
                     ../			       
                     $ENV{$TRACE_INC} 
@@ -19,18 +19,15 @@ swig_add_library(dtcInterfaceLib LANGUAGE python SOURCES dtcInterfaceLib.i)
 
 # swig_link_libraries(dtc ${PROJECT_NAME} ${PYTHON_LIBRARIES})
 # ${PROJECT_NAME} translates into mu2e_pcie_utils
-swig_link_libraries(dtcInterfaceLib mu2e_pcie_utils::DTCInterface artdaq_core_mu2e::artdaq-core-mu2e_Overlays ${PYTHON_LIBRARIES})
-
-# Files to install with Python
-set(PYTHON_INSTALL_FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/dtcInterfaceLib.py
-    ${CMAKE_CURRENT_BINARY_DIR}/_dtcInterfaceLib.so
-    )
+swig_link_libraries(dtcInterfaceLib mu2e_pcie_utils::DTCInterface artdaq_core_mu2e::artdaq-core-mu2e_Overlays Python::Python)
 
 # Configure setup.py and copy to output directory
 set(SETUP_PY_IN ${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in)
 set(SETUP_PY_OUT ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 configure_file(${SETUP_PY_IN} ${SETUP_PY_OUT})
+
+install(TARGETS dtcInterfaceLib DESTINATION lib)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dtcInterfaceLib.py DESTINATION lib)
 
 # Declare install target for python
 #install(TARGETS dtcInterfaceLib
@@ -38,6 +35,6 @@ configure_file(${SETUP_PY_IN} ${SETUP_PY_OUT})
 #        COMPONENT swig-python)
 
 # Install target to call setup.py
-add_custom_target(install-python
-        DEPENDS _dtcInterfaceLib
-        COMMAND python ${SETUP_PY_OUT} install)
+#add_custom_target(install-python
+#        DEPENDS _dtcInterfaceLib
+#        COMMAND python ${SETUP_PY_OUT} install)

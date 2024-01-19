@@ -10,10 +10,11 @@
 %{
 #include "mu2e_driver/mu2e_mmap_ioctl.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
-#include "dtcInterfaceLib/DTC_Registers.h"
 #include "dtcInterfaceLib/CFOandDTC_Registers.h"
+#include "dtcInterfaceLib/DTC_Registers.h"
 #include "dtcInterfaceLib/DTC.h"
 #include "dtcInterfaceLib/DTCSoftwareCFO.h"
+using namespace DTCLib;
 %}
 //------------------------------------------------------------------------------
 // this is for mu2edev::read_register to return the result as the second number
@@ -28,7 +29,7 @@
 %include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
 %include "dtcInterfaceLib/mu2esim.h"
 %include "dtcInterfaceLib/mu2edev.h"
-%include "dtcInterfaceLib/DTC_Registers.h"
 %include "dtcInterfaceLib/CFOandDTC_Registers.h"
+%include "dtcInterfaceLib/DTC_Registers.h"
 %include "dtcInterfaceLib/DTC.h"
 %include "dtcInterfaceLib/DTCSoftwareCFO.h"
