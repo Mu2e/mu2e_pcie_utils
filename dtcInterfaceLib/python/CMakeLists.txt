@@ -1,5 +1,5 @@
 # Include python
-find_package(PythonLibs REQUIRED)
+find_package(Python REQUIRED)
 include_directories(${PYTHON_INCLUDE_PATH}
                     ../			       
                     $ENV{$TRACE_INC} 
@@ -12,14 +12,14 @@ include(CetCMakeEnv)
 cet_cmake_env()
 
 set(CMAKE_SWIG_FLAGS "-v")
-set_source_files_properties(dtcInterfaceLib.i PROPERTIES CPLUSPLUS ON)
+set_source_files_properties(dtcInterfaceLib.i PROPERTIES CPLUSPLUS ON USE_TARGET_INCLUDE_DIRECTORIES ON)
 
 # Add swig module
 swig_add_library(dtcInterfaceLib LANGUAGE python SOURCES dtcInterfaceLib.i)
 
 # swig_link_libraries(dtc ${PROJECT_NAME} ${PYTHON_LIBRARIES})
 # ${PROJECT_NAME} translates into mu2e_pcie_utils
-swig_link_libraries(dtcInterfaceLib DTCInterface ${PYTHON_LIBRARIES})
+swig_link_libraries(dtcInterfaceLib mu2e_pcie_utils::DTCInterface artdaq_core_mu2e::artdaq-core-mu2e_Overlays ${PYTHON_LIBRARIES})
 
 # Files to install with Python
 set(PYTHON_INSTALL_FILES
