@@ -21,3 +21,4 @@ modules.order
 *.ko
 *.code-workspace
 spack-build*
+spack-configure*

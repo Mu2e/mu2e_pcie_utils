@@ -8,11 +8,13 @@
 %include "typemaps.i"
 
 %{
-#include "../mu2e_driver/mu2e_mmap_ioctl.h"
-#include "DTC_Packets.h"
-#include "DTC_Registers.h"
-#include "DTC.h"
-#include "DTCSoftwareCFO.h"
+#include "mu2e_driver/mu2e_mmap_ioctl.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
+#include "dtcInterfaceLib/CFOandDTC_Registers.h"
+#include "dtcInterfaceLib/DTC_Registers.h"
+#include "dtcInterfaceLib/DTC.h"
+#include "dtcInterfaceLib/DTCSoftwareCFO.h"
+using namespace DTCLib;
 %}
 //------------------------------------------------------------------------------
 // this is for mu2edev::read_register to return the result as the second number
@@ -22,11 +24,12 @@
 //-----------------------------------------------------------------------------
 // Process symbols in the headers
 //-----------------------------------------------------------------------------
-%include "../mu2e_driver/mu2e_mmap_ioctl.h"
-%include "DTC_Types.h"
-%include "DTC_Packets.h"
-%include "mu2esim.h"
-%include "mu2edev.h"
-%include "DTC_Registers.h"
-%include "DTC.h"
-%include "DTCSoftwareCFO.h"
+%include "mu2e_driver/mu2e_mmap_ioctl.h"
+%include "artdaq-core-mu2e/Overlays/DTC_Types.h"
+%include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
+%include "dtcInterfaceLib/mu2esim.h"
+%include "dtcInterfaceLib/mu2edev.h"
+%include "dtcInterfaceLib/CFOandDTC_Registers.h"
+%include "dtcInterfaceLib/DTC_Registers.h"
+%include "dtcInterfaceLib/DTC.h"
+%include "dtcInterfaceLib/DTCSoftwareCFO.h"

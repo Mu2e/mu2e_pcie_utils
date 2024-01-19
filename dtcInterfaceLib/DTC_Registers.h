@@ -381,14 +381,6 @@ public:
 						   bool skipInit = false, const std::string& uid = "");
 
 	//
-	// DTC Register Dumps
-	//
-	std::string LinkCountersRegDump(int width);
-	std::string PerformanceCountersRegDump(int width);
-	std::string SERDESErrorsRegDump(int width);
-	std::string PacketCountersRegDump(int width);
-
-	//
 	// Register IO Functions
 	//
 
