@@ -3,7 +3,6 @@
 #define TRACE_NAME "DTC.cpp"
 
 #include "DTC.h"
-#define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << device_.getDeviceUID() << ": "
 #define TLVL_GetData TLVL_DEBUG + 5
 #define TLVL_GetJSONData TLVL_DEBUG + 6
 #define TLVL_ReadBuffer TLVL_DEBUG + 7
@@ -22,6 +21,13 @@
 #define TLVL_ReleaseBuffers TLVL_DEBUG + 20
 #define TLVL_GetCurrentBuffer TLVL_DEBUG + 21
 
+
+#include "dtcInterfaceLib/otsStyleCoutMacros.h"
+
+#define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << device_.getDeviceUID() << ": "
+#undef __COUT_HDR__
+#define __COUT_HDR__  "DTC " <<  device_.getDeviceUID() << ": "
+
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
@@ -32,7 +38,7 @@ DTCLib::DTC::DTC(DTC_SimMode mode, int dtc, unsigned rocMask, std::string expect
 {
 	// ELF, 05/18/2016: Rick reports that 3.125 Gbp
 	// SetSERDESOscillatorClock(DTC_SerdesClockSpeed_25Gbps); // We're going to 2.5Gbps for now
-	DTC_TLOG(TLVL_INFO) << "CONSTRUCTOR";
+	__COUT_INFO__ << "CONSTRUCTOR";
 }
 
 DTCLib::DTC::~DTC()
@@ -259,7 +265,7 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 	}
 	else
 	{
-		DTC_TLOG(TLVL_INFO) << "WriteSimFileToDTC Took " << retryCount << " attempts to write file";
+		__COUT_INFO__ << "WriteSimFileToDTC Took " << retryCount << " attempts to write file";
 	}
 
 	SetDetectorEmulatorInUse();
@@ -410,7 +416,7 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 
 	DTC_TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC Closing file. sizecheck=" << sizeCheck << ", eof=" << is.eof()
 								  << ", fail=" << is.fail() << ", bad=" << is.bad();
-	DTC_TLOG(TLVL_INFO) << "VerifySimFileInDTC: The Detector Emulation file was written correctly";
+	__COUT_INFO__ << "VerifySimFileInDTC: The Detector Emulation file was written correctly";
 	is.close();
 	if (writeOutput) outputStream.close();
 	return true;
@@ -419,42 +425,62 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 // ROC Register Functions
 uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t address, int tmo_ms)
 {
-	dcsDMAInfo_.currentReadPtr = nullptr;
-	ReleaseBuffers(DTC_DMA_Engine_DCS);
-
-	device_.begin_dcs_transaction();
-	SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address,
-						 0x0 /*data*/, 0x0 /*address2*/, 0x0 /*data2*/,
-						 false /*quiet*/);
-
-	uint16_t data = 0xFFFF;
-
-	auto reply = ReadNextDCSPacket(tmo_ms);
-	device_.end_dcs_transaction();
-
-	if (reply != nullptr)  //have data!
+	uint16_t retries = 0; //change to 1 to attempt reinitializing
+	do
 	{
-		auto replytmp = reply->GetReply(false);
-		auto linktmp = reply->GetLinkID();
-		data = replytmp.second;
+		dcsDMAInfo_.currentReadPtr = nullptr;
+		ReleaseBuffers(DTC_DMA_Engine_DCS);
 
-		DTC_TLOG(TLVL_TRACE) << "Got packet, "
-								<< "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
-								<< "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
-								<< "), "
-								<< "data=" << data;
-		if(linktmp == link && replytmp.first == address)
-			return data;
-	}
+		device_.begin_dcs_transaction();
+		SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address,
+							0x0 /*data*/, 0x0 /*address2*/, 0x0 /*data2*/,
+							false /*quiet*/);
+
+		uint16_t data = 0xFFFF;
+
+		try
+		{
+			auto reply = ReadNextDCSPacket(tmo_ms);
+			device_.end_dcs_transaction();
+
+			if (reply != nullptr)  //have data!
+			{
+				auto replytmp = reply->GetReply(false);
+				auto linktmp = reply->GetLinkID();
+				data = replytmp.second;
+
+				DTC_TLOG(TLVL_TRACE) << "Got packet, "
+										<< "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
+										<< "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
+										<< "), "
+										<< "data=" << data;
+				if(linktmp == link && replytmp.first == address)
+					return data;
+			}
+		}
+		catch(const std::exception& e)
+		{
+			__SS__ << "Failure attempting to read a ROC register at link " << static_cast<int>(link) << 
+				" address 0x" << std::hex << static_cast<int>(address) << ". Exception caught: " << e.what() << __E__;
+			__SS_THROW__;
+		}
+		
+		//if here then software received no response from DTC, try a software re-init to realign DMA pointers
+		if(retries) //do not reinit on last try
+		{
+			__COUT__ << "Software received no response to the DCS request from the DTC, trying a DMA re-init. retries = " << retries << __E__;
+			device_.initDMAEngine();
+		}
+
+	} while(retries--);
 		
 
-	{  //throw exception for no data after retries
-		std::stringstream ss;
-		ss << "ReadROCRegister returning after timeout: no valid data after " << tmo_ms << " ms from address 0x" << std::hex << address << "!" << std::endl;
-		DTC_TLOG(TLVL_TRACE) << ss.str();
-		throw std::runtime_error(ss.str());
-	}
-
+	 //throw exception for no data after retries
+	__SS__ << "A timeout occurred attempting to read a ROC register at link " << static_cast<int>(link) << 
+				" address 0x" << std::hex << static_cast<int>(address) << ". No DCS reply packet received after " << tmo_ms << " ms! " <<
+				"Restarting the DTC software instance may fix the problem and realign DMA pointers." << std::endl;
+	__SS_THROW__;
+	
 }  //end ReadROCRegister()
 
 bool DTCLib::DTC::WriteROCRegister(const DTC_Link_ID& link, const uint16_t address, const uint16_t data, bool requestAck, int ack_tmo_ms)
@@ -932,12 +958,62 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 
 std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int tmo_ms)
 {
-	auto test = ReadNextPacket(DTC_DMA_Engine_DCS, tmo_ms);
-	if (test == nullptr) return nullptr;  // Couldn't read new block
-	auto output = std::make_unique<DTC_DCSReplyPacket>(*test.get());
-	DTC_TLOG(TLVL_ReadNextDAQPacket) << output->toJSON();
+	try
+	{
+		auto test = ReadNextPacket(DTC_DMA_Engine_DCS, tmo_ms);
+		if (test == nullptr) return nullptr;  // Couldn't read new block
+		
+		auto output = std::make_unique<DTC_DCSReplyPacket>(*test.get());
+		if(output->ROCIsCorrupt())
+		{
+			__SS__ << "ROC has set its DCS corrupt flag (check the ROC error bit details)!" << __E__;
+			__SS_THROW__;
+		}
+		if(output->GetType() == DTC_DCSOperationType_InvalidS2C)
+		{
+			__SS__ << "DTC identifed an invalid DCS request from software!" << __E__;
+			__SS_THROW__;
+		}
+		if(output->GetType() == DTC_DCSOperationType_Timeout)
+		{
+			__SS__ << "No response from the ROC at link " << output->GetLinkID() << " to the DCS request! The DTC identifed a ROC response timeout!" << __E__;
+			__SS_THROW__;
+		}
+		if(lastDTCErrorBitsValue_ != output->GetDTCErrorBits()) //Note: DTC Error bits are only included in DCS reply packets
+		{
+			__COUTV__((int)output->GetDTCErrorBits());
+			__COUTV__((int)lastDTCErrorBitsValue_);
+			lastDTCErrorBitsValue_ = output->GetDTCErrorBits();
 
-	return output;
+			__SS__ << "There is an error identified in DCS handling of its ROC:" << __E__;
+			if((lastDTCErrorBitsValue_>>0) & 0x1)
+				ss << "- SERDES PLL associated with the ROC has lost lock." << __E__;
+			if((lastDTCErrorBitsValue_>>1) & 0x1)
+				ss << "- SERDES associated with the ROC has lost clock-data-recovery lock." << __E__;
+			if((lastDTCErrorBitsValue_>>2) & 0x1)
+				ss << "- Invalid packet (i.e., CRC mismatch, valid bit low, or expected packet type) has been received from ROC." << __E__;
+			if((lastDTCErrorBitsValue_>>3) & 0x1)
+				ss << "- Error in DTC handling of this ROC’s DCS requests has occurred (check the DTC error bit details)." << __E__;
+
+			__SS_THROW__;
+		}
+		if(!output->isValid())
+		{
+			__SS__ << "The valid bit is low for the received packet, which could be due to a packet transmission error from link " << 
+				output->GetLinkID() << " in response to the DCS request!" << __E__;
+			__SS_THROW__;
+		}
+
+		DTC_TLOG(TLVL_ReadNextDAQPacket) << output->toJSON();
+		return output;
+	}
+	catch(...) //make sure the dcs transaction is ended on exception
+	{		
+		device_.end_dcs_transaction();
+
+		__COUT_ERR__ << "Error reading the next DCS packet!" << __E__;
+		throw;
+	}
 }
 
 std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DMA_Engine& engine, int tmo_ms)

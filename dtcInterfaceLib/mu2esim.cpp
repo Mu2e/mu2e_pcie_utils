@@ -121,14 +121,14 @@ int mu2esim::init(DTCLib::DTC_SimMode mode)
 	// Set initial register values...
 	registers_[DTCLib::CFOandDTC_Register_DesignVersion] = 0x00006363;           // v99.99
 	registers_[DTCLib::CFOandDTC_Register_DesignDate] = 0x53494D44;              // SIMD in ASCII
-	registers_[DTCLib::DTC_Register_DTCControl] = 0x00000003;              // System Clock, Timing Enable
-	registers_[DTCLib::DTC_Register_DMATransferLength] = 0x80000010;       // Default value from HWUG
-	registers_[DTCLib::DTC_Register_SERDESLoopbackEnable] = 0x00000000;    // SERDES Loopback Disabled
-	registers_[DTCLib::DTC_Register_SERDESDDRClockStatus] = 0x20002;       // Initialization Complete, no IIC Error
+	registers_[DTCLib::CFOandDTC_Register_Control] = 0x00000003;              // System Clock, Timing Enable
+	registers_[DTCLib::CFOandDTC_Register_DMATransferLength] = 0x80000010;       // Default value from HWUG
+	registers_[DTCLib::CFOandDTC_Register_SERDES_LoopbackEnable] = 0x00000000;    // SERDES Loopback Disabled
+	registers_[DTCLib::CFOandDTC_Register_ClockOscillatorStatus] = 0x20002;       // Initialization Complete, no IIC Error
 	registers_[DTCLib::DTC_Register_ROCEmulationEnable] = 0x3F;            // ROC Emulators enabled (of course!)
-	registers_[DTCLib::DTC_Register_LinkEnable] = 0x3F3F;                  // All links Tx/Rx enabled, CFO and timing disabled
-	registers_[DTCLib::DTC_Register_SERDES_PLLLocked] = 0x7F;              // SERDES PLL Locked
-	registers_[DTCLib::DTC_Register_SERDES_ResetDone] = 0xFFFFFFFF;        // SERDES Resets Done
+	registers_[DTCLib::CFOandDTC_Register_LinkEnable] = 0x3F3F;                  // All links Tx/Rx enabled, CFO and timing disabled
+	registers_[DTCLib::CFOandDTC_Register_SERDES_PLLLocked] = 0x7F;              // SERDES PLL Locked
+	registers_[DTCLib::CFOandDTC_Register_SERDES_ResetDone] = 0xFFFFFFFF;        // SERDES Resets Done
 	registers_[DTCLib::DTC_Register_SERDES_RXCDRLockStatus] = 0x7F00007F;  // RX CDR Locked
 	registers_[DTCLib::DTC_Register_DMATimeoutPreset] = 0x800;             // DMA Timeout Preset
 	registers_[DTCLib::DTC_Register_ROCReplyTimeout] = 0x200000;           // ROC Timeout Preset
@@ -346,7 +346,7 @@ int mu2esim::write_register(uint16_t address, int tmo_ms, uint32_t data)
 		std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
 	TLOG(TLVL_WriteRegister2) << "mu2esim::write_register took " << duration << " milliseconds out of tmo_ms=" << tmo_ms;
 	std::bitset<32> dataBS(data);
-	if (address == DTCLib::DTC_Register_DTCControl)
+	if (address == DTCLib::CFOandDTC_Register_Control)
 	{
 		auto detectorEmulationMode = (registers_[DTCLib::DTC_Register_DetEmulation_Control0] & 0x3) != 0;
 		if (dataBS[30] == 1 && !detectorEmulationMode)
@@ -409,7 +409,7 @@ void mu2esim::CFOEmulator_()
 	bool linkEnabled[6];
 	for (auto link : DTCLib::DTC_Links)
 	{
-		std::bitset<32> linkRocs(registers_[DTCLib::DTC_Register_LinkEnable]);
+		std::bitset<32> linkRocs(registers_[DTCLib::CFOandDTC_Register_LinkEnable]);
 		auto number = linkRocs[link] + linkRocs[link + 8];
 		TLOG(TLVL_CFOEmulator) << "mu2esim::CFOEmulator_ linkRocs[" << static_cast<int>(link) << "]=" << number;
 		linkEnabled[link] = number != 0;

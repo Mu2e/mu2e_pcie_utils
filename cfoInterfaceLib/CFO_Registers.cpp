@@ -7,15 +7,19 @@
 #include <iomanip>  // std::setw, std::setfill
 #include <sstream>  // Convert uint to hex stLink
 
+#include "artdaq-core/Utilities/ExceptionHandler.hh" /*for artdaq::ExceptionHandler*/
+#include "artdaq-core/Utilities/ExceptionStackTrace.hh" /*for artdaq::ExceptionStackTrace*/
+
 #include "TRACE/tracemf.h"
-#define CFO_TLOG(lvl) TLOG(lvl) << "CFO " << device_.getDeviceUID() << ": "
 #define TLVL_ResetCFO TLVL_DEBUG + 5
 #define TLVL_AutogenDRP TLVL_DEBUG + 6
 #define TLVL_SERDESReset TLVL_DEBUG + 7
 #define TLVL_CalculateFreq TLVL_DEBUG + 8
 
+#include "dtcInterfaceLib/otsStyleCoutMacros.h"
 
-
+#undef __COUT_HDR__
+#define __COUT_HDR__  "CFO " << this->getDeviceUID() << ": "
 
 CFOLib::CFO_Registers::CFO_Registers(DTC_SimMode mode, int cfo, std::string expectedDesignVersion,
 									 bool skipInit, const std::string& uid)
@@ -91,16 +95,20 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 	device_.init(simMode_, cfo, /* simMemoryFile */ "", uid);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
-		throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
+		__SS__ << "Version mismatch! Expected CFO version is '" << expectedDesignVersion <<
+			"' while the readback version was '" << ReadDesignVersion() << ".'" << __E__;
+		__SS_THROW__;
+
+		// throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
 	}
 
 	if (skipInit)
 	{
-		CFO_TLOG(TLVL_INFO) << "SKIPPING Initializing device";
+		__COUT_INFO__ << "SKIPPING Initializing device";
 		return simMode_;
 	} 
 
-	CFO_TLOG(TLVL_DEBUG) << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
+	__COUT__ << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	for (auto link : CFO_Links)
 	{
 		bool LinkEnabled = ((maxDTCs_ >> (link * 4)) & 0xF) != 0;
@@ -133,51 +141,20 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 	}
 	ReadMinDMATransferLength();
 
-	CFO_TLOG(TLVL_DEBUG) << "Done setting device registers";
+	__COUT__ << "Done setting device registers";
 	return simMode_;
 }
 
-/// <summary>
-/// Read the Vivado Version Number
-/// </summary>
-/// <returns>The Vivado Version number</returns>
-std::string CFOLib::CFO_Registers::ReadVivadoVersionNumber(uint32_t* val /* = 0 */)
-{
-	auto data = val?(*val):ReadRegister_(CFO_Register_VivadoVersion);
-	std::ostringstream o;
-	int yearHex = (data & 0xFFFF0000) >> 16;
-	auto year = ((yearHex & 0xF000) >> 12) * 1000 + ((yearHex & 0xF00) >> 8) * 100 + ((yearHex & 0xF0) >> 4) * 10 +
-				(yearHex & 0xF);
-	int versionHex = (data & 0xFFFF);
-	auto version = ((versionHex & 0xF000) >> 12) * 1000 + ((versionHex & 0xF00) >> 8) * 100 +
-				   ((versionHex & 0xF0) >> 4) * 10 + (versionHex & 0xF);
-	o << std::setfill('0') << std::setw(4) << year << "." << version;
-	// std::cout << o.str() << std::endl;
-	return o.str();
-}
 
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatVivadoVersion()
+bool CFOLib::CFO_Registers::ReadDDRFIFOEmpty(std::optional<uint32_t> val)
 {
-	auto form = CreateFormatter(CFO_Register_VivadoVersion);
-	form.description = "CFO Firmware Vivado Version";
-	form.vals.push_back(ReadVivadoVersionNumber(&form.value));
-	return form;
-}
-
-
-bool CFOLib::CFO_Registers::ReadDDRFIFOEmpty()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_DesignStatus);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignStatus);
 	return data[2];
 }
 
-bool CFOLib::CFO_Registers::ReadDDRClockCalibrationDone()
+bool CFOLib::CFO_Registers::ReadDDRClockCalibrationDone(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_DesignStatus);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignStatus);
 	return data[0];
 }
 
@@ -186,169 +163,146 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignStatus()
 	auto form = CreateFormatter(CFOandDTC_Register_DesignStatus);
 	form.description = "Design Status Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("DDR FIFO Empty:             [") + (ReadDDRFIFOEmpty() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("DDR Clock Calibration Done: [") + (ReadDDRClockCalibrationDone() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("DDR FIFO Empty:             [") + (ReadDDRFIFOEmpty(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("DDR Clock Calibration Done: [") + (ReadDDRClockCalibrationDone(form.value) ? "x" : " ") + "]");
 	return form;
-}
-
-// CFO Control Register
-void CFOLib::CFO_Registers::ResetCFO()
-{
-	CFO_TLOG(TLVL_ResetCFO) << "ResetCFO start";
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
-	data[31] = 1;  // CFO Reset bit
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
-	//NOTE: CFO might self-clear the reset bit
-	data[31] = 0;  // CFO Reset bit
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
-}
-
-bool CFOLib::CFO_Registers::ReadResetCFO()
-{
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CFOControl);
-	return dataSet[31];
-}
-
-void CFOLib::CFO_Registers::ClearCFOControlRegister()
-{
-	WriteRegister_(0, CFO_Register_CFOControl);
 }
 
 void CFOLib::CFO_Registers::ResetCFORunPlan()
 {
-	CFO_TLOG(TLVL_ResetCFO) << "ResetCFO Run Plan start";
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	TLOG(TLVL_ResetCFO) << __COUT_HDR__ << "SoftReset Run Plan start";
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[27] = 1;  // CFO Run Plan Reset bit
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 	data[27] = 0;  // Restore CFO Run Plan Reset bit
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool CFOLib::CFO_Registers::ReadResetCFORunPlan()
+bool CFOLib::CFO_Registers::ReadResetCFORunPlan(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return dataSet[27];
 }
 
 void CFOLib::CFO_Registers::EnableAutogenDRP()
 {
-	CFO_TLOG(TLVL_AutogenDRP) << "EnableAutogenDRP start";
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	TLOG(TLVL_AutogenDRP) << __COUT_HDR__ << "EnableAutogenDRP start";
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[23] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 void CFOLib::CFO_Registers::DisableAutogenDRP()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[23] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool CFOLib::CFO_Registers::ReadAutogenDRP()
+bool CFOLib::CFO_Registers::ReadAutogenDRP(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[23];
 }
 
 void CFOLib::CFO_Registers::EnableEventWindowInput()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[2] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 void CFOLib::CFO_Registers::DisableEventWindowInput()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[2] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool CFOLib::CFO_Registers::ReadEventWindowInput()
+bool CFOLib::CFO_Registers::ReadEventWindowInput(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[2];
 }
 
 void CFOLib::CFO_Registers::SetExternalSystemClock()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[1] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 void CFOLib::CFO_Registers::SetInternalSystemClock()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[1] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool CFOLib::CFO_Registers::ReadSystemClock()
+bool CFOLib::CFO_Registers::ReadSystemClock(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[1];
 }
 
 void CFOLib::CFO_Registers::EnableTiming()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[0] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
 void CFOLib::CFO_Registers::DisableTiming()
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[0] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_CFOControl);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool CFOLib::CFO_Registers::ReadTimingEnable()
+bool CFOLib::CFO_Registers::ReadTimingEnable(std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_CFOControl);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[0];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 {
-	auto form = CreateFormatter(CFO_Register_CFOControl);
+	auto form = CreateFormatter(CFOandDTC_Register_Control);
 	form.description = "CFO Control";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("Reset:                [") + (ReadResetCFO() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Autogenerate DRP: [") + (ReadAutogenDRP() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Event Window Input:   [") + (ReadEventWindowInput() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("System Clock Select:  [") + (ReadSystemClock() ? "Ext" : "Int") + "]");
-	form.vals.push_back(std::string("Timing Enable:        [") + (ReadTimingEnable() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Reset:                [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("CFO Autogenerate DRP: [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Event Window Input:   [") + (ReadEventWindowInput(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("System Clock Select:  [") + (ReadSystemClock(form.value) ? "Ext" : "Int") + "]");
+	form.vals.push_back(std::string("Timing Enable:        [") + (ReadTimingEnable(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
 // DMA Transfer Length Register
 void CFOLib::CFO_Registers::SetTriggerDMATransferLength(uint16_t length)
 {
-	auto data = ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = ReadRegister_(CFOandDTC_Register_DMATransferLength);
 	data = (data & 0x0000FFFF) + (length << 16);
-	WriteRegister_(data, CFO_Register_DMATransferLength);
+	WriteRegister_(data, CFOandDTC_Register_DMATransferLength);
 }
 
-uint16_t CFOLib::CFO_Registers::ReadTriggerDMATransferLength()
+uint16_t CFOLib::CFO_Registers::ReadTriggerDMATransferLength(std::optional<uint32_t> val)
 {
-	auto data = ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DMATransferLength);
 	data >>= 16;
 	return static_cast<uint16_t>(data);
 }
 
 void CFOLib::CFO_Registers::SetMinDMATransferLength(uint16_t length)
 {
-	auto data = ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = ReadRegister_(CFOandDTC_Register_DMATransferLength);
 	data = (data & 0xFFFF0000) + length;
-	WriteRegister_(data, CFO_Register_DMATransferLength);
+	WriteRegister_(data, CFOandDTC_Register_DMATransferLength);
 }
 
-uint16_t CFOLib::CFO_Registers::ReadMinDMATransferLength()
+uint16_t CFOLib::CFO_Registers::ReadMinDMATransferLength(std::optional<uint32_t> val)
 {
-	auto data = ReadRegister_(CFO_Register_DMATransferLength);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DMATransferLength);
 	data = data & 0x0000FFFF;
 	dmaSize_ = static_cast<uint16_t>(data);
 	return dmaSize_;
@@ -356,14 +310,14 @@ uint16_t CFOLib::CFO_Registers::ReadMinDMATransferLength()
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMATransferLength()
 {
-	auto form = CreateFormatter(CFO_Register_DMATransferLength);
+	auto form = CreateFormatter(CFOandDTC_Register_DMATransferLength);
 	form.description = "DMA Transfer Length";
 	form.vals.push_back(""); //translation
 	std::stringstream o;
-	o << "Trigger Length: 0x" << std::hex << ReadTriggerDMATransferLength();
+	o << "Trigger Length: 0x" << std::hex << ReadTriggerDMATransferLength(form.value);
 	form.vals.push_back(o.str());
 	std::stringstream p;
-	p << "Minimum Length: 0x" << std::hex << ReadMinDMATransferLength();
+	p << "Minimum Length: 0x" << std::hex << ReadMinDMATransferLength(form.value);
 	form.vals.push_back(p.str());
 	return form;
 }
@@ -371,43 +325,41 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMATransferLength()
 // SERDES Loopback Enable Register
 void CFOLib::CFO_Registers::SetSERDESLoopbackMode(const CFO_Link_ID& link, const DTC_SERDESLoopbackMode& mode)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_SERDESLoopbackEnable);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_SERDES_LoopbackEnable);
 	std::bitset<3> modeSet = mode;
 	data[3 * link] = modeSet[0];
 	data[3 * link + 1] = modeSet[1];
 	data[3 * link + 2] = modeSet[2];
-	WriteRegister_(data.to_ulong(), CFO_Register_SERDESLoopbackEnable);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_SERDES_LoopbackEnable);
 }
 
-DTCLib::DTC_SERDESLoopbackMode CFOLib::CFO_Registers::ReadSERDESLoopback(const CFO_Link_ID& link)
+DTCLib::DTC_SERDESLoopbackMode CFOLib::CFO_Registers::ReadSERDESLoopback(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<3> dataSet = ReadRegister_(CFO_Register_SERDESLoopbackEnable) >> (3 * link);
+	std::bitset<3> dataSet = (val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_LoopbackEnable)) >> (3 * link);
 	return static_cast<DTC_SERDESLoopbackMode>(dataSet.to_ulong());
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESLoopbackEnable()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESLoopbackEnable);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_LoopbackEnable);
 	form.description = "SERDES Loopback Enable";
 	form.vals.push_back(""); //translation
 	for (auto r : CFO_Links)
-	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": " +
-							DTC_SERDESLoopbackModeConverter(ReadSERDESLoopback(r)).toString());
-	}
+							DTC_SERDESLoopbackModeConverter(ReadSERDESLoopback(r, form.value)).toString());
 	return form;
 }
 
 // Clock Status Register
-bool CFOLib::CFO_Registers::ReadSERDESOscillatorIICError()
+bool CFOLib::CFO_Registers::ReadSERDESOscillatorIICError(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_ClockOscillatorStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_ClockOscillatorStatus);
 	return dataSet[2];
 }
 
-bool CFOLib::CFO_Registers::ReadSERDESOscillatorInitializationComplete()
+bool CFOLib::CFO_Registers::ReadSERDESOscillatorInitializationComplete(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_ClockOscillatorStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_ClockOscillatorStatus);
 	return dataSet[1];
 }
 
@@ -424,21 +376,21 @@ bool CFOLib::CFO_Registers::WaitForSERDESOscillatorInitializationComplete(double
 	return ReadSERDESOscillatorInitializationComplete();
 }
 
-bool CFOLib::CFO_Registers::ReadTimingClockPLLLocked()
+bool CFOLib::CFO_Registers::ReadTimingClockPLLLocked(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_ClockOscillatorStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_ClockOscillatorStatus);
 	return dataSet[0];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockOscillatorStatus()
 {
-	auto form = CreateFormatter(CFO_Register_ClockOscillatorStatus);
+	auto form = CreateFormatter(CFOandDTC_Register_ClockOscillatorStatus);
 	form.description = "Clock Oscillator Status";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("SERDES IIC Error:      [") + (ReadSERDESOscillatorIICError() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("SERDES IIC Error:      [") + (ReadSERDESOscillatorIICError(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("SERDES Init.Complete:  [") +
-						(ReadSERDESOscillatorInitializationComplete() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Timing Clock PLL Lock: [") + (ReadTimingClockPLLLocked() ? "x" : " ") + "]");
+						(ReadSERDESOscillatorInitializationComplete(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Timing Clock PLL Lock: [") + (ReadTimingClockPLLLocked(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -446,7 +398,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockOscillatorStatus()
 void CFOLib::CFO_Registers::EnableLink(const CFO_Link_ID& link, const DTC_LinkEnableMode& mode,
 									   const uint8_t& dtcCount)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_LinkEnable);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_LinkEnable);
 	if(link == CFO_Link_ALL)
 	{	
 		for(uint8_t i=0;i<8;++i)
@@ -460,27 +412,27 @@ void CFOLib::CFO_Registers::EnableLink(const CFO_Link_ID& link, const DTC_LinkEn
 		data[link] = mode.TransmitEnable;
 		data[link + 8] = mode.ReceiveEnable;
 	}
-	WriteRegister_(data.to_ulong(), CFO_Register_LinkEnable);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_LinkEnable);
 	SetMaxDTCNumber(link, dtcCount);
 }
 
 void CFOLib::CFO_Registers::DisableLink(const CFO_Link_ID& link, const DTC_LinkEnableMode& mode)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_LinkEnable);
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_LinkEnable);
 	data[link] = data[link] && !mode.TransmitEnable;
 	data[link + 8] = data[link + 8] && !mode.ReceiveEnable;
-	WriteRegister_(data.to_ulong(), CFO_Register_LinkEnable);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_LinkEnable);
 }
 
-DTCLib::DTC_LinkEnableMode CFOLib::CFO_Registers::ReadLinkEnabled(const CFO_Link_ID& link)
+DTCLib::DTC_LinkEnableMode CFOLib::CFO_Registers::ReadLinkEnabled(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_LinkEnable);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_LinkEnable);
 	return DTC_LinkEnableMode(dataSet[link], dataSet[link + 8]);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatLinkEnable()
 {
-	auto form = CreateFormatter(CFO_Register_LinkEnable);
+	auto form = CreateFormatter(CFOandDTC_Register_LinkEnable);
 	form.description = "Link Enable";
 	form.vals.push_back("       ([TX, RX, Timing])");
 	for (auto r : CFO_Links)
@@ -495,8 +447,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatLinkEnable()
 // SERDES Reset Register
 void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 {
-	CFO_TLOG(TLVL_SERDESReset) << "Entering SERDES Reset Loop for Link " << link;
-	std::bitset<32> data = ReadRegister_(CFO_Register_SERDESReset);
+	TLOG(TLVL_SERDESReset) << __COUT_HDR__ << "Entering SERDES Reset Loop for Link " << link;
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_SERDES_Reset);
 	if(link == CFO_Link_ALL)
 	{	
 		for(uint8_t i=0;i<8;++i)
@@ -504,11 +456,11 @@ void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 	}
 	else
 		data[link] = 1;
-	WriteRegister_(data.to_ulong(), CFO_Register_SERDESReset);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_SERDES_Reset);
 
 	// usleep(interval);
 
-	data = ReadRegister_(CFO_Register_SERDESReset);
+	data = ReadRegister_(CFOandDTC_Register_SERDES_Reset);
 	if(link == CFO_Link_ALL)
 	{	
 		for(uint8_t i=0;i<8;++i)
@@ -516,7 +468,7 @@ void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 	}
 	else
 		data[link] = 0;
-	WriteRegister_(data.to_ulong(), CFO_Register_SERDESReset);
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_SERDES_Reset);
 
 
 	auto resetDone = false;
@@ -527,65 +479,66 @@ void CFOLib::CFO_Registers::ResetSERDES(const CFO_Link_ID& link, int interval)
 
 		if(link == CFO_Link_ALL)
 		{	
-			uint32_t readData = ReadRegister_(CFO_Register_SERDESResetDone);
+			uint32_t readData = ReadRegister_(CFOandDTC_Register_SERDES_ResetDone);
 			resetDone = ((readData & 0xFF) == 0xFF);
 		}
 		else
 			resetDone = ReadResetSERDESDone(link);
-		CFO_TLOG(TLVL_SERDESReset) << "End of SERDES Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
+		TLOG(TLVL_SERDESReset) << __COUT_HDR__ << "End of SERDES Reset loop=" << loops << ", done=" << std::boolalpha << resetDone;
 	}
 	if(loops >= 100)
 	{
-		CFO_TLOG(TLVL_ERROR) << "Timeout waiting for SERDES Reset loop=" << loops;
-		throw DTC_IOErrorException("Timeout waiting for SERDES Reset loop.");
+		__SS__ << "Timeout waiting for SERDES Reset loop=" << loops;
+		__SS_THROW__;
+		// throw DTC_IOErrorException("Timeout waiting for SERDES Reset loop.");
 	}
 }
 
 void CFOLib::CFO_Registers::ResetAllSERDESPlls()
 {
-	WriteRegister_(0x0000ff00, CFO_Register_SERDESReset);
-	WriteRegister_(0x0, CFO_Register_SERDESReset);
+	WriteRegister_(0x0000ff00, CFOandDTC_Register_SERDES_Reset);
+	WriteRegister_(0x0, CFOandDTC_Register_SERDES_Reset);
 	sleep(3);
 }
 void CFOLib::CFO_Registers::ResetAllSERDESTx()
 {
-	WriteRegister_(0x00ff0000, CFO_Register_SERDESReset);
-	WriteRegister_(0x0, CFO_Register_SERDESReset);
+	WriteRegister_(0x00ff0000, CFOandDTC_Register_SERDES_Reset);
+	WriteRegister_(0x0, CFOandDTC_Register_SERDES_Reset);
 	sleep(3);
 }
 
-bool CFOLib::CFO_Registers::ReadResetSERDES(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadResetSERDES(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SERDESReset);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_Reset);
 	return dataSet[link];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESReset()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESReset);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_Reset);
 	form.description = "SERDES Reset";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadResetSERDES(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadResetSERDES(r, form.value) ? "x" : " ") + "]");
+	
 	return form;
 }
 
 // SERDES RX Disparity Error Register
-DTCLib::DTC_SERDESRXDisparityError CFOLib::CFO_Registers::ReadSERDESRXDisparityError(const CFO_Link_ID& link)
+DTCLib::DTC_SERDESRXDisparityError CFOLib::CFO_Registers::ReadSERDESRXDisparityError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	return DTC_SERDESRXDisparityError(ReadRegister_(CFO_Register_SERDESRXDisparityError), static_cast<DTC_Link_ID>(link));
+	return DTC_SERDESRXDisparityError(val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_RXDisparityError), static_cast<DTC_Link_ID>(link));
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXDisparityError()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESRXDisparityError);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_RXDisparityError);
 	form.description = "SERDES RX Disparity Error";
 	form.vals.push_back("       ([H,L])");
 	for (auto r : CFO_Links)
 	{
-		auto re = ReadSERDESRXDisparityError(r);
+		auto re = ReadSERDESRXDisparityError(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + std::to_string(re.GetData()[1]) + "," +
 							std::to_string(re.GetData()[0]) + "]");
 	}
@@ -593,21 +546,20 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXDisparityError()
 }
 
 // SERDES RX Character Not In Table Error Register
-DTCLib::DTC_CharacterNotInTableError CFOLib::CFO_Registers::ReadSERDESRXCharacterNotInTableError(
-	const CFO_Link_ID& link)
+DTCLib::DTC_CharacterNotInTableError CFOLib::CFO_Registers::ReadSERDESRXCharacterNotInTableError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	return DTC_CharacterNotInTableError(ReadRegister_(CFO_Register_SERDESRXCharacterNotInTableError),
+	return DTC_CharacterNotInTableError(val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_RXCharacterNotInTableError),
 										static_cast<DTC_Link_ID>(link));
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCharacterNotInTableError()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESRXCharacterNotInTableError);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_RXCharacterNotInTableError);
 	form.description = "SERDES RX CNIT Error";
 	form.vals.push_back("       ([H,L])");
 	for (auto r : CFO_Links)
 	{
-		auto re = ReadSERDESRXCharacterNotInTableError(r);
+		auto re = ReadSERDESRXCharacterNotInTableError(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + std::to_string(re.GetData()[1]) + "," +
 							std::to_string(re.GetData()[0]) + "]");
 	}
@@ -615,60 +567,58 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCharacterNotInTab
 }
 
 // SERDES Unlock Error Register
-bool CFOLib::CFO_Registers::ReadSERDESUnlockError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESUnlockError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SERDESUnlockError);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_UnlockError);
 	return dataSet[link];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESUnlockError()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESUnlockError);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_UnlockError);
 	form.description = "SERDES Unlock Error";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESUnlockError(r) ? "x" : " ") +
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadSERDESUnlockError(r, form.value) ? "x" : " ") +
 							"]");
-	}
 	return form;
 }
 
 // SERDES PLL Locked Register
-bool CFOLib::CFO_Registers::ReadSERDESPLLLocked(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESPLLLocked(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SERDESPLLLocked);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_PLLLocked);
 	return dataSet[link];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPLLLocked()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESPLLLocked);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_PLLLocked);
 	form.description = "SERDES PLL Locked";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESPLLLocked(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadSERDESPLLLocked(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
 // SERDES RX Status Register
-DTCLib::DTC_RXStatus CFOLib::CFO_Registers::ReadSERDESRXStatus(const CFO_Link_ID& link)
+DTCLib::DTC_RXStatus CFOLib::CFO_Registers::ReadSERDESRXStatus(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	auto data = ReadRegister_(CFO_Register_SERDESRXStatus);
+	auto data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_RXStatus);
 	data = (data >> (3 * link)) & 0x7;
 	return static_cast<DTC_RXStatus>(data);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXStatus()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESRXStatus);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_RXStatus);
 	form.description = "SERDES RX Status";
 	form.vals.push_back(""); //translation
 	for (auto r : CFO_Links)
 	{
-		auto re = ReadSERDESRXStatus(r);
+		auto re = ReadSERDESRXStatus(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": " + DTC_RXStatusConverter(re).toString());
 	}
 
@@ -676,29 +626,28 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXStatus()
 }
 
 // SERDES Reset Done Register
-bool CFOLib::CFO_Registers::ReadResetSERDESDone(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadResetSERDESDone(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SERDESResetDone);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_SERDES_ResetDone);
 	return dataSet[link];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESResetDone()
 {
-	auto form = CreateFormatter(CFO_Register_SERDESResetDone);
+	auto form = CreateFormatter(CFOandDTC_Register_SERDES_ResetDone);
 	form.description = "SERDES Reset Done";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadResetSERDESDone(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadResetSERDESDone(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
 // SFP / SERDES Status Register
 
-bool CFOLib::CFO_Registers::ReadSERDESRXCDRLock(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESRXCDRLock(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_SFPSERDESStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_SFPSERDESStatus);
 	return dataSet[link];
 }
 
@@ -708,9 +657,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESRXCDRLock()
 	form.description = "SERDES CDR Lock";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESRXCDRLock(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadSERDESRXCDRLock(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -719,33 +667,33 @@ void CFOLib::CFO_Registers::SetBeamOnTimerPreset(uint32_t preset)
 	WriteRegister_(preset, CFO_Register_BeamOnTimerPreset);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadBeamOnTimerPreset() { return ReadRegister_(CFO_Register_BeamOnTimerPreset); }
+uint32_t CFOLib::CFO_Registers::ReadBeamOnTimerPreset(std::optional<uint32_t> val) { return val.has_value()?*val:ReadRegister_(CFO_Register_BeamOnTimerPreset); }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnTimerPreset()
 {
 	auto form = CreateFormatter(CFO_Register_BeamOnTimerPreset);
 	form.description = "Beam On Timer Preset Register";
-	form.vals.push_back(std::to_string(ReadBeamOnTimerPreset()));
+	form.vals.push_back(std::to_string(ReadBeamOnTimerPreset(form.value)));
 	return form;
 }
 
 void CFOLib::CFO_Registers::EnableBeamOnMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOnMode);
-	data[link] = 1;
+	data[0] = 1; //Enable beam on processing a single global flag as of December 2023
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOnMode);
 }
 
 void CFOLib::CFO_Registers::DisableBeamOnMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOnMode);
-	data[link] = 0;
+	data[0] = 0; //Enable beam on processing a single global flag as of December 2023
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOnMode);
 }
 
-bool CFOLib::CFO_Registers::ReadBeamOnMode(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadBeamOnMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOnMode);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_EnableBeamOnMode);
 	return data[link];
 }
 
@@ -754,42 +702,28 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnMode()
 	auto form = CreateFormatter(CFO_Register_EnableBeamOnMode);
 	form.description = "Enable Beam On Mode Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOnMode(r) ? "x" : " ") + "]");
-	}
+	 //Enable beam on processing a single global flag as of December 2023
+	form.vals.push_back(std::string("Beam On Processing ") + ": [" + (ReadBeamOnMode(CFO_Link_ALL) ? "x" : " ") + "]");
 	return form;
 }
 
 void CFOLib::CFO_Registers::EnableBeamOffMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
-	if(link == CFO_Link_ALL)
-	{	
-		for(uint8_t i=0;i<8;++i)
-			data[i] = 1;
-	}
-	else
-		data[link] = 1;
+	data[0] = 1; //Enable beam off processing a single global flag as of December 2023
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOffMode);
 }
 
 void CFOLib::CFO_Registers::DisableBeamOffMode(const CFO_Link_ID& link)
 {
 	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
-	if(link == CFO_Link_ALL)
-	{	
-		for(uint8_t i=0;i<8;++i)
-			data[i] = 0;
-	}
-	else
-		data[link] = 0;
+	data[0] = 0; //Enable off processing a single global flag as of December 2023
 	WriteRegister_(data.to_ulong(), CFO_Register_EnableBeamOffMode);
 }
 
-bool CFOLib::CFO_Registers::ReadBeamOffMode(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadBeamOffMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_EnableBeamOffMode);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_EnableBeamOffMode);
 	return data[link];
 }
 
@@ -798,10 +732,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOffMode()
 	auto form = CreateFormatter(CFO_Register_EnableBeamOffMode);
 	form.description = "Enable Beam Off Mode Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadBeamOffMode(r) ? "x" : " ") + "]");
-	}
+	//Enable off processing a single global flag as of December 2023
+	form.vals.push_back(std::string("Beam Off Processing ") + ": [" + (ReadBeamOffMode(CFO_Link_ALL) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -810,9 +742,9 @@ void CFOLib::CFO_Registers::SetClockMarkerIntervalCount(uint32_t data)
 	WriteRegister_(data, CFO_Register_ClockMarkerIntervalCount);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadClockMarkerIntervalCount()
+uint32_t CFOLib::CFO_Registers::ReadClockMarkerIntervalCount(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_ClockMarkerIntervalCount);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_ClockMarkerIntervalCount);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockMarkerIntervalCount()
@@ -824,17 +756,17 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatClockMarkerIntervalCount(
 }
 
 // SEREDES Oscillator Registers
-uint32_t CFOLib::CFO_Registers::ReadSERDESOscillatorFrequency()
+uint32_t CFOLib::CFO_Registers::ReadSERDESOscillatorFrequency(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_SERDESOscillatorFrequency);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_SERDESOscillatorFrequency);
 }
 void CFOLib::CFO_Registers::SetSERDESOscillatorFrequency(uint32_t freq)
 {
 	WriteRegister_(freq, CFO_Register_SERDESOscillatorFrequency);
 }
-bool CFOLib::CFO_Registers::ReadSERDESOscillatorIICInterfaceReset()
+bool CFOLib::CFO_Registers::ReadSERDESOscillatorIICInterfaceReset(std::optional<uint32_t> val)
 {
-	auto dataSet = std::bitset<32>(ReadRegister_(CFO_Register_SERDESClock_IICBusControl));
+	auto dataSet = std::bitset<32>(val.has_value()?*val:ReadRegister_(CFO_Register_SERDESClock_IICBusControl));
 	return dataSet[31];
 }
 
@@ -879,98 +811,33 @@ uint8_t CFOLib::CFO_Registers::ReadSERDESIICInterface(DTC_IICSERDESBusAddress de
 /// Read the value of the Jitter Attenuator Select
 /// </summary>
 /// <returns>Jitter Attenuator Select value</returns>
-std::bitset<2> CFOLib::CFO_Registers::ReadJitterAttenuatorSelect()
-{
-	std::bitset<32> data = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-	std::bitset<2> output;
-	output[0] = data[4];
-	output[1] = data[5];
-	return output;
-}
+std::bitset<2> CFOLib::CFO_Registers::ReadJitterAttenuatorSelect(std::optional<uint32_t> val) { return CFOandDTC_Registers::ReadJitterAttenuatorSelect(CFO_Register_JitterAttenuatorCSR, val); }
+
 /// <summary>
 /// Set the Jitter Attenuator Select bits
 /// </summary>
 /// <param name="data">Value to set</param>
-void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data)
-{
-	CFO_TLOG(TLVL_DEBUG) << "JA select " << data << " = " <<
-		(data == 0? "Local oscillator":(data == 1? "RTF copper clock": "undefined source!"));
-
-	std::bitset<32> regdata = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-	// detection if already locked may not work
-	// if(regdata[8] == 0 && regdata[4] == data[0] && regdata[5] == data[1])
-	// {
-	// 	CFO_TLOG(TLVL_DEBUG) << "JA already locked with selected input " << data;
-	// 	return;
-	// }
-	//For CFO - 0 ==> Local oscillator
-	//For CFO - 1 ==> RTF copper clock
-	regdata[4] = data[0];
-	regdata[5] = data[1];
-	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);
-
-	//now reset the JA a la CFOLib::CFO_Registers::ResetJitterAttenuator()
-	
-	regdata[0] = 1;
-	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);
-	usleep(1000);
-	regdata[0] = 0;
-	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);	
-	
-	sleep(1);
-
-	ConfigureJitterAttenuator();
-	CFO_TLOG(TLVL_DEBUG) << "JA select done for input " << data;
-}
+void CFOLib::CFO_Registers::SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA /* = false */) { CFOandDTC_Registers::SetJitterAttenuatorSelect(CFO_Register_JitterAttenuatorCSR, data, alsoResetJA); }
 
 /// <summary>
 /// Read the Jitter Attenuator Reset bit
 /// </summary>
 /// <returns>Value of the Jitter Attenuator Reset bit</returns>
-bool CFOLib::CFO_Registers::ReadJitterAttenuatorReset()
-{
-	std::bitset<32> regdata = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-	return regdata[0];
-}
+bool CFOLib::CFO_Registers::ReadJitterAttenuatorReset(std::optional<uint32_t> val) { return CFOandDTC_Registers::ReadJitterAttenuatorReset(CFO_Register_JitterAttenuatorCSR, val); }
+bool CFOLib::CFO_Registers::ReadJitterAttenuatorLocked(std::optional<uint32_t> val) { return CFOandDTC_Registers::ReadJitterAttenuatorLocked(CFO_Register_JitterAttenuatorCSR, val); }
+
 /// <summary>
 /// Reset the Jitter Attenuator
 /// </summary>
-void CFOLib::CFO_Registers::ResetJitterAttenuator()
-{
-	std::bitset<32> regdata = ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-	regdata[0] = 1;
-	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);
-	usleep(1000);
-	regdata[0] = 0;
-	WriteRegister_(regdata.to_ulong(), CFO_Register_JitterAttenuatorCSR);
-}
+void CFOLib::CFO_Registers::ResetJitterAttenuator() { CFOandDTC_Registers::ResetJitterAttenuator(CFO_Register_JitterAttenuatorCSR); }
 
 /// <summary>
 /// Formats the register's current value for register dumps
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatJitterAttenuatorCSR()
-{
-	auto form = CreateFormatter(CFO_Register_JitterAttenuatorCSR);
-	std::bitset<32> data = form.value;//ReadRegister_(CFO_Register_JitterAttenuatorCSR);
-	std::bitset<2> JAinputSelect;
-	JAinputSelect[0] = data[4];
-	JAinputSelect[1] = data[5];
-	form.description = "Jitter Attenuator CSR";
-	form.vals.push_back("<field> : [<value>]"); //first value describes format
-	form.vals.push_back(std::string("JA Input Select: [") + 
-		(JAinputSelect.to_ulong() == 0 ? "Local oscillator"
-	             : (JAinputSelect.to_ulong() == 1 ? "RTF Copper Clock"
-	                        : "Undefined")) + "]");	
-	form.vals.push_back(std::string("JA in Reset:   [") + (data[0] ? "YES" : "No") + "]");
-	form.vals.push_back(std::string("JA Loss-of-Lock:   [") + (data[8] ? "Not Locked" : "LOCKED") + "]");
-	form.vals.push_back(std::string("JA Input-0 Local oscillator:   [") + (data[9] ? "Missing" : "OK") + "]");
-	form.vals.push_back(std::string("JA Input-1 RTF Copper Clock:   [") + (data[10] ? "Missing" : "OK") + "]");
-	// form.vals.push_back(std::string("JA Input-2 Undefined:   [") + (data[11] ? "Missing" : "OK") + "]");
-	return form;
-}
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatJitterAttenuatorCSR() { return CFOandDTC_Registers::FormatJitterAttenuatorCSR(CFO_Register_JitterAttenuatorCSR); }
 
-uint64_t CFOLib::CFO_Registers::ReadSERDESOscillatorParameters()
+uint64_t CFOLib::CFO_Registers::ReadSERDESOscillatorParameters(std::optional<uint32_t> val)
 {
 	uint64_t data = (static_cast<uint64_t>(ReadSERDESIICInterface(DTC_IICSERDESBusAddress_EVB, 7)) << 40) +
 					(static_cast<uint64_t>(ReadSERDESIICInterface(DTC_IICSERDESBusAddress_EVB, 8)) << 32) +
@@ -995,9 +862,9 @@ void CFOLib::CFO_Registers::SetSERDESOscillatorParameters(uint64_t program)
 	WriteSERDESIICInterface(DTC_IICSERDESBusAddress_EVB, 0x87, 0x40);
 }
 
-DTCLib::DTC_SerdesClockSpeed CFOLib::CFO_Registers::ReadSERDESOscillatorClock()
+DTCLib::DTC_SerdesClockSpeed CFOLib::CFO_Registers::ReadSERDESOscillatorClock(std::optional<uint32_t> val)
 {
-	auto freq = ReadSERDESOscillatorFrequency();
+	auto freq = ReadSERDESOscillatorFrequency(val);
 
 	// Clocks should be accurate to 30 ppm
 	if (freq > 156250000 - 4687.5 && freq < 156250000 + 4687.5) return DTC_SerdesClockSpeed_3125Gbps;
@@ -1036,7 +903,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorFrequency
 	auto form = CreateFormatter(CFO_Register_SERDESOscillatorFrequency);
 	form.description = "SERDES Oscillator Frequency";
 	std::stringstream o;
-	o << std::dec << ReadSERDESOscillatorFrequency();
+	o << std::dec << ReadSERDESOscillatorFrequency(form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1053,7 +920,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameter
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusLow);
 	form.description = "SERDES Oscillator IIC Bus Low";
 	form.vals.push_back(""); //translation
-	auto data = ReadRegister_(CFO_Register_SERDESClock_IICBusLow);
+	auto data = form.value;
 	std::ostringstream s1, s2, s3, s4;
 	s1 << "Device:     " << std::showbase << std::hex << ((data & 0xFF000000) >> 24);
 	form.vals.push_back(s1.str());
@@ -1068,12 +935,11 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameter
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameterHigh()
 {
 	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusHigh);
+	auto data = form.value;
 	form.description = "SERDES Oscillator IIC Bus High";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("Write:  [") +
-						(ReadRegister_(CFO_Register_SERDESClock_IICBusHigh) & 0x1 ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Read:   [") +
-						(ReadRegister_(CFO_Register_SERDESClock_IICBusHigh) & 0x2 ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Write:  [") + (data & 0x1 ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Read:   [") + (data & 0x2 ? "x" : " ") + "]");
 	return form;
 }
 
@@ -1089,9 +955,9 @@ void CFOLib::CFO_Registers::SetEventWindowTagPreset(const DTC_EventWindowTag& pr
 	WriteRegister_(timestampHigh, CFO_Register_TimestampPreset1);
 }
 
-DTCLib::DTC_EventWindowTag CFOLib::CFO_Registers::ReadTimestampPreset()
+DTCLib::DTC_EventWindowTag CFOLib::CFO_Registers::ReadTimestampPreset(std::optional<uint32_t> val)
 {
-	auto timestampLow = ReadRegister_(CFO_Register_TimestampPreset0);
+	auto timestampLow = val.has_value()?*val:ReadRegister_(CFO_Register_TimestampPreset0);
 	DTC_EventWindowTag output;
 	output.SetEventWindowTag(timestampLow, static_cast<uint16_t>(ReadRegister_(CFO_Register_TimestampPreset1)));
 	return output;
@@ -1137,11 +1003,11 @@ void CFOLib::CFO_Registers::SetMaxDTCNumber(const CFO_Link_ID& link, const uint8
 	WriteRegister_(maxDTCs_, CFO_Register_NUMDTCs);
 }
 
-uint8_t CFOLib::CFO_Registers::ReadLinkDTCCount(const CFO_Link_ID& link, bool local)
+uint8_t CFOLib::CFO_Registers::ReadLinkDTCCount(const CFO_Link_ID& link, bool local, std::optional<uint32_t> val)
 {
 	if (!local)
 	{
-		auto data = ReadRegister_(CFO_Register_NUMDTCs);
+		auto data = val.has_value()?*val:ReadRegister_(CFO_Register_NUMDTCs);
 		maxDTCs_ = data;
 	}
 	return (maxDTCs_ >> (link * 4)) & 0xF;
@@ -1153,10 +1019,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatNUMDTCs()
 	form.description = "Number of DTCs Register";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadLinkDTCCount(r, false) ? "x" : " ") +
-							"]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+			(ReadLinkDTCCount(r, false, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -1171,9 +1035,9 @@ void CFOLib::CFO_Registers::ClearFIFOFullErrorFlags(const CFO_Link_ID& link)
 	WriteRegister_(data0.to_ulong(), CFO_Register_FIFOFullErrorFlag0);
 }
 
-DTCLib::DTC_FIFOFullErrorFlags CFOLib::CFO_Registers::ReadFIFOFullErrorFlags(const CFO_Link_ID& link)
+DTCLib::DTC_FIFOFullErrorFlags CFOLib::CFO_Registers::ReadFIFOFullErrorFlags(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data0 = ReadRegister_(CFO_Register_FIFOFullErrorFlag0);
+	std::bitset<32> data0 = val.has_value()?*val:ReadRegister_(CFO_Register_FIFOFullErrorFlag0);
 	DTC_FIFOFullErrorFlags flags;
 
 	flags.CFOLinkInput = data0[link];
@@ -1188,7 +1052,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFIFOFullErrorFlag0()
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
 	{
-		auto re = ReadFIFOFullErrorFlags(r);
+		auto re = ReadFIFOFullErrorFlags(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (re.CFOLinkInput ? "x" : " ") + "]");
 	}
 	return form;
@@ -1202,9 +1066,9 @@ void CFOLib::CFO_Registers::ClearRXElasticBufferUnderrun(const CFO_Link_ID& link
 	WriteRegister_(data.to_ulong(), CFO_Register_ReceivePacketError);
 }
 
-bool CFOLib::CFO_Registers::ReadRXElasticBufferUnderrun(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadRXElasticBufferUnderrun(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_ReceivePacketError);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_ReceivePacketError);
 	return data[static_cast<int>(link) + 24];
 }
 
@@ -1215,9 +1079,9 @@ void CFOLib::CFO_Registers::ClearRXElasticBufferOverrun(const CFO_Link_ID& link)
 	WriteRegister_(data.to_ulong(), CFO_Register_ReceivePacketError);
 }
 
-bool CFOLib::CFO_Registers::ReadRXElasticBufferOverrun(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadRXElasticBufferOverrun(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_ReceivePacketError);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_ReceivePacketError);
 	return data[static_cast<int>(link) + 16];
 }
 
@@ -1228,9 +1092,9 @@ void CFOLib::CFO_Registers::ClearPacketError(const CFO_Link_ID& link)
 	WriteRegister_(data.to_ulong(), CFO_Register_ReceivePacketError);
 }
 
-bool CFOLib::CFO_Registers::ReadPacketError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadPacketError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_ReceivePacketError);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_ReceivePacketError);
 	return data[static_cast<int>(link) + 8];
 }
 
@@ -1241,9 +1105,9 @@ void CFOLib::CFO_Registers::ClearPacketCRCError(const CFO_Link_ID& link)
 	WriteRegister_(data.to_ulong(), CFO_Register_ReceivePacketError);
 }
 
-bool CFOLib::CFO_Registers::ReadPacketCRCError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadPacketCRCError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> data = ReadRegister_(CFO_Register_ReceivePacketError);
+	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_ReceivePacketError);
 	return data[static_cast<int>(link)];
 }
 
@@ -1253,30 +1117,42 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceivePacketError()
 	form.description = "Receive Packet Error";
 	form.vals.push_back("       ([CRC, PacketError, RX Overrun, RX Underrun])");
 	for (auto r : CFO_Links)
-	{
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadPacketCRCError(r) ? "x" : " ") + "," +
-							(ReadPacketError(r) ? "x" : " ") + "," + (ReadRXElasticBufferOverrun(r) ? "x" : " ") + "," +
-							(ReadRXElasticBufferUnderrun(r) ? "x" : " ") + "]");
-	}
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+							(ReadPacketCRCError(r, form.value) ? "x" : " ") + "," +
+							(ReadPacketError(r, form.value) ? "x" : " ") + "," + 
+							(ReadRXElasticBufferOverrun(r, form.value) ? "x" : " ") + "," +
+							(ReadRXElasticBufferUnderrun(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
 void CFOLib::CFO_Registers::SetEventWindowEmulatorInterval(const uint32_t& data)
 {
-	WriteRegister_(data, CFO_Register_EventWindowEmulatorIntervalTime);
+	__SS__ << "Access attempt of CFO_Register_EventWindowEmulatorIntervalTime = 0x91A0,.."
+	 "this register was deleted in Firmware version: Nov/09/2023 11:00   raw-data: 0x23110911; "
+	 "please update the software to use the CFO Run Plan to control the Event Window duration." << __E__;
+	 __SS_THROW__;
+	// WriteRegister_(data, CFO_Register_EventWindowEmulatorIntervalTime);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadEventWindowEmulatorInterval()
+uint32_t CFOLib::CFO_Registers::ReadEventWindowEmulatorInterval(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_EventWindowEmulatorIntervalTime);
+	__SS__ << "Access attempt of CFO_Register_EventWindowEmulatorIntervalTime = 0x91A0,.."
+	 "this register was deleted in Firmware version: Nov/09/2023 11:00   raw-data: 0x23110911; "
+	 "please update the software to use the CFO Run Plan to control the Event Window duration." << __E__;
+	 __SS_THROW__;
+	// return val.has_value()?*val:ReadRegister_(CFO_Register_EventWindowEmulatorIntervalTime);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowEmulatorIntervalTime()
 {
-	auto form = CreateFormatter(CFO_Register_EventWindowEmulatorIntervalTime);
-	form.description = "Event Window Emulator Interval Time";
-	form.vals.push_back(std::to_string(ReadEventWindowEmulatorInterval()));
-	return form;
+	__SS__ << "Access attempt of CFO_Register_EventWindowEmulatorIntervalTime = 0x91A0,.."
+	 "this register was deleted in Firmware version: Nov/09/2023 11:00   raw-data: 0x23110911; "
+	 "please update the software to use the CFO Run Plan to control the Event Window duration." << __E__;
+	 __SS_THROW__;
+	// auto form = CreateFormatter(CFO_Register_EventWindowEmulatorIntervalTime);
+	// form.description = "Event Window Emulator Interval Time";
+	// form.vals.push_back(std::to_string(ReadEventWindowEmulatorInterval()));
+	// return form;
 }
 
 void CFOLib::CFO_Registers::SetEventWindowHoldoffTime(const uint32_t& data)
@@ -1284,22 +1160,22 @@ void CFOLib::CFO_Registers::SetEventWindowHoldoffTime(const uint32_t& data)
 	WriteRegister_(data, CFO_Register_EventWindowHoldoffTime);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadEventWindowHoldoffTime()
+uint32_t CFOLib::CFO_Registers::ReadEventWindowHoldoffTime(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_EventWindowHoldoffTime);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_EventWindowHoldoffTime);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowHoldoffTime()
 {
 	auto form = CreateFormatter(CFO_Register_EventWindowHoldoffTime);
 	form.description = "Event Window Holdoff Time";
-	form.vals.push_back(std::to_string(ReadEventWindowHoldoffTime()));
+	form.vals.push_back(std::to_string(ReadEventWindowHoldoffTime(form.value)));
 	return form;
 }
 
-bool CFOLib::CFO_Registers::ReadEventWindowTimeoutError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadEventWindowTimeoutError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_EventWindowTimeoutError);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_EventWindowTimeoutError);
 	return dataSet[link];
 }
 
@@ -1316,10 +1192,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowTimeoutError()
 	form.description = "Event Window Timeout Error";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" +
-							(ReadEventWindowTimeoutError(r) ? "x" : " ") + "]");
-	}
+							(ReadEventWindowTimeoutError(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -1328,9 +1202,9 @@ void CFOLib::CFO_Registers::SetEventWindowTimeoutInterval(const uint32_t& data)
 	WriteRegister_(data, CFO_Register_EventWindowTimeoutValue);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadEventWindowTimeoutInterval()
+uint32_t CFOLib::CFO_Registers::ReadEventWindowTimeoutInterval(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_EventWindowTimeoutValue);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_EventWindowTimeoutValue);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatEventWindowTimeoutInterval()
@@ -1372,34 +1246,50 @@ void CFOLib::CFO_Registers::ClearReceiveByteCount(const CFO_Link_ID& link)
 			reg = CFO_Register_ReceiveByteCountDataLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(0, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadReceiveByteCount(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadReceiveByteCount(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink0);
+			reg = CFO_Register_ReceiveByteCountDataLink0;
+			break;
 		case CFO_Link_1:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink1);
+			reg = CFO_Register_ReceiveByteCountDataLink1;
+			break;
 		case CFO_Link_2:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink2);
+			reg = CFO_Register_ReceiveByteCountDataLink2;
+			break;
 		case CFO_Link_3:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink3);
+			reg = CFO_Register_ReceiveByteCountDataLink3;
+			break;
 		case CFO_Link_4:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink4);
+			reg = CFO_Register_ReceiveByteCountDataLink4;
+			break;
 		case CFO_Link_5:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink5);
+			reg = CFO_Register_ReceiveByteCountDataLink5;
+			break;
 		case CFO_Link_6:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink6);
+			reg = CFO_Register_ReceiveByteCountDataLink6;
+			break;
 		case CFO_Link_7:
-			return ReadRegister_(CFO_Register_ReceiveByteCountDataLink7);
+			reg = CFO_Register_ReceiveByteCountDataLink7;
+			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	return val.has_value()?*val:ReadRegister_(reg);
 }
 
 void CFOLib::CFO_Registers::ClearReceivePacketCount(const CFO_Link_ID& link)
@@ -1432,34 +1322,50 @@ void CFOLib::CFO_Registers::ClearReceivePacketCount(const CFO_Link_ID& link)
 			reg = CFO_Register_ReceivePacketCountDataLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(0, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadReceivePacketCount(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadReceivePacketCount(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink0);
+			reg = CFO_Register_ReceivePacketCountDataLink0;
+			break;
 		case CFO_Link_1:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink1);
+			reg = CFO_Register_ReceivePacketCountDataLink1;
+			break;
 		case CFO_Link_2:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink2);
+			reg = CFO_Register_ReceivePacketCountDataLink2;
+			break;
 		case CFO_Link_3:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink3);
+			reg = CFO_Register_ReceivePacketCountDataLink3;
+			break;
 		case CFO_Link_4:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink4);
+			reg = CFO_Register_ReceivePacketCountDataLink4;
+			break;
 		case CFO_Link_5:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink5);
+			reg = CFO_Register_ReceivePacketCountDataLink5;
+			break;
 		case CFO_Link_6:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink6);
+			reg = CFO_Register_ReceivePacketCountDataLink6;
+			break;
 		case CFO_Link_7:
-			return ReadRegister_(CFO_Register_ReceivePacketCountDataLink7);
+			reg = CFO_Register_ReceivePacketCountDataLink7;
+			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	return val.has_value()?*val:ReadRegister_(reg);
 }
 
 void CFOLib::CFO_Registers::ClearTransmitByteCount(const CFO_Link_ID& link)
@@ -1492,34 +1398,51 @@ void CFOLib::CFO_Registers::ClearTransmitByteCount(const CFO_Link_ID& link)
 			reg = CFO_Register_TransmitByteCountDataLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(0, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadTransmitByteCount(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadTransmitByteCount(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
+
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink0);
+			reg = CFO_Register_TransmitByteCountDataLink0;
+			break;
 		case CFO_Link_1:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink1);
+			reg = CFO_Register_TransmitByteCountDataLink1;
+			break;
 		case CFO_Link_2:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink2);
+			reg = CFO_Register_TransmitByteCountDataLink2;
+			break;
 		case CFO_Link_3:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink3);
+			reg = CFO_Register_TransmitByteCountDataLink3;
+			break;
 		case CFO_Link_4:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink4);
+			reg = CFO_Register_TransmitByteCountDataLink4;
+			break;
 		case CFO_Link_5:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink5);
+			reg = CFO_Register_TransmitByteCountDataLink5;
+			break;
 		case CFO_Link_6:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink6);
+			reg = CFO_Register_TransmitByteCountDataLink6;
+			break;
 		case CFO_Link_7:
-			return ReadRegister_(CFO_Register_TransmitByteCountDataLink7);
+			reg = CFO_Register_TransmitByteCountDataLink7;
+			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	return val.has_value()?*val:ReadRegister_(reg);
 }
 
 void CFOLib::CFO_Registers::ClearTransmitPacketCount(const CFO_Link_ID& link)
@@ -1552,34 +1475,50 @@ void CFOLib::CFO_Registers::ClearTransmitPacketCount(const CFO_Link_ID& link)
 			reg = CFO_Register_TransmitPacketCountDataLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(0, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadTransmitPacketCount(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadTransmitPacketCount(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink0);
+			reg = CFO_Register_TransmitPacketCountDataLink0;
+			break;
 		case CFO_Link_1:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink1);
+			reg = CFO_Register_TransmitPacketCountDataLink1;
+			break;
 		case CFO_Link_2:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink2);
+			reg = CFO_Register_TransmitPacketCountDataLink2;
+			break;
 		case CFO_Link_3:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink3);
+			reg = CFO_Register_TransmitPacketCountDataLink3;
+			break;
 		case CFO_Link_4:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink4);
+			reg = CFO_Register_TransmitPacketCountDataLink4;
+			break;
 		case CFO_Link_5:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink5);
+			reg = CFO_Register_TransmitPacketCountDataLink5;
+			break;
 		case CFO_Link_6:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink6);
+			reg = CFO_Register_TransmitPacketCountDataLink6;
+			break;
 		case CFO_Link_7:
-			return ReadRegister_(CFO_Register_TransmitPacketCountDataLink7);
+			reg = CFO_Register_TransmitPacketCountDataLink7;
+			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	return val.has_value()?*val:ReadRegister_(reg);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink0()
@@ -1587,7 +1526,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink0()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink0);
 	form.description = "Receive Byte Count: Link 0";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_0);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_0, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1597,7 +1536,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink1()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink1);
 	form.description = "Receive Byte Count: Link 1";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_1);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_1, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1607,7 +1546,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink2()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink2);
 	form.description = "Receive Byte Count: Link 2";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_2);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_2, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1617,7 +1556,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink3()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink3);
 	form.description = "Receive Byte Count: Link 3";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_3);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_3, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1627,7 +1566,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink4()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink4);
 	form.description = "Receive Byte Count: Link 4";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_4);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_4, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1637,7 +1576,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink5()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink5);
 	form.description = "Receive Byte Count: Link 5";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_5);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_5, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1647,7 +1586,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink6()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink6);
 	form.description = "Receive Byte Count: Link 6";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_6);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_6, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1657,7 +1596,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatReceiveByteCountLink7()
 	auto form = CreateFormatter(CFO_Register_ReceiveByteCountDataLink7);
 	form.description = "Receive Byte Count: Link 7";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_7);
+	o << "0x" << std::hex << ReadReceiveByteCount(CFO_Link_7, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -1908,16 +1847,16 @@ void CFOLib::CFO_Registers::SetDMAWriteStartAddress(const uint32_t& address)
 	WriteRegister_(address, CFO_Register_DDRMemoryDMAWriteStartAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDMAWriteStartAddress()
+uint32_t CFOLib::CFO_Registers::ReadDMAWriteStartAddress(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_DDRMemoryDMAWriteStartAddress);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_DDRMemoryDMAWriteStartAddress);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAWriteStartAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRMemoryDMAWriteStartAddress);
 	form.description = "DDR Memory DMA Write Start Address";
-	form.vals.push_back(std::to_string(ReadDMAWriteStartAddress()));
+	form.vals.push_back(std::to_string(ReadDMAWriteStartAddress(form.value)));
 	return form;
 }
 
@@ -1926,16 +1865,16 @@ void CFOLib::CFO_Registers::SetDMAReadStartAddress(const uint32_t& address)
 	WriteRegister_(address, CFO_Register_DDRMemoryDMAReadStartAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDMAReadStartAddress()
+uint32_t CFOLib::CFO_Registers::ReadDMAReadStartAddress(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_DDRMemoryDMAReadStartAddress);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_DDRMemoryDMAReadStartAddress);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAReadStartAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRMemoryDMAWriteStartAddress);
 	form.description = "DDR Memory DMA Read Start Address";
-	form.vals.push_back(std::to_string(ReadDMAReadStartAddress()));
+	form.vals.push_back(std::to_string(ReadDMAReadStartAddress(form.value)));
 	return form;
 }
 
@@ -1944,13 +1883,13 @@ void CFOLib::CFO_Registers::SetDMAReadByteCount(const uint32_t& bytes)
 	WriteRegister_(bytes, CFO_Register_DDRMemoryDMAReadByteCount);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDMAReadByteCount() { return ReadRegister_(CFO_Register_DDRMemoryDMAReadByteCount); }
+uint32_t CFOLib::CFO_Registers::ReadDMAReadByteCount(std::optional<uint32_t> val) { return val.has_value()?*val:ReadRegister_(CFO_Register_DDRMemoryDMAReadByteCount); }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAReadByteCount()
 {
 	auto form = CreateFormatter(CFO_Register_DDRMemoryDMAWriteStartAddress);
 	form.description = "DDR Memory DMA Read Byte Count/Enable";
-	form.vals.push_back(std::to_string(ReadDMAReadByteCount()));
+	form.vals.push_back(std::to_string(ReadDMAReadByteCount(form.value)));
 	return form;
 }
 
@@ -1959,13 +1898,13 @@ void CFOLib::CFO_Registers::SetDDRBeamOnBaseAddress(const uint32_t& address)
 	WriteRegister_(address, CFO_Register_DDRBeamOnBaseAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDDRBeamOnBaseAddress() { return ReadRegister_(CFO_Register_DDRBeamOnBaseAddress); }
+uint32_t CFOLib::CFO_Registers::ReadDDRBeamOnBaseAddress(std::optional<uint32_t> val) { return val.has_value()?*val:ReadRegister_(CFO_Register_DDRBeamOnBaseAddress); }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOnBaseAddress()
 {
 	auto form = CreateFormatter(CFO_Register_DDRBeamOnBaseAddress);
 	form.description = "DDR Memory Beam On Base Address";
-	form.vals.push_back(std::to_string(ReadDDRBeamOnBaseAddress()));
+	form.vals.push_back(std::to_string(ReadDDRBeamOnBaseAddress(form.value)));
 	return form;
 }
 
@@ -1974,9 +1913,9 @@ void CFOLib::CFO_Registers::SetDDRBeamOffBaseAddress(const uint32_t& address)
 	WriteRegister_(address, CFO_Register_DDRBeamOffBaseAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDDRBeamOffBaseAddress()
+uint32_t CFOLib::CFO_Registers::ReadDDRBeamOffBaseAddress(std::optional<uint32_t> val)
 {
-	return ReadRegister_(CFO_Register_DDRBeamOffBaseAddress);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_DDRBeamOffBaseAddress);
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOffBaseAddress()
@@ -1988,39 +1927,39 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOffBaseAddress()
 }
 
 // Firefly CSR Register
-bool CFOLib::CFO_Registers::ReadFireflyTXRXPresent()
+bool CFOLib::CFO_Registers::ReadFireflyTXRXPresent(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[26];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyRXPresent()
+bool CFOLib::CFO_Registers::ReadFireflyRXPresent(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[25];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXPresent()
+bool CFOLib::CFO_Registers::ReadFireflyTXPresent(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[24];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXRXInterrupt()
+bool CFOLib::CFO_Registers::ReadFireflyTXRXInterrupt(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[18];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyRXInterrupt()
+bool CFOLib::CFO_Registers::ReadFireflyRXInterrupt(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[17];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXInterrupt()
+bool CFOLib::CFO_Registers::ReadFireflyTXInterrupt(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[16];
 }
 
@@ -2045,21 +1984,21 @@ void CFOLib::CFO_Registers::SetFireflyTXSelect(bool select)
 	WriteRegister_(dataSet.to_ulong(), CFO_Register_FireflyCSRRegister);
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXRXSelect()
+bool CFOLib::CFO_Registers::ReadFireflyTXRXSelect(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[10];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyRXSelect()
+bool CFOLib::CFO_Registers::ReadFireflyRXSelect(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[9];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXSelect()
+bool CFOLib::CFO_Registers::ReadFireflyTXSelect(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[8];
 }
 
@@ -2084,21 +2023,21 @@ void CFOLib::CFO_Registers::SetFireflyTXReset(bool reset)
 	WriteRegister_(dataSet.to_ulong(), CFO_Register_FireflyCSRRegister);
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXRXReset()
+bool CFOLib::CFO_Registers::ReadFireflyTXRXReset(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[2];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyRXReset()
+bool CFOLib::CFO_Registers::ReadFireflyRXReset(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[1];
 }
 
-bool CFOLib::CFO_Registers::ReadFireflyTXReset()
+bool CFOLib::CFO_Registers::ReadFireflyTXReset(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FireflyCSRRegister);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FireflyCSRRegister);
 	return dataSet[0];
 }
 
@@ -2107,57 +2046,27 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFireflyCSR()
 	auto form = CreateFormatter(CFO_Register_FireflyCSRRegister);
 	form.description = "Firefly CSR Register";
 	form.vals.push_back("      ([Present, Interrupt, Select, Reset])");
-	form.vals.push_back(std::string("TX/RX: [") + (ReadFireflyTXRXPresent() ? "x" : " ") +
-						(ReadFireflyTXRXInterrupt() ? "x" : " ") + (ReadFireflyTXRXSelect() ? "x" : " ") +
-						(ReadFireflyTXRXReset() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("RX:    [") + (ReadFireflyRXPresent() ? "x" : " ") +
-						(ReadFireflyRXInterrupt() ? "x" : " ") + (ReadFireflyRXSelect() ? "x" : " ") +
-						(ReadFireflyRXReset() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("TX:    [") + (ReadFireflyTXPresent() ? "x" : " ") +
-						(ReadFireflyTXInterrupt() ? "x" : " ") + (ReadFireflyTXSelect() ? "x" : " ") +
-						(ReadFireflyTXReset() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("TX/RX: [") + 
+						(ReadFireflyTXRXPresent(form.value) ? "x" : " ") +
+						(ReadFireflyTXRXInterrupt(form.value) ? "x" : " ") + 
+						(ReadFireflyTXRXSelect(form.value) ? "x" : " ") +
+						(ReadFireflyTXRXReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("RX:    [") + 
+						(ReadFireflyRXPresent(form.value) ? "x" : " ") +
+						(ReadFireflyRXInterrupt(form.value) ? "x" : " ") + 
+						(ReadFireflyRXSelect(form.value) ? "x" : " ") +
+						(ReadFireflyRXReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("TX:    [") + 
+						(ReadFireflyTXPresent(form.value) ? "x" : " ") +
+						(ReadFireflyTXInterrupt(form.value) ? "x" : " ") + 
+						(ReadFireflyTXSelect(form.value) ? "x" : " ") +
+						(ReadFireflyTXReset(form.value) ? "x" : " ") + "]");
 
 	return form;
 }
 
 // SERDES PRBS Control Registers
-bool CFOLib::CFO_Registers::ReadSERDESPRBSErrorFlag(const CFO_Link_ID& link)
-{
-	std::bitset<32> dataSet;
-	switch (link)
-	{
-		case CFO_Link_0:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink0);
-			break;
-		case CFO_Link_1:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink1);
-			break;
-		case CFO_Link_2:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink2);
-			break;
-		case CFO_Link_3:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink3);
-			break;
-		case CFO_Link_4:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink4);
-			break;
-		case CFO_Link_5:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink5);
-			break;
-		case CFO_Link_6:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink6);
-			break;
-		case CFO_Link_7:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink7);
-			break;
-		default:
-			dataSet = 0;
-			break;
-	}
-	return dataSet[31];
-}
-
-uint8_t CFOLib::CFO_Registers::ReadSERDESTXPRBSSEL(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESPRBSErrorFlag(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	CFO_Register reg;
 	switch (link)
@@ -2187,9 +2096,52 @@ uint8_t CFOLib::CFO_Registers::ReadSERDESTXPRBSSEL(const CFO_Link_ID& link)
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
-	auto data = ReadRegister_(reg);
+
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(reg);
+	return dataSet[31];
+}
+
+uint8_t CFOLib::CFO_Registers::ReadSERDESTXPRBSSEL(const CFO_Link_ID& link, std::optional<uint32_t> val)
+{
+	CFO_Register reg;
+	switch (link)
+	{
+		case CFO_Link_0:
+			reg = CFO_Register_SERDESPRBSControlLink0;
+			break;
+		case CFO_Link_1:
+			reg = CFO_Register_SERDESPRBSControlLink1;
+			break;
+		case CFO_Link_2:
+			reg = CFO_Register_SERDESPRBSControlLink2;
+			break;
+		case CFO_Link_3:
+			reg = CFO_Register_SERDESPRBSControlLink3;
+			break;
+		case CFO_Link_4:
+			reg = CFO_Register_SERDESPRBSControlLink4;
+			break;
+		case CFO_Link_5:
+			reg = CFO_Register_SERDESPRBSControlLink5;
+			break;
+		case CFO_Link_6:
+			reg = CFO_Register_SERDESPRBSControlLink6;
+			break;
+		case CFO_Link_7:
+			reg = CFO_Register_SERDESPRBSControlLink7;
+			break;
+		default:
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
+	}
+	auto data = val.has_value()?*val:ReadRegister_(reg);
 	return (data >> 12) & 0xF;
 }
 
@@ -2223,12 +2175,15 @@ void CFOLib::CFO_Registers::SetSERDESTXPRBSSEL(const CFO_Link_ID& link, uint8_t 
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(byte, reg);
 }
 
-uint8_t CFOLib::CFO_Registers::ReadSERDESRXPRBSSEL(const CFO_Link_ID& link)
+uint8_t CFOLib::CFO_Registers::ReadSERDESRXPRBSSEL(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	CFO_Register reg;
 	switch (link)
@@ -2258,9 +2213,12 @@ uint8_t CFOLib::CFO_Registers::ReadSERDESRXPRBSSEL(const CFO_Link_ID& link)
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
-	auto data = ReadRegister_(reg);
+	auto data = val.has_value()?*val:ReadRegister_(reg);
 	return (data >> 8) & 0xF;
 }
 
@@ -2294,44 +2252,51 @@ void CFOLib::CFO_Registers::SetSERDESRXPRBSSEL(const CFO_Link_ID& link, uint8_t 
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	WriteRegister_(byte, reg);
 }
 
-bool CFOLib::CFO_Registers::ReadSERDESTXPRBSForceError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESTXPRBSForceError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet;
+
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink0);
+			reg = CFO_Register_SERDESPRBSControlLink0;
 			break;
 		case CFO_Link_1:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink1);
+			reg = CFO_Register_SERDESPRBSControlLink1;
 			break;
 		case CFO_Link_2:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink2);
+			reg = CFO_Register_SERDESPRBSControlLink2;
 			break;
 		case CFO_Link_3:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink3);
+			reg = CFO_Register_SERDESPRBSControlLink3;
 			break;
 		case CFO_Link_4:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink4);
+			reg = CFO_Register_SERDESPRBSControlLink4;
 			break;
 		case CFO_Link_5:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink5);
+			reg = CFO_Register_SERDESPRBSControlLink5;
 			break;
 		case CFO_Link_6:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink6);
+			reg = CFO_Register_SERDESPRBSControlLink6;
 			break;
 		case CFO_Link_7:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink7);
+			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			dataSet = 0;
-			break;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(reg);
 	return dataSet[1];
 }
 
@@ -2365,7 +2330,10 @@ void CFOLib::CFO_Registers::SetSERDESTXPRBSForceError(const CFO_Link_ID& link, b
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	std::bitset<32> dataSet = ReadRegister_(reg);
 	dataSet[1] = flag;
@@ -2374,6 +2342,7 @@ void CFOLib::CFO_Registers::SetSERDESTXPRBSForceError(const CFO_Link_ID& link, b
 
 void CFOLib::CFO_Registers::ToggleSERDESTXPRBSForceError(const CFO_Link_ID& link)
 {
+	
 	CFO_Register reg;
 	switch (link)
 	{
@@ -2402,46 +2371,53 @@ void CFOLib::CFO_Registers::ToggleSERDESTXPRBSForceError(const CFO_Link_ID& link
 			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			return;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
 	std::bitset<32> dataSet = ReadRegister_(reg);
 	dataSet[1] = !dataSet[1];
 	WriteRegister_(dataSet.to_ulong(), reg);
 }
 
-bool CFOLib::CFO_Registers::ReadSERDESRXPRBSCountReset(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadSERDESRXPRBSCountReset(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet;
+
+	CFO_Register reg;
 	switch (link)
 	{
 		case CFO_Link_0:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink0);
+			reg = CFO_Register_SERDESPRBSControlLink0;
 			break;
 		case CFO_Link_1:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink1);
+			reg = CFO_Register_SERDESPRBSControlLink1;
 			break;
 		case CFO_Link_2:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink2);
+			reg = CFO_Register_SERDESPRBSControlLink2;
 			break;
 		case CFO_Link_3:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink3);
+			reg = CFO_Register_SERDESPRBSControlLink3;
 			break;
 		case CFO_Link_4:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink4);
+			reg = CFO_Register_SERDESPRBSControlLink4;
 			break;
 		case CFO_Link_5:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink5);
+			reg = CFO_Register_SERDESPRBSControlLink5;
 			break;
 		case CFO_Link_6:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink6);
+			reg = CFO_Register_SERDESPRBSControlLink6;
 			break;
 		case CFO_Link_7:
-			dataSet = ReadRegister_(CFO_Register_SERDESPRBSControlLink7);
+			reg = CFO_Register_SERDESPRBSControlLink7;
 			break;
 		default:
-			dataSet = 0;
-			break;
+		{
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
 	}
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(reg);
 	return dataSet[0];
 }
 
@@ -2525,23 +2501,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink0()
 	form.description = "SERDES PRBS Control Link 0";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_0);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_0, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_0));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_0, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_0));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_0, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_0);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_0, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_0);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_0, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2554,23 +2530,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink1()
 	form.description = "SERDES PRBS Control Link 1";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_1);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_1, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_1));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_1, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_1));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_1, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_1);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_1, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_1);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_1, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2583,23 +2559,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink2()
 	form.description = "SERDES PRBS Control Link 2";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_2);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_2, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_2));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_2, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_2));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_2, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_2);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_2, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_2);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_2, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2612,23 +2588,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink3()
 	form.description = "SERDES PRBS Control Link 3";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_3);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_3, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_3));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_3, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_3));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_3, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_3);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_3, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_3);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_3, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2641,23 +2617,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink4()
 	form.description = "SERDES PRBS Control Link 4";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_4);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_4, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_4));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_4, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_4));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_4, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_4);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_4, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_4);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_4, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2670,23 +2646,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink5()
 	form.description = "SERDES PRBS Control Link 5";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_5);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_5, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_5));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_5, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_5));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_5, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_5);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_5, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_5);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_5, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2699,23 +2675,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink6()
 	form.description = "SERDES PRBS Control Link 6";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_6);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_6, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_6));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_6, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_6));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_6, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_6);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_6, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_6);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_6, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2728,23 +2704,23 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink7()
 	form.description = "SERDES PRBS Control Link 7";
 	form.vals.push_back(""); //translation
 	std::ostringstream o;
-	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_7);
+	o << "RX PRBS Error:              " << std::boolalpha << ReadSERDESPRBSErrorFlag(CFO_Link_7, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_7));
+	o << "TX PRBS Select:             " << std::to_string(ReadSERDESTXPRBSSEL(CFO_Link_7, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_7));
+	o << "RX PRBS Select:             " << std::to_string(ReadSERDESRXPRBSSEL(CFO_Link_7, form.value));
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_7);
+	o << "TX PRBS Enable Force Error: " << std::boolalpha << ReadSERDESTXPRBSForceError(CFO_Link_7, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 	o.str("");
-	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_7);
+	o << "RX PRBS Count Reset:        " << std::boolalpha << ReadSERDESRXPRBSCountReset(CFO_Link_7, form.value);
 	form.vals.push_back(o.str());
 	o.flush();
 
@@ -2786,12 +2762,12 @@ void CFOLib::CFO_Registers::SetCableDelayValue(const CFO_Link_ID& link, const ui
 	WriteRegister_(delay, reg);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadCableDelayValue(const CFO_Link_ID& link)
+uint32_t CFOLib::CFO_Registers::ReadCableDelayValue(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	switch (link)
 	{
 		case CFO_Link_0:
-			return ReadRegister_(CFO_Register_CableDelayValueLink0);
+			return val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayValueLink0);
 		case CFO_Link_1:
 			return ReadRegister_(CFO_Register_CableDelayValueLink1);
 		case CFO_Link_2:
@@ -2881,15 +2857,15 @@ void CFOLib::CFO_Registers::ResetDelayRegister()
 }
 
 
-bool CFOLib::CFO_Registers::ReadDelayMeasureError(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadDelayMeasureError(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
 	return dataSet[24 + link];
 }
 
-bool CFOLib::CFO_Registers::ReadDelayExternalLoopbackEnable()
+bool CFOLib::CFO_Registers::ReadDelayExternalLoopbackEnable(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
 	return dataSet[16];
 }
 
@@ -2914,9 +2890,9 @@ void CFOLib::CFO_Registers::DisableDelayMeasureMode(const CFO_Link_ID& link)
 	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
 }
 
-bool CFOLib::CFO_Registers::ReadDelayMeasureMode(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadDelayMeasureMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
 	return dataSet[8 + link];
 }
 
@@ -2934,9 +2910,9 @@ void CFOLib::CFO_Registers::DisableDelayMeasureNow(const CFO_Link_ID& link)
 	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
 }
 
-bool CFOLib::CFO_Registers::ReadDelayMeasureNow(const CFO_Link_ID& link)
+bool CFOLib::CFO_Registers::ReadDelayMeasureNow(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
 	return dataSet[link];
 }
 
@@ -2946,27 +2922,26 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayControl()
 	form.description = "Cabel Delay Control and Status";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("Delay External Loopback Enable: [") +
-						(ReadDelayExternalLoopbackEnable() ? "x" : " ") + std::string("]"));
+						(ReadDelayExternalLoopbackEnable(form.value) ? "x" : " ") + std::string("]"));
 	form.vals.push_back(std::string("Delay Measure Flags:           ([Error, Enabled, Now])"));
 	for (auto r : CFO_Links)
-	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ":                         [" +
-							(ReadDelayMeasureError(r) ? "x" : " ") + "," + (ReadDelayMeasureMode(r) ? "x" : " ") + "," +
-							(ReadDelayMeasureNow(r) ? "x" : " ") + "]");
-	}
+							(ReadDelayMeasureError(r, form.value) ? "x" : " ") + "," + 
+							(ReadDelayMeasureMode(r, form.value) ? "x" : " ") + "," +
+							(ReadDelayMeasureNow(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
 // FPGA PROM Program Status Register
-bool CFOLib::CFO_Registers::ReadFPGAPROMProgramFIFOFull()
+bool CFOLib::CFO_Registers::ReadFPGAPROMProgramFIFOFull(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FPGAPROMProgramStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FPGAPROMProgramStatus);
 	return dataSet[1];
 }
 
-bool CFOLib::CFO_Registers::ReadFPGAPROMReady()
+bool CFOLib::CFO_Registers::ReadFPGAPROMReady(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FPGAPROMProgramStatus);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FPGAPROMProgramStatus);
 	return dataSet[0];
 }
 
@@ -2975,9 +2950,9 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFPGAPROMProgramStatus()
 	auto form = CreateFormatter(CFO_Register_FPGAPROMProgramStatus);
 	form.description = "FPGA PROM Program Status";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("FPGA PROM Program FIFO Full: [") + (ReadFPGAPROMProgramFIFOFull() ? "x" : " ") +
+	form.vals.push_back(std::string("FPGA PROM Program FIFO Full: [") + (ReadFPGAPROMProgramFIFOFull(form.value) ? "x" : " ") +
 						"]");
-	form.vals.push_back(std::string("FPGA PROM Ready:             [") + (ReadFPGAPROMReady() ? "x" : " ") + "]");
+	form.vals.push_back(std::string("FPGA PROM Ready:             [") + (ReadFPGAPROMReady(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -3022,15 +2997,15 @@ void CFOLib::CFO_Registers::ReloadFPGAFirmware()
 	WriteRegister_(0x20000000, CFO_Register_FPGACoreAccess);
 }
 
-bool CFOLib::CFO_Registers::ReadFPGACoreAccessFIFOFull()
+bool CFOLib::CFO_Registers::ReadFPGACoreAccessFIFOFull(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FPGACoreAccess);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FPGACoreAccess);
 	return dataSet[1];
 }
 
-bool CFOLib::CFO_Registers::ReadFPGACoreAccessFIFOEmpty()
+bool CFOLib::CFO_Registers::ReadFPGACoreAccessFIFOEmpty(std::optional<uint32_t> val)
 {
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_FPGACoreAccess);
+	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_FPGACoreAccess);
 	return dataSet[0];
 }
 
@@ -3039,8 +3014,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatFPGACoreAccess()
 	auto form = CreateFormatter(CFO_Register_FPGACoreAccess);
 	form.description = "FPGA Core Access";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("FPGA Core Access FIFO Full:  [") + (ReadFPGACoreAccessFIFOFull() ? "x" : " ") + "]");
-	form.vals.push_back(std::string("FPGA Core Access FIFO Empty: [") + (ReadFPGACoreAccessFIFOEmpty() ? "x" : " ") +
+	form.vals.push_back(std::string("FPGA Core Access FIFO Full:  [") + (ReadFPGACoreAccessFIFOFull(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("FPGA Core Access FIFO Empty: [") + (ReadFPGACoreAccessFIFOEmpty(form.value) ? "x" : " ") +
 						"]");
 
 	return form;
@@ -3051,20 +3026,20 @@ bool CFOLib::CFO_Registers::SetNewOscillatorFrequency(double targetFrequency)
 {
 	auto currentFrequency = ReadSERDESOscillatorFrequency();
 	auto currentProgram = ReadSERDESOscillatorParameters();
-	CFO_TLOG(TLVL_DEBUG) << "Target Frequency: " << targetFrequency << ", Current Frequency: " << currentFrequency
+	__COUT__ << "Target Frequency: " << targetFrequency << ", Current Frequency: " << currentFrequency
 						 << ", Current Program: " << std::showbase << std::hex << currentProgram;
 
 	// Check if targetFrequency is essentially the same as the current frequency...
 	if (fabs(currentFrequency - targetFrequency) < targetFrequency * 30 / 1000000)
 	{
-		CFO_TLOG(TLVL_INFO) << "New frequency and old frequency are within 30 ppm of each other, not reprogramming!";
+		__COUT_INFO__ << "New frequency and old frequency are within 30 ppm of each other, not reprogramming!";
 		return false;
 	}
 
 	auto newParameters = CalculateFrequencyForProgramming_(targetFrequency, currentFrequency, currentProgram);
 	if (newParameters == 0)
 	{
-		CFO_TLOG(TLVL_WARNING) << "New program calculated as 0! Check parameters!";
+		__COUT_WARN__ << "New program calculated as 0! Check parameters!";
 		return false;
 	}
 	SetSERDESOscillatorParameters(newParameters);
@@ -3074,22 +3049,25 @@ bool CFOLib::CFO_Registers::SetNewOscillatorFrequency(double targetFrequency)
 
 void CFOLib::CFO_Registers::DisableLinks()
 {
-	CFO_TLOG(TLVL_INFO) << "CFO disable serdes transmit and receive";
-	WriteRegister_(0, CFO_Register_LinkEnable);
+	__COUT_INFO__ << "CFO disable serdes transmit and receive";
+	WriteRegister_(0, CFOandDTC_Register_LinkEnable);
 }
 
 void CFOLib::CFO_Registers::DisableAllOutputs()
 {
-	CFO_TLOG(TLVL_INFO) << "CFO disable Event Start character output";
-	WriteRegister_(0,CFO_Register_CFOControl);
+	__COUT_INFO__ << "CFO disable Event Start character output";
+	WriteRegister_(0,CFOandDTC_Register_Control);
 
-	CFO_TLOG(TLVL_INFO) << "CFO disable serdes transmit and receive";
-	WriteRegister_(0,CFO_Register_LinkEnable);
+	__COUT_INFO__ << "CFO disable serdes transmit and receive";
+	WriteRegister_(0,CFOandDTC_Register_LinkEnable);
 
-	CFO_TLOG(TLVL_INFO) << "CFO turn off Event Windows";
-	WriteRegister_(0,CFO_Register_EventWindowEmulatorIntervalTime);
+	__COUT_INFO__ << "CFO turn off Event Windows";
+	// WriteRegister_(0,CFO_Register_EventWindowEmulatorIntervalTime);
+	DisableBeamOnMode(CFOLib::CFO_Link_ID::CFO_Link_ALL);
+	DisableBeamOffMode(CFOLib::CFO_Link_ID::CFO_Link_ALL);
+	
 
-	CFO_TLOG(TLVL_INFO) << "CFO turn off 40MHz marker interval";
+	__COUT_INFO__ << "CFO turn off 40MHz marker interval";
 	WriteRegister_(0,CFO_Register_ClockMarkerIntervalCount);
 }
 
@@ -3118,7 +3096,7 @@ void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 				// dataToWrite		&= 0x0000ffff; 
 				// readbackValue 	&= 0x0000ffff; 
 				// break;
-			case CFO_Register_CFOControl: //bit 31 is reset bit, which is write only 
+			case CFOandDTC_Register_Control: //bit 31 is reset bit, which is write only 
 				dataToWrite		&= 0x7fffffff;
 				readbackValue   &= 0x7fffffff; 
 				break;			
@@ -3129,7 +3107,7 @@ void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 					readbackValue = ReadRegister_(address);
 					usleep(100);
 					if((++i % 10) == 9)
-						CFO_TLOG(TLVL_DEBUG) << "I2C waited " << i + 1 << " times..." << std::endl;
+						__COUT__ << "I2C waited " << i + 1 << " times..." << std::endl;
 				}
 				dataToWrite &= ~1;
 				readbackValue &= ~1;
@@ -3147,15 +3125,26 @@ void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 
 		if(readbackValue != dataToWrite)
 		{
-			std::stringstream ss;
-			ss << device_.getDeviceUID() << " - " << 
-					"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
-					<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
-					"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
-					std::endl << std::endl <<
-					"If you do not understand this error, try checking the CFO firmware version: " << ReadDesignDate() << std::endl;
-			CFO_TLOG(TLVL_ERROR) << ss.str();
-			throw DTC_IOErrorException(ss.str());
+			try
+			{					
+				__SS__ << "Write check mismatch - " <<
+						"write value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
+						<< " to register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
+						"... read back 0x"	 	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << 
+						std::endl << std::endl <<
+						"If you do not understand this error, try checking the CFO firmware version: " << ReadDesignDate() << std::endl;					
+				__SS_THROW_ONLY__;
+			}
+			catch(const std::runtime_error& e)
+			{
+				std::stringstream ss;
+				ss << e.what();
+				ss << "\n\nThe stack trace is as follows:\n" << otsStyleStackTrace() << __E__; //artdaq::debug::getStackTraceCollector().print_stacktrace() << __E__;	
+				__SS_THROW__;
+			}
+		
+			// __COUT_ERR__ << ss.str();
+			// throw DTC_IOErrorException(ss.str());
 			// __FE_COUT_ERR__ << ss.str(); 
 		}
 
@@ -3213,18 +3202,18 @@ int CFOLib::CFO_Registers::EncodeOutputDivider_(int input)
 
 uint64_t CFOLib::CFO_Registers::CalculateFrequencyForProgramming_(double targetFrequency, double currentFrequency,
 																  uint64_t currentProgram)
-{
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: targetFrequency=" << targetFrequency << ", currentFrequency=" << currentFrequency
+{	
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: targetFrequency=" << targetFrequency << ", currentFrequency=" << currentFrequency
 				<< ", currentProgram=" << std::showbase << std::hex << static_cast<unsigned long long>(currentProgram);
 	auto currentHighSpeedDivider = DecodeHighSpeedDivider_((currentProgram >> 45) & 0x7);
 	auto currentOutputDivider = DecodeOutputDivider_((currentProgram >> 38) & 0x7F);
 	auto currentRFREQ = DecodeRFREQ_(currentProgram & 0x3FFFFFFFFF);
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: Current HSDIV=" << currentHighSpeedDivider << ", N1=" << currentOutputDivider << ", RFREQ=" << currentRFREQ;
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: Current HSDIV=" << currentHighSpeedDivider << ", N1=" << currentOutputDivider << ", RFREQ=" << currentRFREQ;
 	const auto minFreq = 4850000000;  // Hz
 	const auto maxFreq = 5670000000;  // Hz
 
 	auto fXTAL = currentFrequency * currentHighSpeedDivider * currentOutputDivider / currentRFREQ;
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: fXTAL=" << fXTAL;
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: fXTAL=" << fXTAL;
 
 	std::vector<int> hsdiv_values = {11, 9, 7, 6, 5, 4};
 	std::vector<std::pair<int, double>> parameter_values;
@@ -3240,7 +3229,7 @@ uint64_t CFOLib::CFO_Registers::CalculateFrequencyForProgramming_(double targetF
 			thisN += 2;
 		}
 		auto fdco_new = hsdiv * thisN * targetFrequency;
-		CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: Adding solution: HSDIV=" << hsdiv << ", N1=" << thisN << ", fdco_new=" << fdco_new;
+		TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: Adding solution: HSDIV=" << hsdiv << ", N1=" << thisN << ", fdco_new=" << fdco_new;
 		parameter_values.push_back(std::make_pair(thisN, fdco_new));
 	}
 
@@ -3259,1359 +3248,31 @@ uint64_t CFOLib::CFO_Registers::CalculateFrequencyForProgramming_(double targetF
 		newRFREQ = values.second / fXTAL;
 		break;
 	}
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: New Program: HSDIV=" << newHighSpeedDivider << ", N1=" << newOutputDivider << ", RFREQ=" << newRFREQ;
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: New Program: HSDIV=" << newHighSpeedDivider << ", N1=" << newOutputDivider << ", RFREQ=" << newRFREQ;
 
 	if (EncodeHighSpeedDivider_(newHighSpeedDivider) == -1)
 	{
-		CFO_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid HSDIV " << newHighSpeedDivider << "!";
+		__COUT_ERR__ << "ERROR: CalculateFrequencyForProgramming: Invalid HSDIV " << newHighSpeedDivider << "!";
 		return 0;
 	}
 	if (newOutputDivider > 128 || newOutputDivider < 0)
 	{
-		CFO_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid N1 " << newOutputDivider << "!";
+		__COUT_ERR__ << "ERROR: CalculateFrequencyForProgramming: Invalid N1 " << newOutputDivider << "!";
 		return 0;
 	}
 	if (newRFREQ <= 0)
 	{
-		CFO_TLOG(TLVL_ERROR) << "ERROR: CalculateFrequencyForProgramming: Invalid RFREQ " << newRFREQ << "!";
+		__COUT_ERR__ << "ERROR: CalculateFrequencyForProgramming: Invalid RFREQ " << newRFREQ << "!";
 		return 0;
 	}
 
 	auto output = (static_cast<uint64_t>(EncodeHighSpeedDivider_(newHighSpeedDivider)) << 45) +
 				  (static_cast<uint64_t>(EncodeOutputDivider_(newOutputDivider)) << 38) + EncodeRFREQ_(newRFREQ);
-	CFO_TLOG(TLVL_CalculateFreq) << "CalculateFrequencyForProgramming: New Program: " << std::showbase << std::hex << static_cast<unsigned long long>(output);
+	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: New Program: " << std::showbase << std::hex << static_cast<unsigned long long>(output);
 	return output;
 }
 
 /// <summary>
 /// Configure the Jitter Attenuator
 /// </summary>
-void CFOLib::CFO_Registers::ConfigureJitterAttenuator()
-{
-		// Start configuration preamble
-	// set page B
-	WriteRegister_(0x68010B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page B registers
-	WriteRegister_(0x6824C000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68250000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 5
-	WriteRegister_(0x68010500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 5 registers
-	WriteRegister_(0x68400100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// End configuration preamble
-	//
-	// Delay 300 msec
-	usleep(300000 /*300ms*/); 
-
-	// Delay is worst case time for device to complete any calibration
-	// that is running due to device state change previous to this script
-	// being processed.
-	//
-	// Start configuration registers
-	// set page 0
-	WriteRegister_(0x68010000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 0 registers
-	WriteRegister_(0x68060000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68070000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68080000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B6800, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6817DC00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6819DD00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681ADF00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682B0200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682C0F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682D5500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682E3700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68303700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68310000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68323700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68330000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68343700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68350000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68363700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68370000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68383700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68390000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683A3700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C3700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683FFF00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68400400, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68410E00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68420E00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68430E00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68440E00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68450C00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68463200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68473200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68483200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68493200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684A3200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684B3200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684C3200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684D3200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684E5500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684F5500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68500F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68510300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68520300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68530300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68540300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68550300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68560300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68570300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68580300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68595500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685AAA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685BAA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685C0A00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685D0100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685EAA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685FAA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68600A00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68610100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6862AA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6863AA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68640A00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68650100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6866AA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6867AA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68680A00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68690100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68920200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6893A000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68950000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68968000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68986000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689A0200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689B6000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689D0800, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689E4000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A02000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A20000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A98A00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AA6100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AB0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AC0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68E52100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68EA0A00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68EB6000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68EC0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68ED0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 1
-	WriteRegister_(0x68010100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 1 registers
-	WriteRegister_(0x68020100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68120600, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68130900, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68143B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68152800, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170600, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180900, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68193B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A2800, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683F1000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68400000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68414000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6842FF00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 2
-	WriteRegister_(0x68010200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 2 registers
-	WriteRegister_(0x68060000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68086400, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68090000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680E0100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68100000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68110000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68126400, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68130000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68140000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68150000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68190000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681C6400, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68200000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68210000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68220100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68230000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68240000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68250000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68266400, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68270000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68280000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68290000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682C0100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68310B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68320B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68330B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68340B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68350000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68360000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68370000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68388000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6839D400, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683EC000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68500000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68510000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68520000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68530000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68540000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68550000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686B5200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686C6500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686D7600, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686E3100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x686F2000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68702000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68712000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68722000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68900000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68910000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6894B000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68960200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68970200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68990200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689DFA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689E0100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A9CC00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AA0400, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68AB0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68B7FF00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 3
-	WriteRegister_(0x68010300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 3 registers
-	WriteRegister_(0x68020000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68030000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68040000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68050000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68061100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68070000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68080000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68090000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B8000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68100000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68110000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68120000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68130000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68140000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68150000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68380000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68391F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68400000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68410000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68420000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68430000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68440000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68450000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68460000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68590000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 4
-	WriteRegister_(0x68010400, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 4 registers
-	WriteRegister_(0x68870100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 5
-	WriteRegister_(0x68010500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 5 registers
-	WriteRegister_(0x68081000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68091F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680A0C00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B0B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680C3F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680D3F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680E1300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680F2700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68100900, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68110800, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68123F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68133F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68150000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x6819A800, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A0200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681F8000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68212B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682B0100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682C8700, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682D0300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682E1900, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682F1900, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68310000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68324200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68330300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68340000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68350000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68360000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68370000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68380000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68390000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683A0200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D1100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683E0600, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68890D00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x688A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689BFA00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689D1000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689E2100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x689F0C00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A00B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A13F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A23F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68A60300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 8
-	WriteRegister_(0x68010800, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 8 registers
-	WriteRegister_(0x68023500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68030500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68040000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68050000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68060000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68070000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68080000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68090000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x680F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68100000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68110000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68120000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68130000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68140000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68150000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68160000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68170000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68180000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68190000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68200000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68210000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68220000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68230000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68240000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68250000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68260000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68270000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68280000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68290000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x682F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68300000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68310000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68320000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68330000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68340000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68350000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68360000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68370000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68380000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68390000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x683F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68400000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68410000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68420000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68430000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68440000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68450000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68460000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68470000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68480000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68490000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68500000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68510000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68520000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68530000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68540000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68550000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68560000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68570000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68580000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68590000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685B0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685C0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685D0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685F0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68600000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68610000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 9
-	WriteRegister_(0x68010900, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 9 registers
-	WriteRegister_(0x680E0200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68430100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68490F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684A0F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684E4900, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684F0200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x685E0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page A
-	WriteRegister_(0x68010A00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page A registers
-	WriteRegister_(0x68020000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68030100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68040100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68050100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68140000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x681A0000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page B
-	WriteRegister_(0x68010B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page B registers
-	WriteRegister_(0x68442F00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68460000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68470000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68480000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x684A0200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68570E00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68580100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// End configuration registers
-	//
-	// Start configuration postamble
-	// set page 5
-	WriteRegister_(0x68010500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 5 registers
-	WriteRegister_(0x68140100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 0
-	WriteRegister_(0x68010000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 0 registers
-	WriteRegister_(0x681C0100, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page 5
-	WriteRegister_(0x68010500, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page 5 registers
-	WriteRegister_(0x68400000, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// set page B
-	WriteRegister_(0x68010B00, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	// page B registers
-	WriteRegister_(0x6824C300, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-
-	WriteRegister_(0x68250200, CFO_Register_SERDESClock_IICBusLow); 
-	WriteRegister_(0x00000001, CFO_Register_SERDESClock_IICBusHigh); 
-}
+void CFOLib::CFO_Registers::ConfigureJitterAttenuator() { CFOandDTC_Registers::ConfigureJitterAttenuator(CFO_Register_SERDESClock_IICBusLow, CFO_Register_SERDESClock_IICBusHigh); }

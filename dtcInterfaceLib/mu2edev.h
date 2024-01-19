@@ -70,6 +70,7 @@ public:
 	/// <param name="simMemoryFileName">If using simulated DTC, name of the memory file ("mu2esim.bin")</param>
 	/// <returns>0 on success</returns>
 	int init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFileName = "mu2esim.bin", const std::string& uid = "");
+	void initDMAEngine();	
 
 	/// <summary>
 	/// Reads data from the DTC.

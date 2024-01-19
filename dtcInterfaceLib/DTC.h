@@ -266,6 +266,8 @@ private:
 	uint16_t GetBufferByteCount(DMAInfo* info, size_t index);
 	DMAInfo daqDMAInfo_;
 	DMAInfo dcsDMAInfo_;
+
+	uint8_t lastDTCErrorBitsValue_ = 0;
 };
 }  // namespace DTCLib
 #endif

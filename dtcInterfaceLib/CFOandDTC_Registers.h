@@ -10,17 +10,30 @@
 #include "mu2edev.h"
 
 #define DTCLIB_COMMON_REGISTERS \
-CFOandDTC_Register_DesignVersion = 0x9000, \
+	CFOandDTC_Register_DesignVersion = 0x9000, \
 	CFOandDTC_Register_DesignDate = 0x9004, \
 	CFOandDTC_Register_DesignStatus = 0x9008, \
-	/* CFOandDTC_Register_VivadoVersion = 0x900C, */ \
+	CFOandDTC_Register_VivadoVersion = 0x900C, \
 	CFOandDTC_Register_FPGA_Temperature = 0x9010, \
 	CFOandDTC_Register_FPGA_VCCINT = 0x9014, \
 	CFOandDTC_Register_FPGA_VCCAUX = 0x9018, \
 	CFOandDTC_Register_FPGA_VCCBRAM = 0x901C, \
-	/* CFOandDTC_Register_Scratch = 0x9030, */ \
-	/* CFOandDTC_Register_KernelDriverVersion = 0x9040 */ \
-	CFOandDTC_Register_FPGA_MonitorAlarm = 0x9020
+	CFOandDTC_Register_FPGA_MonitorAlarm = 0x9020, \
+	CFOandDTC_Register_Scratch = 0x9030,  \
+	CFOandDTC_Register_Control = 0x9100,  \
+	CFOandDTC_Register_DMATransferLength = 0x9104,  \
+	CFOandDTC_Register_SERDES_LoopbackEnable = 0x9108, \
+	CFOandDTC_Register_ClockOscillatorStatus = 0x910C, \
+	CFOandDTC_Register_LinkEnable = 0x9114, \
+	CFOandDTC_Register_SERDES_Reset = 0x9118, \
+	CFOandDTC_Register_SERDES_RXDisparityError = 0x911C, \
+	CFOandDTC_Register_SERDES_RXCharacterNotInTableError = 0x9120, \
+	CFOandDTC_Register_SERDES_UnlockError = 0x9124, \
+	CFOandDTC_Register_SERDES_PLLLocked = 0x9128, /* not in CFO (?) */ \
+	CFOandDTC_Register_SERDES_PLLPowerDown = 0x912C, /* not in CFO (?) */ \
+	CFOandDTC_Register_SERDES_CDRLockCommaCount = 0x9130,	 \
+	CFOandDTC_Register_SERDES_RXStatus = 0x9134, \
+	CFOandDTC_Register_SERDES_ResetDone = 0x9138
 
 namespace DTCLib {
 
@@ -73,11 +86,16 @@ struct RegisterFormatter
 	friend std::ostream& operator<<(std::ostream& stream, const RegisterFormatter& reg)
 	{
 		stream << std::hex << std::setfill('0');
-		stream << "    0x" << std::setw(4) << static_cast<int>(reg.address) << "  | 0x" << std::setw(8)
+		{ //move address to right-align with values
+			std::string placeholder = "";
+			placeholder.resize(reg.descWidth - 6, ' ');
+			stream << placeholder;
+		}
+		stream << "0x" << std::setw(4) << static_cast<int>(reg.address) << " | 0x" << std::setw(8)
 			   << static_cast<int>(reg.value) << " | ";
 		auto tmp = reg.description;
 		tmp.resize(reg.descWidth, ' ');
-		stream << tmp << " | ";
+		stream << '\n' << tmp << " | ";
 
 		if (!reg.vals.empty()) {
 		auto first = true;
@@ -87,7 +105,8 @@ struct RegisterFormatter
 			{
 				std::string placeholder = "";
 				placeholder.resize(reg.descWidth, ' ');
-				stream << "                           " << placeholder << " | ";
+				stream << //"                           " << 
+					placeholder << " | ";
 			}
 			stream << i << std::endl;
 			first = false;
@@ -120,6 +139,11 @@ public:
 	/// <returns>mu2edev* pointer</returns>
 	mu2edev* GetDevice() { return &device_; }
 
+	/// <summary>
+	/// Get the current DTC UID for this instance
+	/// </summary>
+	/// <returns>The current DTC UID for this instance</returns>
+	std::string getDeviceUID() { return GetDevice()->getDeviceUID(); }
 
 	//
 	// Register IO Functions
@@ -128,47 +152,61 @@ public:
 	// Desgin Version/Date Registers
 	std::string ReadDesignVersion();
 	RegisterFormatter FormatDesignVersion();
-	std::string ReadDesignDate();
+	std::string ReadDesignDate(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDesignDate();
-	std::string ReadDesignVersionNumber();
-	std::string ReadDesignLinkSpeed();
-	std::string ReadDesignType();
+	std::string ReadDesignVersionNumber(std::optional<uint32_t> val = std::nullopt);
+	std::string ReadDesignLinkSpeed(std::optional<uint32_t> val = std::nullopt);
+	std::string ReadDesignType(std::optional<uint32_t> val = std::nullopt);
 
 	// Vivado Version Register
-	virtual std::string ReadVivadoVersionNumber(uint32_t* val = 0) = 0;
-	virtual RegisterFormatter FormatVivadoVersion() = 0;
+	virtual std::string ReadVivadoVersionNumber(std::optional<uint32_t> val = std::nullopt);
+	virtual RegisterFormatter FormatVivadoVersion();
 
 	// FPGA Temperature Register
-	double ReadFPGATemperature();
+	double ReadFPGATemperature(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGATemperature();
 
 	// FPGA VCCINT Voltage Register
-	double ReadFPGAVCCINTVoltage();
+	double ReadFPGAVCCINTVoltage(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAVCCINT();
 
 	// FPGA VCCAUX Voltage Register
-	double ReadFPGAVCCAUXVoltage();
+	double ReadFPGAVCCAUXVoltage(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAVCCAUX();
 
 	// FPGA VCCBRAM Voltage Register
-	double ReadFPGAVCCBRAMVoltage();
+	double ReadFPGAVCCBRAMVoltage(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAVCCBRAM();
 
 	// FPGA Monitor Alarm Register
-	bool ReadFPGADieTemperatureAlarm(std::optional<uint32_t> val);
-	void ResetFPGADieTemperatureAlarm(std::optional<uint32_t> val);
-	bool ReadFPGAAlarms(std::optional<uint32_t> val);
-	void ResetFPGAAlarms(std::optional<uint32_t> val);
-	bool ReadVCCBRAMAlarm(std::optional<uint32_t> val);
-	void ResetVCCBRAMAlarm(std::optional<uint32_t> val);
-	bool ReadVCCAUXAlarm(std::optional<uint32_t> val);
-	void ResetVCCAUXAlarm(std::optional<uint32_t> val);
-	bool ReadVCCINTAlarm(std::optional<uint32_t> val);
-	void ResetVCCINTAlarm(std::optional<uint32_t> val);
-	bool ReadFPGAUserTemperatureAlarm(std::optional<uint32_t> val);
-	void ResetFPGAUserTemperatureAlarm(std::optional<uint32_t> val);
+	bool ReadFPGADieTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetFPGADieTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
+	bool ReadFPGAAlarms(std::optional<uint32_t> val = std::nullopt);
+	void ResetFPGAAlarms(std::optional<uint32_t> val = std::nullopt);
+	bool ReadVCCBRAMAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetVCCBRAMAlarm(std::optional<uint32_t> val = std::nullopt);
+	bool ReadVCCAUXAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetVCCAUXAlarm(std::optional<uint32_t> val = std::nullopt);
+	bool ReadVCCINTAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetVCCINTAlarm(std::optional<uint32_t> val = std::nullopt);
+	bool ReadFPGAUserTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
+	void ResetFPGAUserTemperatureAlarm(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatFPGAAlarms();
-	
+
+	// CFO and DTC Control Register B31 is Soft Reset
+	void SoftReset();             // B31
+	bool ReadSoftReset(std::optional<uint32_t> val = std::nullopt);         // B31
+	void ClearControlRegister();   // 32-bit clear
+
+	std::bitset<2> ReadJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
+	void SetJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::bitset<2> data, bool alsoResetJA);
+	bool ReadJitterAttenuatorReset(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
+	bool ReadJitterAttenuatorLocked(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
+	void ResetJitterAttenuator(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
+	RegisterFormatter FormatJitterAttenuatorCSR(CFOandDTC_Register JAreg);
+	virtual void ConfigureJitterAttenuator() = 0; //pure virtual
+	void ConfigureJitterAttenuator(CFOandDTC_Register IICLowReg, CFOandDTC_Register IICHighReg);
+
 	std::string FormattedRegDump(int width, const std::vector<std::function<RegisterFormatter()>>& regVec);
 
 protected:
@@ -181,13 +219,12 @@ protected:
 	/// </summary>
 	/// <param name="address">Address of register to format</param>
 	/// <returns>RegisterFormatter with address and raw value set</returns>
-	RegisterFormatter CreateFormatter(const CFOandDTC_Register& address, bool readValue = true)
+	RegisterFormatter CreateFormatter(const CFOandDTC_Register& address)
 	{
 		RegisterFormatter form;
 		form.descWidth = formatterWidth_;
 		form.address = address;
-		if(readValue)
-			form.value = ReadRegister_(address);
+		form.value = ReadRegister_(address);
 		return form;
 	}
 
