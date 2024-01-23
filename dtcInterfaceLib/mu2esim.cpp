@@ -548,7 +548,7 @@ DTCLib::DTC_EventMode mu2esim::getEventMode_()
 	event_mode.mode1 = static_cast<uint8_t>((registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF00) >> 8);
 	event_mode.mode2 = static_cast<uint8_t>((registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF0000) >> 16);
 	event_mode.mode3 = static_cast<uint8_t>((registers_[DTCLib::DTC_Register_CFOEmulation_EventMode1] & 0xFF000000) >> 24);
-	event_mode.mode4 = static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulation_EventMode2] & 0xFF);
+	// event_mode.mode4 = static_cast<uint8_t>(registers_[DTCLib::DTC_Register_CFOEmulation_EventMode2] & 0xFF);
 
 	return event_mode;
 }

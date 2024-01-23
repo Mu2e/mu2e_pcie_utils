@@ -512,7 +512,7 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 				if ((value % FPGAClock_) != 0)
 				{
 					__SS__ << "FPGA can only wait in multiples of " <<
-						FPGAClock_ << " ns: " << value << " has remainder " <<
+						FPGAClock_ << " ns: the input value '" << value << "' yields a remainder of " <<
 						(value % FPGAClock_) << __E__;
 					__SS_THROW__;
 				}

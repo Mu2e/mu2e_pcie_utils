@@ -66,7 +66,7 @@ enum DTC_Register : uint16_t
 	DTC_Register_CFOEmulation_NumPacketsLinks54 = 0x91B8,
 	DTC_Register_CFOEmulation_NumNullHeartbeats = 0x91BC,
 	DTC_Register_CFOEmulation_EventMode1 = 0x91C0,
-	DTC_Register_CFOEmulation_EventMode2 = 0x91C4,
+	DTC_Register_CFOEmulation_EventMode2 = 0x91C4, 
 	DTC_Register_DebugPacketType = 0x91C8,
 	DTC_Register_RXPacketCountErrorFlags = 0x91CC,
 	DTC_Register_DetEmulation_DMACount = 0x91D0,
@@ -677,7 +677,7 @@ public:
 
 	// CFO Emulation Event Mode Bytes Registers
 	void SetCFOEmulationEventMode(const uint64_t& eventMode);
-	uint64_t ReadCFOEmulationEventMode(std::optional<uint32_t> val = std::nullopt);
+	uint64_t ReadCFOEmulationEventMode();
 	void SetCFOEmulationModeByte(const uint8_t& byteNum, uint8_t data);
 	uint8_t ReadCFOEmulationModeByte(const uint8_t& byteNum, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulationModeBytes03();
@@ -1399,7 +1399,7 @@ protected:
 		[this] { return this->FormatCFOEmulationNumPacketsLink45(); },
 		[this] { return this->FormatCFOEmulationNumNullHeartbeats(); },
 		[this] { return this->FormatCFOEmulationModeBytes03(); },
-		[this] { return this->FormatCFOEmulationModeBytes45(); },
+		// [this] { return this->FormatCFOEmulationModeBytes45(); },// Event Mode is only 4 bytes
 		[this] { return this->FormatCFOEmulationDebugPacketType(); },
 		[this] { return this->FormatRXPacketCountErrorFlags(); },
 		[this] { return this->FormatDetectorEmulationDMACount(); },

@@ -1,66 +1,20 @@
 
 
-SET_TAG 100  //set event window tag
-
-LOOP 16 //32-bits
+LOOP 235000 //32-bits
     HEARTBEAT event_mode= 23
     MARKER 
     WAIT 1.7 us 
     INC_TAG //increment event window tag
 DO_LOOP
 
-LOOP 16 //32-bits
+LOOP 10000 //32-bits
     HEARTBEAT event_mode= 24
     MARKER 
     WAIT 100 us 
     INC_TAG //increment event window tag
 DO_LOOP
 
-LOOP 30 //32-bits
-    HEARTBEAT event_mode= 0 //null heartbeats
-    MARKER 
-    WAIT 1.7 us 
-    INC_TAG //increment event window tag
-DO_LOOP
-
-
-END
+REPEAT
 
 
 
-
-LABEL
-LOOP 2 //32-bits
-
-    SET_MODE    20
-    LOOP 5 //32-bits
-        LOOP 3 //32-bits
-            HEARTBEAT event_mode= 23
-            MARKER 
-            WAIT 1.7 us 
-            INC_TAG //increment event window tag
-        DO_LOOP
-
-        LOOP 2 //32-bits
-            SET_MODE_BITS  start_bit=32     bit_count=10  value=7
-            HEARTBEAT event_mode= registered
-            MARKER 
-            WAIT 2.4 us 
-            INC_TAG //increment event window tag
-            AND_MODE_BITS  start_bit=0x20  bit_count=b11  value=~0xA
-        DO_LOOP
-        CLEAR_MODE_BITS start_bit=3     bit_count=20
-        OR_MODE_BITS    start_bit=16   bit_count=16 value=0xAFAF
-
-        LOOP 4 //32-bits
-            HEARTBEAT event_mode    =    0 //null heartbeats
-            MARKER 
-            WAIT 0x43 clocks 
-            INC_TAG add_value=0x100 //increment event window tag
-        DO_LOOP
-    DO_LOOP
-DO_LOOP
-
-//END
-GOTO_LABEL
-//REPEAT
