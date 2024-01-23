@@ -66,7 +66,7 @@ enum DTC_Register : uint16_t
 	DTC_Register_CFOEmulation_NumPacketsLinks54 = 0x91B8,
 	DTC_Register_CFOEmulation_NumNullHeartbeats = 0x91BC,
 	DTC_Register_CFOEmulation_EventMode1 = 0x91C0,
-	DTC_Register_CFOEmulation_EventMode2 = 0x91C4, 
+	DTC_Register_CFOEmulation_EventMode2 = 0x91C4,
 	DTC_Register_DebugPacketType = 0x91C8,
 	DTC_Register_RXPacketCountErrorFlags = 0x91CC,
 	DTC_Register_DetEmulation_DMACount = 0x91D0,

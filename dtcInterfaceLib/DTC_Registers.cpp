@@ -3130,7 +3130,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumNullHeartb
 void DTCLib::DTC_Registers::SetCFOEmulationEventMode(const uint64_t& eventMode)
 {
 	WriteRegister_(eventMode, DTC_Register_CFOEmulation_EventMode1);
-	WriteRegister_(eventMode >> 32, DTC_Register_CFOEmulation_EventMode2);  //Event Mode is only 32-bits
+	WriteRegister_(eventMode >> 32, DTC_Register_CFOEmulation_EventMode2);
 }
 uint64_t DTCLib::DTC_Registers::ReadCFOEmulationEventMode()
 {
