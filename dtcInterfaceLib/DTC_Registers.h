@@ -1399,7 +1399,7 @@ protected:
 		[this] { return this->FormatCFOEmulationNumPacketsLink45(); },
 		[this] { return this->FormatCFOEmulationNumNullHeartbeats(); },
 		[this] { return this->FormatCFOEmulationModeBytes03(); },
-		// [this] { return this->FormatCFOEmulationModeBytes45(); },// Event Mode is only 4 bytes
+		[this] { return this->FormatCFOEmulationModeBytes45(); },
 		[this] { return this->FormatCFOEmulationDebugPacketType(); },
 		[this] { return this->FormatRXPacketCountErrorFlags(); },
 		[this] { return this->FormatDetectorEmulationDMACount(); },
