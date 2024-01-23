@@ -677,7 +677,7 @@ public:
 
 	// CFO Emulation Event Mode Bytes Registers
 	void SetCFOEmulationEventMode(const uint64_t& eventMode);
-	uint64_t ReadCFOEmulationEventMode(std::optional<uint32_t> val = std::nullopt);
+	uint64_t ReadCFOEmulationEventMode();
 	void SetCFOEmulationModeByte(const uint8_t& byteNum, uint8_t data);
 	uint8_t ReadCFOEmulationModeByte(const uint8_t& byteNum, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatCFOEmulationModeBytes03();

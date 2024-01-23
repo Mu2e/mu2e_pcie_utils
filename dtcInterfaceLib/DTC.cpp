@@ -232,7 +232,7 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 				{
 					DTC_TLOG(TLVL_ERROR) << "WriteSimFileToDTC: ERROR: Inclusive write Byte count " << sz
 									 << " is inconsistent with DMA byte count " << dmaByteCount << " for DMA at 0x"
-									 << std::hex << totalSize << " (" << sz - 16 << " != " << dmaByteCount << ")";
+									 << std::hex << totalSize << " (0x" << sz - 16 << " != 0x" << dmaByteCount << ")";
 					sizeCheck = false;
 				}
 
@@ -332,7 +332,7 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 			{
 				DTC_TLOG(TLVL_ERROR) << "VerifySimFileInDTC: ERROR: DMA Write size " << file_buffer_size
 								 << " is inconsistent with DMA byte count " << inclusiveByteCount << " for DMA at 0x"
-								 << std::hex << totalSize << " (" << file_buffer_size - 8 << " != " << inclusiveByteCount << ")";
+								 << std::hex << totalSize << " (0x" << file_buffer_size - 8 << " != 0x" << inclusiveByteCount << ")";
 				sizeCheck = false;
 			}
 
@@ -477,7 +477,7 @@ uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t ad
 
 	 //throw exception for no data after retries
 	__SS__ << "A timeout occurred attempting to read a ROC register at link " << static_cast<int>(link) << 
-				" address 0x" << std::hex << static_cast<int>(address) << ". No DCS reply packet received after " << tmo_ms << " ms! " <<
+				" address 0x" << std::hex << static_cast<int>(address) << ". No DCS reply packet received after " << std::dec << tmo_ms << " ms! " <<
 				"Restarting the DTC software instance may fix the problem and realign DMA pointers." << std::endl;
 	__SS_THROW__;
 	

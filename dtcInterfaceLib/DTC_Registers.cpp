@@ -2890,6 +2890,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationTimestampHigh
 /// <summary>
 /// Set the clock interval between CFO Emulator Readout Requests.
 /// This value is dependent upon the SERDES clock speed (2.5 Gbps = 125 MHz, 3.125 Gbps = 156.25 MHz)
+/// If 0, specifies to execute the On/Off Spill emulation of Event Window intervals.
 /// </summary>
 /// <param name="interval">Clock cycles between Readout Requests</param>
 void DTCLib::DTC_Registers::SetCFOEmulationHeartbeatInterval(uint32_t interval)
@@ -3131,9 +3132,9 @@ void DTCLib::DTC_Registers::SetCFOEmulationEventMode(const uint64_t& eventMode)
 	WriteRegister_(eventMode, DTC_Register_CFOEmulation_EventMode1);
 	WriteRegister_(eventMode >> 32, DTC_Register_CFOEmulation_EventMode2);
 }
-uint64_t DTCLib::DTC_Registers::ReadCFOEmulationEventMode(std::optional<uint32_t> val)
+uint64_t DTCLib::DTC_Registers::ReadCFOEmulationEventMode()
 {
-	uint64_t eventMode = val.has_value()?*val:ReadRegister_(DTC_Register_CFOEmulation_EventMode2);
+	uint64_t eventMode = ReadRegister_(DTC_Register_CFOEmulation_EventMode2);
 	eventMode = ReadRegister_(DTC_Register_CFOEmulation_EventMode1) | 
 		(eventMode << 32);
 	return eventMode;
@@ -3157,7 +3158,8 @@ void DTCLib::DTC_Registers::SetCFOEmulationModeByte(const uint8_t& byteNum, uint
 	}
 	else
 	{
-		return;
+		__SS__ << "Illegal byte index requested: " << byteNum << ". The Emulated Event Mode is only 6 bytes." << __E__;
+		__SS_THROW__;
 	}
 	auto regVal = ReadRegister_(reg);
 
@@ -3182,7 +3184,11 @@ void DTCLib::DTC_Registers::SetCFOEmulationModeByte(const uint8_t& byteNum, uint
 			regVal = (regVal & 0x00FF) + (data << 8);
 			break;
 		default:
-			return;
+			//impossible
+			{
+				__SS__ << "Illegal byte index requested: " << byteNum << ". The Emulated Event Mode is only 6 bytes." << __E__;
+				__SS_THROW__;
+			}
 	}
 
 	WriteRegister_(regVal, reg);
@@ -3206,7 +3212,8 @@ uint8_t DTCLib::DTC_Registers::ReadCFOEmulationModeByte(const uint8_t& byteNum, 
 	}
 	else
 	{
-		return 0;
+		__SS__ << "Illegal byte index requested: " << byteNum << ". The Emulated Event Mode is only 6 bytes." << __E__;
+		__SS_THROW__;
 	}
 	auto regVal = val.has_value()?*val:ReadRegister_(reg);
 
@@ -3225,7 +3232,11 @@ uint8_t DTCLib::DTC_Registers::ReadCFOEmulationModeByte(const uint8_t& byteNum, 
 		case 5:
 			return static_cast<uint8_t>((regVal & 0xFF00) >> 8);
 		default:
-			return 0;
+			//impossible
+			{
+				__SS__ << "Illegal byte index requested: " << byteNum << ". The Emulated Event Mode is only 6 bytes." << __E__;
+				__SS_THROW__;
+			}
 	}
 }
 
@@ -3733,7 +3744,13 @@ bool DTCLib::DTC_Registers::ReadCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID c
 void DTCLib::DTC_Registers::SetCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link, bool enable)
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_CFOMarkerEnables);
-	data[link] = enable;
+	if(link == DTC_Link_ALL)
+	{	
+		for(uint8_t i=0;i<8;++i)
+			data[i] = enable;
+	}
+	else
+		data[link] = enable;	
 	WriteRegister_(data.to_ulong(), DTC_Register_CFOMarkerEnables);
 }
 
