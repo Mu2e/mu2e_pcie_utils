@@ -257,9 +257,9 @@ void DTCLib::DTCLibTest::doClassTest()
 
 		auto memCopyDP = DTC_DataPacket(*defaultDP);
 		if (printMessages_)
-			std::cout << "Copy Constructor, MemoryPacket, data[64] should be 64: " << static_cast<int>(memCopyDP.GetWord(64))
+			std::cout << "Copy Constructor, MemoryPacket, data[64] should be 64: " << static_cast<int>(memCopyDP.GetByte(64))
 					  << std::endl;
-		err = err || memCopyDP.GetWord(64) != 64;
+		err = err || memCopyDP.GetByte(64) != 64;
 
 		if (printMessages_) std::cout << "Running DTC_DataPacket Destructor" << std::endl;
 		delete defaultDP;
@@ -278,23 +278,23 @@ void DTCLib::DTCLibTest::doClassTest()
 		if (printMessages_)
 			std::cout
 				<< "DataPacket Memory Packet Copy Constructor: Modifications to original buffer should modify both packets: "
-				<< std::hex << "COPY[0]: " << static_cast<int>(nonmemCopyDP.GetWord(0))
-				<< ", ORIGINAL[0]: " << static_cast<int>(dataBufPtrfDP->GetWord(0)) << std::endl;
-		err = err || nonmemCopyDP.GetWord(0) != 0x8F || dataBufPtrfDP->GetWord(0) != 0x8F;
+				<< std::hex << "COPY[0]: " << static_cast<int>(nonmemCopyDP.GetByte(0))
+				<< ", ORIGINAL[0]: " << static_cast<int>(dataBufPtrfDP->GetByte(0)) << std::endl;
+		err = err || nonmemCopyDP.GetByte(0) != 0x8F || dataBufPtrfDP->GetByte(0) != 0x8F;
 
 		delete dataBufPtrfDP;
 		if (printMessages_)
-			std::cout << "Deleting ORIGINAL should not affect COPY: " << static_cast<int>(nonmemCopyDP.GetWord(0))
+			std::cout << "Deleting ORIGINAL should not affect COPY: " << static_cast<int>(nonmemCopyDP.GetByte(0))
 					  << std::endl;
-		err = err || nonmemCopyDP.GetWord(0) != 0x8F;
+		err = err || nonmemCopyDP.GetByte(0) != 0x8F;
 
 		uint8_t buff2[16] = {0xf, 0xe, 0xd, 0xc, 0xb, 0xa, 0x9, 0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0};
 		auto uintBufDP = new DTC_DataPacket(buff2);
 		if (printMessages_)
 			std::cout << "Integer Array Constructor, IsMemoryPacket should be true: "
 					  << (uintBufDP->IsMemoryPacket() ? "true" : "false")
-					  << ", and data[0] should be 0xf: " << static_cast<int>(uintBufDP->GetWord(0)) << std::endl;
-		err = err || !uintBufDP->IsMemoryPacket() || uintBufDP->GetWord(0) != 0xf;
+					  << ", and data[0] should be 0xf: " << static_cast<int>(uintBufDP->GetByte(0)) << std::endl;
+		err = err || !uintBufDP->IsMemoryPacket() || uintBufDP->GetByte(0) != 0xf;
 
 		uintBufDP->Resize(128);
 		if (printMessages_)
@@ -518,12 +518,12 @@ bool DTCLib::DTCLibTest::DataPacketIntegrityCheck(DTC_DataPacket* packet)
 	auto retCode = true;
 	for (auto ii = 0; ii < packet->GetSize(); ++ii)
 	{
-		packet->SetWord(ii, ii);
+		packet->SetByte(ii, ii);
 	}
 
 	for (auto ii = 0; ii < packet->GetSize(); ++ii)
 	{
-		retCode = packet->GetWord(ii) == ii;
+		retCode = packet->GetByte(ii) == ii;
 		if (!retCode) break;
 	}
 

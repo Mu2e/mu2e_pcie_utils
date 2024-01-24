@@ -154,9 +154,9 @@ namespace DTCLib {
 			auto headerDP = block.GetHeader()->ConvertToDataPacket();
 
 			bool success = true;
-			success = headerDP.GetWord(12) == 0xEF;
-			success &= headerDP.GetWord(13) == 0xBE;
-			success &= headerDP.GetWord(15) == 0xBE;
+			success = headerDP.GetByte(12) == 0xEF;
+			success &= headerDP.GetByte(13) == 0xBE;
+			success &= headerDP.GetByte(15) == 0xBE;
 			if (!success)
 			{
 				TLOG(TLVL_ERROR) << "VerifyROCEmulatorBlock: Header format is incorrect (check bytes)";
@@ -230,7 +230,7 @@ namespace DTCLib {
 
 			// Check that this is indeed a DataHeader packet
 			auto dataHeaderMask = 0x80F0;
-			uint16_t dataHeaderTest = static_cast<uint16_t>(header->ConvertToDataPacket().GetWord(2)) + (static_cast<uint16_t>(header->ConvertToDataPacket().GetWord(3)) << 8);
+			uint16_t dataHeaderTest = static_cast<uint16_t>(header->ConvertToDataPacket().GetByte(2)) + (static_cast<uint16_t>(header->ConvertToDataPacket().GetByte(3)) << 8);
 			TLOG(TLVL_DEBUG + 5) << "Block size: 0x" << std::hex << blockByteSize << ", Test word: " << std::hex << dataHeaderTest << ", masked: " << (dataHeaderTest & dataHeaderMask) << " =?= 0x8050";
 			if ((dataHeaderTest & dataHeaderMask) != 0x8050)
 			{
