@@ -677,7 +677,7 @@ void DTCLib::DTC::ReadROCBlock(
 
 			while (wordCount - processedWords > 0 && byteInPacket < 16)
 			{
-				uint16_t thisWord = dataPacket->GetWord(byteInPacket) + (dataPacket->GetWord(byteInPacket + 1) << 8);
+				uint16_t thisWord = dataPacket->GetByte(byteInPacket) + (dataPacket->GetByte(byteInPacket + 1) << 8);
 				byteInPacket += 2;
 				data.push_back(thisWord);
 				processedWords++;
@@ -1125,8 +1125,8 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 			reinterpret_cast<uint8_t*>(info->currentReadPtr));  // +8 because first 8 bytes are not included in byte count
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: Adjusting blockByteCount to " << blockByteCount
 									 << " due to end-of-DMA condition";
-		test->SetWord(0, blockByteCount & 0xFF);
-		test->SetWord(1, (blockByteCount >> 8));
+		test->SetByte(0, blockByteCount & 0xFF);
+		test->SetByte(1, (blockByteCount >> 8));
 	}
 
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << test->toJSON();
@@ -1300,6 +1300,7 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet, bool alreadyHave
 	//	uint64_t packetSize = packet.GetSize();
 	if (size < static_cast<uint64_t>(dmaSize_)) size = dmaSize_;
 
+        bzero(&buf[0], size);
 	memcpy(&buf[0], &size, sizeof(uint64_t));
 	memcpy(&buf[8], packet.GetData(), packet.GetSize() * sizeof(uint8_t));
 

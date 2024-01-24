@@ -581,29 +581,29 @@ void mu2esim::dcsPacketSimulator_(DTCLib::DTC_DCSRequestPacket in)
 	TLOG(TLVL_DCSPacketSimulator) << "mu2esim::dcsPacketSimulator_: copying response into new buffer";
 	auto dataPacket = packet.ConvertToDataPacket();
 
-	dataPacket.SetWord(4, static_cast<int>(in.GetType()) + (in.RequestsAck() ? 0x8 : 0) + (in.IsDoubleOp() ? 0x4 : 0) +
+	dataPacket.SetByte(4, static_cast<int>(in.GetType()) + (in.RequestsAck() ? 0x8 : 0) + (in.IsDoubleOp() ? 0x4 : 0) +
 							  ((packetCount & 0x2) << 6));
-	dataPacket.SetWord(5, (packetCount & 0x3FC) >> 2);
+	dataPacket.SetByte(5, (packetCount & 0x3FC) >> 2);
 
 	auto request1 = in.GetRequest(false);
-	dataPacket.SetWord(6, request1.first & 0xFF);
-	dataPacket.SetWord(7, (request1.first & 0xFF00) >> 8);
-	dataPacket.SetWord(8, request1.second & 0xFF);
-	dataPacket.SetWord(9, (request1.second & 0xFF00) >> 8);
+	dataPacket.SetByte(6, request1.first & 0xFF);
+	dataPacket.SetByte(7, (request1.first & 0xFF00) >> 8);
+	dataPacket.SetByte(8, request1.second & 0xFF);
+	dataPacket.SetByte(9, (request1.second & 0xFF00) >> 8);
 
 	if (in.GetType() != DTCLib::DTC_DCSOperationType_BlockRead)
 	{
 		auto request2 = in.GetRequest(true);
-		dataPacket.SetWord(10, request2.first & 0xFF);
-		dataPacket.SetWord(11, (request2.first & 0xFF00) >> 8);
-		dataPacket.SetWord(12, request2.second & 0xFF);
-		dataPacket.SetWord(13, (request2.second & 0xFF00) >> 8);
+		dataPacket.SetByte(10, request2.first & 0xFF);
+		dataPacket.SetByte(11, (request2.first & 0xFF00) >> 8);
+		dataPacket.SetByte(12, request2.second & 0xFF);
+		dataPacket.SetByte(13, (request2.second & 0xFF00) >> 8);
 	}
 	else
 	{
 		for (int ii = 10; ii < dataPacket.GetSize(); ++ii)
 		{
-			dataPacket.SetWord(ii, ii);
+			dataPacket.SetByte(ii, ii);
 		}
 	}
 
