@@ -107,7 +107,7 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 	__COUT__ << "Initialize requested, setting device registers acccording to sim mode " << DTC_SimModeConverter(simMode_).toString();
 	
 	TLOG(TLVL_Detail) << __COUT_HDR__ << "Setting up DTC links...";
-	for (auto link : DTC_Links)
+	for (auto link : DTC_ROC_Links)
 	{
 		bool linkEnabled = ((rocMask >> (link * 4)) & 0x1) != 0;
 		if (!linkEnabled)
@@ -129,12 +129,12 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 	{
 		TLOG(TLVL_Detail) << __COUT_HDR__ << "Setting up simulation modes in Hardware...";
 		// Set up hardware simulation mode: Link 0 Tx/Rx Enabled, Loopback Enabled, ROC Emulator Enabled. All other links
-		// disabled. for (auto link : DTC_Links)
+		// disabled. for (auto link : DTC_ROC_Links)
 		// 	{
 		// 	  DisableLink(link);
 		// 	}
 		//	EnableLink(DTC_Link_0, DTC_LinkEnableMode(true, true, false), DTC_ROC_0);
-		for (auto link : DTC_Links)
+		for (auto link : DTC_ROC_Links)
 		{
 			if (simMode_ == DTC_SimMode_Loopback)
 			{
@@ -1015,7 +1015,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESLoopbackEnable()
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_LoopbackEnable);
 	form.description = "SERDES Loopback Enable";
 	form.vals.push_back(""); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": " +
 							DTC_SERDESLoopbackModeConverter(ReadSERDESLoopback(r, form.value)).toString());
@@ -1113,7 +1113,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatROCEmulationEnable()
 	auto form = CreateFormatter(DTC_Register_ROCEmulationEnable);
 	form.description = "ROC Emulator Enable";
 	form.vals.push_back("       ([ Internal, Fiber-Loopback, External ])"); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + 
 			": [" + (ReadROCEmulator(r,DTC_ROC_Emulation_Type::ROC_Internal_Emulation,
 				form.value) ? "x" : ".") + (ReadROCEmulator(r,DTC_ROC_Emulation_Type::ROC_FiberLoopback_Emulation,
@@ -1207,7 +1207,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatLinkEnable()
 	auto form = CreateFormatter(CFOandDTC_Register_LinkEnable);
 	form.description = "Link Enable";
 	form.vals.push_back("       ([TX, RX])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		auto re = ReadLinkEnabled(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (re.TransmitEnable ? "x" : ".") + "" +
@@ -1577,7 +1577,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESReset()
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_Reset);
 	form.description = "SERDES Reset";
 	form.vals.push_back("           ([TX,RX,Link])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ":     [" + 
 							(ReadResetSERDESTX(r, form.value) ? "x" : ".") + 
 							(ReadResetSERDESRX(r, form.value) ? "x" : ".") + 
@@ -1623,7 +1623,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESRXDisparityError()
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_RXDisparityError);
 	form.description = "SERDES RX Disparity Error";
 	form.vals.push_back("       ([H,L])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		auto re = ReadSERDESRXDisparityError(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + to_string(re.GetData()[1]) + "," +
@@ -1654,7 +1654,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESRXCharacterNotInTab
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_RXCharacterNotInTableError);
 	form.description = "SERDES RX CNIT Error";
 	form.vals.push_back("       ([H,L])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		auto re = ReadSERDESRXCharacterNotInTableError(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + to_string(re.GetData()[1]) + "," +
@@ -1697,7 +1697,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESUnlockError()
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_UnlockError);
 	form.description = "SERDES Unlock Error";
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("CDR Link ") + std::to_string(r) + ":    [" + 
 			(ReadSERDESCDRUnlockError(r, form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("CDR CFO:       [") + (ReadSERDESCDRUnlockError(DTC_Link_CFO, form.value) ? "x" : " ") + "]");
@@ -1733,7 +1733,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESPLLLocked()
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_PLLLocked);
 	form.description = "SERDES PLL Locked";
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ":         [" + (ReadSERDESPLLLocked(r, form.value) ? "x" : " ") + "]");
 	}
@@ -1786,7 +1786,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESPLLPowerDown()
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_PLLPowerDown);
 	form.description = "SERDES PLL Power Down";
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESPLLPowerDown(r, form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("CFO:    [") + (ReadSERDESPLLPowerDown(DTC_Link_CFO, form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("EVB:    [") + (ReadSERDESPLLPowerDown(DTC_Link_EVB, form.value) ? "x" : " ") + "]");
@@ -1814,7 +1814,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESRXStatus()
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_RXStatus);
 	form.description = "SERDES RX Status";
 	form.vals.push_back(""); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		auto re = ReadSERDESRXStatus(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": " + DTC_RXStatusConverter(re).toString());
@@ -1876,7 +1876,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESResetDone()
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_ResetDone);
 	form.description = "SERDES Reset Done";
 	form.vals.push_back("       ([RX FSM, RX, TX FSM, TX])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
 				(ReadResetRXFSMSERDESDone(r, form.value) ? "x" : ".") + 
 				(ReadResetRXSERDESDone(r, form.value) ? "x" : ".") + 
@@ -1917,7 +1917,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRXCDRLockStatus()
 	auto form = CreateFormatter(DTC_Register_SERDES_RXCDRLockStatus);
 	form.description = "RX CDR Lock Status";
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		form.vals.push_back(std::string("ROC Link ") + std::to_string(r) + 
 							" CDR Lock:   [" + (ReadSERDESRXCDRLock(r, form.value) ? "x" : " ") + "]");
@@ -2027,7 +2027,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatROCReplyTimeoutError()
 	auto form = CreateFormatter(DTC_Register_ROCReplyTimeoutError);
 	form.description = "ROC Reply Timeout Error";
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
 			(ReadROCTimeoutError(r, form.value) ? "x" : " ") + "]");
@@ -2370,7 +2370,7 @@ void DTCLib::DTC_Registers::SetSERDESOscillatorClock(DTC_SerdesClockSpeed speed)
 	}
 	if (SetNewOscillatorFrequency(DTC_OscillatorType_SERDES, targetFreq))
 	{
-		for (auto& link : DTC_Links)
+		for (auto& link : DTC_ROC_Links)
 		{
 			ResetSERDES(link, 1000);
 		}
@@ -2697,7 +2697,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFIFOFullErrorFlag0()
 	auto form = CreateFormatter(DTC_Register_FIFOFullErrorFlag0);
 	form.description = "FIFO Full Error Flags 0";
 	form.vals.push_back("       ([DataRequest, ReadoutRequest, CFOLink, OutputData])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		auto re = ReadFIFOFullErrorFlags(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (re.DataRequestOutput ? "x" : " ") + "," +
@@ -2716,7 +2716,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFIFOFullErrorFlag1()
 	auto form = CreateFormatter(DTC_Register_FIFOFullErrorFlag1);
 	form.description = "FIFO Full Error Flags 1";
 	form.vals.push_back("       ([DataInput, OutputDCSStage2, OutputDCS, OtherOutput])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		auto re = ReadFIFOFullErrorFlags(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (re.DataInput ? "x" : " ") + "," +
@@ -2747,7 +2747,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFIFOFullErrorFlag2()
 	auto form = CreateFormatter(DTC_Register_FIFOFullErrorFlag2);
 	form.description = "FIFO Full Error Flags 2";
 	form.vals.push_back("       ([DCSStatusInput])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 	{
 		auto re = ReadFIFOFullErrorFlags(r, form.value);
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (re.DCSStatusInput ? "x" : " ") + "]");
@@ -2817,7 +2817,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatReceivePacketError()
 	auto form = CreateFormatter(DTC_Register_ReceivePacketError);
 	form.description = "Receive Packet Error";
 	form.vals.push_back("       ([CRC, PacketError])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
 				(ReadPacketCRCError(r, form.value) ? "x" : " ") + "," +
 				(ReadPacketError(r, form.value) ? "x" : " ") + "]");
@@ -3397,7 +3397,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRXPacketCountErrorFlags()
 	auto form = CreateFormatter(DTC_Register_RXPacketCountErrorFlags);
 	form.description = "RX Packet Count Error Flags";
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" +
 							(ReadRXPacketCountErrorFlags(r, form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("CFO:    [") + (ReadRXPacketCountErrorFlags(DTC_Link_CFO, form.value) ? "x" : " ") + "]");
@@ -3759,7 +3759,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationMarkerEnables
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_LoopbackEnable);
 	form.description = "CFO Emulation Marker Enables";
 	form.vals.push_back("        [Event Start, 40 MHz]");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
 				(ReadCFOEmulationEventStartMarkerEnable(r, form.value) ? "x" : " ") + "," + 
 				(ReadCFOEmulation40MHzClockMarkerEnable(r, form.value) ? "x" : " ") + "]");
@@ -4850,7 +4850,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESTXPRBSControl()
 	auto form = CreateFormatter(DTC_Register_TXPRBSControl);
 	form.description = "SERDES TX PRBS Control";
 	form.vals.push_back("       ([Force Error, Mode])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
 							(ReadTXPRBSForceError(r, form.value) ? "x" : " ") + "," +
 							(DTC_PRBSModeConverter(ReadTXPRBSMode(r, form.value)).toString()) + "]");
@@ -4885,7 +4885,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESRXPRBSControl()
 	auto form = CreateFormatter(DTC_Register_RXPRBSControl);
 	form.description = "SERDES RX PRBS Control";
 	form.vals.push_back("       ([Error, Mode])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
 							(ReadRXPRBSError(r, form.value) ? "x" : " ") + "," +
 							(DTC_PRBSModeConverter(ReadRXPRBSMode(r, form.value)).toString()) + "]");
@@ -5022,7 +5022,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESSerialInversionEnab
 	auto form = CreateFormatter(DTC_Register_SERDESTXRXInvertEnable);
 	form.description = "SERDES Serial Inversion Enable";
 	form.vals.push_back("       ([Input, Output])");
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
 							(ReadInvertSERDESRXInput(r, form.value) ? "x" : " ") + "," + 
 							(ReadInvertSERDESTXOutput(r, form.value) ? "x" : " ") + "]");
@@ -7117,7 +7117,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESInduceErrorEnable()
 	auto form = CreateFormatter(DTC_Register_SERDESTXRXInvertEnable);
 	form.description = "SERDES Induce Error Enable";
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
 			(ReadSERDESInduceErrorEnable(r, form.value) ? "x" : " ") + "]");
 
@@ -8772,7 +8772,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESRXCRCErrorControl()
 	auto form = CreateFormatter(DTC_Register_SERDESTXRXInvertEnable);
 	form.description = "SERDES RX CRC Error Control";
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	for (auto r : DTC_Links)
+	for (auto r : DTC_ROC_Links)
 		form.vals.push_back(std::string("Induce Error Link ") + std::to_string(r) + ":  [" + 
 			(ReadEnableInduceSERDESRXCRCError(r, form.value) ? "x" : " ") + "]");
 	

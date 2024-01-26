@@ -25,7 +25,7 @@ DTCLib::DTCSoftwareCFO::DTCSoftwareCFO(DTC* dtc, bool useCFOEmulator, uint16_t d
 		 theThread_(nullptr), requestsSent_(false), abort_(false)
 {
 	theDTC_ = dtc;
-	for (auto link : DTC_Links)
+	for (auto link : DTC_ROC_Links)
 	{
 		linkMode_[link] = theDTC_->ReadLinkEnabled(link);
 	}
@@ -76,7 +76,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 	if (!useCFOEmulator_)
 	{
 		theDTC_->EnableSoftwareDRP();
-		for (auto link : DTC_Links)
+		for (auto link : DTC_ROC_Links)
 		{
 			if (linkMode_[link].TransmitEnable)
 			{
@@ -113,7 +113,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 		theDTC_->SetCFOEmulationMode();
 		theDTC_->DisableCFOEmulation();
 		theDTC_->SetCFOEmulationTimestamp(ts);
-		for (auto link : DTC_Links)
+		for (auto link : DTC_ROC_Links)
 		{
 			if (linkMode_[link].TransmitEnable)
 			{
@@ -185,7 +185,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 		theDTC_->SetCFOEmulationMode();
 		theDTC_->DisableCFOEmulation();
 		theDTC_->SetCFOEmulationTimestamp(start);
-		for (auto link : DTC_Links)
+		for (auto link : DTC_ROC_Links)
 		{
 			if (linkMode_[link].TransmitEnable)
 			{
@@ -253,7 +253,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_EventWind
 		theDTC_->SetCFOEmulationMode();
 		theDTC_->DisableCFOEmulation();
 		theDTC_->SetCFOEmulationTimestamp(thisTimestamp);
-		for (auto link : DTC_Links)
+		for (auto link : DTC_ROC_Links)
 		{
 			if (linkMode_[link].TransmitEnable)
 			{
@@ -316,7 +316,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag st
 		for (auto ii = 0; ii < count; ++ii)
 		{
 			auto ts = start + (increment ? ii : 0);
-			for (auto link : DTC_Links)
+			for (auto link : DTC_ROC_Links)
 			{
 				if (linkMode_[link].TransmitEnable && sendHeartbeats)
 				{
@@ -333,7 +333,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag st
 		for (auto ii = 0; ii < count; ++ii)
 		{
 			auto ts = start + (increment ? ii : 0);
-			for (auto link : DTC_Links)
+			for (auto link : DTC_ROC_Links)
 			{
 				if (linkMode_[link].TransmitEnable)
 				{
@@ -357,7 +357,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag st
 		for (uint32_t ii = 0; ii < heartbeatsAfter; ++ii)
 		{
 			auto ts = start + (increment ? count + ii : 0);
-			for (auto link : DTC_Links)
+			for (auto link : DTC_ROC_Links)
 			{
 				if (linkMode_[link].TransmitEnable && sendHeartbeats)
 				{

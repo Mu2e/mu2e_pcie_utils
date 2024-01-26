@@ -407,7 +407,7 @@ void mu2esim::CFOEmulator_()
 	TLOG(TLVL_CFOEmulator) << "mu2esim::CFOEmulator_ start timestamp=" << start.GetEventWindowTag(true) << ", count=" << count
 						   << ", delayBetween=" << ticksToWait;
 	bool linkEnabled[6];
-	for (auto link : DTCLib::DTC_Links)
+	for (auto link : DTCLib::DTC_ROC_Links)
 	{
 		std::bitset<32> linkRocs(registers_[DTCLib::CFOandDTC_Register_LinkEnable]);
 		auto number = linkRocs[link] + linkRocs[link + 8];
@@ -426,7 +426,7 @@ void mu2esim::CFOEmulator_()
 		else
 		{
 			openEvent_(start + sentCount);
-			for (auto link : DTCLib::DTC_Links)
+			for (auto link : DTCLib::DTC_ROC_Links)
 			{
 				uint16_t packetCount;
 				switch (link)
@@ -633,7 +633,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 		sub_event_->SetDTCMAC( DTCID);
 		sub_event_->SetSourceDTC(DTCID, DTCLib::DTC_Subsystem_Tracker);
 
-		for (auto link : DTCLib::DTC_Links)
+		for (auto link : DTCLib::DTC_ROC_Links)
 		{
 			TLOG(TLVL_EventSimulator) << "Generating Tracker data block for DTC " << DTCID << " link " << static_cast<int>(link);
 			trackerBlockSimulator_(ts, link, ii);
@@ -647,7 +647,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 		sub_event_->SetDTCMAC( DTCID);
 		sub_event_->SetSourceDTC(DTCID, DTCLib::DTC_Subsystem_Calorimeter);
 
-		for (auto link : DTCLib::DTC_Links)
+		for (auto link : DTCLib::DTC_ROC_Links)
 		{
 			TLOG(TLVL_EventSimulator) << "Generating Calorimeter data block for DTC " << DTCID << " link " << static_cast<int>(link);
 			calorimeterBlockSimulator_(ts, link, ii);
@@ -661,7 +661,7 @@ void mu2esim::eventSimulator_(DTCLib::DTC_EventWindowTag ts)
 		sub_event_->SetDTCMAC( DTCID);
 		sub_event_->SetSourceDTC(DTCID, DTCLib::DTC_Subsystem_CRV);
 
-		for (auto link : DTCLib::DTC_Links)
+		for (auto link : DTCLib::DTC_ROC_Links)
 		{
 			TLOG(TLVL_EventSimulator) << "Generating CRV data block for DTC " << DTCID << " link " << static_cast<int>(link);
 			crvBlockSimulator_(ts, link, ii);
