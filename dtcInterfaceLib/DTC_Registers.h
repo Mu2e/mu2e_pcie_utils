@@ -9,7 +9,6 @@
 #include "CFOandDTC_Registers.h"
 
 namespace DTCLib {
-// struct DTC_Register : public DTCLib::CFOandDTC_Register { 
 enum DTC_Register : uint16_t
 {
 	DTCLIB_COMMON_REGISTERS,
@@ -43,8 +42,8 @@ enum DTC_Register : uint16_t
 	DTC_Register_SERDESTimingCardOscillatorFrequency = 0x915C,
 	DTC_Register_SERDESReferenceClockFrequency = 0x9160,
 	DTC_Register_SERDESClock_IICBusControl = 0x9164,
-	DTC_Register_SERDESClock_IICBusLow = 0x9168,
-	DTC_Register_SERDESClock_IICBusHigh = 0x916C,
+	// DTC_Register_SERDESClock_IICBusLow = 0x9168,
+	// DTC_Register_SERDESClock_IICBusHigh = 0x916C,
 	DTC_Register_DDRReferenceClockFrequency = 0x9170,
 	DTC_Register_DDRClock_IICBusControl = 0x9174,
 	DTC_Register_DDRClock_IICBusLow = 0x9178,
@@ -115,17 +114,17 @@ enum DTC_Register : uint16_t
 	DTC_Register_TransmitPacketCount_CFOLink = 0x9278,
 	// 0x927C Reserved
 	// 0x9280 Reserved
-	DTC_Register_FireflyTX_IICBusControl = 0x9284,
-	DTC_Register_FireflyTX_IICBusConfigLow = 0x9288,
-	DTC_Register_FireflyTX_IICBusConfigHigh = 0x928C,
+	// DTC_Register_FireflyTX_IICBusControl = 0x9284,
+	// DTC_Register_FireflyTX_IICBusConfigLow = 0x9288,
+	// DTC_Register_FireflyTX_IICBusConfigHigh = 0x928C,
 	// 0x9290 Reserved
-	DTC_Register_FireflyRX_IICBusControl = 0x9294,
-	DTC_Register_FireflyRX_IICBusConfigLow = 0x9298,
-	DTC_Register_FireflyRX_IICBusConfigHigh = 0x929C,
+	// DTC_Register_FireflyRX_IICBusControl = 0x9294,
+	// DTC_Register_FireflyRX_IICBusConfigLow = 0x9298,
+	// DTC_Register_FireflyRX_IICBusConfigHigh = 0x929C,
 	// 0x92A0 Reserved
-	DTC_Register_FireflyTXRX_IICBusControl = 0x92A4,
-	DTC_Register_FireflyTXRX_IICBusConfigLow = 0x92A8,
-	DTC_Register_FireflyTXRX_IICBusConfigHigh = 0x92AC,
+	// DTC_Register_FireflyTXRX_IICBusControl = 0x92A4,
+	// DTC_Register_FireflyTXRX_IICBusConfigLow = 0x92A8,
+	// DTC_Register_FireflyTXRX_IICBusConfigHigh = 0x92AC,
 	DTC_Register_TXPRBSControl = 0x92B0,
 	DTC_Register_RXPRBSControl = 0x92B4,
 	// 0x92B8 Reserved
@@ -175,7 +174,7 @@ enum DTC_Register : uint16_t
 	DTC_Register_Link5ErrorFlags = 0x9394,
 	DTC_Register_CFOLinkErrorFlags = 0x9398,
 	DTC_Register_LinkMuxErrorFlags = 0x939C,
-	DTC_Register_FireFlyControlStatus = 0x93A0,
+	// DTC_Register_FireFlyControlStatus = 0x93A0,
 	DTC_Register_SFPControlStatus = 0x93A4,
 	// 0x93A8 Reserved
 	// 0x93AC Reserved
@@ -414,7 +413,7 @@ public:
 	void EnableSoftwareDRP();         // B22
 	void DisableSoftwareDRP();        // B22
 	bool ReadSoftwareDRP(std::optional<uint32_t> val = std::nullopt);           // B22
-	void ResetPCIe();                 // B21
+	virtual void ResetPCIe();                 // B21
 	bool ReadResetPCIe(std::optional<uint32_t> val = std::nullopt);             // B21
 	// Bit 20 Reserved
 	void EnableDownLED0();         // B19
@@ -431,7 +430,7 @@ public:
 	bool ReadLED6State(std::optional<uint32_t> val = std::nullopt);          // B16
 	void EnableLEDs();
 	void DisableLEDs();
-	void FlashLEDs();
+	virtual void FlashLEDs();
 
 	void SetCFOEmulationMode();    // B15
 	void ClearCFOEmulationMode();  // B15
@@ -603,8 +602,10 @@ public:
 	bool ReadSERDESOscillatorIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
 	void ResetSERDESOscillatorIICInterface();
 
-	void WriteSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address, uint8_t data);
-	uint8_t ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address);
+	// void WriteSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address, uint8_t data);
+	// uint8_t ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address);
+	// RegisterFormatter FormatSERDESOscillatorParameterLow();
+	// RegisterFormatter FormatSERDESOscillatorParameterHigh();
 
 	DTC_SerdesClockSpeed ReadSERDESOscillatorClock(std::optional<uint32_t> val = std::nullopt);
 	void SetSERDESOscillatorClock(DTC_SerdesClockSpeed speed);
@@ -612,8 +613,7 @@ public:
 	RegisterFormatter FormatTimingSERDESOscillatorFrequency();
 	RegisterFormatter FormatMainBoardSERDESOscillatorFrequency();
 	RegisterFormatter FormatSERDESOscillatorControl();
-	RegisterFormatter FormatSERDESOscillatorParameterLow();
-	RegisterFormatter FormatSERDESOscillatorParameterHigh();
+	
 
 	// DDR Oscillator Registers
 	uint32_t ReadDDROscillatorReferenceFrequency(std::optional<uint32_t> val = std::nullopt);
@@ -808,32 +808,32 @@ public:
 	RegisterFormatter FormatTransmitPacketCountLink5();
 	RegisterFormatter FormatTransmitPacketCountCFO();
 
-	// Firefly TX IIC Registers
-	bool ReadFireflyTXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
-	void ResetFireflyTXIICInterface();
-	void WriteFireflyTXIICInterface(uint8_t device, uint8_t address, uint8_t data);
-	uint8_t ReadFireflyTXIICInterface(uint8_t device, uint8_t address);
-	RegisterFormatter FormatFireflyTXIICControl();
-	RegisterFormatter FormatFireflyTXIICParameterLow();
-	RegisterFormatter FormatFireflyTXIICParameterHigh();
+	// // Firefly TX IIC Registers
+	// bool ReadFireflyTXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
+	// void ResetFireflyTXIICInterface();
+	// void WriteFireflyTXIICInterface(uint8_t device, uint8_t address, uint8_t data);
+	// uint8_t ReadFireflyTXIICInterface(uint8_t device, uint8_t address);
+	// RegisterFormatter FormatFireflyTXIICControl();
+	// RegisterFormatter FormatFireflyTXIICParameterLow();
+	// RegisterFormatter FormatFireflyTXIICParameterHigh();
 
-	// Firefly RX IIC Registers
-	bool ReadFireflyRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
-	void ResetFireflyRXIICInterface();
-	void WriteFireflyRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
-	uint8_t ReadFireflyRXIICInterface(uint8_t device, uint8_t address);
-	RegisterFormatter FormatFireflyRXIICControl();
-	RegisterFormatter FormatFireflyRXIICParameterLow();
-	RegisterFormatter FormatFireflyRXIICParameterHigh();
+	// // Firefly RX IIC Registers
+	// bool ReadFireflyRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
+	// void ResetFireflyRXIICInterface();
+	// void WriteFireflyRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
+	// uint8_t ReadFireflyRXIICInterface(uint8_t device, uint8_t address);
+	// RegisterFormatter FormatFireflyRXIICControl();
+	// RegisterFormatter FormatFireflyRXIICParameterLow();
+	// RegisterFormatter FormatFireflyRXIICParameterHigh();
 
-	// Firefly TXRX IIC Registers
-	bool ReadFireflyTXRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
-	void ResetFireflyTXRXIICInterface();
-	void WriteFireflyTXRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
-	uint8_t ReadFireflyTXRXIICInterface(uint8_t device, uint8_t address);
-	RegisterFormatter FormatFireflyTXRXIICControl();
-	RegisterFormatter FormatFireflyTXRXIICParameterLow();
-	RegisterFormatter FormatFireflyTXRXIICParameterHigh();
+	// // Firefly TXRX IIC Registers
+	// bool ReadFireflyTXRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
+	// void ResetFireflyTXRXIICInterface();
+	// void WriteFireflyTXRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
+	// uint8_t ReadFireflyTXRXIICInterface(uint8_t device, uint8_t address);
+	// RegisterFormatter FormatFireflyTXRXIICControl();
+	// RegisterFormatter FormatFireflyTXRXIICParameterLow();
+	// RegisterFormatter FormatFireflyTXRXIICParameterHigh();
 
 	// SERDES TX PRBS Control
 	bool ReadTXPRBSForceError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
@@ -871,14 +871,14 @@ public:
 	RegisterFormatter FormatSERDESSerialInversionEnable();
 
 	// Jitter Attenuator CSR Register
-	std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt);
-	void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
-	bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt);
-	bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt);
-	void ResetJitterAttenuator();
-	RegisterFormatter FormatJitterAttenuatorCSR();
+	virtual std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt);
+	virtual void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
+	virtual bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt);
+	virtual bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt);
+	virtual void ResetJitterAttenuator();
+	virtual RegisterFormatter FormatJitterAttenuatorCSR();
 
-	void ConfigureJitterAttenuator();
+	// void ConfigureJitterAttenuator();
 
 	// SFP IIC Registers
 	bool ReadSFPIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
@@ -984,26 +984,26 @@ public:
 	bool ReadDataMuxDecodeError(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatLinkMuxError();
 
-	// Firefly CSR Register
-	bool ReadTXRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
-	bool ReadRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
-	bool ReadTXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
-	bool ReadTXRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
-	bool ReadRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
-	bool ReadTXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
-	bool ReadTXRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
-	void SetTXRXFireflySelect(bool select);
-	bool ReadTXFireflySelect(std::optional<uint32_t> val = std::nullopt);
-	void SetTXFireflySelect(bool select);
-	bool ReadRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
-	void SetRXFireflySelect(bool select);
-	bool ReadResetTXRXFirefly(std::optional<uint32_t> val = std::nullopt);
-	void ResetTXRXFirefly();
-	bool ReadResetTXFirefly(std::optional<uint32_t> val = std::nullopt);
-	void ResetTXFirefly();
-	bool ReadResetRXFirefly(std::optional<uint32_t> val = std::nullopt);
-	void ResetRXFirefly();
-	RegisterFormatter FormatFireflyCSR();
+	// // Firefly CSR Register
+	// bool ReadTXRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
+	// bool ReadRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
+	// bool ReadTXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
+	// bool ReadTXRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
+	// bool ReadRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
+	// bool ReadTXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
+	// bool ReadTXRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
+	// void SetTXRXFireflySelect(bool select);
+	// bool ReadTXFireflySelect(std::optional<uint32_t> val = std::nullopt);
+	// void SetTXFireflySelect(bool select);
+	// bool ReadRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
+	// void SetRXFireflySelect(bool select);
+	// bool ReadResetTXRXFirefly(std::optional<uint32_t> val = std::nullopt);
+	// void ResetTXRXFirefly();
+	// bool ReadResetTXFirefly(std::optional<uint32_t> val = std::nullopt);
+	// void ResetTXFirefly();
+	// bool ReadResetRXFirefly(std::optional<uint32_t> val = std::nullopt);
+	// void ResetRXFirefly();
+	// RegisterFormatter FormatFireflyCSR();
 
 	// SFP Control Status Register
 	bool ReadSFPPresent(std::optional<uint32_t> val = std::nullopt);
@@ -1336,14 +1336,25 @@ protected:
 
 
  public:
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedDumpFunctions() {return formattedDumpFunctions_;}; //pure virtual	
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedSimpleDumpFunctions() {return formattedSimpleDumpFunctions_;}; //pure virtual
 
   	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
 		[this] { return this->FormatDTCControl(); },
 		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatROCEmulationEnable(); },
 		[this] { return this->FormatLinkEnable(); },
+		[this] { return this->FormatRXCDRLockStatus(); },		
 		[this] { return this->FormatSERDESResetDone(); },
 		[this] { return this->FormatSERDESReset(); },
+	};
+  	const std::vector<std::function<RegisterFormatter()>> formattedROCEmulationFunctions_{
+		[this] { return this->FormatROCEmulationEnable(); },
+		[this] { return this->FormatLinkEnable(); },
+		[this] { return this->FormatRXCDRLockStatus(); },		
+		[this] { return this->FormatCFOEmulationNumPacketsLink01(); },
+		[this] { return this->FormatCFOEmulationNumPacketsLink23(); },
+		[this] { return this->FormatCFOEmulationNumPacketsLink45(); },
 	};
 
 	const std::vector<std::function<RegisterFormatter()>> formattedDumpFunctions_{

@@ -82,8 +82,8 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 			{
 				if(sendHeartbeats)
 				{
-					TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp before SendReadoutRequestPacket";
-					theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
+					TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp before SendHeartbeatPacket";
+					theDTC_->SendHeartbeatPacket(link, ts, quiet_);
 				}
 
 				TLOG(TLVL_SendRequestsForTimestamp2) << "SendRequestForTimestamp before DTC_DataRequestPacket req";
@@ -99,7 +99,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 
 				for (uint32_t ii = 1; sendHeartbeats && ii <= heartbeatsAfter; ++ii)
 				{
-					theDTC_->SendReadoutRequestPacket(link, ts + ii, quiet_);
+					theDTC_->SendHeartbeatPacket(link, ts + ii, quiet_);
 					usleep(1000);
 				}
 				// usleep(2000);
@@ -320,8 +320,8 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag st
 			{
 				if (linkMode_[link].TransmitEnable && sendHeartbeats)
 				{
-					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
-					theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
+					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendHeartbeatPacket";
+					theDTC_->SendHeartbeatPacket(link, ts, quiet_);
 				}
 				if (abort_) return;
 			}
@@ -361,8 +361,8 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRangeImplAsync(DTC_EventWindowTag st
 			{
 				if (linkMode_[link].TransmitEnable && sendHeartbeats)
 				{
-					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendReadoutRequestPacket";
-					theDTC_->SendReadoutRequestPacket(link, ts, quiet_);
+					TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRangeImpl before SendHeartbeatPacket";
+					theDTC_->SendHeartbeatPacket(link, ts, quiet_);
 				}
 				if (abort_) return;
 			}

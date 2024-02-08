@@ -165,7 +165,7 @@ public:
 	/// <param name="when">Timestamp for the Readout Request</param>
 	/// <param name="quiet">Whether to not print the JSON representation of the Readout Request (Default: true, no JSON
 	/// printed)</param>
-	void SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_EventWindowTag& when, bool quiet = true);
+	void SendHeartbeatPacket(const DTC_Link_ID& link, const DTC_EventWindowTag& when, bool quiet = true);
 	/// <summary>
 	/// Send a DCS Request Packet to the given ROC. Use the Read/Write ROC Register functions for more convinient register
 	/// access.

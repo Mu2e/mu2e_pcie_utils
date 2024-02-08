@@ -33,7 +33,20 @@
 	CFOandDTC_Register_SERDES_PLLPowerDown = 0x912C, /* not in CFO (?) */ \
 	CFOandDTC_Register_SERDES_CDRLockCommaCount = 0x9130,	 \
 	CFOandDTC_Register_SERDES_RXStatus = 0x9134, \
-	CFOandDTC_Register_SERDES_ResetDone = 0x9138
+	CFOandDTC_Register_SERDES_ResetDone = 0x9138, \
+	CFOandDTC_Register_SERDESClock_IICBusLow = 0x9168, \
+	CFOandDTC_Register_SERDESClock_IICBusHigh = 0x916C, \
+	CFOandDTC_Register_FireflyTX_IICBusControl = 0x9284, \
+	CFOandDTC_Register_FireflyTX_IICBusConfigLow = 0x9288, \
+	CFOandDTC_Register_FireflyTX_IICBusConfigHigh = 0x928C, \
+	CFOandDTC_Register_FireflyRX_IICBusControl = 0x9294, \
+	CFOandDTC_Register_FireflyRX_IICBusConfigLow = 0x9298, \
+	CFOandDTC_Register_FireflyRX_IICBusConfigHigh = 0x929C, \
+	CFOandDTC_Register_FireflyTXRX_IICBusControl = 0x92A4, \
+	CFOandDTC_Register_FireflyTXRX_IICBusConfigLow = 0x92A8, \
+	CFOandDTC_Register_FireflyTXRX_IICBusConfigHigh = 0x92AC, \
+	CFOandDTC_Register_FireFlyControlStatus = 0x93A0
+
 
 namespace DTCLib {
 
@@ -145,9 +158,17 @@ public:
 	/// <returns>The current DTC UID for this instance</returns>
 	std::string getDeviceUID() { return GetDevice()->getDeviceUID(); }
 
+	std::string FormattedRegDump(int width, const std::vector<std::function<RegisterFormatter()>>& regVec);
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedDumpFunctions() = 0; //pure virtual
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedSimpleDumpFunctions() = 0; //pure virtual
+
+
 	//
-	// Register IO Functions
+	// Register IO Functions ----------------
 	//
+
+	virtual void ResetPCIe() = 0; //pure virtual
+	virtual void FlashLEDs() = 0; //pure virtual
 
 	// Desgin Version/Date Registers
 	std::string ReadDesignVersion();
@@ -196,7 +217,17 @@ public:
 	// CFO and DTC Control Register B31 is Soft Reset
 	void SoftReset();             // B31
 	bool ReadSoftReset(std::optional<uint32_t> val = std::nullopt);         // B31
+	void HardReset();             // B31
+	bool ReadHardReset(std::optional<uint32_t> val = std::nullopt);         // B0	
 	void ClearControlRegister();   // 32-bit clear
+
+	// Jitter Attenuator CSR Register
+	virtual std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt) = 0; //pure virtual
+	virtual void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false) = 0; //pure virtual
+	virtual bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt) = 0; //pure virtual
+	virtual bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt) = 0; //pure virtual
+	virtual void ResetJitterAttenuator() = 0; //pure virtual
+	virtual RegisterFormatter FormatJitterAttenuatorCSR() = 0; //pure virtual
 
 	std::bitset<2> ReadJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
 	void SetJitterAttenuatorSelect(CFOandDTC_Register JAreg, std::bitset<2> data, bool alsoResetJA);
@@ -204,15 +235,69 @@ public:
 	bool ReadJitterAttenuatorLocked(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
 	void ResetJitterAttenuator(CFOandDTC_Register JAreg, std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatJitterAttenuatorCSR(CFOandDTC_Register JAreg);
-	virtual void ConfigureJitterAttenuator() = 0; //pure virtual
-	void ConfigureJitterAttenuator(CFOandDTC_Register IICLowReg, CFOandDTC_Register IICHighReg);
+	// virtual void ConfigureJitterAttenuator() = 0; //pure virtual
+	void ConfigureJitterAttenuator();
 
-	std::string FormattedRegDump(int width, const std::vector<std::function<RegisterFormatter()>>& regVec);
+	void WriteSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address, uint8_t data);
+	uint8_t ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address);
+	RegisterFormatter FormatSERDESOscillatorParameterLow();
+	RegisterFormatter FormatSERDESOscillatorParameterHigh();
+
+	// Firefly TX IIC Registers
+	bool ReadFireflyTXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
+	void ResetFireflyTXIICInterface();
+	void WriteFireflyTXIICInterface(uint8_t device, uint8_t address, uint8_t data);
+	uint8_t ReadFireflyTXIICInterface(uint8_t device, uint8_t address);
+	RegisterFormatter FormatFireflyTXIICControl();
+	RegisterFormatter FormatFireflyTXIICParameterLow();
+	RegisterFormatter FormatFireflyTXIICParameterHigh();
+
+	// Firefly RX IIC Registers
+	bool ReadFireflyRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
+	void ResetFireflyRXIICInterface();
+	void WriteFireflyRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
+	uint8_t ReadFireflyRXIICInterface(uint8_t device, uint8_t address);
+	RegisterFormatter FormatFireflyRXIICControl();
+	RegisterFormatter FormatFireflyRXIICParameterLow();
+	RegisterFormatter FormatFireflyRXIICParameterHigh();
+
+	// Firefly TXRX IIC Registers
+	bool ReadFireflyTXRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
+	void ResetFireflyTXRXIICInterface();
+	void WriteFireflyTXRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
+	uint8_t ReadFireflyTXRXIICInterface(uint8_t device, uint8_t address);
+	RegisterFormatter FormatFireflyTXRXIICControl();
+	RegisterFormatter FormatFireflyTXRXIICParameterLow();
+	RegisterFormatter FormatFireflyTXRXIICParameterHigh();
+
+	// Firefly CSR Register
+	bool ReadTXRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
+	bool ReadRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
+	bool ReadTXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
+	bool ReadTXRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
+	bool ReadRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
+	bool ReadTXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
+	bool ReadTXRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
+	void SetTXRXFireflySelect(bool select);
+	bool ReadTXFireflySelect(std::optional<uint32_t> val = std::nullopt);
+	void SetTXFireflySelect(bool select);
+	bool ReadRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
+	void SetRXFireflySelect(bool select);
+	bool ReadResetTXRXFirefly(std::optional<uint32_t> val = std::nullopt);
+	void ResetTXRXFirefly();
+	bool ReadResetTXFirefly(std::optional<uint32_t> val = std::nullopt);
+	void ResetTXFirefly();
+	bool ReadResetRXFirefly(std::optional<uint32_t> val = std::nullopt);
+	void ResetRXFirefly();
+	RegisterFormatter FormatFireflyCSR();
+
+	
 
 protected:
 	uint32_t WriteRegister_(uint32_t data, const CFOandDTC_Register& address);
 	uint32_t ReadRegister_(const CFOandDTC_Register& address);
 	virtual void VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite) = 0;
+	bool CFOandDTCVerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite);
 
 	/// <summary>
 	/// Initializes a RegisterFormatter for the given CFOandDTC_Register

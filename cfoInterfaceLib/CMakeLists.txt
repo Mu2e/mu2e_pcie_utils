@@ -1,9 +1,11 @@
 cet_make_library(LIBRARY_NAME CFOInterface SOURCE
+		CFO.cpp
 		CFO_Registers.cpp
 		CFO_Compiler.cpp
         LIBRARIES
 		mu2e_pcie_utils::DTCInterface
 		artdaq_core::artdaq-core_Utilities_ExceptionStackTrace
+		artdaq_core_mu2e::artdaq-core-mu2e_Overlays
 )
 
 cet_make_exec(NAME CFORegDump SOURCE cfoRegDump.cc LIBRARIES mu2e_pcie_utils::CFOInterface)

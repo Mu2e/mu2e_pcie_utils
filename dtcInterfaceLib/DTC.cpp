@@ -9,7 +9,7 @@
 #define TLVL_ReadNextDAQPacket TLVL_DEBUG + 8
 #define TLVL_ReadNextDCSPacket TLVL_DEBUG + 9
 #define TLVL_SendDCSRequestPacket TLVL_DEBUG + 10
-#define TLVL_SendReadoutRequestPacket TLVL_DEBUG + 11
+#define TLVL_SendHeartbeatPacket TLVL_DEBUG + 11
 #define TLVL_VerifySimFileInDTC TLVL_DEBUG + 12
 #define TLVL_VerifySimFileInDTC2 TLVL_DEBUG + 13
 #define TLVL_VerifySimFileInDTC3 TLVL_DEBUG + 14
@@ -50,10 +50,10 @@ DTCLib::DTC::~DTC()
 	}
 	catch(...)
 	{
- 		TLOG(TLVL_WARN) << "Ignoring exception caught in DESTRUCTOR while calling ReleaseAllBuffers()";
+ 		__COUT_WARN__ << "Ignoring exception caught in DESTRUCTOR while calling ReleaseAllBuffers()";
 	}
 	
- 	TLOG(TLVL_INFO) << "DESTRUCTOR exit";
+ 	__COUT_INFO__ << "DESTRUCTOR exit";
 }
 
 //
@@ -456,6 +456,13 @@ uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t ad
 										<< "data=" << data;
 				if(linktmp == link && replytmp.first == address)
 					return data;
+				else
+				{
+					__SS__ << "Mismatch identified in link=" << linktmp << " != " << link << " or " <<
+						"address=" << replytmp.first << " != " << address << ". Corrupt ROC response?" << __E__;
+					ss << "\n\nIf interpreting as a DTC_DCSReplyPacket, here is the data: \n" <<  reply->toJSON();					
+					__SS_THROW__;
+				}
 			}
 		}
 		catch(const std::exception& e)
@@ -784,13 +791,13 @@ std::string DTCLib::DTC::ROCRegDump(const DTC_Link_ID& link)
 	return o.str();
 }
 
-void DTCLib::DTC::SendReadoutRequestPacket(const DTC_Link_ID& link, const DTC_EventWindowTag& when, bool quiet)
+void DTCLib::DTC::SendHeartbeatPacket(const DTC_Link_ID& link, const DTC_EventWindowTag& when, bool quiet)
 {
 	DTC_HeartbeatPacket req(link, when);
-	DTC_TLOG(TLVL_SendReadoutRequestPacket) << "SendReadoutRequestPacket before WriteDMADAQPacket - DTC_HeartbeatPacket";
-	if (!quiet) DTC_TLOG(TLVL_SendReadoutRequestPacket) << req.toJSON();
+	DTC_TLOG(TLVL_SendHeartbeatPacket) << "SendHeartbeatPacket before WriteDMADAQPacket - DTC_HeartbeatPacket";
+	if (!quiet) DTC_TLOG(TLVL_SendHeartbeatPacket) << req.toJSON();
 	WriteDMAPacket(req);
-	DTC_TLOG(TLVL_SendReadoutRequestPacket) << "SendReadoutRequestPacket after  WriteDMADAQPacket - DTC_HeartbeatPacket";
+	DTC_TLOG(TLVL_SendHeartbeatPacket) << "SendHeartbeatPacket after  WriteDMADAQPacket - DTC_HeartbeatPacket";
 }
 
 //Note! Before calling this function SendDCSRequestPacket(), the device must be locked with device_.begin_dcs_transaction();
@@ -962,6 +969,8 @@ std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int t
 	{
 		auto test = ReadNextPacket(DTC_DMA_Engine_DCS, tmo_ms);
 		if (test == nullptr) return nullptr;  // Couldn't read new block
+
+		__COUT__ << "If interpreting as a DTC_DataPacket, here is the data: " <<  test->toJSON();
 		
 		auto output = std::make_unique<DTC_DCSReplyPacket>(*test.get());
 		if(output->ROCIsCorrupt())
@@ -985,22 +994,23 @@ std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int t
 			__COUTV__((int)lastDTCErrorBitsValue_);
 			lastDTCErrorBitsValue_ = output->GetDTCErrorBits();
 
-			__SS__ << "There is an error identified in DCS handling of its ROC:" << __E__;
+			__SS__ << "There was one or more errors identified in DCS handling of its ROC (a DTC Soft Reset will clear these errors):" << __E__;
 			if((lastDTCErrorBitsValue_>>0) & 0x1)
-				ss << "- SERDES PLL associated with the ROC has lost lock." << __E__;
+				ss << "\t* bit-0 is set: SERDES PLL associated with the ROC has lost lock." << __E__;
 			if((lastDTCErrorBitsValue_>>1) & 0x1)
-				ss << "- SERDES associated with the ROC has lost clock-data-recovery lock." << __E__;
+				ss << "\t* bit-1 is set: SERDES clock-data-recovery associated with the ROC has lost lock." << __E__;
 			if((lastDTCErrorBitsValue_>>2) & 0x1)
-				ss << "- Invalid packet (i.e., CRC mismatch, valid bit low, or expected packet type) has been received from ROC." << __E__;
+				ss << "\t* bit-2 is set: Invalid packet (i.e., CRC mismatch) has been received from ROC." << __E__;
 			if((lastDTCErrorBitsValue_>>3) & 0x1)
-				ss << "- Error in DTC handling of this ROC’s DCS requests has occurred (check the DTC error bit details)." << __E__;
+				ss << "\t* bit-3 is set: Error in DTC handling of this ROC’s DCS requests has occurred (check the DTC error bit details)." << __E__;
 
+			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n" <<  test->toJSON();			
 			__SS_THROW__;
 		}
-		if(!output->isValid())
+		if((output->GetDTCErrorBits()>>2) & 0x1) //Make sure CRC bit errors are always reported
 		{
-			__SS__ << "The valid bit is low for the received packet, which could be due to a packet transmission error from link " << 
-				output->GetLinkID() << " in response to the DCS request!" << __E__;
+			__SS__ << "bit-2 is set: Invalid packet (i.e., CRC mismatch) has been received in response to the DCS request!" << __E__;
+			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n" <<  test->toJSON();			
 			__SS_THROW__;
 		}
 
@@ -1092,9 +1102,12 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 								 << ", *nextReadPtr=" << (int)*((uint16_t*)info->currentReadPtr);
 	if (blockByteCount == 0 || blockByteCount == 0xcafe)
 	{
+		auto test = std::make_unique<DTC_DataPacket>(info->currentReadPtr);
+		DTC_TLOG(TLVL_ReadNextDAQPacket) << "Check bad data (interpreting as DTC_DataPacket): " << test->toJSON();
+
 		if (static_cast<size_t>(index) < info->buffer.size() - 1)
 		{
-			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: blockByteCount is invalid, moving to next buffer";
+			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: blockByteCount=" << blockByteCount << " (the first 16-bits) is invalid, moving to next buffer";
 			auto nextBufferPtr = *info->buffer[index + 1];
 			info->currentReadPtr = nextBufferPtr + 8;  // Offset past DMA header
 			return ReadNextPacket(engine, tmo_ms);     // Recursion
@@ -1102,12 +1115,16 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 		else
 		{
 			DTC_TLOG(TLVL_ReadNextDAQPacket)
-				<< "ReadNextPacket: blockByteCount is invalid, and this is the last buffer! Returning nullptr!";
+				<< "ReadNextPacket: blockByteCount is invalid=" << blockByteCount << " (the first 16-bits), and this is the last buffer! Returning nullptr!";
 			info->currentReadPtr = nullptr;
 			// This buffer is invalid, release it!
 			// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
 			device_.read_release(engine, 1);
-			return nullptr;
+
+			__SS__ << "The DTC returned a packet with an invalid BlockByteCount=" << blockByteCount << " (the first 16-bits of the packet).\n\n";
+			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n" <<  test->toJSON();			
+			__SS_THROW__;
+			// return nullptr;
 		}
 	}
 

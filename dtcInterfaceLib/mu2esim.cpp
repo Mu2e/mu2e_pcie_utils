@@ -132,8 +132,8 @@ int mu2esim::init(DTCLib::DTC_SimMode mode)
 	registers_[DTCLib::DTC_Register_SERDES_RXCDRLockStatus] = 0x7F00007F;  // RX CDR Locked
 	registers_[DTCLib::DTC_Register_DMATimeoutPreset] = 0x800;             // DMA Timeout Preset
 	registers_[DTCLib::DTC_Register_ROCReplyTimeout] = 0x200000;           // ROC Timeout Preset
-	registers_[DTCLib::DTC_Register_SERDESClock_IICBusLow] = 0xFFFFFFFF;
-	registers_[DTCLib::DTC_Register_SERDESClock_IICBusHigh] = 0x77f3f;
+	registers_[DTCLib::CFOandDTC_Register_SERDESClock_IICBusLow] = 0xFFFFFFFF;
+	registers_[DTCLib::CFOandDTC_Register_SERDESClock_IICBusHigh] = 0x77f3f;
 	registers_[DTCLib::DTC_Register_DDRReferenceClockFrequency] = 0xbebc200;
 	registers_[DTCLib::DTC_Register_DDRClock_IICBusLow] = 0x1074f43b;
 	registers_[DTCLib::DTC_Register_DDRClock_IICBusHigh] = 0x30303;

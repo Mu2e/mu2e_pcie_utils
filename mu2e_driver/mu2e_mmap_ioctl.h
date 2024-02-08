@@ -294,7 +294,11 @@ typedef enum
 {
 	DTC_DMA_Engine_DAQ = 0,
 	DTC_DMA_Engine_DCS = 1,
-	DTC_DMA_Engine_Invalid,
+	DTC_DMA_Engine_Invalid = -1,
+
+	CFO_DMA_Engine_RunPlan = 0,
+	CFO_DMA_Engine_DAQ = 1,
+	CFO_DMA_Engine_Invalid = -1,
 } DTC_DMA_Engine;
 
 typedef enum
