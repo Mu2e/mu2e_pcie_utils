@@ -11,26 +11,10 @@
 namespace DTCLib {
 enum DTC_Register : uint16_t
 {
-	DTCLIB_COMMON_REGISTERS,
-	// DTC_Register_VivadoVersion = 0x900C,
+	DTCLIB_COMMON_REGISTERS, //Moved here all registers in common with CFO
 
-	// DTC_Register_Scratch = 0x9030,
-	// DTC_Register_DTCControl = 0x9100,
-	// DTC_Register_DMATransferLength = 0x9104,
-	
-	// DTC_Register_SERDESLoopbackEnable = 0x9108,
-	// DTC_Register_SERDESDDRClockStatus = 0x910C,
 	DTC_Register_ROCEmulationEnable = 0x9110,
-	// DTC_Register_LinkEnable = 0x9114,
-	// DTC_Register_SERDES_Reset = 0x9118,
-	// DTC_Register_SERDES_RXDisparityError = 0x911C,
-	// DTC_Register_SERDES_RXCharacterNotInTableError = 0x9120,
-	// DTC_Register_SERDES_UnlockError = 0x9124,
-	// DTC_Register_SERDES_PLLLocked = 0x9128,
-	// DTC_Register_SERDES_PLLPowerDown = 0x912C,
-	// DTC_Register_SERDES_CDRLockCommaCount = 0x9130,	
-	// DTC_Register_SERDES_RXStatus = 0x9134,
-	// DTC_Register_SERDES_ResetDone = 0x9138,
+	
 	// 0x913C Reserved
 	DTC_Register_SERDES_RXCDRLockStatus = 0x9140,
 	DTC_Register_DMATimeoutPreset = 0x9144,
@@ -42,8 +26,6 @@ enum DTC_Register : uint16_t
 	DTC_Register_SERDESTimingCardOscillatorFrequency = 0x915C,
 	DTC_Register_SERDESReferenceClockFrequency = 0x9160,
 	DTC_Register_SERDESClock_IICBusControl = 0x9164,
-	// DTC_Register_SERDESClock_IICBusLow = 0x9168,
-	// DTC_Register_SERDESClock_IICBusHigh = 0x916C,
 	DTC_Register_DDRReferenceClockFrequency = 0x9170,
 	DTC_Register_DDRClock_IICBusControl = 0x9174,
 	DTC_Register_DDRClock_IICBusLow = 0x9178,
@@ -113,18 +95,9 @@ enum DTC_Register : uint16_t
 	DTC_Register_TransmitPacketCount_Link5 = 0x9274,
 	DTC_Register_TransmitPacketCount_CFOLink = 0x9278,
 	// 0x927C Reserved
-	// 0x9280 Reserved
-	// DTC_Register_FireflyTX_IICBusControl = 0x9284,
-	// DTC_Register_FireflyTX_IICBusConfigLow = 0x9288,
-	// DTC_Register_FireflyTX_IICBusConfigHigh = 0x928C,
-	// 0x9290 Reserved
-	// DTC_Register_FireflyRX_IICBusControl = 0x9294,
-	// DTC_Register_FireflyRX_IICBusConfigLow = 0x9298,
-	// DTC_Register_FireflyRX_IICBusConfigHigh = 0x929C,
-	// 0x92A0 Reserved
-	// DTC_Register_FireflyTXRX_IICBusControl = 0x92A4,
-	// DTC_Register_FireflyTXRX_IICBusConfigLow = 0x92A8,
-	// DTC_Register_FireflyTXRX_IICBusConfigHigh = 0x92AC,
+	// 0x9280 Reserved	
+	// 0x9290 Reserved	
+	// 0x92A0 Reserved	
 	DTC_Register_TXPRBSControl = 0x92B0,
 	DTC_Register_RXPRBSControl = 0x92B4,
 	// 0x92B8 Reserved
@@ -174,7 +147,6 @@ enum DTC_Register : uint16_t
 	DTC_Register_Link5ErrorFlags = 0x9394,
 	DTC_Register_CFOLinkErrorFlags = 0x9398,
 	DTC_Register_LinkMuxErrorFlags = 0x939C,
-	// DTC_Register_FireFlyControlStatus = 0x93A0,
 	DTC_Register_SFPControlStatus = 0x93A4,
 	// 0x93A8 Reserved
 	// 0x93AC Reserved
@@ -602,11 +574,6 @@ public:
 	bool ReadSERDESOscillatorIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
 	void ResetSERDESOscillatorIICInterface();
 
-	// void WriteSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address, uint8_t data);
-	// uint8_t ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address);
-	// RegisterFormatter FormatSERDESOscillatorParameterLow();
-	// RegisterFormatter FormatSERDESOscillatorParameterHigh();
-
 	DTC_SerdesClockSpeed ReadSERDESOscillatorClock(std::optional<uint32_t> val = std::nullopt);
 	void SetSERDESOscillatorClock(DTC_SerdesClockSpeed speed);
 	void SetTimingOscillatorClock(uint32_t freq);
@@ -808,32 +775,6 @@ public:
 	RegisterFormatter FormatTransmitPacketCountLink5();
 	RegisterFormatter FormatTransmitPacketCountCFO();
 
-	// // Firefly TX IIC Registers
-	// bool ReadFireflyTXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
-	// void ResetFireflyTXIICInterface();
-	// void WriteFireflyTXIICInterface(uint8_t device, uint8_t address, uint8_t data);
-	// uint8_t ReadFireflyTXIICInterface(uint8_t device, uint8_t address);
-	// RegisterFormatter FormatFireflyTXIICControl();
-	// RegisterFormatter FormatFireflyTXIICParameterLow();
-	// RegisterFormatter FormatFireflyTXIICParameterHigh();
-
-	// // Firefly RX IIC Registers
-	// bool ReadFireflyRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
-	// void ResetFireflyRXIICInterface();
-	// void WriteFireflyRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
-	// uint8_t ReadFireflyRXIICInterface(uint8_t device, uint8_t address);
-	// RegisterFormatter FormatFireflyRXIICControl();
-	// RegisterFormatter FormatFireflyRXIICParameterLow();
-	// RegisterFormatter FormatFireflyRXIICParameterHigh();
-
-	// // Firefly TXRX IIC Registers
-	// bool ReadFireflyTXRXIICInterfaceReset(std::optional<uint32_t> val = std::nullopt);
-	// void ResetFireflyTXRXIICInterface();
-	// void WriteFireflyTXRXIICInterface(uint8_t device, uint8_t address, uint8_t data);
-	// uint8_t ReadFireflyTXRXIICInterface(uint8_t device, uint8_t address);
-	// RegisterFormatter FormatFireflyTXRXIICControl();
-	// RegisterFormatter FormatFireflyTXRXIICParameterLow();
-	// RegisterFormatter FormatFireflyTXRXIICParameterHigh();
 
 	// SERDES TX PRBS Control
 	bool ReadTXPRBSForceError(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
@@ -983,27 +924,6 @@ public:
 	bool ReadDCSMuxDecodeError(std::optional<uint32_t> val = std::nullopt);
 	bool ReadDataMuxDecodeError(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatLinkMuxError();
-
-	// // Firefly CSR Register
-	// bool ReadTXRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
-	// bool ReadRXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
-	// bool ReadTXFireflyPresent(std::optional<uint32_t> val = std::nullopt);
-	// bool ReadTXRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
-	// bool ReadRXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
-	// bool ReadTXFireflyInterrupt(std::optional<uint32_t> val = std::nullopt);
-	// bool ReadTXRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
-	// void SetTXRXFireflySelect(bool select);
-	// bool ReadTXFireflySelect(std::optional<uint32_t> val = std::nullopt);
-	// void SetTXFireflySelect(bool select);
-	// bool ReadRXFireflySelect(std::optional<uint32_t> val = std::nullopt);
-	// void SetRXFireflySelect(bool select);
-	// bool ReadResetTXRXFirefly(std::optional<uint32_t> val = std::nullopt);
-	// void ResetTXRXFirefly();
-	// bool ReadResetTXFirefly(std::optional<uint32_t> val = std::nullopt);
-	// void ResetTXFirefly();
-	// bool ReadResetRXFirefly(std::optional<uint32_t> val = std::nullopt);
-	// void ResetRXFirefly();
-	// RegisterFormatter FormatFireflyCSR();
 
 	// SFP Control Status Register
 	bool ReadSFPPresent(std::optional<uint32_t> val = std::nullopt);
