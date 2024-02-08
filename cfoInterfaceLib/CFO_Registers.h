@@ -15,20 +15,7 @@ namespace CFOLib {
 /// </summary>
 enum CFO_Register : uint16_t
 {
-	DTCLIB_COMMON_REGISTERS,
-	// CFO_Register_VivadoVersion = 0x9080,
-	// CFO_Register_CFOControl = 0x9100,
-	// CFO_Register_DMATransferLength = 0x9104,
-	// CFO_Register_SERDESLoopbackEnable = 0x9108,
-	// CFO_Register_ClockOscillatorStatus = 0x910C,
-	// CFO_Register_LinkEnable = 0x9114,
-	// CFO_Register_SERDESReset = 0x9118,
-	// CFO_Register_SERDESRXDisparityError = 0x911C,
-	// CFO_Register_SERDESRXCharacterNotInTableError = 0x9120,
-	// CFO_Register_SERDESUnlockError = 0x9124,
-	// CFO_Register_SERDESPLLLocked = 0x9128,
-	// CFO_Register_SERDESRXStatus = 0x9134,
-	// CFO_Register_SERDESResetDone = 0x9138,
+	DTCLIB_COMMON_REGISTERS, //Moved here all registers in common with DTC
 
 	CFO_Register_SFPSERDESStatus = 0x9140,
 	CFO_Register_BeamOnTimerPreset = 0x9144,
@@ -37,8 +24,6 @@ enum CFO_Register : uint16_t
 	CFO_Register_ClockMarkerIntervalCount = 0x9154,
 	CFO_Register_SERDESOscillatorFrequency = 0x9160,
 	CFO_Register_SERDESClock_IICBusControl = 0x9164,
-	// CFO_Register_SERDESClock_IICBusLow = 0x9168,
-	// CFO_Register_SERDESClock_IICBusHigh = 0x916C,
 	CFO_Register_TimestampPreset0 = 0x9180,
 	CFO_Register_TimestampPreset1 = 0x9184,
 	CFO_Register_NUMDTCs = 0x918C,
@@ -595,21 +580,6 @@ public:
 	/// Reset the SERDES IIC Bus
 	/// </summary>
 	void ResetSERDESOscillatorIICInterface();
-	/// <summary>
-	/// Write a value to the SERDES IIC Bus
-	/// </summary>
-	/// <param name="device">Device address</param>
-	/// <param name="address">Register address</param>
-	/// <param name="data">Data to write</param>
-	// void WriteSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address, uint8_t data);
-	/// <summary>
-	/// Read a value from the SERDES IIC Bus
-	/// </summary>
-	/// <param name="device">Device address</param>
-	/// <param name="address">Register address</param>
-	/// <returns>Value of register</returns>
-	// uint8_t ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address);
-
 
 	// Jitter Attenuator CSR Register
 	virtual std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt);
@@ -618,8 +588,6 @@ public:
 	virtual bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt);
 	virtual void ResetJitterAttenuator();
 	virtual RegisterFormatter FormatJitterAttenuatorCSR();
-
-	// void ConfigureJitterAttenuator();
 
 
 	/// <summary>
