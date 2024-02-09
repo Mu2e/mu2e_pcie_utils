@@ -621,16 +621,6 @@ public:
 	/// <returns>RegisterFormatter object containing register information</returns>
 	RegisterFormatter FormatSERDESOscillatorControl();
 
-	// /// <summary>
-	// /// Formats the register's current value for register dumps
-	// /// </summary>
-	// /// <returns>RegisterFormatter object containing register information</returns>
-	// RegisterFormatter FormatSERDESOscillatorParameterLow();
-	// /// <summary>
-	// /// Formats the register's current value for register dumps
-	// /// </summary>
-	// /// <returns>RegisterFormatter object containing register information</returns>
-	// RegisterFormatter FormatSERDESOscillatorParameterHigh();
 
 	// Timestamp Preset Registers
 	/// <summary>
