@@ -781,31 +781,6 @@ void CFOLib::CFO_Registers::ResetSERDESOscillatorIICInterface()
 	}
 }
 
-void CFOLib::CFO_Registers::WriteSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address, uint8_t data)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16) + (data << 8);
-	WriteRegister_(reg_data, CFO_Register_SERDESClock_IICBusLow);
-	WriteRegister_(0x1, CFO_Register_SERDESClock_IICBusHigh);
-	while (ReadRegister_(CFO_Register_SERDESClock_IICBusHigh) == 0x1)
-	{
-		usleep(1000);
-	}
-}
-
-uint8_t CFOLib::CFO_Registers::ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16);
-	WriteRegister_(reg_data, CFO_Register_SERDESClock_IICBusLow);
-	WriteRegister_(0x2, CFO_Register_SERDESClock_IICBusHigh);
-	while (ReadRegister_(CFO_Register_SERDESClock_IICBusHigh) == 0x2)
-	{
-		usleep(1000);
-	}
-	auto data = ReadRegister_(CFO_Register_SERDESClock_IICBusLow);
-	return static_cast<uint8_t>(data);
-}
-
-
 // Jitter Attenuator CSR Register
 /// <summary>
 /// Read the value of the Jitter Attenuator Select
@@ -913,33 +888,6 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorControl()
 	form.description = "SERDES Oscillator IIC Bus Control";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	form.vals.push_back(std::string("Reset:  [") + (ReadSERDESOscillatorIICInterfaceReset() ? "x" : " ") + "]");
-	return form;
-}
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameterLow()
-{
-	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusLow);
-	form.description = "SERDES Oscillator IIC Bus Low";
-	form.vals.push_back(""); //translation
-	auto data = form.value;
-	std::ostringstream s1, s2, s3, s4;
-	s1 << "Device:     " << std::showbase << std::hex << ((data & 0xFF000000) >> 24);
-	form.vals.push_back(s1.str());
-	s2 << "Address:    " << std::showbase << std::hex << ((data & 0xFF0000) >> 16);
-	form.vals.push_back(s2.str());
-	s3 << "Write Data: " << std::showbase << std::hex << ((data & 0xFF00) >> 8);
-	form.vals.push_back(s3.str());
-	s4 << "Read Data:  " << std::showbase << std::hex << (data & 0xFF);
-	form.vals.push_back(s4.str());
-	return form;
-}
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESOscillatorParameterHigh()
-{
-	auto form = CreateFormatter(CFO_Register_SERDESClock_IICBusHigh);
-	auto data = form.value;
-	form.description = "SERDES Oscillator IIC Bus High";
-	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("Write:  [") + (data & 0x1 ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Read:   [") + (data & 0x2 ? "x" : " ") + "]");
 	return form;
 }
 
@@ -3078,40 +3026,8 @@ void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 	//verify register readback
 	if(1)
 	{
-		// uint32_t readbackValue = ReadRegister_(address);
-		int i = -1;  // used for counters
 		switch(address) //handle special register checks by masking of DONT-CARE bits, or else check full 32 bits
 		{
-			//---------- TODO: check if CFO 0x9380 need a delay between write and read op.
-			case CFO_Register_CableDelayControlStatus:
-				usleep(100);
-				return;	// do not check
-			//---------- CFO and DTC registers
-			case CFO_Register_SERDESClock_IICBusLow: // lowest 16-bits are the I2C read value. So ignore in write validation			
-			// case 0x9298 FIXME and add CFO Firefly feature? --> DTC_Register_FireflyRX_IICBusConfigLow:
-				dataToWrite		&= 0xffff0000; 
-				readbackValue 	&= 0xffff0000; 
-				break;
-			// case 0x93a0 FIXME and add CFO Firefly feature? DTC_Register_FireFlyControlStatus: // upper 16-bits are part of I2C operation. So ignore in write validation			
-				// dataToWrite		&= 0x0000ffff; 
-				// readbackValue 	&= 0x0000ffff; 
-				// break;
-			case CFOandDTC_Register_Control: //bit 31 is reset bit, which is write only 
-				dataToWrite		&= 0x7fffffff;
-				readbackValue   &= 0x7fffffff; 
-				break;			
-			case CFO_Register_SERDESClock_IICBusHigh:  // this is an I2C register, it clears bit-0 when transaction
-	              // finishes
-				while((dataToWrite & 0x1) && (readbackValue & 0x1))  // wait for I2C to clear...
-				{
-					readbackValue = ReadRegister_(address);
-					usleep(100);
-					if((++i % 10) == 9)
-						__COUT__ << "I2C waited " << i + 1 << " times..." << std::endl;
-				}
-				dataToWrite &= ~1;
-				readbackValue &= ~1;
-				break;
 			
 			//---------- CFO only registers
 			case CFO_Register_JitterAttenuatorCSR:  // 0x9500 bit-0 is reset, input select bit-5:4, bit-8 is LOL, bit-11:9
@@ -3271,8 +3187,3 @@ uint64_t CFOLib::CFO_Registers::CalculateFrequencyForProgramming_(double targetF
 	TLOG(TLVL_CalculateFreq) << __COUT_HDR__ << "CalculateFrequencyForProgramming: New Program: " << std::showbase << std::hex << static_cast<unsigned long long>(output);
 	return output;
 }
-
-/// <summary>
-/// Configure the Jitter Attenuator
-/// </summary>
-void CFOLib::CFO_Registers::ConfigureJitterAttenuator() { CFOandDTC_Registers::ConfigureJitterAttenuator(CFO_Register_SERDESClock_IICBusLow, CFO_Register_SERDESClock_IICBusHigh); }

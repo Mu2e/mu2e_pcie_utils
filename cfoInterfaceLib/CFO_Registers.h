@@ -13,23 +13,9 @@ namespace CFOLib {
 /// <summary>
 /// Register address map
 /// </summary>
-// struct CFO_Register : public DTCLib::CFOandDTC_Register { 
 enum CFO_Register : uint16_t
 {
-	DTCLIB_COMMON_REGISTERS,
-	// CFO_Register_VivadoVersion = 0x9080,
-	// CFO_Register_CFOControl = 0x9100,
-	// CFO_Register_DMATransferLength = 0x9104,
-	// CFO_Register_SERDESLoopbackEnable = 0x9108,
-	// CFO_Register_ClockOscillatorStatus = 0x910C,
-	// CFO_Register_LinkEnable = 0x9114,
-	// CFO_Register_SERDESReset = 0x9118,
-	// CFO_Register_SERDESRXDisparityError = 0x911C,
-	// CFO_Register_SERDESRXCharacterNotInTableError = 0x9120,
-	// CFO_Register_SERDESUnlockError = 0x9124,
-	// CFO_Register_SERDESPLLLocked = 0x9128,
-	// CFO_Register_SERDESRXStatus = 0x9134,
-	// CFO_Register_SERDESResetDone = 0x9138,
+	DTCLIB_COMMON_REGISTERS, //Moved here all registers in common with DTC
 
 	CFO_Register_SFPSERDESStatus = 0x9140,
 	CFO_Register_BeamOnTimerPreset = 0x9144,
@@ -38,8 +24,6 @@ enum CFO_Register : uint16_t
 	CFO_Register_ClockMarkerIntervalCount = 0x9154,
 	CFO_Register_SERDESOscillatorFrequency = 0x9160,
 	CFO_Register_SERDESClock_IICBusControl = 0x9164,
-	CFO_Register_SERDESClock_IICBusLow = 0x9168,
-	CFO_Register_SERDESClock_IICBusHigh = 0x916C,
 	CFO_Register_TimestampPreset0 = 0x9180,
 	CFO_Register_TimestampPreset1 = 0x9184,
 	CFO_Register_NUMDTCs = 0x918C,
@@ -153,7 +137,7 @@ public:
 	/// <param name="skipInit">Default: false; Whether to skip initializing the CFO using the SimMode.
 	/// Used to read state.</param> <param name="expectedDesignVersion">Expected CFO Firmware Design Version. If set, will
 	/// throw an exception if the CFO firmware does not match (Default: "")</param>
-	explicit CFO_Registers(DTC_SimMode mode, int CFO, std::string expectedDesignVersion = "",
+	explicit CFO_Registers(DTC_SimMode mode, int cfo, std::string expectedDesignVersion = "",
 						   bool skipInit = false, const std::string& uid = "");
 	/// <summary>
 	/// CFO_Registers destructor
@@ -179,6 +163,9 @@ public:
 	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO, 
 							bool skipInit = false, const std::string& uid = "");
 
+
+	virtual void ResetPCIe() { throw std::runtime_error("CFO-TODO!"); }; 
+	virtual void FlashLEDs() { throw std::runtime_error("CFO-TODO!"); }; 
 	
 	// Design Status Register
 	/// <summary>
@@ -593,31 +580,14 @@ public:
 	/// Reset the SERDES IIC Bus
 	/// </summary>
 	void ResetSERDESOscillatorIICInterface();
-	/// <summary>
-	/// Write a value to the SERDES IIC Bus
-	/// </summary>
-	/// <param name="device">Device address</param>
-	/// <param name="address">Register address</param>
-	/// <param name="data">Data to write</param>
-	void WriteSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address, uint8_t data);
-	/// <summary>
-	/// Read a value from the SERDES IIC Bus
-	/// </summary>
-	/// <param name="device">Device address</param>
-	/// <param name="address">Register address</param>
-	/// <returns>Value of register</returns>
-	uint8_t ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address);
-
 
 	// Jitter Attenuator CSR Register
-	std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt);
-	void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
-	bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt);
-	bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt);
-	void ResetJitterAttenuator();
-	RegisterFormatter FormatJitterAttenuatorCSR();
-
-	void ConfigureJitterAttenuator();
+	virtual std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt);
+	virtual void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
+	virtual bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt);
+	virtual bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt);
+	virtual void ResetJitterAttenuator();
+	virtual RegisterFormatter FormatJitterAttenuatorCSR();
 
 
 	/// <summary>
@@ -650,16 +620,7 @@ public:
 	/// </summary>
 	/// <returns>RegisterFormatter object containing register information</returns>
 	RegisterFormatter FormatSERDESOscillatorControl();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatSERDESOscillatorParameterLow();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatSERDESOscillatorParameterHigh();
+
 
 	// Timestamp Preset Registers
 	/// <summary>
@@ -1529,9 +1490,20 @@ protected:
 	uint16_t dmaSize_;            ///< Size of DMAs, in bytes (default 32k)
 	
 public:
-	/// <summary>
-	/// Functions needed to print regular register map
-	/// </summary>
+
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedDumpFunctions() {return formattedDumpFunctions_;}; //pure virtual	
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedSimpleDumpFunctions() {return formattedSimpleDumpFunctions_;}; //pure virtual
+
+
+  	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
+		[this] { return this->FormatCFOControl(); },
+		[this] { return this->FormatSERDESPLLLocked(); },
+		[this] { return this->FormatLinkEnable(); },
+		// [this] { return this->FormatRXCDRLockStatus(); },		
+		[this] { return this->FormatSERDESResetDone(); },
+		[this] { return this->FormatSERDESReset(); },
+	};
+
 	const std::vector<std::function<RegisterFormatter()>> formattedDumpFunctions_{
 		[this]() { return this->FormatDesignVersion(); },
 		[this]() { return this->FormatDesignDate(); },

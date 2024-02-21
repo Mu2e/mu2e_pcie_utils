@@ -471,6 +471,9 @@ void DTCLib::DTC_Registers::ResetPCIe()
 	data[11] = 0;
 	data[7] = 0;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+
+	//Note the DTC instance likely needs to be reinitialized on a firmware-DMA reset to realign pointers:
+	//e.g. device_.initDMAEngine();
 }
 
 /// <summary>
@@ -888,30 +891,31 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	auto form = CreateFormatter(CFOandDTC_Register_Control);
 	form.description = "DTC Control";
 	form.vals.push_back("([ x = 1 (hi) ])");
-	form.vals.push_back(std::string("SoftReset:                       [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Emulation Enable:            [") + (ReadCFOEmulationEnabled(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Link Output Control:         [") + (ReadCFOLoopback(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Reset DDR Write Address:         [") + (ReadResetDDRWriteAddress(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Reset DDR Read Address:          [") + (ReadResetDDRReadAddress(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Reset DDR Interface:             [") + (ReadResetDDR(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Emulator DRP Enable:         [") + (ReadCFOEmulatorDRP(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("DTC Autogenerate DRP:            [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Software DRP Enable:             [") + (ReadSoftwareDRP(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Down LED 0:                      [") + (ReadDownLED0State(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Up LED 1:                        [") + (ReadUpLED1State(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Up LED 0:                        [") + (ReadUpLED0State(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("LED 6:                           [") + (ReadLED6State(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Emulation Mode:              [") + (ReadCFOEmulationMode(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Data Filter Enable:              [") + (ReadDataFilterEnable(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("DRP Prefetch Enable:             [") + (ReadDRPPrefetchEnable(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("ROC Interface Soft Reset:        [") + (ReadROCInterfaceSoftReset(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Sequence Number Disable:         [") + (ReadSequenceNumberDisable(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Punch Enable:                    [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("SERDES Global Reset:             [") + (ReadResetSERDES(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("RX Packet Error Feedback Enable: [") + (ReadRxPacketErrorFeedbackEnable(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Comma Tolerance Enable:          [") + (ReadCommaToleranceEnable(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Fanout Clock Input Select:       [") + (ReadFanoutClockInput(form.value) ? "FMC SFP Rx" : "FPGA") + "]");
-	form.vals.push_back(std::string("DCS Enable:                      [") + (ReadDCSReception(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-31 DTC Soft Reset:                  [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-30 CFO Emulation Enable:            [") + (ReadCFOEmulationEnabled(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-28 CFO Link Timing Card Mux Select: [") + (ReadCFOLoopback(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-27 Reset DDR Write Address:         [") + (ReadResetDDRWriteAddress(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-26 Reset DDR Read Address:          [") + (ReadResetDDRReadAddress(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-25 Reset DDR Interface:             [") + (ReadResetDDR(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-24 CFO Emulator DRP Enable:         [") + (ReadCFOEmulatorDRP(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-23 DTC Autogenerate DRP:            [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-22 Software DRP Enable:             [") + (ReadSoftwareDRP(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-19 Down LED 0:                      [") + (ReadDownLED0State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-18 Up LED 1:                        [") + (ReadUpLED1State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-17 Up LED 0:                        [") + (ReadUpLED0State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-16 LED 6:                           [") + (ReadLED6State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-15 CFO Emulation Mode:              [") + (ReadCFOEmulationMode(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-31 Data Filter Enable:              [") + (ReadDataFilterEnable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-12 DRP Prefetch Enable:             [") + (ReadDRPPrefetchEnable(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-31 ROC Interface Soft Reset:        [") + (ReadROCInterfaceSoftReset(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-31 Sequence Number Disable:         [") + (ReadSequenceNumberDisable(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-31 Punch Enable:                    [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-08 SERDES Global Reset:             [") + (ReadResetSERDES(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-31 RX Packet Error Feedback Enable: [") + (ReadRxPacketErrorFeedbackEnable(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-31 Comma Tolerance Enable:          [") + (ReadCommaToleranceEnable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-04 Fanout Clock Input Select:       [") + (ReadFanoutClockInput(form.value) ? "FMC SFP Rx" : "FPGA") + "]");
+	form.vals.push_back(std::string("Bit-02 DCS Enable:                      [") + (ReadDCSReception(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-00 DTC Hard Reset:                  [") + (ReadHardReset(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -1070,7 +1074,12 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatClockOscillatorStatus()
 void DTCLib::DTC_Registers::EnableROCEmulator(DTC_Link_ID const& link, DTC_ROC_Emulation_Type const& type)
 {
 	std::bitset<32> dataSet = ReadRegister_(DTC_Register_ROCEmulationEnable);
-	dataSet[link + type*6] = 1;
+	if(link == DTC_Link_ALL)
+		for(const auto& l : DTC_ROC_Links)
+			dataSet[l + type*6] = 1;
+	else
+		dataSet[link + type*6] = 1;
+
 	WriteRegister_(dataSet.to_ulong(), DTC_Register_ROCEmulationEnable);
 }
 
@@ -1081,7 +1090,12 @@ void DTCLib::DTC_Registers::EnableROCEmulator(DTC_Link_ID const& link, DTC_ROC_E
 void DTCLib::DTC_Registers::DisableROCEmulator(DTC_Link_ID const& link, DTC_ROC_Emulation_Type const& type)
 {
 	std::bitset<32> dataSet = ReadRegister_(DTC_Register_ROCEmulationEnable);
-	dataSet[link + type*6] = 0;
+	if(link == DTC_Link_ALL)
+		for(const auto& l : DTC_ROC_Links)
+			dataSet[l + type*6] = 0;
+	else
+		dataSet[link + type*6] = 0;
+	
 	WriteRegister_(dataSet.to_ulong(), DTC_Register_ROCEmulationEnable);
 }
 
@@ -1092,6 +1106,12 @@ void DTCLib::DTC_Registers::DisableROCEmulator(DTC_Link_ID const& link, DTC_ROC_
 /// <returns>True if the ROC Emulator is enabled on the link</returns>
 bool DTCLib::DTC_Registers::ReadROCEmulator(DTC_Link_ID const& link, DTC_ROC_Emulation_Type const& type, std::optional<uint32_t> val)
 {
+	if(std::find(DTC_ROC_Links.begin(), DTC_ROC_Links.end(), link) == DTC_ROC_Links.end())
+	{
+		__SS__ << "Illegal link specified for ROC Emulator target: " << link << __E__;
+		__SS_THROW__;
+	}
+
 	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(DTC_Register_ROCEmulationEnable);
 	return dataSet[link + type*6];
 }
@@ -2301,42 +2321,6 @@ void DTCLib::DTC_Registers::ResetSERDESOscillatorIICInterface()
 }
 
 /// <summary>
-/// Write a value to the SERDES IIC Bus
-/// </summary>
-/// <param name="device">Device address</param>
-/// <param name="address">Register address</param>
-/// <param name="data">Data to write</param>
-void DTCLib::DTC_Registers::WriteSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address, uint8_t data)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16) + (data << 8);
-	WriteRegister_(reg_data, DTC_Register_SERDESClock_IICBusLow);
-	WriteRegister_(0x1, DTC_Register_SERDESClock_IICBusHigh);
-	while (ReadRegister_(DTC_Register_SERDESClock_IICBusHigh) == 0x1)
-	{
-		usleep(1000);
-	}
-}
-
-/// <summary>
-/// Read a value from the SERDES IIC Bus
-/// </summary>
-/// <param name="device">Device address</param>
-/// <param name="address">Register address</param>
-/// <returns>Value of register</returns>
-uint8_t DTCLib::DTC_Registers::ReadSERDESIICInterface(DTC_IICSERDESBusAddress device, uint8_t address)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16);
-	WriteRegister_(reg_data, DTC_Register_SERDESClock_IICBusLow);
-	WriteRegister_(0x2, DTC_Register_SERDESClock_IICBusHigh);
-	while (ReadRegister_(DTC_Register_SERDESClock_IICBusHigh) == 0x2)
-	{
-		usleep(1000);
-	}
-	auto data = ReadRegister_(DTC_Register_SERDESClock_IICBusLow);
-	return static_cast<uint8_t>(data);
-}
-
-/// <summary>
 /// Read the current SERDES Oscillator clock speed
 /// </summary>
 /// <returns>Current SERDES clock speed</returns>
@@ -2429,41 +2413,6 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESOscillatorControl()
 	auto form = CreateFormatter(DTC_Register_SERDESClock_IICBusControl);
 	form.description = "SERDES Oscillator IIC Bus Control";
 	form.vals.push_back(std::string("Reset:  [") + (ReadSERDESOscillatorIICInterfaceReset(form.value) ? "x" : " ") + "]");
-	return form;
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESOscillatorParameterLow()
-{
-	auto form = CreateFormatter(DTC_Register_SERDESClock_IICBusLow);
-	form.description = "SERDES Oscillator IIC Bus Low";
-	form.vals.push_back(""); //translation
-	auto data = form.value;
-	std::ostringstream s1, s2, s3, s4;
-	s1 << "Device:     " << std::showbase << std::hex << ((data & 0xFF000000) >> 24);
-	form.vals.push_back(s1.str());
-	s2 << "Address:    " << std::showbase << std::hex << ((data & 0xFF0000) >> 16);
-	form.vals.push_back(s2.str());
-	s3 << "Write Data: " << std::showbase << std::hex << ((data & 0xFF00) >> 8);
-	form.vals.push_back(s3.str());
-	s4 << "Read Data:  " << std::showbase << std::hex << (data & 0xFF);
-	form.vals.push_back(s4.str());
-	return form;
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESOscillatorParameterHigh()
-{
-	auto form = CreateFormatter(DTC_Register_SERDESClock_IICBusHigh);
-	auto data = form.value;
-	form.description = "SERDES Oscillator IIC Bus High";
-	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	form.vals.push_back(std::string("Write:  [") + (data & 0x1 ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Read:   [") + (data & 0x2 ? "x" : " ") + "]");
 	return form;
 }
 
@@ -2963,40 +2912,50 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumHeartbeats
 /// </summary>
 /// <param name="link">Link to set</param>
 /// <param name="numPackets">Number of packets to request</param>
-void DTCLib::DTC_Registers::SetCFOEmulationNumPackets(DTC_Link_ID const& link, uint16_t numPackets)
+void DTCLib::DTC_Registers::SetCFOEmulationNumPackets(DTC_Link_ID const& link_in, uint16_t numPackets)
 {
 	uint16_t data = numPackets & 0x7FF;
 	DTC_Register reg;
-	switch (link)
-	{
-		case DTC_Link_0:
-		case DTC_Link_1:
-			reg = DTC_Register_CFOEmulation_NumPacketsLinks10;
-			break;
-		case DTC_Link_2:
-		case DTC_Link_3:
-			reg = DTC_Register_CFOEmulation_NumPacketsLinks32;
-			break;
-		case DTC_Link_4:
-		case DTC_Link_5:
-			reg = DTC_Register_CFOEmulation_NumPacketsLinks54;
-			break;
-		default:
-			return;
-	}
 
-	auto regval = ReadRegister_(reg);
-	auto upper = (regval & 0xFFFF0000) >> 16;
-	auto lower = regval & 0x0000FFFF;
-	if (link == DTC_Link_0 || link == DTC_Link_2 || link == DTC_Link_4)
+	for(const auto& link : DTC_ROC_Links)
 	{
-		lower = data;
-	}
-	else
-	{
-		upper = data;
-	}
-	WriteRegister_((upper << 16) + lower, reg);
+		if(!(link_in == DTC_Link_ALL || link_in == link)) 
+			continue; //skip ROC links that should not be set
+
+		switch (link)
+		{
+			case DTC_Link_0:
+			case DTC_Link_1:
+				reg = DTC_Register_CFOEmulation_NumPacketsLinks10;
+				break;
+			case DTC_Link_2:
+			case DTC_Link_3:
+				reg = DTC_Register_CFOEmulation_NumPacketsLinks32;
+				break;
+			case DTC_Link_4:
+			case DTC_Link_5:
+				reg = DTC_Register_CFOEmulation_NumPacketsLinks54;
+				break;
+			default:
+			{
+				__SS__ << "Illegal link " << link << " specified." << __E__;
+				__SS_THROW__;
+			}
+		}
+
+		auto regval = ReadRegister_(reg);
+		auto upper = (regval & 0xFFFF0000) >> 16;
+		auto lower = regval & 0x0000FFFF;
+		if (link == DTC_Link_0 || link == DTC_Link_2 || link == DTC_Link_4)
+		{
+			lower = data;
+		}
+		else
+		{
+			upper = data;
+		}
+		WriteRegister_((upper << 16) + lower, reg);
+	} //end link write loop
 }
 
 /// <summary>
@@ -3022,7 +2981,10 @@ uint16_t DTCLib::DTC_Registers::ReadCFOEmulationNumPackets(DTC_Link_ID const& li
 			reg = DTC_Register_CFOEmulation_NumPacketsLinks54;
 			break;
 		default:
-			return 0;
+		{
+			__SS__ << "Illegal link " << link << " specified." << __E__;
+			__SS_THROW__;
+		}
 	}
 
 	auto regval = val.has_value()?*val:ReadRegister_(reg);
@@ -4495,318 +4457,6 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTransmitPacketCountCFO()
 	std::stringstream o;
 	o << "0x" << std::hex << ReadTransmitPacketCount(DTC_Link_CFO);
 	form.vals.push_back(o.str());
-	return form;
-}
-
-// Firefly TX IIC Registers
-/// <summary>
-/// Read the Reset bit of the Firefly TX IIC Bus
-/// </summary>
-/// <returns>Reset bit value</returns>
-bool DTCLib::DTC_Registers::ReadFireflyTXIICInterfaceReset(std::optional<uint32_t> val)
-{
-	auto dataSet = std::bitset<32>(val.has_value()?*val:ReadRegister_(DTC_Register_FireflyTX_IICBusControl));
-	return dataSet[31];
-}
-/// <summary>
-/// Reset the Firefly TX IIC Bus
-/// </summary>
-void DTCLib::DTC_Registers::ResetFireflyTXIICInterface()
-{
-	auto bs = std::bitset<32>();
-	bs[31] = 1;
-	WriteRegister_(bs.to_ulong(), DTC_Register_FireflyTX_IICBusControl);
-	while (ReadFireflyTXIICInterfaceReset())
-	{
-		usleep(1000);
-	}
-}
-/// <summary>
-/// Write a value to the Firefly TX IIC Bus
-/// </summary>
-/// <param name="device">Device address</param>
-/// <param name="address">Register address</param>
-/// <param name="data">Data to write</param>
-void DTCLib::DTC_Registers::WriteFireflyTXIICInterface(uint8_t device, uint8_t address, uint8_t data)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16) + (data << 8);
-	WriteRegister_(reg_data, DTC_Register_FireflyTX_IICBusConfigLow);
-	WriteRegister_(0x1, DTC_Register_FireflyTX_IICBusConfigHigh);
-	while (ReadRegister_(DTC_Register_FireflyTX_IICBusConfigHigh) == 0x1)
-	{
-		usleep(1000);
-	}
-}
-/// <summary>
-/// Read a value from the Firefly TX IIC Bus
-/// </summary>
-/// <param name="device">Device address</param>
-/// <param name="address">Register address</param>
-/// <returns>Value of register</returns>
-uint8_t DTCLib::DTC_Registers::ReadFireflyTXIICInterface(uint8_t device, uint8_t address)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16);
-	WriteRegister_(reg_data, DTC_Register_FireflyTX_IICBusConfigLow);
-	WriteRegister_(0x2, DTC_Register_FireflyTX_IICBusConfigHigh);
-	while (ReadRegister_(DTC_Register_FireflyTX_IICBusConfigHigh) == 0x2)
-	{
-		usleep(1000);
-	}
-	auto data = ReadRegister_(DTC_Register_FireflyTX_IICBusConfigLow);
-	return static_cast<uint8_t>(data);
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyTXIICControl()
-{
-	auto form = CreateFormatter(DTC_Register_FireflyTX_IICBusControl);
-	form.description = "TX Firefly IIC Bus Control";
-	form.vals.push_back(std::string("Reset:  [") + (ReadFireflyTXIICInterfaceReset(form.value) ? "x" : " ") + "]");
-	return form;
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyTXIICParameterLow()
-{
-	auto form = CreateFormatter(DTC_Register_FireflyTX_IICBusConfigLow);
-	form.description = "TX Firefly IIC Bus Low";
-	form.vals.push_back(""); //translation
-	auto data = form.value;
-	std::ostringstream s1, s2, s3, s4;
-	s1 << "Device:     " << std::showbase << std::hex << ((data & 0xFF000000) >> 24);
-	form.vals.push_back(s1.str());
-	s2 << "Address:    " << std::showbase << std::hex << ((data & 0xFF0000) >> 16);
-	form.vals.push_back(s2.str());
-	s3 << "Write Data: " << std::showbase << std::hex << ((data & 0xFF00) >> 8);
-	form.vals.push_back(s3.str());
-	s4 << "Read Data:  " << std::showbase << std::hex << (data & 0xFF);
-	form.vals.push_back(s4.str());
-	return form;
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyTXIICParameterHigh()
-{
-	auto form = CreateFormatter(DTC_Register_FireflyTX_IICBusConfigHigh);	
-	auto data = form.value;
-	form.description = "TX Firefly IIC Bus High";
-	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	form.vals.push_back(std::string("Write:  [") + (data & 0x1 ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Read:   [") + (data & 0x2 ? "x" : " ") + "]");
-	return form;
-}
-
-// Firefly RX IIC Registers
-/// <summary>
-/// Read the Reset bit of the Firefly RX IIC Bus
-/// </summary>
-/// <returns>Reset bit value</returns>
-bool DTCLib::DTC_Registers::ReadFireflyRXIICInterfaceReset(std::optional<uint32_t> val)
-{
-	auto dataSet = std::bitset<32>(val.has_value()?*val:ReadRegister_(DTC_Register_FireflyRX_IICBusControl));
-	return dataSet[31];
-}
-/// <summary>
-/// Reset the Firefly RX IIC Bus
-/// </summary>
-void DTCLib::DTC_Registers::ResetFireflyRXIICInterface()
-{
-	auto bs = std::bitset<32>();
-	bs[31] = 1;
-	WriteRegister_(bs.to_ulong(), DTC_Register_FireflyRX_IICBusControl);
-	while (ReadFireflyRXIICInterfaceReset())
-	{
-		usleep(1000);
-	}
-}
-/// <summary>
-/// Write a value to the Firefly RX IIC Bus
-/// </summary>
-/// <param name="device">Device address</param>
-/// <param name="address">Register address</param>
-/// <param name="data">Data to write</param>
-void DTCLib::DTC_Registers::WriteFireflyRXIICInterface(uint8_t device, uint8_t address, uint8_t data)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16) + (data << 8);
-	WriteRegister_(reg_data, DTC_Register_FireflyRX_IICBusConfigLow);
-	WriteRegister_(0x1, DTC_Register_FireflyRX_IICBusConfigHigh);
-	while (ReadRegister_(DTC_Register_FireflyRX_IICBusConfigHigh) == 0x1)
-	{
-		usleep(1000);
-	}
-}
-/// <summary>
-/// Read a value from the Firefly RX IIC Bus
-/// </summary>
-/// <param name="device">Device address</param>
-/// <param name="address">Register address</param>
-/// <returns>Value of register</returns>
-uint8_t DTCLib::DTC_Registers::ReadFireflyRXIICInterface(uint8_t device, uint8_t address)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16);
-	WriteRegister_(reg_data, DTC_Register_FireflyRX_IICBusConfigLow);
-	WriteRegister_(0x2, DTC_Register_FireflyRX_IICBusConfigHigh);
-	while (ReadRegister_(DTC_Register_FireflyRX_IICBusConfigHigh) == 0x2)
-	{
-		usleep(1000);
-	}
-	auto data = ReadRegister_(DTC_Register_FireflyRX_IICBusConfigLow);
-	return static_cast<uint8_t>(data);
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyRXIICControl()
-{
-	auto form = CreateFormatter(DTC_Register_FireflyRX_IICBusControl);
-	form.description = "RX Firefly IIC Bus Control";
-	form.vals.push_back(std::string("Reset:  [") + (ReadFireflyRXIICInterfaceReset(form.value) ? "x" : " ") + "]");
-	return form;
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyRXIICParameterLow()
-{
-	auto form = CreateFormatter(DTC_Register_FireflyRX_IICBusConfigLow);
-	form.description = "RX Firefly IIC Bus Low";
-	form.vals.push_back(""); //translation
-	auto data = form.value;
-	std::ostringstream s1, s2, s3, s4;
-	s1 << "Device:     " << std::showbase << std::hex << ((data & 0xFF000000) >> 24);
-	form.vals.push_back(s1.str());
-	s2 << "Address:    " << std::showbase << std::hex << ((data & 0xFF0000) >> 16);
-	form.vals.push_back(s2.str());
-	s3 << "Write Data: " << std::showbase << std::hex << ((data & 0xFF00) >> 8);
-	form.vals.push_back(s3.str());
-	s4 << "Read Data:  " << std::showbase << std::hex << (data & 0xFF);
-	form.vals.push_back(s4.str());
-	return form;
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyRXIICParameterHigh()
-{
-	auto form = CreateFormatter(DTC_Register_FireflyRX_IICBusConfigHigh);
-	auto data = form.value;
-	form.description = "RX Firefly IIC Bus High";
-	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	form.vals.push_back(std::string("Write:  [") + (data & 0x1 ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Read:   [") + (data & 0x2 ? "x" : " ") + "]");
-	return form;
-}
-
-// Firefly TXRX IIC Registers
-/// <summary>
-/// Read the Reset bit of the Firefly TXRX IIC Bus
-/// </summary>
-/// <returns>Reset bit value</returns>
-bool DTCLib::DTC_Registers::ReadFireflyTXRXIICInterfaceReset(std::optional<uint32_t> val)
-{
-	auto dataSet = std::bitset<32>(val.has_value()?*val:ReadRegister_(DTC_Register_FireflyTXRX_IICBusControl));
-	return dataSet[31];
-}
-/// <summary>
-/// Reset the Firefly TXRX IIC Bus
-/// </summary>
-void DTCLib::DTC_Registers::ResetFireflyTXRXIICInterface()
-{
-	auto bs = std::bitset<32>();
-	bs[31] = 1;
-	WriteRegister_(bs.to_ulong(), DTC_Register_FireflyTXRX_IICBusControl);
-	while (ReadFireflyTXRXIICInterfaceReset())
-	{
-		usleep(1000);
-	}
-}
-/// <summary>
-/// Write a value to the Firefly TXRX IIC Bus
-/// </summary>
-/// <param name="device">Device address</param>
-/// <param name="address">Register address</param>
-/// <param name="data">Data to write</param>
-void DTCLib::DTC_Registers::WriteFireflyTXRXIICInterface(uint8_t device, uint8_t address, uint8_t data)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16) + (data << 8);
-	WriteRegister_(reg_data, DTC_Register_FireflyTXRX_IICBusConfigLow);
-	WriteRegister_(0x1, DTC_Register_FireflyTXRX_IICBusConfigHigh);
-	while (ReadRegister_(DTC_Register_FireflyTXRX_IICBusConfigHigh) == 0x1)
-	{
-		usleep(1000);
-	}
-}
-/// <summary>
-/// Read a value from the Firefly TXRX IIC Bus
-/// </summary>
-/// <param name="device">Device address</param>
-/// <param name="address">Register address</param>
-/// <returns>Value of register</returns>
-uint8_t DTCLib::DTC_Registers::ReadFireflyTXRXIICInterface(uint8_t device, uint8_t address)
-{
-	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16);
-	WriteRegister_(reg_data, DTC_Register_FireflyTXRX_IICBusConfigLow);
-	WriteRegister_(0x2, DTC_Register_FireflyTXRX_IICBusConfigHigh);
-	while (ReadRegister_(DTC_Register_FireflyTXRX_IICBusConfigHigh) == 0x2)
-	{
-		usleep(1000);
-	}
-	auto data = ReadRegister_(DTC_Register_FireflyTXRX_IICBusConfigLow);
-	return static_cast<uint8_t>(data);
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyTXRXIICControl()
-{
-	auto form = CreateFormatter(DTC_Register_FireflyTXRX_IICBusControl);
-	form.description = "TXRX Firefly IIC Bus Control";
-	form.vals.push_back(std::string("Reset:  [") + (ReadFireflyTXRXIICInterfaceReset(form.value) ? "x" : " ") + "]");
-	return form;
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyTXRXIICParameterLow()
-{
-	auto form = CreateFormatter(DTC_Register_FireflyTXRX_IICBusConfigLow);
-	form.description = "TXRX Firefly IIC Bus Low";
-	form.vals.push_back(""); //translation
-	auto data = form.value;
-	std::ostringstream s1, s2, s3, s4;
-	s1 << "Device:     " << std::showbase << std::hex << ((data & 0xFF000000) >> 24);
-	form.vals.push_back(s1.str());
-	s2 << "Address:    " << std::showbase << std::hex << ((data & 0xFF0000) >> 16);
-	form.vals.push_back(s2.str());
-	s3 << "Write Data: " << std::showbase << std::hex << ((data & 0xFF00) >> 8);
-	form.vals.push_back(s3.str());
-	s4 << "Read Data:  " << std::showbase << std::hex << (data & 0xFF);
-	form.vals.push_back(s4.str());
-	return form;
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyTXRXIICParameterHigh()
-{
-	auto form = CreateFormatter(DTC_Register_FireflyTXRX_IICBusConfigHigh);
-	auto data = form.value;
-	form.description = "TXRX Firefly IIC Bus High";
-	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	form.vals.push_back(std::string("Write:  [") + (data & 0x1 ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Read:   [") + (data & 0x2 ? "x" : " ") + "]");
 	return form;
 }
 
@@ -6301,199 +5951,6 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatLinkMuxError()
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
 	form.vals.push_back(std::string("DCS Mux Decode Error:  [") + (ReadDCSMuxDecodeError(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Data Mux Decode Error: [") + (ReadDataMuxDecodeError(form.value) ? "x" : " ") + "]");
-	return form;
-}
-
-// Firefly CSR Register
-/// <summary>
-/// Read the TXRX Firefly Present bit
-/// </summary>
-/// <returns>Value of bit</returns>
-bool DTCLib::DTC_Registers::ReadTXRXFireflyPresent(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[26];
-}
-/// <summary>
-/// Read the RX Firefly Present bit
-/// </summary>
-/// <returns>Value of bit</returns>
-bool DTCLib::DTC_Registers::ReadRXFireflyPresent(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[25];
-}
-/// <summary>
-/// Read the TX Firefly Present bit
-/// </summary>
-/// <returns>Value of bit</returns>
-bool DTCLib::DTC_Registers::ReadTXFireflyPresent(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[24];
-}
-/// <summary>
-/// Read the TXRX Firefly Interrupt bit
-/// </summary>
-/// <returns>Value of bit</returns>
-bool DTCLib::DTC_Registers::ReadTXRXFireflyInterrupt(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[18];
-}
-/// <summary>
-/// Read the RX Firefly Interrupt bit
-/// </summary>
-/// <returns>Value of bit</returns>
-bool DTCLib::DTC_Registers::ReadRXFireflyInterrupt(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[17];
-}
-/// <summary>
-/// Read the TX Firefly Interrupt bit
-/// </summary>
-/// <returns>Value of bit</returns>
-bool DTCLib::DTC_Registers::ReadTXFireflyInterrupt(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[16];
-}
-/// <summary>
-/// Read the TXRX Firefly Select bit
-/// </summary>
-/// <returns>Value of bit</returns>
-bool DTCLib::DTC_Registers::ReadTXRXFireflySelect(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[10];
-}
-/// <summary>
-/// Set the TXRX Firefly Select bit
-/// </summary>
-/// <param name="select">Value to write</param>
-void DTCLib::DTC_Registers::SetTXRXFireflySelect(bool select)
-{
-	std::bitset<32> data = select << 9; //Do not read value -- ReadRegister_(DTC_Register_FireFlyControlStatus);
-	// data[9] = select;
-	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
-}
-/// <summary>
-/// Read the TX Firefly Select bit
-/// </summary>
-/// <returns>Value of bit</returns>
-bool DTCLib::DTC_Registers::ReadTXFireflySelect(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[9];
-}
-/// <summary>
-/// Set the TX Firefly Select bit
-/// </summary>
-/// <param name="select">Value to write</param>
-void DTCLib::DTC_Registers::SetTXFireflySelect(bool select)
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_FireFlyControlStatus);
-	data[9] = select;
-	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
-}
-/// <summary>
-/// Read the RX Firefly Select bit
-/// </summary>
-/// <returns>Value of bit</returns>
-bool DTCLib::DTC_Registers::ReadRXFireflySelect(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[8];
-}
-/// <summary>
-/// Set the RX Firefly Select bit
-/// </summary>
-/// <param name="select">Value to write</param>
-void DTCLib::DTC_Registers::SetRXFireflySelect(bool select)
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_FireFlyControlStatus);
-	data[8] = select;
-	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
-}
-/// <summary>
-/// Read the TXRX Firefly Reset bit
-/// </summary>
-/// <returns>Value of the bit</returns>
-bool DTCLib::DTC_Registers::ReadResetTXRXFirefly(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[2];
-}
-/// Reset the TXRX Firefly
-void DTCLib::DTC_Registers::ResetTXRXFirefly()
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_FireFlyControlStatus);
-	data[2] = 1;
-	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
-	usleep(1000);
-	data[2] = 0;
-	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
-}
-/// <summary>
-/// Read the TX Firefly Reset bit
-/// </summary>
-/// <returns>Value of the bit</returns>
-bool DTCLib::DTC_Registers::ReadResetTXFirefly(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[1];
-}
-/// Reset the TX Firefly
-void DTCLib::DTC_Registers::ResetTXFirefly()
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_FireFlyControlStatus);
-	data[1] = 1;
-	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
-	usleep(1000);
-	data[1] = 0;
-	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
-}
-/// <summary>
-/// Read the RX Firefly Reset bit
-/// </summary>
-/// <returns>Value of the bit</returns>
-bool DTCLib::DTC_Registers::ReadResetRXFirefly(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(DTC_Register_FireFlyControlStatus);
-	return data[0];
-}
-/// Reset the RX Firefly
-void DTCLib::DTC_Registers::ResetRXFirefly()
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_FireFlyControlStatus);
-	data[0] = 1;
-	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
-	usleep(1000);
-	data[0] = 0;
-	WriteRegister_(data.to_ulong(), DTC_Register_FireFlyControlStatus);
-}
-/// <summary>
-/// Formats the register's current value for register dumps
-/// </summary>
-/// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatFireflyCSR()
-{
-	auto form = CreateFormatter(DTC_Register_FireFlyControlStatus);
-	form.description = "FireFly Control and Status";
-	form.vals.push_back("([ x = 1 (hi) ])"); //translation
-	form.vals.push_back(std::string("TXRX FireFly Present:   [") + (ReadTXRXFireflyPresent(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("TX FireFly Present:     [") + (ReadRXFireflyPresent(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("RX FireFly Present:     [") + (ReadTXFireflyPresent(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("TXRX FireFly Interrupt: [") + (ReadTXRXFireflyInterrupt(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("TX FireFly Interrupt:   [") + (ReadRXFireflyInterrupt(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("RX FireFly Interrupt:   [") + (ReadTXFireflyInterrupt(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("TXRX FireFly Select:    [") + (ReadTXRXFireflySelect(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("TX FireFly Select:      [") + (ReadTXFireflySelect(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("RX FireFly Select:      [") + (ReadRXFireflySelect(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("TXRX FireFly Reset:     [") + (ReadResetTXRXFirefly(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("TX FireFly Reset:       [") + (ReadResetTXFirefly(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("RX FireFly Reset:       [") + (ReadResetRXFirefly(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -9644,38 +9101,8 @@ void DTCLib::DTC_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 		// uint32_t readbackValue = readbackReturnValue;
 		// uint32_t readbackValue = ReadRegister_(address);
 
-		int i = -1;  // used for counters
 		switch(address) //handle special register checks by masking of DONT-CARE bits, or else check full 32 bits
 		{
-			//---------- CFO and DTC registers
-			case DTC_Register_SERDESClock_IICBusLow: // lowest 16-bits are the I2C read value. So ignore in write validation			
-			case DTC_Register_FireflyRX_IICBusConfigLow:
-				dataToWrite		&= 0xffff0000; 
-				readbackValue 	&= 0xffff0000; 
-				break;
-			case DTC_Register_FireFlyControlStatus: // upper 16-bits are part of I2C operation. So ignore in write validation			
-				dataToWrite		&= 0x0000ffff; 
-				readbackValue 	&= 0x0000ffff; 
-				break;
-			case CFOandDTC_Register_Control: //bit 31 is reset bit, which is write only 
-				if((dataToWrite >> 31) & 1) //NOTE: as of roughly August 2023, DTC Reset clears the entire register to 0
-					return; //ignore check if reset bit high
-				dataToWrite		&= 0x7fffffff;
-				readbackValue   &= 0x7fffffff; 
-				break;
-			case DTC_Register_SERDESClock_IICBusHigh:  // this is an I2C register, it clears bit-0 when transaction
-	              // finishes
-				while((dataToWrite & 0x1) && (readbackValue & 0x1))  // wait for I2C to clear...
-				{
-					readbackValue = ReadRegister_(address);
-					usleep(100);
-					if((++i % 10) == 9)
-						__COUT__ << "I2C waited " << i + 1 << " times..." << std::endl;
-				}
-				dataToWrite &= ~1;
-				readbackValue &= ~1;
-				break;
-
 			//---------- DTC only registers
 			case DTC_Register_CFOMarkerEnables:  // CFO emulator marker enables: 5:0 enables clock marker, 13:8 is event
 						// marker per ROC link for some reason, now event marker is not returned
@@ -9697,9 +9124,7 @@ void DTCLib::DTC_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 				readbackValue 	&= 0x0000ffff; 
 				break;
 			case DTC_Register_DetEmulation_Control1: //self clearing bit-1, so return immediately
-				return;
-
-				
+				return;				
 
 			default:; // do direct comparison of each bit
 		} //end readback verification address case handling
@@ -9715,14 +9140,12 @@ void DTCLib::DTC_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 						std::endl << std::endl <<
 						"If you do not understand this error, try checking the DTC firmware version: " << ReadDesignDate() << std::endl;					
 				__SS_THROW_ONLY__;
-				// __COUT_ERR__ << ss.str();
-				// throw DTC_IOErrorException(ss.str());
 			}
 			catch(const std::runtime_error& e)
 			{
 				std::stringstream ss;
 				ss << e.what();
-				ss << "\n\nThe stack trace is as follows:\n" << otsStyleStackTrace() << __E__; //artdaq::debug::getStackTraceCollector().print_stacktrace() << __E__;	
+				ss << "\n\nThe stack trace is as follows:\n" << otsStyleStackTrace() << __E__;
 				__SS_THROW__;
 			}
 		}
@@ -9952,8 +9375,3 @@ bool DTCLib::DTC_Registers::WaitForLinkReady_(DTC_Link_ID const& link, size_t in
 	}
 	return true;
 }
-
-// /// <summary>
-// /// Configure the Jitter Attenuator
-// /// </summary>
-void DTCLib::DTC_Registers::ConfigureJitterAttenuator() { CFOandDTC_Registers::ConfigureJitterAttenuator(DTC_Register_SERDESClock_IICBusLow, DTC_Register_SERDESClock_IICBusHigh); }
