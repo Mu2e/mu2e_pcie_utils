@@ -40,8 +40,16 @@ public:
 	/// for data with that event window tag.
 	/// </summary>
 	/// <param name="when">Desired event window tag for readout. Default means use whatever event window tag is next</param>
-	/// <returns>A vector of DTC_Event objects</returns>
+	/// <returns>A vector of DTC_Event objects, but only one DTC_Event is expected</returns>
 	std::vector<std::unique_ptr<DTC_Event>> GetData(DTC_EventWindowTag when = DTC_EventWindowTag(), bool matchEventWindowTag = false);
+
+	/// <summary>
+	/// Reads data from the DTC, and returns the first Sub Event found. If event window tag is specified, will look
+	/// to match the found Sub Event with the specified event window tag.
+	/// </summary>
+	/// <param name="when">Desired event window tag for readout. Default means use whatever event window tag is next</param>
+	/// <returns>A vector of DTC_SubEvent objects, but only one DTC_SubEvent is expected</returns>
+	std::vector<std::unique_ptr<DTC_SubEvent>> GetSubEventData(DTC_EventWindowTag when = DTC_EventWindowTag(), bool matchEventWindowTag = false);
 
 	/// <summary>
 	/// Read a file into the DTC memory. Will truncate the file so that it fits in the DTC memory.
@@ -200,6 +208,12 @@ public:
 	 * @return A DTC_Event representing the data in a single DMA, or nullptr if no data/timeout
 	*/
 	std::unique_ptr<DTC_Event> ReadNextDAQDMA(int tmo_ms );
+	/**
+	 * @brief Read the next DMA from the DAQ channel as a Sub Event. If no data is present, will return nullptr
+	 * @param tmo_ms Timeout
+	 * @return A DTC_SubEvent representing the data in a single DMA, or nullptr if no data/timeout
+	*/
+	std::unique_ptr<DTC_SubEvent> ReadNextDAQSubEventDMA(int tmo_ms );
 	/// <summary>
 	/// DCS packets are read one-at-a-time, this function reads the next one from the DTC
 	/// </summary>
