@@ -385,7 +385,7 @@ public:
 	void EnableSoftwareDRP();         // B22
 	void DisableSoftwareDRP();        // B22
 	bool ReadSoftwareDRP(std::optional<uint32_t> val = std::nullopt);           // B22
-	virtual void ResetPCIe();                 // B21
+	virtual void ResetPCIe() override;                 // B21
 	bool ReadResetPCIe(std::optional<uint32_t> val = std::nullopt);             // B21
 	// Bit 20 Reserved
 	void EnableDownLED0();         // B19
@@ -402,7 +402,7 @@ public:
 	bool ReadLED6State(std::optional<uint32_t> val = std::nullopt);          // B16
 	void EnableLEDs();
 	void DisableLEDs();
-	virtual void FlashLEDs();
+	virtual void FlashLEDs() override;
 
 	void SetCFOEmulationMode();    // B15
 	void ClearCFOEmulationMode();  // B15
@@ -812,12 +812,12 @@ public:
 	RegisterFormatter FormatSERDESSerialInversionEnable();
 
 	// Jitter Attenuator CSR Register
-	virtual std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt);
-	virtual void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
-	virtual bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt);
-	virtual bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt);
-	virtual void ResetJitterAttenuator();
-	virtual RegisterFormatter FormatJitterAttenuatorCSR();
+	virtual std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt) override;
+	virtual void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false) override;
+	virtual bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt) override;
+	virtual bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt) override;
+	virtual void ResetJitterAttenuator() override;
+	virtual RegisterFormatter FormatJitterAttenuatorCSR() override;
 
 	// void ConfigureJitterAttenuator();
 
@@ -1256,8 +1256,8 @@ protected:
 
 
  public:
-	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedDumpFunctions() {return formattedDumpFunctions_;}; //pure virtual	
-	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedSimpleDumpFunctions() {return formattedSimpleDumpFunctions_;}; //pure virtual
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedDumpFunctions() override {return formattedDumpFunctions_;}; //pure virtual	
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedSimpleDumpFunctions() override {return formattedSimpleDumpFunctions_;}; //pure virtual
 
   	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
 		[this] { return this->FormatDTCControl(); },
