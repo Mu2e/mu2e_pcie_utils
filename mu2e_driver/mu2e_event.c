@@ -149,6 +149,8 @@ static void poll_packets(struct timer_list *t)
 				  nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, newCmpltIdx);
 			mu2e_channel_info_[dtc][chn][dir].hwIdx = nxtCachedCmpltIdx;
 			// Now system SW can see another buffer with valid meta data
+			TRACE(30, "poll_packets: dtc=%d chn=%d dir=%d %p[idx=%u] 0x%llx 0xllx", dtc, chn, dir, (void *)BC_p,
+				  nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, *(uint64_t *)BC_p, *(((uint64_t *)BC_p) + 1));
 			do_once = 1;
 			did_work = 1;
 		}
@@ -163,7 +165,7 @@ static void poll_packets(struct timer_list *t)
 	{
 		// Reschedule immediately
 		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d rescheduling poll", dtc, chn, dir, did_work);
-#if 1
+#if 0
 		packets_timer[dtc].timer.expires = jiffies + 1;
 		add_timer(&packets_timer[dtc].timer);
 #else
