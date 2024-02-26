@@ -150,7 +150,7 @@ static void poll_packets(struct timer_list *t)
 			mu2e_channel_info_[dtc][chn][dir].hwIdx = nxtCachedCmpltIdx;
 			// Now system SW can see another buffer with valid meta data
 			TRACE(30, "poll_packets: dtc=%d chn=%d dir=%d %p[idx=%u] 0x%llx 0x%llx 0x%llx", dtc, chn, dir, (void *)BC_p,
-				  nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, *(uint64_t*)BC_p, *(((uint64_t *)BC_p) + 1), *(((uint64_t *)BC_p) + 2));
+				  nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, *(uint64_t*)buffdesc_C2S_p->SystemAddress, *(((uint64_t *)buffdesc_C2S_p->SystemAddress) + 1), *(((uint64_t *)buffdesc_C2S_p->SystemAddress) + 2));
 			do_once = 1;
 			did_work = 1;
 		}
