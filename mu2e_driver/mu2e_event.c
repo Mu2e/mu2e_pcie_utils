@@ -165,8 +165,8 @@ static void poll_packets(struct timer_list *t)
 	{
 		// Reschedule immediately
 		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d rescheduling poll", dtc, chn, dir, did_work);
-#if 0
-		packets_timer[dtc].timer.expires = jiffies + 1;
+#if 1
+		packets_timer[dtc].timer.expires = jiffies;
 		add_timer(&packets_timer[dtc].timer);
 #else
 		mu2e_force_poll(dtc);
