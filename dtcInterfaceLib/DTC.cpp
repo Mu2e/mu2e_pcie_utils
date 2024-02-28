@@ -156,78 +156,92 @@ std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWi
 //	Similart to GetData() but retrieves a SubEvent, as opposed to an Event
 std::vector<std::unique_ptr<DTCLib::DTC_SubEvent>> DTCLib::DTC::GetSubEventData(DTC_EventWindowTag when, bool matchEventWindowTag)
 {
-	DTC_TLOG(TLVL_GetData) << "GetSubEventData begin";
+	DTC_TLOG(TLVL_GetData) << "GetSubEventData begin EventWindowTag=" << when.GetEventWindowTag(true) << ", matching=" << (matchEventWindowTag?"true":"false");
 	std::vector<std::unique_ptr<DTC_SubEvent>> output;
 	std::unique_ptr<DTC_SubEvent> packet = nullptr;
+	
+	//Release read buffers here "I am done with everything I read before" (because the return is pointers to the raw data, not copies)
 	ReleaseBuffers(DTC_DMA_Engine_DAQ);
 
 	try
 	{
 		// Read the next DTC_SubEvent
 		auto tries = 0;
-		while (packet == nullptr && tries < 3)
-		{
-			DTC_TLOG(TLVL_GetData) << "GetData before ReadNextDAQPacket, tries=" << tries;
-			packet = ReadNextDAQSubEventDMA(100);
-			if (packet != nullptr)
-			{
-				DTC_TLOG(TLVL_GetData) << "GetData after ReadDMADAQPacket, ts=0x" << std::hex
-								   << packet->GetEventWindowTag().GetEventWindowTag(true);
-			}
-			tries++;
-			// if (packet == nullptr) usleep(5000);
-		}
-		if (packet == nullptr)
-		{
-			DTC_TLOG(TLVL_GetData) << "GetData: Timeout Occurred! (DTC_SubEvent is nullptr after retries)";
-			return output;
-		}
-
-		if (packet->GetEventWindowTag() != when && matchEventWindowTag)
-		{
-			DTC_TLOG(TLVL_ERROR) << "GetData: Error: DTC_SubEvent has wrong Event Window Tag! 0x" << std::hex << when.GetEventWindowTag(true)
-							 << "(expected) != 0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true);
-			packet.reset(nullptr);
-			daqDMAInfo_.currentReadPtr = daqDMAInfo_.lastReadPtr;
-			return output;
-		}
-
-		when = packet->GetEventWindowTag();
-
-		DTC_TLOG(TLVL_GetData) << "GetData: Adding DTC_SubEvent " << (void*)daqDMAInfo_.lastReadPtr << " to the list (first)";
-		output.push_back(std::move(packet));
-
 		auto done = false;
-		while (!done)
-		{
-			DTC_TLOG(TLVL_GetData) << "GetData: Reading next DAQ Packet";
-			packet = ReadNextDAQSubEventDMA(0);
-			if (packet == nullptr)  // End of Data
+		do
+		{		
+			while (packet == nullptr && tries < 3)
 			{
-				DTC_TLOG(TLVL_GetData) << "GetData: Next packet is nullptr; we're done";
-				done = true;
-				daqDMAInfo_.currentReadPtr = nullptr;
-			}
-			else if (packet->GetEventWindowTag() != when)
-			{
-				DTC_TLOG(TLVL_GetData) << "GetData: Next packet has ts=0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true)
-								   << ", not 0x" << std::hex << when.GetEventWindowTag(true) << "; we're done";
-				done = true;
-				daqDMAInfo_.currentReadPtr = daqDMAInfo_.lastReadPtr;
-			}
-			else
-			{
-				DTC_TLOG(TLVL_GetData) << "GetData: Next packet has same ts=0x" << std::hex
-								   << packet->GetEventWindowTag().GetEventWindowTag(true) << ", continuing (bc=0x" << std::hex
-								   << packet->GetSubEventByteCount() << ")";
+				DTC_TLOG(TLVL_GetData) << "GetData before ReadNextDAQPacket, tries = " << tries;
+				packet = ReadNextDAQSubEventDMA(100);
+				if (packet != nullptr)
+				{
+					DTC_TLOG(TLVL_GetData) << "GetData after ReadDMADAQPacket, found tag = " << 
+						packet->GetEventWindowTag().GetEventWindowTag(true) << " (0x" << std::hex << 
+						packet->GetEventWindowTag().GetEventWindowTag(true) << "), expected tag = " << std::dec << 
+						when.GetEventWindowTag(true) << " (0x" << std::hex << 
+						when.GetEventWindowTag(true) << ")";
+				}
+				tries++;
+				// if (packet == nullptr) usleep(5000);
 			}
 
-			if (!done)
+			//return if no data found
+			if (packet == nullptr)
 			{
-				DTC_TLOG(TLVL_GetData) << "GetData: Adding pointer " << (void*)daqDMAInfo_.lastReadPtr << " to the list";
-				output.push_back(std::move(packet));
+				DTC_TLOG(TLVL_GetData) << "GetData: Timeout Occurred! (DTC_SubEvent is nullptr after retries)";
+				return output;
 			}
-		}
+
+			//return if failed to match
+			if (packet->GetEventWindowTag() != when && matchEventWindowTag)
+			{
+				DTC_TLOG(TLVL_ERROR) << "GetData: Error: DTC_SubEvent has wrong Event Window Tag! 0x" << std::hex << when.GetEventWindowTag(true)
+								<< "(expected) != 0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true);
+				packet.reset(nullptr);
+				daqDMAInfo_.currentReadPtr = daqDMAInfo_.lastReadPtr;
+				return output;
+			}
+
+			//increment for next packet search
+			when = DTC_EventWindowTag(packet->GetEventWindowTag().GetEventWindowTag(true) + 1);
+
+			DTC_TLOG(TLVL_GetData) << "GetData: Adding DTC_SubEvent tag = " << 
+				packet->GetEventWindowTag().GetEventWindowTag(true) << " to the list, ptr=" << (void*)daqDMAInfo_.lastReadPtr;
+			output.push_back(std::move(packet));							
+
+		} while (!done);
+
+		// while (!done)
+		// {
+		// 	DTC_TLOG(TLVL_GetData) << "GetData: Reading next DAQ Packet";
+		// 	packet = ReadNextDAQSubEventDMA(0);
+		// 	if (packet == nullptr)  // End of Data
+		// 	{
+		// 		DTC_TLOG(TLVL_GetData) << "GetData: Next packet is nullptr; we're done";
+		// 		done = true;
+		// 		daqDMAInfo_.currentReadPtr = nullptr;
+		// 	}
+		// 	else if (packet->GetEventWindowTag() != when && matchEventWindowTag)
+		// 	{
+		// 		DTC_TLOG(TLVL_GetData) << "GetData: Next packet has ts=0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true)
+		// 						   << ", not 0x" << std::hex << when.GetEventWindowTag(true) << "; we're done";
+		// 		done = true;
+		// 		daqDMAInfo_.currentReadPtr = daqDMAInfo_.lastReadPtr;
+		// 	}
+		// 	else
+		// 	{
+		// 		DTC_TLOG(TLVL_GetData) << "GetData: Next packet has same ts=0x" << std::hex
+		// 						   << packet->GetEventWindowTag().GetEventWindowTag(true) << ", continuing (bc=0x" << std::hex
+		// 						   << packet->GetSubEventByteCount() << ")";
+		// 	}
+
+		// 	if (!done)
+		// 	{
+		// 		DTC_TLOG(TLVL_GetData) << "GetData: Adding pointer " << (void*)daqDMAInfo_.lastReadPtr << " to the list";
+		// 		output.push_back(std::move(packet));
+		// 	}
+		// }
 	}
 	catch (DTC_WrongPacketTypeException& ex)
 	{
@@ -1456,7 +1470,7 @@ int DTCLib::DTC::ReadBuffer(const DTC_DMA_Engine& channel, int tmo_ms)
 	}
 	else if (errorCode < 0)
 	{
-		DTC_TLOG(TLVL_ERROR) << "ReadBuffer: read_data returned " << errorCode << ", throwing DTC_IOErrorException!";
+		DTC_TLOG(TLVL_ERROR) << "ReadBuffer: read_data returned error code " << errorCode << ", throwing DTC_IOErrorException!";
 		throw DTC_IOErrorException(errorCode);
 	}
 	else
@@ -1539,7 +1553,7 @@ int DTCLib::DTC::GetCurrentBuffer(DMAInfo* info)
 			return ii;
 		}
 	}
-	DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -2: Have buffers but none match, need new";
+	DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -2: Have buffers but none match read ptr position, need new";
 	return -2;
 }
 
