@@ -602,11 +602,11 @@ bool DTCLib::CFOandDTC_Registers::CFOandDTCVerifyRegisterWrite_(const CFOandDTC_
 			// 	readbackValue 	&= 0x0000ffff; 
 			// 	isCoreRegister = true;
 			// 	break;
-			case CFOandDTC_Register_Control: //bit 0 and 31 are reset bits, and self clear (effectively, write only)
-				// if((dataToWrite >> 31) & 1) //NOTE: as of roughly August 2023, DTC Reset clears the entire register to 0
-				// 	return true; //ignore check if reset bit high
-				dataToWrite		&= 0x7ffffffe;
-				readbackValue   &= 0x7ffffffe; 
+			case CFOandDTC_Register_Control: //bit 0 and 31 are reset bits, and self-clear (effectively, write only)
+				if((dataToWrite >> 0) & 1)
+					return true; //ignore check if hard reset bit-0 high, because factory defaults are not maintained here
+				dataToWrite		&= 0x7fffffff;
+				readbackValue   &= 0x7fffffff; 
 				isCoreRegister = true;
 				break;				
 
