@@ -136,8 +136,8 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 				//			SetMaxROCNumber(CFO_Link_0, CFO_ROC_0);
 			}
 		}
-		SetInternalSystemClock();
-		DisableTiming();
+		// SetInternalSystemClock(); //RAR does not select clock to JA
+		DisableEmbeddedClockMarker();
 	}
 	ReadMinDMATransferLength();
 
@@ -184,85 +184,64 @@ bool CFOLib::CFO_Registers::ReadResetCFORunPlan(std::optional<uint32_t> val)
 	return dataSet[27];
 }
 
-void CFOLib::CFO_Registers::EnableAutogenDRP()
+void CFOLib::CFO_Registers::EnableLED7()
 {
-	TLOG(TLVL_AutogenDRP) << __COUT_HDR__ << "EnableAutogenDRP start";
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[23] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-void CFOLib::CFO_Registers::DisableAutogenDRP()
+void CFOLib::CFO_Registers::DisableReadLED7()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[23] = 0;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool CFOLib::CFO_Registers::ReadAutogenDRP(std::optional<uint32_t> val)
+bool CFOLib::CFO_Registers::ReadLED7State(std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[23];
 }
 
-void CFOLib::CFO_Registers::EnableEventWindowInput()
+void CFOLib::CFO_Registers::EnableAcceleratorRF0()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[2] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-void CFOLib::CFO_Registers::DisableEventWindowInput()
+void CFOLib::CFO_Registers::DisableAcceleratorRF0()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[2] = 0;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool CFOLib::CFO_Registers::ReadEventWindowInput(std::optional<uint32_t> val)
+bool CFOLib::CFO_Registers::ReadAcceleratorRF0Enable(std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[2];
 }
 
-void CFOLib::CFO_Registers::SetExternalSystemClock()
+void CFOLib::CFO_Registers::EnableEmbeddedClockMarker()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[1] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-void CFOLib::CFO_Registers::SetInternalSystemClock()
+void CFOLib::CFO_Registers::DisableEmbeddedClockMarker()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[1] = 0;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool CFOLib::CFO_Registers::ReadSystemClock(std::optional<uint32_t> val)
+bool CFOLib::CFO_Registers::ReadEmbeddedClockMarkerEnable(std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
 	return data[1];
-}
-
-void CFOLib::CFO_Registers::EnableTiming()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[0] = 1;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
-
-void CFOLib::CFO_Registers::DisableTiming()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[0] = 0;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
-
-bool CFOLib::CFO_Registers::ReadTimingEnable(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
-	return data[0];
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
@@ -270,11 +249,26 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 	auto form = CreateFormatter(CFOandDTC_Register_Control);
 	form.description = "CFO Control";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("Reset:                [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("CFO Autogenerate DRP: [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Event Window Input:   [") + (ReadEventWindowInput(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("System Clock Select:  [") + (ReadSystemClock(form.value) ? "Ext" : "Int") + "]");
-	form.vals.push_back(std::string("Timing Enable:        [") + (ReadTimingEnable(form.value) ? "x" : " ") + "]");
+	// ~~~	CFO Control Register (0x9100) ~~~
+	// Bit Position	Mode	Default Value	Description
+	// 31	RW	0b0	CFO Soft Reset (Self-clearing)
+	// 30-28	RO	0x0	Reserved
+	// 27	RW	0b0	CFO Run Plan Reset
+	// 26-24	RO	0x0	Reserved
+	// 23	RW	0b0	Reserved (Formerly DRP Auto Generate Enable)
+	// 22-17	RO	0x00	Reserved
+	// 16	RW	0b0	Led 7
+	// 15-3	RO	0x0000	Reserved
+	// 2	RW	0x0	Accelerator RF-0 Event Window Input Enable
+	// 1	RW	0b0	Embedded Clock Marker Enable
+	// 0	RO	0b0	CFO Hard Reset (Self-clearing)
+
+	form.vals.push_back(std::string("Bit-31 CFO Soft Reset (Self-clearing):  [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-27 CFO Run Plan Reset:              [") + (ReadResetCFORunPlan(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-16 LED 7:                           [") + (ReadLED7State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-02 Accelerator RF-0 Input Enable:   [") + (ReadAcceleratorRF0Enable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-01 Embedded Clock Marker Enable:    [") + (ReadEmbeddedClockMarkerEnable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-00 CFO Hard Reset (Self-clearing):  [") + (ReadHardReset(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -598,8 +592,9 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPLLLocked()
 	form.description = "SERDES PLL Locked";
 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
 	for (auto r : CFO_Links)
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
-			(ReadSERDESPLLLocked(r, form.value) ? "x" : " ") + "]");
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + (ReadSERDESPLLLocked(r, form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Clock to JA:    [") + ((((form.value) >> 8)&1) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Clock from JA:  [") + ((((form.value) >> 9)&1) ? "x" : " ") + "]");
 	return form;
 }
 
