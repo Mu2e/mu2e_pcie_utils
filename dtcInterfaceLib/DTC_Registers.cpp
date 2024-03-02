@@ -891,7 +891,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	auto form = CreateFormatter(CFOandDTC_Register_Control);
 	form.description = "DTC Control";
 	form.vals.push_back("([ x = 1 (hi) ])");
-	form.vals.push_back(std::string("Bit-31 DTC Soft Reset:                  [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-31 DTC Soft Reset (Self-clearing):  [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-30 CFO Emulation Enable:            [") + (ReadCFOEmulationEnabled(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-28 CFO Link Timing Card Mux Select: [") + (ReadCFOLoopback(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-27 Reset DDR Write Address:         [") + (ReadResetDDRWriteAddress(form.value) ? "x" : " ") + "]");
@@ -915,7 +915,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	// form.vals.push_back(std::string("Bit-31 Comma Tolerance Enable:          [") + (ReadCommaToleranceEnable(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-04 Fanout Clock Input Select:       [") + (ReadFanoutClockInput(form.value) ? "FMC SFP Rx" : "FPGA") + "]");
 	form.vals.push_back(std::string("Bit-02 DCS Enable:                      [") + (ReadDCSReception(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-00 DTC Hard Reset:                  [") + (ReadHardReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-00 DTC Hard Reset (Self-clearing):  [") + (ReadHardReset(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -1457,9 +1457,13 @@ void DTCLib::DTC_Registers::ResetSERDES(DTC_Link_ID const& link, int interval)
 		if(link == DTC_Link_ALL)
 		{	
 			//Ignore CFO link reset since it depends on CFO emulation mode and/or CFO presence
-			resetDone = (ReadRegister_(CFOandDTC_Register_SERDES_ResetDone) & 0xBF) == 0xBF;						
+			//	 For new DTC versions since December 2023, EVB is not instantiated, so also ignore
+			// resetDone = (ReadRegister_(CFOandDTC_Register_SERDES_ResetDone) & 0xBF) == 0xBF;						
+			// resetDone = resetDone &&
+			// 	( ((ReadRegister_(CFOandDTC_Register_SERDES_ResetDone) >> 16) & 0xBF) == 0xBF);	
+			resetDone = (ReadRegister_(CFOandDTC_Register_SERDES_ResetDone) & 0x3F) == 0x3F;						
 			resetDone = resetDone &&
-				( ((ReadRegister_(CFOandDTC_Register_SERDES_ResetDone) >> 16) & 0xBF) == 0xBF);								
+				( ((ReadRegister_(CFOandDTC_Register_SERDES_ResetDone) >> 16) & 0x3F) == 0x3F);								
 		}
 		else
 		{
@@ -1754,9 +1758,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSERDESPLLLocked()
 	form.description = "SERDES PLL Locked";
 	form.vals.push_back("([ x = 1 (hi) ])"); //translation
 	for (auto r : DTC_ROC_Links)
-	{
 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ":         [" + (ReadSERDESPLLLocked(r, form.value) ? "x" : " ") + "]");
-	}
 	form.vals.push_back(std::string("CFO:            [") + (ReadSERDESPLLLocked(DTC_Link_CFO, form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("EVB:            [") + (ReadSERDESPLLLocked(DTC_Link_EVB, form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Clock to JA:    [") + ((((form.value) >> 8)&1) ? "x" : " ") + "]");
