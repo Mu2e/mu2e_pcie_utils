@@ -260,7 +260,7 @@ bool DTCLib::DTC_Registers::ReadCFOEmulationEnabled(std::optional<uint32_t> val)
 void DTCLib::DTC_Registers::EnableCFOLoopback()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[28] = 1;
+	data[28] = 0; //0 is for Loopback to the CFO, 1 is for propagation downstream to the next DTC in the chain
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
@@ -270,7 +270,7 @@ void DTCLib::DTC_Registers::EnableCFOLoopback()
 void DTCLib::DTC_Registers::DisableCFOLoopback()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[28] = 0;
+	data[28] = 1; //0 is for Loopback to the CFO, 1 is for propagation downstream to the next DTC in the chain
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
@@ -855,7 +855,19 @@ bool DTCLib::DTC_Registers::ReadFanoutClockInput(std::optional<uint32_t> val)
 }
 
 /// <summary>
-/// Enalbe receiving DCS packets.
+/// Runs the Loopback test of the CFO Emulator, inside the DTC, and broadcasts loopback markers to all ROCs.
+/// </summary>
+void DTCLib::DTC_Registers::RunCFOEmulatorLoopbackTest()
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[3] = 0;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+	data[3] = 1;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+} //end RunCFOEmulatorLoopbackTest()
+
+/// <summary>
+/// Enable receiving DCS packets.
 /// </summary>
 void DTCLib::DTC_Registers::EnableDCSReception()
 {
