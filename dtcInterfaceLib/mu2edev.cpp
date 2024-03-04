@@ -183,14 +183,16 @@ void mu2edev::initDMAEngine()
    */
 int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 {
+	int retsts;
+	TRACE_EXIT { TRACE(TLVL_DEBUG + 11, UID_ +  " - mu2edev::read_data returning retsts(bytes)=%d",retsts);};
+
 	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - read_data dcs lock not held!");
-		return -2;
+		return retsts=-2;
 	}
 
 	auto start = std::chrono::steady_clock::now();
-	auto retsts = -1;
 	if (simulator_ != nullptr)
 	{
 		retsts = simulator_->read_data(chn, buffer, tmo_ms);
@@ -199,7 +201,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 	{
 		retsts = 0;
 		unsigned has_recv_data;
-		TRACE(TLVL_DEBUG + 11, UID_ + " - mu2edev::read_data before (mu2e_mmap_ptrs_[%d][0][0][0]!=NULL) || ((retsts=init())==0)", activeDeviceIndex_);
+		TRACE(TLVL_DEBUG + 11, UID_ + " - mu2edev::read_data before (mu2e_mmap_ptrs_[%d][0][0][0]!=NULL) || ((retsts=init())==0) tmo_ms=%d", activeDeviceIndex_,tmo_ms);
 		if ((mu2e_mmap_ptrs_[activeDeviceIndex_][0][0][0] != NULL) ||
 			((retsts = init(DTCLib::DTC_SimMode_Disabled, 0)) == 0))  // Default-init mu2edev if not given guidance
 		{
@@ -217,27 +219,19 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 				int* BC_p = (int*)mu2e_mmap_ptrs_[activeDeviceIndex_][chn][C2S][MU2E_MAP_META];
 				retsts = BC_p[newNxtIdx];
 				*buffer = ((mu2e_databuff_t*)(mu2e_mmap_ptrs_[activeDeviceIndex_][chn][C2S][MU2E_MAP_BUFF]))[newNxtIdx];
-				TRACE(TLVL_TRACE,
+				TRACE(TLVL_DEBUG + 12,
 					  "mu2edev::read_data chn%d hIdx=%u, sIdx=%u "
-					  "%u hasRcvDat=%u %p[newNxtIdx=%d]=retsts=%d buf(%p)[0]=0x%08x",
-					  chn, mu2e_channel_info_[activeDeviceIndex_][chn][C2S].hwIdx, mu2e_channel_info_[activeDeviceIndex_][chn][C2S].swIdx,
-					  mu2e_channel_info_[activeDeviceIndex_][chn][C2S].num_buffs, has_recv_data, (void*)BC_p, newNxtIdx, retsts,
+				      "num_buffs=%u hasRcvDat=%u %p[newNxtIdx=%d]=retsts=%d buf(%p)[0]=0x%08x", chn,
+				      mu2e_channel_info_[activeDeviceIndex_][chn][C2S].hwIdx,
+				      mu2e_channel_info_[activeDeviceIndex_][chn][C2S].swIdx,
+				      mu2e_channel_info_[activeDeviceIndex_][chn][C2S].num_buffs,
+				      has_recv_data, (void*)BC_p, newNxtIdx, retsts, 
 					  *buffer, *(uint32_t*)*buffer);
-				if(retsts == 80)
-				{
-					TRACE(TLVL_TRACE,"80 bytes: %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx", *(((uint64_t*)*buffer)+0)
-									   , *(((uint64_t*)*buffer)+1)
-									   , *(((uint64_t*)*buffer)+2)
-									   , *(((uint64_t*)*buffer)+3)
-									   , *(((uint64_t*)*buffer)+4)
-									   , *(((uint64_t*)*buffer)+5)
-									   , *(((uint64_t*)*buffer)+6)
-									   , *(((uint64_t*)*buffer)+7)
-									   , *(((uint64_t*)*buffer)+8)
-									   , *(((uint64_t*)*buffer)+9)
-									   );
+				TRACE(TLVL_DEBUG+13,"first 80 bytes: %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx %016lx",
+				      *(((uint64_t*)*buffer)+0), *(((uint64_t*)*buffer)+1), *(((uint64_t*)*buffer)+2), *(((uint64_t*)*buffer)+3),
+				      *(((uint64_t*)*buffer)+4), *(((uint64_t*)*buffer)+5), *(((uint64_t*)*buffer)+6), *(((uint64_t*)*buffer)+7),
+				      *(((uint64_t*)*buffer)+8), *(((uint64_t*)*buffer)+9) );
 
-				}
 				++buffers_held_;
 			}
 			else
@@ -249,7 +243,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 					__SS_THROW__;
 					// exit(1);
 				}
-				TRACE(TLVL_DEBUG + 11, UID_ + " - mu2edev::read_data not error... return 0 status");
+				TRACE(TLVL_DEBUG + 12, UID_ + " - mu2edev::read_data not error... return %d status", retsts);
 			}
 		}
 	}
@@ -489,7 +483,7 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 {
 	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
-		TRACE(TLVL_ERROR, UID_ + " - release_all dcs lock not held!");
+		TRACE(TLVL_WARN, UID_ + " - release_all dcs lock not held!");
 		return -2;
 	}
 	auto start = std::chrono::steady_clock::now();

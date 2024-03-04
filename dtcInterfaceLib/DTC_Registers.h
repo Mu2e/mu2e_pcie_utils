@@ -432,8 +432,8 @@ public:
 	bool ReadCommaToleranceEnable(std::optional<uint32_t> val = std::nullopt);          // B5
 	void SetExternalFanoutClockInput();       // B4
 	void SetInternalFanoutClockInput();       // B4
-	bool ReadFanoutClockInput(std::optional<uint32_t> val = std::nullopt);              // B4
-	// Bit 3 Reserved
+	bool ReadFanoutClockInput(std::optional<uint32_t> val = std::nullopt);              // B4	
+	void RunCFOEmulatorLoopbackTest();   // B3
 	void EnableDCSReception();   // B2
 	void DisableDCSReception();  // B2
 	bool ReadDCSReception(std::optional<uint32_t> val = std::nullopt);     // B2
