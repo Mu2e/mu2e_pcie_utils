@@ -352,7 +352,7 @@ static inline unsigned mu2e_chn_info_delta_(
 		retval = ((sw >= hw) ? (*mu2e_channel_info_)[dtc][chn][dir].num_buffs - (sw - hw) : hw - sw);
 
 #ifndef __CLING__
-	TRACE(21, "mu2e_mmap_ioctl::delta_ dtc=%d chn=%d dir=%d hw=%u sw=%u num_buffs=%u delta=%u", dtc, chn, dir, hw, sw,
+	TRACE(27, "mu2e_mmap_ioctl::delta_ dtc=%d chn=%d dir=%d hw=%u sw=%u num_buffs=%u delta=%u", dtc, chn, dir, hw, sw,
 		  (*mu2e_channel_info_)[dtc][chn][dir].num_buffs, retval);
 #endif
 	return retval;

@@ -85,7 +85,7 @@ int alloc_mem(int dtc)
 			va = dma_alloc_coherent(&mu2e_pci_dev[dtc]->dev, sizeof(mu2e_buffdesc_C2S_t), &(mu2e_pci_recver[dtc][chn].buffdesc_ring_dma[ii]), GFP_KERNEL);
 			if (va == NULL) goto out;
 			mu2e_pci_recver[dtc][chn].buffdesc_ring[ii] = va;
-			TRACE(1,
+			TRACE(TLVL_LOG,
 				  "alloc_mem mu2e_pci_recver[%d][%u][%u].databuffs=%p databuffs_dma=0x%llx "
 				  "buffdesc_ring=%p buffdesc_ring_dma=0x%llx",
 				  dtc, chn, ii, mu2e_pci_recver[dtc][chn].databuffs[ii], mu2e_pci_recver[dtc][chn].databuffs_dma[ii],
