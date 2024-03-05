@@ -386,7 +386,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 						TRACE(20, "mu2e_ioctl: cmd=GET_INFO: Skipping wait due to 0 timeout");
 					}
 					else if (wait_event_interruptible_lock_irq_timeout(get_info_wait_queue,
-																	   mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_),
+											   mu2e_chn_info_delta_(dtc, get_info.chn, C2S, &mu2e_channel_info_),
 																	   GetInfoLock,
 																	   tmo_jiffies) == 0)
 					{
@@ -418,11 +418,11 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			}
 			break;
 		case M_IOC_BUF_GIVE:
-			TRACE(21, "mu2e_ioctl: cmd=BUF_GIVE");
+			TRACE(25, "mu2e_ioctl: cmd=BUF_GIVE");
 			chn = arg >> 24;
 			dir = (arg >> 16) & 1;
 			num = arg & 0xffff;
-			TRACE(21, "mu2e_ioctl: BUF_GIVE chn:%u dir:%u num:%u", chn, dir, num);
+			TRACE(26, "mu2e_ioctl: BUF_GIVE chn:%u dir:%u num:%u", chn, dir, num);
 			myIdx = idx_add(mu2e_channel_info_[dtc][chn][dir].swIdx, num, dtc, chn, dir);
 			Dma_mWriteChnReg(dtc, chn, dir, REG_SW_NEXT_BD, idx2descDmaAdr(myIdx, dtc, chn, dir));
 			checkDmaEngine(dtc, chn, dir);
