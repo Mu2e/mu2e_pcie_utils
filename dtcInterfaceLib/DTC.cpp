@@ -55,7 +55,7 @@ DTCLib::DTC::~DTC()
 }
 
 //
-// DMA Functions
+// DMA Functions -- This if for HW event building
 //
 std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWindowTag when, bool matchEventWindowTag)
 {
@@ -154,7 +154,7 @@ std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWi
 
 
 //GetSubEventData ~~
-//	Similart to GetData() but retrieves a SubEvent, as opposed to an Event
+//	Similart to GetData() but retrieves a SubEvent, as opposed to an Event -- This is appropriate for SW Event building or more basic tests.
 std::vector<std::unique_ptr<DTCLib::DTC_SubEvent>> DTCLib::DTC::GetSubEventData(DTC_EventWindowTag when, bool matchEventWindowTag)
 {
 	DTC_TLOG(TLVL_GetData) << "GetSubEventData begin EventWindowTag=" << when.GetEventWindowTag(true) << ", matching=" << (matchEventWindowTag?"true":"false");
