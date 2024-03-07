@@ -58,7 +58,7 @@ irqreturn_t DmaInterrupt(int irq, void *dev_id)
 	if (mu2e_force_poll(dtc) == 0)
 	{
 		TRACE(TLVL_DEBUG+13, "DmaInterrupt: Marking Interrupt as acked");
-		Dma_mIntAck(base, DMA_ENG_ALLINT_MASK);
+		Dma_mIntAck(base, DMA_ENG_ALLINT_MASK | DMA_ENG_INT_ENABLE/*temporarily reenable INT until checkDmaEngine (above) and in ioctl BUF_GIVE is understood */);
 		return IRQ_HANDLED;
 	}
 	else
