@@ -20,18 +20,18 @@ typedef unsigned long long u64;
 #define XIo_In32(addr)                                  \
 	({                                                  \
 		u32 xx;                                         \
-		TRACE(17, "read: Start of %p", (void *)(addr)); \
+		TRACE(TLVL_DEBUG+40, "read: Start of %p", (void *)(addr)); \
 		xx = readl((unsigned int *)(addr));             \
-		TRACE(17, "read: 0x%x=%p", xx, (void *)(addr)); \
+		TRACE(TLVL_DEBUG+41, "read: 0x%x=%p", xx, (void *)(addr)); \
 		xx;                                             \
 	})
 
 #define XIo_Out32(addr, data)                             \
 	do                                                    \
 	{                                                     \
-		TRACE(18, "write %p=0x%x", (void *)(addr), data); \
+		TRACE(TLVL_DEBUG+42, "write %p=0x%x", (void *)(addr), data); \
 		writel((data), (unsigned int *)(addr));           \
-		TRACE(18, "write done");                          \
+		TRACE(TLVL_DEBUG+43, "write done");                          \
 	} while (0)
 
 //#define MAX_DMA_ENGINES         64      /**< Maximum number of DMA engines */
@@ -126,7 +126,7 @@ static unsigned long mu2e_ch_reg_offset[2][2] = {{0x2000, 0x0}, {0x2100, 0x100}}
 		u32 ii = hnt % MU2E_NUM_RECV_BUFFS, lc = 0;                                                                \
 		do                                                                                                         \
 		{                                                                                                          \
-			TRACE(19, "descDmaAdr2idx: regval=%x buffdesc_ring_dma[%d/%d]=%x, dtc=%d, chn=%d, dir=%d", regval, ii, \
+			TRACE(TLVL_DEBUG+44, "descDmaAdr2idx: regval=%x buffdesc_ring_dma[%d/%d]=%x, dtc=%d, chn=%d, dir=%d", regval, ii, \
 				  MU2E_NUM_RECV_BUFFS, (u32)mu2e_pci_recver[dtc][chn].buffdesc_ring_dma[ii], dtc, chn, dir);       \
 			if (regval == mu2e_pci_recver[dtc][chn].buffdesc_ring_dma[ii]) break;                                  \
 			ii = (ii + 1) % MU2E_NUM_RECV_BUFFS;                                                                   \
@@ -352,9 +352,10 @@ static unsigned long mu2e_ch_reg_offset[2][2] = {{0x2000, 0x0}, {0x2100, 0x100}}
  */
 #define Dma_mIntAck(BaseAddress, Mask)                            \
 	{                                                             \
-		u32 Reg = Dma_mReadReg(BaseAddress, REG_DMA_CTRL_STATUS); \
-		Reg |= Mask;                                              \
-		Dma_mWriteReg(BaseAddress, REG_DMA_CTRL_STATUS, Reg);     \
+		u32 Reg0 = Dma_mReadReg(BaseAddress, REG_DMA_CTRL_STATUS); \
+		u32 Reg1 = Reg0 | Mask;                                              \
+		TRACE(TLVL_DEBUG+45,"xdma.h macro Dma_mIntAck(Base,Mask=0x%08x): writing 0x%08x",Mask,Reg1); \
+		Dma_mWriteReg(BaseAddress, REG_DMA_CTRL_STATUS, Reg1);     \
 	}
 
 /****************************************************************************/
