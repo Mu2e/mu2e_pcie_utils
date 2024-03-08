@@ -23,7 +23,7 @@
 
 
 
-static const std::thread::id NULL_TID = std::thread::id(0);
+static const std::thread::id NULL_TID = std::thread::id();
 std::atomic<std::thread::id> mu2edev::dcs_lock_held_ = NULL_TID;
 
 mu2edev::mu2edev()

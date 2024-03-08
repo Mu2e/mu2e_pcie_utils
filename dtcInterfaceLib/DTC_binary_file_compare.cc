@@ -128,6 +128,8 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	TLOG(TLVL_INFO) << "Finished with file " << binaryFiles[0] << ", bytes read " << total_size_read;
+
 	std::ifstream is2(binaryFiles[1]);
 	if (is2.bad() || !is2)
 	{
@@ -220,6 +222,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	TLOG(TLVL_INFO) << "Finished with file " << binaryFiles[1] << ", bytes read " << total_size_read;
 	TLOG(TLVL_INFO) << "There are " << first_file_contents.size() << " events remaining from the first file. There are " << second_file_disagreements.size() << " events with different data in the second file.";
 	for (auto& ts : first_file_contents)
 	{

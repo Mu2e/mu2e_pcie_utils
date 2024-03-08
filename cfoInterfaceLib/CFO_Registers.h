@@ -15,7 +15,7 @@ namespace CFOLib {
 /// </summary>
 enum CFO_Register : uint16_t
 {
-	DTCLIB_COMMON_REGISTERS, //Moved here all registers in common with DTC
+	DTCLIB_COMMON_REGISTERS,  // Moved here all registers in common with DTC
 
 	CFO_Register_SFPSERDESStatus = 0x9140,
 	CFO_Register_BeamOnTimerPreset = 0x9144,
@@ -93,9 +93,8 @@ enum CFO_Register : uint16_t
 	CFO_Register_FPGACoreAccess = 0x9408,
 	CFO_Register_JitterAttenuatorCSR = 0x9500,
 	CFO_Register_Invalid,
-// };
-}; // end CFO_Register enum
-
+	// };
+};  // end CFO_Register enum
 
 /// <summary>
 /// The links of the CFO
@@ -119,7 +118,6 @@ enum CFO_Link_ID : uint8_t
 /// </summary>
 static const std::vector<CFO_Link_ID> CFO_Links{CFO_Link_0, CFO_Link_1, CFO_Link_2, CFO_Link_3,
 												CFO_Link_4, CFO_Link_5, CFO_Link_6, CFO_Link_7};
-
 
 /// <summary>
 /// The CFO_Registers class represents the CFO Register space, and all the methods necessary to read and write those
@@ -160,13 +158,12 @@ public:
 	/// CFO firmware does not match</param> <param name="mode">Mode to set</param> <param name="CFO">CFO/DTC card instance
 	/// to use</param> <param name="skipInit">Whether to skip initializing the CFO using the SimMode. Used to read
 	/// state.</param> <returns></returns>
-	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO, 
-							bool skipInit = false, const std::string& uid = "");
+	DTC_SimMode SetSimMode(std::string expectedDesignVersion, DTC_SimMode mode, int CFO,
+						   bool skipInit = false, const std::string& uid = "");
 
+	virtual void ResetPCIe() override { throw std::runtime_error("CFO-TODO!"); };
+	virtual void FlashLEDs() override { throw std::runtime_error("CFO-TODO!"); };
 
-	virtual void ResetPCIe() { throw std::runtime_error("CFO-TODO!"); }; 
-	virtual void FlashLEDs() { throw std::runtime_error("CFO-TODO!"); }; 
-	
 	// Design Status Register
 	/// <summary>
 	/// Determine if the DDR FIFO is empty
@@ -183,7 +180,6 @@ public:
 	/// </summary>
 	/// <returns>RegisterFormatter object containing register information</returns>
 	RegisterFormatter FormatDesignStatus();
-
 
 	// CFO Control Register
 	void ResetCFORunPlan();
@@ -526,13 +522,12 @@ public:
 	void ResetSERDESOscillatorIICInterface();
 
 	// Jitter Attenuator CSR Register
-	virtual std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt);
-	virtual void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false);
-	virtual bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt);
-	virtual bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt);
-	virtual void ResetJitterAttenuator();
-	virtual RegisterFormatter FormatJitterAttenuatorCSR();
-
+	virtual std::bitset<2> ReadJitterAttenuatorSelect(std::optional<uint32_t> val = std::nullopt) override;
+	virtual void SetJitterAttenuatorSelect(std::bitset<2> data, bool alsoResetJA = false) override;
+	virtual bool ReadJitterAttenuatorReset(std::optional<uint32_t> val = std::nullopt) override;
+	virtual bool ReadJitterAttenuatorLocked(std::optional<uint32_t> val = std::nullopt) override;
+	virtual void ResetJitterAttenuator() override;
+	virtual RegisterFormatter FormatJitterAttenuatorCSR() override;
 
 	/// <summary>
 	/// Read the current Oscillator program for the SERDES Oscillator
@@ -564,7 +559,6 @@ public:
 	/// </summary>
 	/// <returns>RegisterFormatter object containing register information</returns>
 	RegisterFormatter FormatSERDESOscillatorControl();
-
 
 	// Timestamp Preset Registers
 	/// <summary>
@@ -1432,18 +1426,16 @@ protected:
 	uint32_t maxDTCs_;            ///< Map of active DTCs
 	bool usingDetectorEmulator_;  ///< Whether Detector Emulation mode is enabled
 	uint16_t dmaSize_;            ///< Size of DMAs, in bytes (default 32k)
-	
+
 public:
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedDumpFunctions() override { return formattedDumpFunctions_; };
+	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedSimpleDumpFunctions() override { return formattedSimpleDumpFunctions_; };
 
-	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedDumpFunctions() {return formattedDumpFunctions_;}; //pure virtual	
-	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedSimpleDumpFunctions() {return formattedSimpleDumpFunctions_;}; //pure virtual
-
-
-  	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
+	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
 		[this] { return this->FormatCFOControl(); },
 		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatLinkEnable(); },
-		// [this] { return this->FormatRXCDRLockStatus(); },		
+		// [this] { return this->FormatRXCDRLockStatus(); },
 		[this] { return this->FormatSERDESResetDone(); },
 		[this] { return this->FormatSERDESReset(); },
 	};

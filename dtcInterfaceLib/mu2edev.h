@@ -10,8 +10,10 @@
 
 #include "mu2e_driver/mu2e_mmap_ioctl.h"  //
 
-#include <atomic>
 #include "mu2esim.h"
+
+#include <atomic>
+#include <chrono>
 
 /// <summary>
 /// This class handles the raw interaction with the mu2e device driver
@@ -181,7 +183,7 @@ private:
 
 	std::string			UID_;
 	FILE*				debugFp_ = 0;
-	std::chrono::_V2::steady_clock::time_point lastWriteTime_;
+	std::chrono::steady_clock::time_point lastWriteTime_;
 };
 
 #endif
