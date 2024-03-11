@@ -151,10 +151,14 @@ static void poll_packets(struct timer_list *t)
 				  nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, newCmpltIdx);
 			mu2e_channel_info_[dtc][chn][dir].hwIdx = nxtCachedCmpltIdx;
 			// Now system SW can see another buffer with valid meta data
-			TRACE(30, "poll_packets: dtc=? chn=%d dir=%d %p[idx=%u] ByteCount=%d 0x%016lx 0x%016lx 0x%016lx",
-			      chn, dir,
-			      (void *)BC_p, nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount,
-			      dma_data_p[1], dma_data_p[18], dma_data_p[19], dma_data_p[26], dma_data_p[27] );
+			TRACE(30, "poll_packets: 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx",
+			      dma_data_p[0], dma_data_p[1], dma_data_p[2], dma_data_p[3], dma_data_p[4], dma_data_p[5], dma_data_p[6], dma_data_p[7] );
+			TRACE(31, "poll_packets: 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx",
+			      dma_data_p[8], dma_data_p[9], dma_data_p[10], dma_data_p[11], dma_data_p[12], dma_data_p[13], dma_data_p[14], dma_data_p[15] );
+			TRACE(32, "poll_packets: 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx",
+			      dma_data_p[16], dma_data_p[17], dma_data_p[18], dma_data_p[19], dma_data_p[20], dma_data_p[21], dma_data_p[22], dma_data_p[23] );
+			TRACE(33, "poll_packets: 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx",
+			      dma_data_p[24], dma_data_p[25], dma_data_p[26], dma_data_p[27], dma_data_p[28], dma_data_p[29], dma_data_p[30], dma_data_p[31] );
 			do_once = 1;
 			did_work = 1;
 		}
