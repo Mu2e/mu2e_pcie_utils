@@ -147,14 +147,14 @@ static void poll_packets(struct timer_list *t)
 			dma_data_p = mu2e_pci_recver[dtc][chn].databuffs[nxtCachedCmpltIdx];
 			buffdesc_C2S_p = idx2descVirtAdr(nxtCachedCmpltIdx, dtc, chn, dir);
 			BC_p[nxtCachedCmpltIdx] = buffdesc_C2S_p->ByteCount;
-			TRACE(4, "poll_packets: dtc=%d chn=%d dir=%d %p[idx=%u]=byteCnt=%d newCmpltIdx=%u", dtc, chn, dir, (void *)BC_p,
+			TRACE(4,  "poll_packets: dtc=%d chn=%d dir=%d %p[idx=%u]=byteCnt=%d newCmpltIdx=%u", dtc, chn, dir, (void *)BC_p,
 				  nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, newCmpltIdx);
 			mu2e_channel_info_[dtc][chn][dir].hwIdx = nxtCachedCmpltIdx;
 			// Now system SW can see another buffer with valid meta data
-			TRACE(30, "poll_packets: dtc=%d chn=%d dir=%d %p[idx=%u] ByteCount=%d 0x%016lx 0x%016lx 0x%016lx",
-			      dtc, chn, dir,
+			TRACE(30, "poll_packets: dtc=? chn=%d dir=%d %p[idx=%u] ByteCount=%d 0x%016lx 0x%016lx 0x%016lx",
+			      chn, dir,
 			      (void *)BC_p, nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount,
-			      dma_data_p[0], dma_data_p[1], dma_data_p[2] );
+			      dma_data_p[1], dma_data_p[18], dma_data_p[19], dma_data_p[26], dma_data_p[27] );
 			do_once = 1;
 			did_work = 1;
 		}
