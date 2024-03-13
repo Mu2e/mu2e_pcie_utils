@@ -178,7 +178,7 @@ static void poll_packets(struct timer_list *t)
 	else
 	{
 		// Re-enable interrupts.
-		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d re-enabling interrupts", dtc, chn, dir, did_work);
+		TRACE(5, "poll_packets: dtc=%d chn=any dir=%d did_work=%d re-enabling interrupts", dtc, dir, did_work);
 		packets_timer_guard[dtc] = 1;
 		Dma_mIntEnable(base);
 	}
