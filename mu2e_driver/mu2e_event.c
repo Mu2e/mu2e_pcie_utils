@@ -104,13 +104,8 @@ static void poll_packets(struct timer_list *t)
 	// check channel 0 reciever
 	TRACE(
 		22,
-		"poll_packets: "
-		"CNTL=0x%08x "
-		"H_NEXT=%u "
-		"S_NEXT=%u "
-		"H_CPLT=%u "
-		"CPBYTS=0x%08x ",
-		Dma_mReadChnReg(dtc, 0, C2S, REG_DMA_ENG_CTRL_STATUS),
+		"poll_packets: DEBUG - check chn 0 recv(C2S) - dtc=%d CNTL=0x%08x H_NEXT=%u S_NEXT=%u H_CPLT=%u CPBYTS=0x%08x ",
+		  dtc, Dma_mReadChnReg(dtc, 0, C2S, REG_DMA_ENG_CTRL_STATUS),
 		descDmaAdr2idx(Dma_mReadChnReg(dtc, 0, C2S, REG_HW_NEXT_BD), dtc, 0, C2S, mu2e_channel_info_[dtc][0][C2S].hwIdx),
 		descDmaAdr2idx(Dma_mReadChnReg(dtc, 0, C2S, REG_SW_NEXT_BD), dtc, 0, C2S, mu2e_channel_info_[dtc][0][C2S].swIdx),
 		descDmaAdr2idx(Dma_mReadChnReg(dtc, 0, C2S, REG_HW_CMPLT_BD), dtc, 0, C2S, mu2e_channel_info_[dtc][0][C2S].hwIdx),
@@ -172,7 +167,7 @@ static void poll_packets(struct timer_list *t)
 	if (did_work)
 	{
 		// Reschedule immediately
-		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d rescheduling poll", dtc, chn, dir, did_work);
+		TRACE(5, "poll_packets: dtc=%d chn=any dir=%d did_work=%d rescheduling poll", dtc, dir, did_work);
 #if 1
 		packets_timer[dtc].timer.expires = jiffies;
 		add_timer(&packets_timer[dtc].timer);
@@ -207,9 +202,9 @@ int mu2e_event_up(int dtc)
 	TRACE(1, "mu2e_event_up dtc=%d", dtc);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 	TRACE(1, "mu2e_event_up calling init_timer");
-	init_timer(&(packets_timer[dtc].timer));
 	packets_timer[dtc].timer.function = poll_packets;
 	packets_timer[dtc].timer.data = dtc;
+	init_timer(&(packets_timer[dtc].timer));
 #else
 	TRACE(1, "mu2e_event_up calling timer_setup");
 	packets_timer[dtc].dtc = dtc;
