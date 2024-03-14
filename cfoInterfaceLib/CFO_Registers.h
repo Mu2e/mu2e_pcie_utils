@@ -182,8 +182,8 @@ public:
 	RegisterFormatter FormatDesignStatus();
 
 	// CFO Control Register
-	void ResetCFORunPlan();
-	bool ReadResetCFORunPlan(std::optional<uint32_t> val = std::nullopt);
+	// void ResetCFORunPlan();
+	// bool ReadResetCFORunPlan(std::optional<uint32_t> val = std::nullopt);
 	void EnableLED7();
 	void DisableReadLED7();
 	bool ReadLED7State(std::optional<uint32_t> val = std::nullopt);
