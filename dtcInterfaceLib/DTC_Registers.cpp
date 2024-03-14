@@ -3684,26 +3684,26 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulation40MHzMarkerIn
 	return form;
 }
 
-bool DTCLib::DTC_Registers::ReadCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val)
-{
-	std::bitset<32> dataSet = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOMarkerEnables);
-	return dataSet[link + 8];
-}
+// bool DTCLib::DTC_Registers::ReadCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val)
+// {
+// 	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(DTC_Register_CFOMarkerEnables);
+// 	return dataSet[link + 8];
+// }
 
-void DTCLib::DTC_Registers::SetCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, bool enable)
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_CFOMarkerEnables);
-	data[link + 8] = enable;
-	WriteRegister_(data.to_ulong(), DTC_Register_CFOMarkerEnables);
-}
+// void DTCLib::DTC_Registers::SetCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, bool enable)
+// {
+// 	std::bitset<32> data = ReadRegister_(DTC_Register_CFOMarkerEnables);
+// 	data[link + 8] = enable;
+// 	WriteRegister_(data.to_ulong(), DTC_Register_CFOMarkerEnables);
+// }
 
-bool DTCLib::DTC_Registers::ReadCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val)
+bool DTCLib::DTC_Registers::ReadCFO40MHzClockMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val)
 {
 	std::bitset<32> dataSet = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOMarkerEnables);
 	return dataSet[link];
 }
 
-void DTCLib::DTC_Registers::SetCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link, bool enable)
+void DTCLib::DTC_Registers::SetCFO40MHzClockMarkerEnable(DTC_Link_ID const& link, bool enable)
 {
 	std::bitset<32> data = ReadRegister_(DTC_Register_CFOMarkerEnables);
 	if (link == DTC_Link_ALL)
@@ -3716,15 +3716,16 @@ void DTCLib::DTC_Registers::SetCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID co
 	WriteRegister_(data.to_ulong(), DTC_Register_CFOMarkerEnables);
 }
 
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationMarkerEnables()
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFO40MHzClockMarkerEnables()
 {
 	auto form = CreateFormatter(CFOandDTC_Register_SERDES_LoopbackEnable);
 	form.description = "CFO Emulation Marker Enables";
-	form.vals.push_back("        [Event Start, 40 MHz]");
+	// form.vals.push_back("        [Event Start, 40 MHz]");
+	form.vals.push_back("        [40 MHz Clock Marker]");
 	for (auto r : DTC_ROC_Links)
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" +
-							(ReadCFOEmulationEventStartMarkerEnable(r, form.value) ? "x" : " ") + "," +
-							(ReadCFOEmulation40MHzClockMarkerEnable(r, form.value) ? "x" : " ") + "]");
+		form.vals.push_back(std::string("Link ") + std::to_string(r) + ": [" + 
+				// (ReadCFOEventStartMarkerEnable(r, form.value) ? "x" : " ") + "," + 
+				(ReadCFO40MHzClockMarkerEnable(r, form.value) ? "x" : " ") + "]");
 	return form;
 }
 
