@@ -689,7 +689,7 @@ void CFOLib::CFO_Registers::DisableBeamOnMode(const CFO_Link_ID& link)
 bool CFOLib::CFO_Registers::ReadBeamOnMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_EnableBeamOnMode);
-	return data[link];
+	return data[0]; //Enable beam on processing a single global flag as of December 2023
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnMode()
@@ -719,7 +719,7 @@ void CFOLib::CFO_Registers::DisableBeamOffMode(const CFO_Link_ID& link)
 bool CFOLib::CFO_Registers::ReadBeamOffMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_EnableBeamOffMode);
-	return data[link];
+	return data[0]; //Enable beam on processing a single global flag as of December 2023
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOffMode()

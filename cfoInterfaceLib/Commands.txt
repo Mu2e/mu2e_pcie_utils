@@ -1,14 +1,14 @@
 
 
 LOOP 235000 //32-bits
-    HEARTBEAT event_mode= 23
+    HEARTBEAT event_mode= 0x100000019
     MARKER 
     WAIT 1.7 us 
     INC_TAG //increment event window tag
 DO_LOOP
 
 LOOP 10000 //32-bits
-    HEARTBEAT event_mode= 24
+    HEARTBEAT event_mode= 0x00000020
     MARKER 
     WAIT 100 us 
     INC_TAG //increment event window tag
