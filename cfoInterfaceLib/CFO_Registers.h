@@ -1433,6 +1433,8 @@ public:
 
 	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
 		[this] { return this->FormatCFOControl(); },
+		[this] { return this->FormatBeamOffMode(); },
+		[this] { return this->FormatBeamOnMode(); },
 		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatLinkEnable(); },
 		// [this] { return this->FormatRXCDRLockStatus(); },
