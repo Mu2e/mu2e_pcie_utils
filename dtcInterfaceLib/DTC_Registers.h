@@ -726,11 +726,11 @@ public:
 	RegisterFormatter FormatCFOEmulation40MHzMarkerInterval();
 
 	// CFO Emulation Marker Enables
-	bool ReadCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
-	void SetCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, bool enable);
-	bool ReadCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
-	void SetCFOEmulation40MHzClockMarkerEnable(DTC_Link_ID const& link, bool enable);
-	RegisterFormatter FormatCFOEmulationMarkerEnables();
+	// bool ReadCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	// void SetCFOEmulationEventStartMarkerEnable(DTC_Link_ID const& link, bool enable);
+	bool ReadCFO40MHzClockMarkerEnable(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	void SetCFO40MHzClockMarkerEnable(DTC_Link_ID const& link, bool enable);
+	RegisterFormatter FormatCFO40MHzClockMarkerEnables();
 
 	// ROC Finish Threshold Register
 	uint8_t ReadROCCommaLimit(std::optional<uint32_t> val = std::nullopt);
@@ -1264,6 +1264,7 @@ protected:
 		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatROCEmulationEnable(); },
 		[this] { return this->FormatLinkEnable(); },
+		[this] { return this->FormatCFO40MHzClockMarkerEnables(); },		
 		[this] { return this->FormatRXCDRLockStatus(); },		
 		[this] { return this->FormatSERDESResetDone(); },
 		[this] { return this->FormatSERDESReset(); },
@@ -1342,7 +1343,7 @@ protected:
 		[this] { return this->FormatCFOEmulatorInterpacketDelay(); },
 		[this] { return this->FormatEthernetPayloadSize(); },
 		[this] { return this->FormatCFOEmulation40MHzMarkerInterval(); },
-		[this] { return this->FormatCFOEmulationMarkerEnables(); },
+		[this] { return this->FormatCFO40MHzClockMarkerEnables(); },
 		[this] { return this->FormatROCFinishThreshold(); },
 		[this] { return this->FormatFireflyTXIICControl(); },
 		[this] { return this->FormatFireflyTXIICParameterLow(); },
