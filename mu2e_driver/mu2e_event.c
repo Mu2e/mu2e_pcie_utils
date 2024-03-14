@@ -104,13 +104,8 @@ static void poll_packets(struct timer_list *t)
 	// check channel 0 reciever
 	TRACE(
 		22,
-		"poll_packets: "
-		"CNTL=0x%08x "
-		"H_NEXT=%u "
-		"S_NEXT=%u "
-		"H_CPLT=%u "
-		"CPBYTS=0x%08x ",
-		Dma_mReadChnReg(dtc, 0, C2S, REG_DMA_ENG_CTRL_STATUS),
+		"poll_packets: DEBUG - check chn 0 recv(C2S) - dtc=%d CNTL=0x%08x H_NEXT=%u S_NEXT=%u H_CPLT=%u CPBYTS=0x%08x ",
+		  dtc, Dma_mReadChnReg(dtc, 0, C2S, REG_DMA_ENG_CTRL_STATUS),
 		descDmaAdr2idx(Dma_mReadChnReg(dtc, 0, C2S, REG_HW_NEXT_BD), dtc, 0, C2S, mu2e_channel_info_[dtc][0][C2S].hwIdx),
 		descDmaAdr2idx(Dma_mReadChnReg(dtc, 0, C2S, REG_SW_NEXT_BD), dtc, 0, C2S, mu2e_channel_info_[dtc][0][C2S].swIdx),
 		descDmaAdr2idx(Dma_mReadChnReg(dtc, 0, C2S, REG_HW_CMPLT_BD), dtc, 0, C2S, mu2e_channel_info_[dtc][0][C2S].hwIdx),
@@ -147,14 +142,18 @@ static void poll_packets(struct timer_list *t)
 			dma_data_p = mu2e_pci_recver[dtc][chn].databuffs[nxtCachedCmpltIdx];
 			buffdesc_C2S_p = idx2descVirtAdr(nxtCachedCmpltIdx, dtc, chn, dir);
 			BC_p[nxtCachedCmpltIdx] = buffdesc_C2S_p->ByteCount;
-			TRACE(4, "poll_packets: dtc=%d chn=%d dir=%d %p[idx=%u]=byteCnt=%d newCmpltIdx=%u", dtc, chn, dir, (void *)BC_p,
-				  nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, newCmpltIdx);
+			TRACE(4,  "poll_packets: dtc=%d chn=%d dir=%d %p(BC_p)[idx=%u]=byteCnt=%d newCmpltIdx=%u dma_data_p(buf)=%p ",
+			      dtc, chn, dir, (void *)BC_p, nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, newCmpltIdx, dma_data_p);
 			mu2e_channel_info_[dtc][chn][dir].hwIdx = nxtCachedCmpltIdx;
 			// Now system SW can see another buffer with valid meta data
-			TRACE(30, "poll_packets: dtc=%d chn=%d dir=%d %p[idx=%u] ByteCount=%d 0x%016lx 0x%016lx 0x%016lx",
-			      dtc, chn, dir,
-			      (void *)BC_p, nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount,
-			      dma_data_p[0], dma_data_p[1], dma_data_p[2] );
+			TRACE(30, "poll_packets: 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx",
+			      dma_data_p[0], dma_data_p[1], dma_data_p[2], dma_data_p[3], dma_data_p[4], dma_data_p[5], dma_data_p[6], dma_data_p[7] );
+			TRACE(31, "poll_packets: 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx",
+			      dma_data_p[8], dma_data_p[9], dma_data_p[10], dma_data_p[11], dma_data_p[12], dma_data_p[13], dma_data_p[14], dma_data_p[15] );
+			TRACE(32, "poll_packets: 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx",
+			      dma_data_p[16], dma_data_p[17], dma_data_p[18], dma_data_p[19], dma_data_p[20], dma_data_p[21], dma_data_p[22], dma_data_p[23] );
+			TRACE(33, "poll_packets: 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx",
+			      dma_data_p[24], dma_data_p[25], dma_data_p[26], dma_data_p[27], dma_data_p[28], dma_data_p[29], dma_data_p[30], dma_data_p[31] );
 			do_once = 1;
 			did_work = 1;
 		}
@@ -168,7 +167,7 @@ static void poll_packets(struct timer_list *t)
 	if (did_work)
 	{
 		// Reschedule immediately
-		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d rescheduling poll", dtc, chn, dir, did_work);
+		TRACE(5, "poll_packets: dtc=%d chn=any dir=%d did_work=%d rescheduling poll", dtc, dir, did_work);
 #if 1
 		packets_timer[dtc].timer.expires = jiffies;
 		add_timer(&packets_timer[dtc].timer);
@@ -179,7 +178,7 @@ static void poll_packets(struct timer_list *t)
 	else
 	{
 		// Re-enable interrupts.
-		TRACE(5, "poll_packets: dtc=%d chn=%d dir=%d did_work=%d re-enabling interrupts", dtc, chn, dir, did_work);
+		TRACE(5, "poll_packets: dtc=%d chn=any dir=%d did_work=%d re-enabling interrupts", dtc, dir, did_work);
 		packets_timer_guard[dtc] = 1;
 		Dma_mIntEnable(base);
 	}
@@ -203,9 +202,9 @@ int mu2e_event_up(int dtc)
 	TRACE(1, "mu2e_event_up dtc=%d", dtc);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 	TRACE(1, "mu2e_event_up calling init_timer");
-	init_timer(&(packets_timer[dtc].timer));
 	packets_timer[dtc].timer.function = poll_packets;
 	packets_timer[dtc].timer.data = dtc;
+	init_timer(&(packets_timer[dtc].timer));
 #else
 	TRACE(1, "mu2e_event_up calling timer_setup");
 	packets_timer[dtc].dtc = dtc;
