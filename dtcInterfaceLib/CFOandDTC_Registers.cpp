@@ -142,6 +142,18 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignDate(std::optional<uint32_t> 
 }
 
 /// <summary>
+/// Read the DTC/CFO firmware flavour
+/// </summary>
+/// <returns>Returns the firmware flavour: C for CFO, D for DTC, E for CRVDTC</returns>
+std::string DTCLib::CFOandDTC_Registers::ReadDesigFlavour(std::optional<uint32_t> val)
+{
+	auto readData = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignDate);
+	std::ostringstream o;
+	o << std::hex << ((readData>>28)&0xF);
+	return o.str();
+}
+
+/// <summary>
 /// Formats the register's current value for register dumps
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>

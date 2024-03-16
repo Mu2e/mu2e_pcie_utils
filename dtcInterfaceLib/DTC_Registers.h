@@ -163,6 +163,8 @@ enum DTC_Register : uint16_t
 	DTC_Register_InputBufferDropCount = 0x93D8,
 	DTC_Register_OutputBufferDropCount = 0x93DC,
 	DTC_Register_ROCDCSTimerPreset = 0x93E0,
+        DTC_Register_DataRequest_Low = 0x93F8,
+        DTC_Register_DataRequest_High = 0x93FC,
 	// 0x93E4 - 0x93FC Reserved
 	DTC_Register_FPGAProgramData = 0x9400,
 	DTC_Register_FPGAPROMProgramStatus = 0x9404,
@@ -978,6 +980,12 @@ public:
 	void SetROCDCSResponseTimer(uint32_t timer);
 	RegisterFormatter FormatROCDCSResponseTimerPreset();
 
+	// Software DataRequests
+        void SetDataRequest(const DTC_EventWindowTag& ts);
+        DTC_EventWindowTag ReadDataRequest(std::optional<uint32_t> val = std::nullopt);
+        RegisterFormatter FormatDataRequestLow();
+        RegisterFormatter FormatDataRequestHigh();
+
 	// FPGA PROM Program Data Register
 
 	// FPGA PROM Program Status Register
@@ -1378,6 +1386,8 @@ protected:
 		[this] { return this->FormatFireflyCSR(); },
 		[this] { return this->FormatSFPControlStatus(); },
 		// [this] { return this->FormatROCDCSResponseTimerPreset(); },
+		[this] { return this->FormatDataRequestLow(); },
+		[this] { return this->FormatDataRequestHigh(); },
 		[this] { return this->FormatFPGAPROMProgramStatus(); },
 		[this] { return this->FormatFPGACoreAccess(); },
 		[this] { return this->FormatSlowOpticalLinkControlStatus(); },

@@ -174,6 +174,7 @@ public:
 	std::string ReadDesignVersion();
 	RegisterFormatter FormatDesignVersion();
 	std::string ReadDesignDate(std::optional<uint32_t> val = std::nullopt);
+    std::string ReadDesigFlavour(std::optional<uint32_t> val = std::nullopt);
 	RegisterFormatter FormatDesignDate();
 	std::string ReadDesignVersionNumber(std::optional<uint32_t> val = std::nullopt);
 	std::string ReadDesignLinkSpeed(std::optional<uint32_t> val = std::nullopt);
