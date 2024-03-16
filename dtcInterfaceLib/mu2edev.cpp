@@ -220,8 +220,8 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 				retsts = BC_p[newNxtIdx];
 				*buffer = ((mu2e_databuff_t*)(mu2e_mmap_ptrs_[activeDeviceIndex_][chn][C2S][MU2E_MAP_BUFF]))[newNxtIdx];
 				TRACE(TLVL_DEBUG + 12,
-					  "mu2edev::read_data chn%d hIdx=%u, sIdx=%u "
-				      "num_buffs=%u hasRcvDat=%u %p[newNxtIdx=%d]=retsts=%d buf(%p)[0]=0x%08x", chn,
+					  "mu2edev::read_data chn%d hIdx=%u, sIdx=%u num_buffs=%u hasRcvDat=%u %p(BC_p)[newNxtIdx=%d]=retsts=%d %p(buf)[0]=0x%08x", 
+				      chn,
 				      mu2e_channel_info_[activeDeviceIndex_][chn][C2S].hwIdx,
 				      mu2e_channel_info_[activeDeviceIndex_][chn][C2S].swIdx,
 				      mu2e_channel_info_[activeDeviceIndex_][chn][C2S].num_buffs,
@@ -490,12 +490,14 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 	auto retsts = 0;
 	if (simulator_ != nullptr)
 	{
+		TRACE(TLVL_DEBUG+23, UID_ + " - release all!");
 		retsts = simulator_->release_all(chn);
 	}
 	else
 	{
 		auto has_recv_data = mu2e_chn_info_delta_(activeDeviceIndex_, chn, C2S, &mu2e_channel_info_);
-		if (has_recv_data) read_release(chn, has_recv_data);
+		TRACE(TLVL_DEBUG+23, UID_ + " - release_all calling read_release(chn=%d has_recv_data=%d", chn, has_recv_data);
+		if (has_recv_data) read_release(chn, has_recv_data);		
 	}
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
 	return retsts;

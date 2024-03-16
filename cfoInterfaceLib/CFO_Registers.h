@@ -182,8 +182,8 @@ public:
 	RegisterFormatter FormatDesignStatus();
 
 	// CFO Control Register
-	void ResetCFORunPlan();
-	bool ReadResetCFORunPlan(std::optional<uint32_t> val = std::nullopt);
+	// void ResetCFORunPlan();
+	// bool ReadResetCFORunPlan(std::optional<uint32_t> val = std::nullopt);
 	void EnableLED7();
 	void DisableReadLED7();
 	bool ReadLED7State(std::optional<uint32_t> val = std::nullopt);
@@ -1433,6 +1433,8 @@ public:
 
 	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
 		[this] { return this->FormatCFOControl(); },
+		[this] { return this->FormatBeamOffMode(); },
+		[this] { return this->FormatBeamOnMode(); },
 		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatLinkEnable(); },
 		// [this] { return this->FormatRXCDRLockStatus(); },

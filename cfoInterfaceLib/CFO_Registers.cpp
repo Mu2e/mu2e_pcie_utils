@@ -168,21 +168,22 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDesignStatus()
 	return form;
 }
 
-void CFOLib::CFO_Registers::ResetCFORunPlan()
-{
-	TLOG(TLVL_ResetCFO) << __COUT_HDR__ << "SoftReset Run Plan start";
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[27] = 1;  // CFO Run Plan Reset bit
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-	data[27] = 0;  // Restore CFO Run Plan Reset bit
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
+//RAR: Now just Soft Reset resets run plan
+// void CFOLib::CFO_Registers::ResetCFORunPlan()
+// {
+// 	TLOG(TLVL_ResetCFO) << __COUT_HDR__ << "SoftReset Run Plan start";
+// 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+// 	data[27] = 1;  // CFO Run Plan Reset bit
+// 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+// 	data[27] = 0;  // Restore CFO Run Plan Reset bit
+// 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+// }
 
-bool CFOLib::CFO_Registers::ReadResetCFORunPlan(std::optional<uint32_t> val)
-{
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
-	return dataSet[27];
-}
+// bool CFOLib::CFO_Registers::ReadResetCFORunPlan(std::optional<uint32_t> val)
+// {
+// 	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_Control);
+// 	return dataSet[27];
+// }
 
 void CFOLib::CFO_Registers::EnableLED7()
 {
@@ -264,7 +265,8 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 	// 0	RO	0b0	CFO Hard Reset (Self-clearing)
 
 	form.vals.push_back(std::string("Bit-31 CFO Soft Reset (Self-clearing):  [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-27 CFO Run Plan Reset:              [") + (ReadResetCFORunPlan(form.value) ? "x" : " ") + "]");
+	// RAR: not just Soft Reset for resetting run plan
+	// form.vals.push_back(std::string("Bit-27 CFO Run Plan Reset:              [") + (ReadResetCFORunPlan(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-16 LED 7:                           [") + (ReadLED7State(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-02 Accelerator RF-0 Input Enable:   [") + (ReadAcceleratorRF0Enable(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-01 Embedded Clock Marker Enable:    [") + (ReadEmbeddedClockMarkerEnable(form.value) ? "x" : " ") + "]");
@@ -689,7 +691,7 @@ void CFOLib::CFO_Registers::DisableBeamOnMode(const CFO_Link_ID& link)
 bool CFOLib::CFO_Registers::ReadBeamOnMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_EnableBeamOnMode);
-	return data[link];
+	return data[0]; //Enable beam on processing a single global flag as of December 2023
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOnMode()
@@ -719,7 +721,7 @@ void CFOLib::CFO_Registers::DisableBeamOffMode(const CFO_Link_ID& link)
 bool CFOLib::CFO_Registers::ReadBeamOffMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value()?*val:ReadRegister_(CFO_Register_EnableBeamOffMode);
-	return data[link];
+	return data[0]; //Enable beam on processing a single global flag as of December 2023
 }
 
 DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatBeamOffMode()
