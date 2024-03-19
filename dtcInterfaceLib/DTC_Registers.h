@@ -163,8 +163,8 @@ enum DTC_Register : uint16_t
 	DTC_Register_InputBufferDropCount = 0x93D8,
 	DTC_Register_OutputBufferDropCount = 0x93DC,
 	DTC_Register_ROCDCSTimerPreset = 0x93E0,
-        DTC_Register_DataRequest_Low = 0x93F8,
-        DTC_Register_DataRequest_High = 0x93FC,
+    DTC_Register_DataRequest_Low = 0x93F8,
+    DTC_Register_DataRequest_High = 0x93FC,
 	// 0x93E4 - 0x93FC Reserved
 	DTC_Register_FPGAProgramData = 0x9400,
 	DTC_Register_FPGAPROMProgramStatus = 0x9404,
@@ -384,8 +384,8 @@ public:
 	void EnableAutogenDRP();          // B23
 	void DisableAutogenDRP();         // B23
 	bool ReadAutogenDRP(std::optional<uint32_t> val = std::nullopt);            // B23
-	void EnableSoftwareDRP();         // B22
-	void DisableSoftwareDRP();        // B22
+	void EnableSoftwareDRP();         // alias to  DisableAutogenDRP()
+	//void DisableSoftwareDRP();        // B22
 	bool ReadSoftwareDRP(std::optional<uint32_t> val = std::nullopt);           // B22
 	virtual void ResetPCIe() override;                 // B21
 	bool ReadResetPCIe(std::optional<uint32_t> val = std::nullopt);             // B21
@@ -981,10 +981,10 @@ public:
 	RegisterFormatter FormatROCDCSResponseTimerPreset();
 
 	// Software DataRequests
-        void SetDataRequest(const DTC_EventWindowTag& ts);
-        DTC_EventWindowTag ReadDataRequest(std::optional<uint32_t> val = std::nullopt);
-        RegisterFormatter FormatDataRequestLow();
-        RegisterFormatter FormatDataRequestHigh();
+    void SetSoftwareDataRequest(const DTC_EventWindowTag& ts);
+    DTC_EventWindowTag ReadSoftwareDataRequest(std::optional<uint32_t> val = std::nullopt);
+    RegisterFormatter FormatSoftwareDataRequestLow();
+    RegisterFormatter FormatSoftwareDataRequestHigh();
 
 	// FPGA PROM Program Data Register
 
@@ -1387,8 +1387,8 @@ protected:
 		[this] { return this->FormatFireflyCSR(); },
 		[this] { return this->FormatSFPControlStatus(); },
 		// [this] { return this->FormatROCDCSResponseTimerPreset(); },
-		[this] { return this->FormatDataRequestLow(); },
-		[this] { return this->FormatDataRequestHigh(); },
+		[this] { return this->FormatSoftwareDataRequestLow(); },
+		[this] { return this->FormatSoftwareDataRequestHigh(); },
 		[this] { return this->FormatFPGAPROMProgramStatus(); },
 		[this] { return this->FormatFPGACoreAccess(); },
 		[this] { return this->FormatSlowOpticalLinkControlStatus(); },
