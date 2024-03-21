@@ -426,12 +426,6 @@ public:
 	bool ReadResetSERDES(std::optional<uint32_t> val = std::nullopt);                   // B8
 	void SetExternalCFOSampleEdgeMode(int forceCFOedge);								// B6:5
 	int  ReadExternalCFOSampleEdgeMode(std::optional<uint32_t> val); // B6:5
-	// void SetRxPacketErrorFeedbackEnable();    // B6
-	// void ClearRxPacketErrorFeedbackEnable();  // B6
-	// bool ReadRxPacketErrorFeedbackEnable(std::optional<uint32_t> val = std::nullopt);   // B6
-	// void SetCommaToleranceEnable();           // B5
-	// void ClearCommaToleranceEnable();         // B5
-	// bool ReadCommaToleranceEnable(std::optional<uint32_t> val = std::nullopt);          // B5
 	void SetExternalFanoutClockInput();       // B4
 	void SetInternalFanoutClockInput();       // B4
 	bool ReadFanoutClockInput(std::optional<uint32_t> val = std::nullopt);              // B4	
