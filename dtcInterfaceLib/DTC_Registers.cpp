@@ -791,45 +791,20 @@ bool DTCLib::DTC_Registers::ReadResetSERDES(std::optional<uint32_t> val)
 	return data[8];
 }
 
-void DTCLib::DTC_Registers::SetRxPacketErrorFeedbackEnable()
+void DTCLib::DTC_Registers::SetExternalCFOSampleEdgeMode(int forceCFOedge)
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[6] = 1;
+	
+	data[6] = ((forceCFOedge>>1)&1) ? 0:1; //invert bit[1], DTC control bit [6] := 1 for forced, 0 for auto
+	data[5] = (forceCFOedge&1); //DTC control bit [5] := 1 for falling-edge, 0 for rising-edge
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
+} //end SetExternalCFOSampleEdgeMode()
 
-void DTCLib::DTC_Registers::ClearRxPacketErrorFeedbackEnable()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[6] = 0;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
-
-bool DTCLib::DTC_Registers::ReadRxPacketErrorFeedbackEnable(std::optional<uint32_t> val)
+int DTCLib::DTC_Registers::ReadExternalCFOSampleEdgeMode(std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
-	return data[6];
-}
-
-void DTCLib::DTC_Registers::SetCommaToleranceEnable()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[5] = 1;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
-
-void DTCLib::DTC_Registers::ClearCommaToleranceEnable()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[5] = 0;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
-
-bool DTCLib::DTC_Registers::ReadCommaToleranceEnable(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
-	return data[5];
-}
+	return (data[6]<<1) | data[5];
+} //end ReadExternalCFOSampleEdgeMode()
 
 void DTCLib::DTC_Registers::SetExternalFanoutClockInput()
 {
