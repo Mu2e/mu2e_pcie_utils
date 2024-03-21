@@ -423,21 +423,19 @@ bool DTCLib::DTC_Registers::ReadAutogenDRP(std::optional<uint32_t> val)
 /// </summary>
 void DTCLib::DTC_Registers::EnableSoftwareDRP()
 {
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[22] = 1;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+    DisableAutogenDRP();
 }
 
 /// <summary>
 /// Disable receiving Data Request Packets from the DTCLib on DMA Channel 0
 /// Possibly obsolete, ask Rick before using
 /// </summary>
-void DTCLib::DTC_Registers::DisableSoftwareDRP()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[22] = 0;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
+//void DTCLib::DTC_Registers::DisableSoftwareDRP()
+//{
+//	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+//	data[22] = 0;
+//	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+//}
 
 /// <summary>
 /// Read whether receiving Data Request Packets from the DTCLib on DMA Channel 0 is enabled
@@ -883,6 +881,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	// form.vals.push_back(std::string("Bit-25 Reset DDR Interface:             [") + (ReadResetDDR(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-24 CFO Emulator DRP Enable:         [") + (ReadCFOEmulatorDRP(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-23 DTC Autogenerate DRP:            [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
+	// form.vals.push_back(std::string("Bit-22 Software DRP:                    [") + (ReadSoftwareDRP(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-22 Software DRP Enable:             [") + (ReadSoftwareDRP(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-19 Down LED 0:                      [") + (ReadDownLED0State(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-18 Up LED 1:                        [") + (ReadUpLED1State(form.value) ? "x" : " ") + "]");
@@ -894,6 +893,8 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	// form.vals.push_back(std::string("Bit-31 ROC Interface Soft Reset:        [") + (ReadROCInterfaceSoftReset(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Sequence Number Disable:         [") + (ReadSequenceNumberDisable(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Punch Enable:                    [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
+
+	form.vals.push_back(std::string("Bit-09 Punched Clock Enable:            [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-08 SERDES Global Reset:             [") + (ReadResetSERDES(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 RX Packet Error Feedback Enable: [") + (ReadRxPacketErrorFeedbackEnable(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Comma Tolerance Enable:          [") + (ReadCommaToleranceEnable(form.value) ? "x" : " ") + "]");
@@ -6265,6 +6266,45 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatROCDCSResponseTimerPreset
 	form.description = "ROC DCS Response Timer Preset (*5ns)";
 	std::stringstream o;
 	o << std::dec << ReadROCDCSResponseTimer(form.value);
+	form.vals.push_back(o.str());
+	return form;
+}
+
+void DTCLib::DTC_Registers::SetSoftwareDataRequest(const DTC_EventWindowTag& ts)
+{
+	auto timestamp = ts.GetEventWindowTag();
+	auto timestampLow = static_cast<uint32_t>(timestamp.to_ulong());
+	timestamp >>= 32;
+	auto timestampHigh = static_cast<uint16_t>(timestamp.to_ulong());
+
+	WriteRegister_(timestampHigh, DTC_Register_DataRequest_High);
+	WriteRegister_(timestampLow, DTC_Register_DataRequest_Low); // this triggers the DR
+}
+
+DTCLib::DTC_EventWindowTag DTCLib::DTC_Registers::ReadSoftwareDataRequest(std::optional<uint32_t> val)
+{
+	auto timestampLow = val.has_value() ? *val : ReadRegister_(DTC_Register_DataRequest_Low);
+	DTC_EventWindowTag output;
+	output.SetEventWindowTag(timestampLow, static_cast<uint16_t>(ReadRegister_(DTC_Register_DataRequest_High)));
+	return output;
+}
+
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSoftwareDataRequestLow()
+{
+	auto form = CreateFormatter(DTC_Register_DataRequest_Low);
+	form.description = "Software Data Request Low";
+	std::stringstream o;
+	o << "0x" << std::hex << ReadRegister_(DTC_Register_DataRequest_Low);
+	form.vals.push_back(o.str());
+	return form;
+}
+
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatSoftwareDataRequestHigh()
+{
+	auto form = CreateFormatter(DTC_Register_DataRequest_High);
+	form.description = "Software Data Request High";
+	std::stringstream o;
+	o << "0x" << std::hex << ReadRegister_(DTC_Register_DataRequest_High);
 	form.vals.push_back(o.str());
 	return form;
 }

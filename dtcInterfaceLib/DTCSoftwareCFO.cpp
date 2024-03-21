@@ -105,7 +105,6 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 				// usleep(2000);
 			}
 		}
-		theDTC_->DisableSoftwareDRP();
 	}
 	else
 	{
