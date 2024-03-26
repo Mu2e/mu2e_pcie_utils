@@ -2813,24 +2813,61 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationTimestampHigh
 	return form;
 }
 
+// CFO Emulation Delay Measure
+/// <summary>
+/// Read the Delay Measure acquired with the CFO Emulator Loopback Test
+/// </summary>
+uint32_t DTCLib::DTC_Registers::ReadCFOEmulationLoopbackDelayMeasure(std::optional<uint32_t> val)
+{
+	uint32_t readVal = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOEmulation_LoopbackDelayMeasure);
+	uint32_t i = 0;
+	while(!(readVal >> 31))
+	{
+		usleep(100);
+		readVal = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOEmulation_LoopbackDelayMeasure);
+		++i;
+		if(i > 10) 
+		{
+			__SS__ << "Timeout looking for the CFO Emulator Loopback Test to complete...";
+			__SS_THROW__;
+		}
+	}
+	return readVal & (~(1<<31)); //clear the Ready bit from return value
+}
+
+/// <summary>
+/// Formats the register's current value for register dumps
+/// </summary>
+/// <returns>RegisterFormatter object containing register information</returns>
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationLoopbackDelayMeasure()
+{
+	auto form = CreateFormatter(DTC_Register_CFOEmulation_LoopbackDelayMeasure);
+	form.description = "CFO Emu. Loopback Delay Measure";
+	std::stringstream o;
+	o << "0x" << std::hex << ReadCFOEmulationEventWindowInterval(form.value) <<
+		std::dec << "(" << double(1.0) * ReadCFOEmulationEventWindowInterval(form.value) * 
+			5 /*ns for 200MHz period*/ / 8.0 /* for 8 samples */ << " ns)";
+	form.vals.push_back(o.str());
+	return form;
+}
+
 // CFO Emulation Request Interval Register
 /// <summary>
-/// Set the clock interval between CFO Emulator Readout Requests.
-/// This value is dependent upon the SERDES clock speed (2.5 Gbps = 125 MHz, 3.125 Gbps = 156.25 MHz)
+/// Set the clock interval between CFO Emulator Event Windows.
 /// If 0, specifies to execute the On/Off Spill emulation of Event Window intervals.
 /// </summary>
-/// <param name="interval">Clock cycles between Readout Requests</param>
-void DTCLib::DTC_Registers::SetCFOEmulationHeartbeatInterval(uint32_t interval)
+/// <param name="interval">Clock cycles between Event Window Markers</param>
+void DTCLib::DTC_Registers::SetCFOEmulationEventWindowInterval(uint32_t interval)
 {
 	WriteRegister_(interval, DTC_Register_CFOEmulation_HeartbeatInterval);
 }
 
 /// <summary>
-/// Read the clock interval between CFO Emulator Readout Requests.
-/// This value is dependent upon the SERDES clock speed (2.5 Gbps = 125 MHz, 3.125 Gbps = 156.25 MHz)
+/// Read the clock interval between CFO Emulator Event Windows.
+/// If 0, specifies to execute the On/Off Spill emulation of Event Window intervals.
 /// </summary>
-/// <returns>Clock cycles between Readout Requests</returns>
-uint32_t DTCLib::DTC_Registers::ReadCFOEmulationHeartbeatInterval(std::optional<uint32_t> val)
+/// <returns>Clock cycles between Event Window Markers</returns>
+uint32_t DTCLib::DTC_Registers::ReadCFOEmulationEventWindowInterval(std::optional<uint32_t> val)
 {
 	return val.has_value() ? *val : ReadRegister_(DTC_Register_CFOEmulation_HeartbeatInterval);
 }
@@ -2839,12 +2876,12 @@ uint32_t DTCLib::DTC_Registers::ReadCFOEmulationHeartbeatInterval(std::optional<
 /// Formats the register's current value for register dumps
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationHeartbeatInterval()
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationEventWindowInterval()
 {
 	auto form = CreateFormatter(DTC_Register_CFOEmulation_HeartbeatInterval);
-	form.description = "CFO Emu. Request Interval";
+	form.description = "CFO Emu. EWM Interval";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadCFOEmulationHeartbeatInterval(form.value);
+	o << "0x" << std::hex << ReadCFOEmulationEventWindowInterval(form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -2890,7 +2927,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumHeartbeats
 /// </summary>
 /// <param name="link">Link to set</param>
 /// <param name="numPackets">Number of packets to request</param>
-void DTCLib::DTC_Registers::SetCFOEmulationNumPackets(DTC_Link_ID const& link_in, uint16_t numPackets)
+void DTCLib::DTC_Registers::SetROCEmulationNumPackets(DTC_Link_ID const& link_in, uint16_t numPackets)
 {
 	uint16_t data = numPackets & 0x7FF;
 	DTC_Register reg;
@@ -2904,15 +2941,15 @@ void DTCLib::DTC_Registers::SetCFOEmulationNumPackets(DTC_Link_ID const& link_in
 		{
 			case DTC_Link_0:
 			case DTC_Link_1:
-				reg = DTC_Register_CFOEmulation_NumPacketsLinks10;
+				reg = DTC_Register_ROCEmulation_NumPacketsLinks10;
 				break;
 			case DTC_Link_2:
 			case DTC_Link_3:
-				reg = DTC_Register_CFOEmulation_NumPacketsLinks32;
+				reg = DTC_Register_ROCEmulation_NumPacketsLinks32;
 				break;
 			case DTC_Link_4:
 			case DTC_Link_5:
-				reg = DTC_Register_CFOEmulation_NumPacketsLinks54;
+				reg = DTC_Register_ROCEmulation_NumPacketsLinks54;
 				break;
 			default: {
 				__SS__ << "Illegal link " << link << " specified." << __E__;
@@ -2936,26 +2973,26 @@ void DTCLib::DTC_Registers::SetCFOEmulationNumPackets(DTC_Link_ID const& link_in
 }
 
 /// <summary>
-/// Read the requested number of packets the CFO Emulator will request from the given link
+/// Read the requested number of packets the ROC Emulator will generate from the given link
 /// </summary>
 /// <param name="link">Link to read</param>
-/// <returns>Number of packets requested from the link</returns>
-uint16_t DTCLib::DTC_Registers::ReadCFOEmulationNumPackets(DTC_Link_ID const& link, std::optional<uint32_t> val)
+/// <returns>Number of packets generated by the ROC Emulator</returns>
+uint16_t DTCLib::DTC_Registers::ReadROCEmulationNumPackets(DTC_Link_ID const& link, std::optional<uint32_t> val)
 {
 	DTC_Register reg;
 	switch (link)
 	{
 		case DTC_Link_0:
 		case DTC_Link_1:
-			reg = DTC_Register_CFOEmulation_NumPacketsLinks10;
+			reg = DTC_Register_ROCEmulation_NumPacketsLinks10;
 			break;
 		case DTC_Link_2:
 		case DTC_Link_3:
-			reg = DTC_Register_CFOEmulation_NumPacketsLinks32;
+			reg = DTC_Register_ROCEmulation_NumPacketsLinks32;
 			break;
 		case DTC_Link_4:
 		case DTC_Link_5:
-			reg = DTC_Register_CFOEmulation_NumPacketsLinks54;
+			reg = DTC_Register_ROCEmulation_NumPacketsLinks54;
 			break;
 		default: {
 			__SS__ << "Illegal link " << link << " specified." << __E__;
@@ -2977,17 +3014,17 @@ uint16_t DTCLib::DTC_Registers::ReadCFOEmulationNumPackets(DTC_Link_ID const& li
 /// Formats the register's current value for register dumps
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumPacketsLink01()
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatROCEmulationNumPacketsLink01()
 {
-	auto form = CreateFormatter(DTC_Register_CFOEmulation_NumPacketsLinks10);
-	form.description = "CFO Emulator Num Packets R0,1";
+	auto form = CreateFormatter(DTC_Register_ROCEmulation_NumPacketsLinks10);
+	form.description = "ROC Emulator Num Packets R0,1";
 	form.vals.push_back("");  // translation
 	std::stringstream o;
-	o << "Link 0: 0x" << std::hex << ReadCFOEmulationNumPackets(DTC_Link_0, form.value);
+	o << "Link 0: 0x" << std::hex << ReadROCEmulationNumPackets(DTC_Link_0, form.value);
 	form.vals.push_back(o.str());
 	o.str("");
 	o.clear();
-	o << "Link 1: 0x" << std::hex << ReadCFOEmulationNumPackets(DTC_Link_1, form.value);
+	o << "Link 1: 0x" << std::hex << ReadROCEmulationNumPackets(DTC_Link_1, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -2996,17 +3033,17 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumPacketsLin
 /// Formats the register's current value for register dumps
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumPacketsLink23()
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatROCEmulationNumPacketsLink23()
 {
-	auto form = CreateFormatter(DTC_Register_CFOEmulation_NumPacketsLinks32);
-	form.description = "CFO Emulator Num Packets R2,3";
+	auto form = CreateFormatter(DTC_Register_ROCEmulation_NumPacketsLinks32);
+	form.description = "ROC Emulator Num Packets R2,3";
 	form.vals.push_back("");  // translation
 	std::stringstream o;
-	o << "Link 2: 0x" << std::hex << ReadCFOEmulationNumPackets(DTC_Link_2, form.value);
+	o << "Link 2: 0x" << std::hex << ReadROCEmulationNumPackets(DTC_Link_2, form.value);
 	form.vals.push_back(o.str());
 	o.str("");
 	o.clear();
-	o << "Link 3: 0x" << std::hex << ReadCFOEmulationNumPackets(DTC_Link_3, form.value);
+	o << "Link 3: 0x" << std::hex << ReadROCEmulationNumPackets(DTC_Link_3, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -3015,17 +3052,17 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumPacketsLin
 /// Formats the register's current value for register dumps
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumPacketsLink45()
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatROCEmulationNumPacketsLink45()
 {
-	auto form = CreateFormatter(DTC_Register_CFOEmulation_NumPacketsLinks54);
-	form.description = "CFO Emulator Num Packets R4,5";
+	auto form = CreateFormatter(DTC_Register_ROCEmulation_NumPacketsLinks54);
+	form.description = "ROC Emulator Num Packets R4,5";
 	form.vals.push_back("");  // translation
 	std::stringstream o;
-	o << "Link 4: 0x" << std::hex << ReadCFOEmulationNumPackets(DTC_Link_4, form.value);
+	o << "Link 4: 0x" << std::hex << ReadROCEmulationNumPackets(DTC_Link_4, form.value);
 	form.vals.push_back(o.str());
 	o.str("");
 	o.clear();
-	o << "Link 5: 0x" << std::hex << ReadCFOEmulationNumPackets(DTC_Link_5, form.value);
+	o << "Link 5: 0x" << std::hex << ReadROCEmulationNumPackets(DTC_Link_5, form.value);
 	form.vals.push_back(o.str());
 	return form;
 }

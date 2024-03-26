@@ -432,22 +432,22 @@ void mu2esim::CFOEmulator_()
 				switch (link)
 				{
 					case DTCLib::DTC_Link_0:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks10]);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_ROCEmulation_NumPacketsLinks10]);
 						break;
 					case DTCLib::DTC_Link_1:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks10] >> 16);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_ROCEmulation_NumPacketsLinks10] >> 16);
 						break;
 					case DTCLib::DTC_Link_2:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks32]);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_ROCEmulation_NumPacketsLinks32]);
 						break;
 					case DTCLib::DTC_Link_3:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks32] >> 16);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_ROCEmulation_NumPacketsLinks32] >> 16);
 						break;
 					case DTCLib::DTC_Link_4:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks54]);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_ROCEmulation_NumPacketsLinks54]);
 						break;
 					case DTCLib::DTC_Link_5:
-						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_CFOEmulation_NumPacketsLinks54] >> 16);
+						packetCount = static_cast<uint16_t>(registers_[DTCLib::DTC_Register_ROCEmulation_NumPacketsLinks54] >> 16);
 						break;
 					default:
 						packetCount = 0;

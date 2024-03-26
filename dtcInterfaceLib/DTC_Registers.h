@@ -31,7 +31,7 @@ enum DTC_Register : uint16_t
 	DTC_Register_DDRClock_IICBusLow = 0x9178,
 	DTC_Register_DDRClock_IICBusHigh = 0x917C,
 	DTC_Register_DDRWriteResponseTimer = 0x9180,
-	DTC_Register_CFOEmulation_NumDebugDataPackets = 0x9184,
+	DTC_Register_CFOEmulation_LoopbackDelayMeasure = 0x9184,
 	DTC_Register_DataPendingTimer = 0x9188,
 	// 0x918C Reserved
 	DTC_Register_FIFOFullErrorFlag0 = 0x9190,
@@ -42,9 +42,9 @@ enum DTC_Register : uint16_t
 	DTC_Register_CFOEmulation_TimestampHigh = 0x91A4,
 	DTC_Register_CFOEmulation_HeartbeatInterval = 0x91A8,
 	DTC_Register_CFOEmulation_NumHeartbeats = 0x91AC,
-	DTC_Register_CFOEmulation_NumPacketsLinks10 = 0x91B0,
-	DTC_Register_CFOEmulation_NumPacketsLinks32 = 0x91B4,
-	DTC_Register_CFOEmulation_NumPacketsLinks54 = 0x91B8,
+	DTC_Register_ROCEmulation_NumPacketsLinks10 = 0x91B0,
+	DTC_Register_ROCEmulation_NumPacketsLinks32 = 0x91B4,
+	DTC_Register_ROCEmulation_NumPacketsLinks54 = 0x91B8,
 	DTC_Register_CFOEmulation_NumNullHeartbeats = 0x91BC,
 	DTC_Register_CFOEmulation_EventMode1 = 0x91C0,
 	DTC_Register_CFOEmulation_EventMode2 = 0x91C4,
@@ -619,9 +619,9 @@ public:
 	RegisterFormatter FormatCFOEmulationTimestampHigh();
 
 	// CFO Emulation Heartbeat Interval Regsister
-	void SetCFOEmulationHeartbeatInterval(uint32_t interval);
-	uint32_t ReadCFOEmulationHeartbeatInterval(std::optional<uint32_t> val = std::nullopt);
-	RegisterFormatter FormatCFOEmulationHeartbeatInterval();
+	void SetCFOEmulationEventWindowInterval(uint32_t interval);
+	uint32_t ReadCFOEmulationEventWindowInterval(std::optional<uint32_t> val = std::nullopt);
+	RegisterFormatter FormatCFOEmulationEventWindowInterval();
 
 	// CFO Emulation Number of Heartbeats Register
 	void SetCFOEmulationNumHeartbeats(uint32_t numHeartbeats);
@@ -629,11 +629,16 @@ public:
 	RegisterFormatter FormatCFOEmulationNumHeartbeats();
 
 	// CFO Emulation Number of Packets Registers
-	void SetCFOEmulationNumPackets(DTC_Link_ID const& link, uint16_t numPackets);
-	uint16_t ReadCFOEmulationNumPackets(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
-	RegisterFormatter FormatCFOEmulationNumPacketsLink01();
-	RegisterFormatter FormatCFOEmulationNumPacketsLink23();
-	RegisterFormatter FormatCFOEmulationNumPacketsLink45();
+	void SetROCEmulationNumPackets(DTC_Link_ID const& link, uint16_t numPackets);
+	uint16_t ReadROCEmulationNumPackets(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	RegisterFormatter FormatROCEmulationNumPacketsLink01();
+	RegisterFormatter FormatROCEmulationNumPacketsLink23();
+	RegisterFormatter FormatROCEmulationNumPacketsLink45();
+
+
+	// CFO Emulation Loopback Delay Measure
+	uint32_t ReadCFOEmulationLoopbackDelayMeasure(std::optional<uint32_t> val = std::nullopt);
+	RegisterFormatter FormatCFOEmulationLoopbackDelayMeasure();
 
 	// CFO Emulation Number of Null Heartbeats Register
 	void SetCFOEmulationNumNullHeartbeats(const uint32_t& count);
@@ -1277,9 +1282,9 @@ protected:
 		[this] { return this->FormatROCEmulationEnable(); },
 		[this] { return this->FormatLinkEnable(); },
 		[this] { return this->FormatRXCDRLockStatus(); },		
-		[this] { return this->FormatCFOEmulationNumPacketsLink01(); },
-		[this] { return this->FormatCFOEmulationNumPacketsLink23(); },
-		[this] { return this->FormatCFOEmulationNumPacketsLink45(); },
+		[this] { return this->FormatROCEmulationNumPacketsLink01(); },
+		[this] { return this->FormatROCEmulationNumPacketsLink23(); },
+		[this] { return this->FormatROCEmulationNumPacketsLink45(); },
 	};
 
 	const std::vector<std::function<RegisterFormatter()>> formattedDumpFunctions_{
@@ -1328,11 +1333,11 @@ protected:
 		[this] { return this->FormatReceivePacketError(); },
 		[this] { return this->FormatCFOEmulationTimestampLow(); },
 		[this] { return this->FormatCFOEmulationTimestampHigh(); },
-		[this] { return this->FormatCFOEmulationHeartbeatInterval(); },
+		[this] { return this->FormatCFOEmulationEventWindowInterval(); },
 		[this] { return this->FormatCFOEmulationNumHeartbeats(); },
-		[this] { return this->FormatCFOEmulationNumPacketsLink01(); },
-		[this] { return this->FormatCFOEmulationNumPacketsLink23(); },
-		[this] { return this->FormatCFOEmulationNumPacketsLink45(); },
+		[this] { return this->FormatROCEmulationNumPacketsLink01(); },
+		[this] { return this->FormatROCEmulationNumPacketsLink23(); },
+		[this] { return this->FormatROCEmulationNumPacketsLink45(); },
 		[this] { return this->FormatCFOEmulationNumNullHeartbeats(); },
 		[this] { return this->FormatCFOEmulationModeBytes03(); },
 		[this] { return this->FormatCFOEmulationModeBytes45(); },
