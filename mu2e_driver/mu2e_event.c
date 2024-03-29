@@ -130,8 +130,8 @@ static void poll_packets(struct timer_list *t)
 			// continue;
 			break;
 		}
-		TRACE(21, "poll_packets: MU2E_NUM_RECV_BUFFS=%i newCmpltIdx=0x%x Current_hwIdx=0x%x", MU2E_NUM_RECV_BUFFS,
-			  newCmpltIdx, mu2e_channel_info_[dtc][chn][dir].hwIdx);
+		TRACE(21, "poll_packets: MU2E_NUM_RECV_BUFFS=%i chn=%d newCmpltIdx=0x%x Current_hwIdx=0x%x", MU2E_NUM_RECV_BUFFS,
+		      chn, newCmpltIdx, mu2e_channel_info_[dtc][chn][dir].hwIdx);
 		// check just-read-HW-val (converted to idx) against "cached" copy
 		while (newCmpltIdx !=
 			   mu2e_channel_info_[dtc][chn][dir].hwIdx /*ie.cachedCmplt*/)
