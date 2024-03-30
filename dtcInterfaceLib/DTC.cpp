@@ -539,7 +539,7 @@ uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t ad
 	do
 	{
 		dcsDMAInfo_.currentReadPtr = nullptr;
-		ReleaseBuffers(DTC_DMA_Engine_DCS);
+		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 
 		device_.begin_dcs_transaction();
 		SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address,
@@ -605,7 +605,7 @@ bool DTCLib::DTC::WriteROCRegister(const DTC_Link_ID& link, const uint16_t addre
 	if (requestAck)
 	{
 		dcsDMAInfo_.currentReadPtr = nullptr;
-		ReleaseBuffers(DTC_DMA_Engine_DCS);
+		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 	}
 
 	device_.begin_dcs_transaction();
@@ -648,7 +648,7 @@ std::pair<uint16_t, uint16_t> DTCLib::DTC::ReadROCRegisters(const DTC_Link_ID& l
 															const uint16_t address2, int tmo_ms)
 {
 	dcsDMAInfo_.currentReadPtr = nullptr;
-	ReleaseBuffers(DTC_DMA_Engine_DCS);
+	ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 
 	device_.begin_dcs_transaction();
 	SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address1, 0, address2);
@@ -698,7 +698,7 @@ bool DTCLib::DTC::WriteROCRegisters(const DTC_Link_ID& link, const uint16_t addr
 	if (requestAck)
 	{
 		dcsDMAInfo_.currentReadPtr = nullptr;
-		ReleaseBuffers(DTC_DMA_Engine_DCS);
+		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 	}
 
 	device_.begin_dcs_transaction();
@@ -749,7 +749,7 @@ void DTCLib::DTC::ReadROCBlock(
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "ReadROCBlock before WriteDMADCSPacket - DTC_DCSRequestPacket";
 
 	dcsDMAInfo_.currentReadPtr = nullptr;
-	ReleaseBuffers(DTC_DMA_Engine_DCS);
+	ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 
 	if (!ReadDCSReception()) EnableDCSReception();
 
@@ -815,7 +815,7 @@ bool DTCLib::DTC::WriteROCBlock(const DTC_Link_ID& link, const uint16_t address,
 	if (requestAck)
 	{
 		dcsDMAInfo_.currentReadPtr = nullptr;
-		ReleaseBuffers(DTC_DMA_Engine_DCS);
+		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 	}
 	DTC_DCSRequestPacket req(link, DTC_DCSOperationType_BlockWrite, requestAck, incrementAddress, address);
 	req.SetBlockWriteData(blockData);
@@ -1496,6 +1496,8 @@ int DTCLib::DTC::ReadBuffer(const DTC_DMA_Engine& channel, int tmo_ms)
 	return errorCode;
 } // ReadBuffer
 
+// ReleaseBuffers releases the buffers that are held by ReadBuffer,
+// to release all DMA buffers and force hw and sw to align (for DCS) use ReleaseAllBuffers
 void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)//, int count)//count==0 means all
 {
 	DTC_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers BEGIN";

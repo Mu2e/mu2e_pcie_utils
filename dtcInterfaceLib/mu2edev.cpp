@@ -494,7 +494,17 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 	}
 	else
 	{
-		auto has_recv_data = mu2e_chn_info_delta_(activeDeviceIndex_, chn, C2S, &mu2e_channel_info_);
+		auto _tmo_ms = mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms;
+		mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = 0; 
+        int sts = ioctl(devfd_, M_IOC_GET_INFO, &mu2e_channel_info_[activeDeviceIndex_][chn][C2S]);
+		mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = _tmo_ms; // restore 
+		if (sts != 0) {
+            __SS__ << "Failed mu2edev::release_all with M_IOC_GET_INFO... return " << sts << " which is not 0." << __E__;
+			perror(ss.str().c_str());
+			__SS_THROW__;
+			// exit(1);
+		}
+		auto has_recv_data = mu2e_chn_info_delta_(activeDeviceIndex_, chn, C2S, &mu2e_channel_info_); // reads cached value, need M_IOC_GET_INFO before to update
 		if (has_recv_data) read_release(chn, has_recv_data);
 	}
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
