@@ -35,7 +35,7 @@
 #define ACCESS_OK_WRITE(addr, size) access_ok(addr, size)
 #endif
 
-#define DRIVER_VERSION_STRING "UNKNOWN_VERSION"
+#define DRIVER_VERSION_STRING "v3_00_00"
 
 /* GLOBALS */
 

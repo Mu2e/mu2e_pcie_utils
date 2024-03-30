@@ -105,7 +105,6 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 				// usleep(2000);
 			}
 		}
-		theDTC_->DisableSoftwareDRP();
 	}
 	else
 	{
@@ -117,11 +116,11 @@ void DTCLib::DTCSoftwareCFO::SendRequestForTimestamp(DTC_EventWindowTag ts, uint
 		{
 			if (linkMode_[link].TransmitEnable)
 			{
-				theDTC_->SetCFOEmulationNumPackets(link, debugPacketCount_);
+				theDTC_->SetROCEmulationNumPackets(link, debugPacketCount_);
 			}
 		}
 		theDTC_->SetCFOEmulationNumHeartbeats(1);
-		theDTC_->SetCFOEmulationHeartbeatInterval(20000);
+		theDTC_->SetCFOEmulationEventWindowInterval(20000);
 		theDTC_->SetCFOEmulationDebugType(debugType_);
 		theDTC_->SetCFOEmulationModeByte(5, 1);
 		theDTC_->SetCFOEmulationNumNullHeartbeats(heartbeatsAfter);
@@ -189,7 +188,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 		{
 			if (linkMode_[link].TransmitEnable)
 			{
-				theDTC_->SetCFOEmulationNumPackets(link, debugPacketCount_);
+				theDTC_->SetROCEmulationNumPackets(link, debugPacketCount_);
 			}
 		}
 		theDTC_->SetCFOEmulationNumHeartbeats(count);
@@ -200,7 +199,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForRange(int count, DTC_EventWindowTag 
 			theDTC_->EnableDebugPacketMode();
 		else
 			theDTC_->DisableDebugPacketMode();
-		theDTC_->SetCFOEmulationHeartbeatInterval(delayBetweenDataRequests);
+		theDTC_->SetCFOEmulationEventWindowInterval(delayBetweenDataRequests);
 		TLOG(TLVL_SendRequestsForRange) << "SendRequestsForRange enabling DTC CFO Emulator";
 		theDTC_->EnableCFOEmulation();
 		TLOG(TLVL_SendRequestsForRange) << "SendRequestsForRange done";
@@ -257,7 +256,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_EventWind
 		{
 			if (linkMode_[link].TransmitEnable)
 			{
-				theDTC_->SetCFOEmulationNumPackets(link, debugPacketCount_);
+				theDTC_->SetROCEmulationNumPackets(link, debugPacketCount_);
 			}
 		}
 		theDTC_->SetCFOEmulationNumHeartbeats(1);
@@ -268,7 +267,7 @@ void DTCLib::DTCSoftwareCFO::SendRequestsForListImplAsync(std::set<DTC_EventWind
 			theDTC_->EnableDebugPacketMode();
 		else
 			theDTC_->DisableDebugPacketMode();
-		theDTC_->SetCFOEmulationHeartbeatInterval(delayBetweenDataRequests);
+		theDTC_->SetCFOEmulationEventWindowInterval(delayBetweenDataRequests);
 		TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRange enabling DTC CFO Emulator";
 		theDTC_->EnableCFOEmulation();
 		TLOG(TLVL_SendRequestsForRangeImpl) << "SendRequestsForRange done";
