@@ -142,6 +142,36 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignDate(std::optional<uint32_t> 
 }
 
 /// <summary>
+/// Checks if is CRV DTC version
+/// </summary>
+/// <returns>returns true if the firmware is CRV DTC version, false otherwise</returns>
+bool DTCLib::CFOandDTC_Registers::isCRVDTCDesignFlavour(std::optional<uint32_t> val)
+{
+	auto readData = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignDate);
+	return ((readData>>28)&0xF) == 0xe;
+}
+
+/// <summary>
+/// Checks if is nonCRV DTC version
+/// </summary>
+/// <returns>returns true if the firmware is nonCRV DTC version, false otherwise</returns>
+bool DTCLib::CFOandDTC_Registers::isNonCRVDTCDesignFlavour(std::optional<uint32_t> val)
+{
+	auto readData = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignDate);
+	return ((readData>>28)&0xF) == 0xd;
+}
+
+/// <summary>
+/// Checks if is CFO version
+/// </summary>
+/// <returns>returns true if the firmware is CFO version, false otherwise</returns>
+bool DTCLib::CFOandDTC_Registers::isCFODesignFlavour(std::optional<uint32_t> val)
+{
+	auto readData = val.has_value()?*val:ReadRegister_(CFOandDTC_Register_DesignDate);
+	return ((readData>>28)&0xF) == 0xc;
+}
+
+/// <summary>
 /// Formats the register's current value for register dumps
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>

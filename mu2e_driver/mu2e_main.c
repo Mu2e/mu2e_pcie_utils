@@ -35,7 +35,7 @@
 #define ACCESS_OK_WRITE(addr, size) access_ok(addr, size)
 #endif
 
-#define DRIVER_VERSION_STRING "UNKNOWN_VERSION"
+#define DRIVER_VERSION_STRING "v3_00_00"
 
 /* GLOBALS */
 
@@ -88,6 +88,10 @@ bool mu2e_dcs_locks[MU2E_MAX_NUM_DTCS] = {0};
 /* forward decl */
 static int ReadPCIState(struct pci_dev *pdev, m_ioc_pcistate_t *pcistate);
 
+
+/**
+   Currently called from mu2e_event.c:DmaInterrupt and ioctl BUF_GIVE
+ */
 int checkDmaEngine(int dtc, unsigned chn, unsigned dir)
 {
 	int sts = 0;
@@ -138,7 +142,7 @@ int checkDmaEngine(int dtc, unsigned chn, unsigned dir)
 			  ((status & DMA_ENG_RUNNING) != 0 ? 1 : 0), ((status & DMA_ENG_WAITING) != 0 ? 1 : 0));
 	}
 	return sts;
-}
+} /* checkDmaEngine */
 
 IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg))
 {
