@@ -205,6 +205,7 @@ int mu2e_event_up(int dtc)
 	init_timer(&(packets_timer[dtc].timer));
 	packets_timer[dtc].timer.function = poll_packets;
 	packets_timer[dtc].timer.data = dtc;
+	init_timer(&(packets_timer[dtc].timer));
 #else
 	TRACE(TLVL_DEBUG+27, "mu2e_event_up calling timer_setup");
 	packets_timer[dtc].dtc = dtc;
