@@ -17,6 +17,9 @@ namespace DTCLib {
 class DTC : public DTC_Registers
 {
 public:
+	typedef uint16_t roc_data_t;
+	typedef uint16_t roc_address_t;
+
 	/// <summary>
 	/// Construct an instance of the DTC class
 	/// </summary>
