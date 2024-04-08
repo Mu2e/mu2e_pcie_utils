@@ -55,6 +55,7 @@ int alloc_mem(int dtc)
 	/* Use "Dma_" routines to init FPGA "user" application ("DTC") registers.
   NOTE: a few more after dma engine setup (below).
   */
+	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9100, 1); // Hard reset
 	TRACE(TLVL_INFO, "alloc_mem reset done bits: 0x%08x MU2E_NUM_RECV_CHANNELS=%d MU2E_NUM_RECV_BUFFS=%d MU2E_NUM_SEND_BUFFS=%d",
 		  Dma_mReadReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9138), MU2E_NUM_RECV_CHANNELS,
 		  MU2E_NUM_RECV_BUFFS, MU2E_NUM_SEND_BUFFS);
