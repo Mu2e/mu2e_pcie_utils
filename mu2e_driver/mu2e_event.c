@@ -146,6 +146,10 @@ static void poll_packets(struct timer_list *t)
 			dma_data_p = mu2e_pci_recver[dtc][chn].databuffs[nxtCachedCmpltIdx];
 			buffdesc_C2S_p = idx2descVirtAdr(nxtCachedCmpltIdx, dtc, chn, dir);
 			BC_p[nxtCachedCmpltIdx] = buffdesc_C2S_p->ByteCount;
+			if (buffdesc_C2S_p->ByteCount > sizeof(mu2e_databuff_t)) {
+			  TRACE(TLVL_ERROR,"DMA Engine dtc=%d chn=%d dir=%d TRANSFERRED PAST END OF BUFFER - CONSIDER REBOOT",dtc,chn,dir);
+			  // look in syslog (/var/log/messages or journalctl) and dmesg
+			}
 			TRACE(TLVL_DEBUG+20, "poll_packets: dtc|chn|dir=0x%03x %p[idx=%u]=byteCnt=%d newCmpltIdx=%u",
 			      (dtc<<8)|(chn<<4)|dir, (void *)BC_p, nxtCachedCmpltIdx, buffdesc_C2S_p->ByteCount, newCmpltIdx);
 			mu2e_channel_info_[dtc][chn][dir].hwIdx = nxtCachedCmpltIdx;
@@ -155,6 +159,14 @@ static void poll_packets(struct timer_list *t)
 			      (dtc<<8)|(chn<<4)|dir, 
 			      dma_data_p[0], dma_data_p[1], dma_data_p[2], dma_data_p[3],
 			      dma_data_p[4], dma_data_p[5], dma_data_p[6], dma_data_p[7], dma_data_p[8] );
+			if (buffdesc_C2S_p->ByteCount > 72) {
+			  int lwd = buffdesc_C2S_p->ByteCount / 8;
+			  TRACE(TLVL_DEBUG+21, "poll_packets: dtc|chn|dir=0x%03x "
+			      "0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx 0x%016lx",
+			      (dtc<<8)|(chn<<4)|dir, 
+			      dma_data_p[lwd-8], dma_data_p[lwd-7], dma_data_p[lwd-6], dma_data_p[lwd-5],
+			      dma_data_p[lwd-4], dma_data_p[lwd-3], dma_data_p[lwd-2], dma_data_p[lwd-1], dma_data_p[lwd] );
+			}
 			do_once = 1;
 			did_work = 1;
 		}

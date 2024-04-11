@@ -203,7 +203,7 @@ int alloc_mem(int dtc)
 
 	TRACE(TLVL_LOG, "alloc_mem setting DTC DMA registers");
 	/* Now, finish up with some more mu2e fpga user application stuff... */
-	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9104, 0x80000040);  // write max and min DMA xfer sizes
+	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9104, (SET_DTC_MAX_DMA_SIZE<<16)|0x0040);  // write max and min DMA xfer sizes
 	Dma_mWriteReg((unsigned long)mu2e_pcie_bar_info[dtc].baseVAddr, 0x9150, 0x00000010);  // set ring packet size
 
 	TRACE(TLVL_LOG, "alloc_mem complete");

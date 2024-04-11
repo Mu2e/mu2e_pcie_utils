@@ -230,7 +230,7 @@ IOCTL_RET_TYPE mu2e_ioctl(IOCTL_ARGS(struct inode *inode, struct file *filp, uns
 			/* First, get the user state */
 			eng.Buffers = 4;          // ustate.Buffers;
 			eng.MinPktSize = 64;      // ustate.MinPktSize;
-			eng.MaxPktSize = 0x8000;  // ustate.MaxPktSize;
+			eng.MaxPktSize = SET_DTC_MAX_DMA_SIZE;  // ustate.MaxPktSize;
 			eng.TestMode = 1;         // ustate.TestMode;
 
 			/* Now add the DMA state */
