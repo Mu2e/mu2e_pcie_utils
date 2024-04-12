@@ -19,6 +19,9 @@
 
 #include "dtcInterfaceLib/otsStyleCoutMacros.h"
 
+typedef unsigned long dma_addr_t;
+#include "mu2e_driver/mu2e_proto_globals.h"    // MU2E_NUM_RECV_BUFFS
+
 #define DEV_TLOG(lvl) 		TLOG(lvl) << "DEVICE " << this->getDeviceUID() << ": "
 
 
@@ -499,8 +502,9 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 		mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = 0; 
                 int sts = ioctl(devfd_, M_IOC_GET_INFO, &mu2e_channel_info_[activeDeviceIndex_][chn][C2S]);
 		mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = _tmo_ms; // restore 
-		if (sts != 0) {
-                        __SS__ << "Failed mu2edev::release_all with M_IOC_GET_INFO... return " << sts << " which is not 0." << __E__;
+		if (sts != 0) 
+		{
+            __SS__ << "Failed mu2edev::release_all with M_IOC_GET_INFO... return " << sts << " which is not 0. " << strerror(errno) << __E__;
 			perror(ss.str().c_str());
 			__SS_THROW__;
 			// exit(1);
@@ -641,3 +645,32 @@ std::string mu2edev::get_driver_version()
 
 	return outstr;
 }  // end get_driver_version
+
+void mu2edev::spy( int chn, unsigned optsmsk)
+{
+	void* buffer;
+	uint64_t* datap;
+	std::cout << "optsmsk=" << optsmsk << '\n';
+	if (!(optsmsk&1)) std::cout << "\033[0;0H\033[J";
+	unsigned iter=0;
+	while (++iter) {  // watch out (when using integer type) for compiler error: iteration 2147483647 invokes undefined behavior [-Werror=aggressive-loop-optimizations]
+		std::cout << "spy iteration: "<< std::dec << std::setw(7) << std::setfill(' ') << iter << '\n';
+		for (auto bufIdx=0; bufIdx<MU2E_NUM_RECV_BUFFS; ) {
+			std::cout << std::dec << std::setw(3) << std::setfill(' ') << bufIdx << " ";
+			for (auto buf=0; buf<3; ++buf) {
+				buffer = ((mu2e_databuff_t*)(mu2e_mmap_ptrs_[activeDeviceIndex_][chn][C2S][MU2E_MAP_BUFF]))[bufIdx++];
+				datap=(uint64_t*)buffer;
+				std::cout << "0x" << std::hex << std::setw(16) << std::setfill('0') << datap[0];
+				for (auto dd=1; dd<4; ++dd) {
+					std::cout << " " << std::hex << std::setw(16) << std::setfill('0') << datap[dd];
+				}
+				if (!(bufIdx<MU2E_NUM_RECV_BUFFS)) break;
+				if (buf<3) std::cout << "   ";
+			}
+			std::cout << '\n';
+		}
+		if(optsmsk&2) break;
+		sleep(1);  // user should control-C here :)
+		if(optsmsk&4) std::cout << "\033[0;0H";
+	}
+}

@@ -1144,20 +1144,47 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 		__SS_THROW__;
 	}
 	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index) - sizeof(uint64_t);
+
+	DTC_TLOG(TLVL_ReadNextDAQPacket) << "sizeof(DTC_SubEventHeader) = " << sizeof(DTC_SubEventHeader);
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "subevent inclusive byte count: 0x" << 
-		std::hex << subEventByteCount << " (" << std::dec << subEventByteCount << ")" <<
+		std::hex << subEventByteCount << " (" << std::dec << subEventByteCount << ") inclusive packets " << 
+		subEventByteCount/16 <<
 		", remaining buffer size: 0x" << 
-		std::hex << subEventByteCount << " (" << std::dec << remainingBufferSize << "). " <<
-		"Subevent packet count: " << (subEventByteCount - sizeof(DTC_SubEventHeader))/16; 
+		std::hex << remainingBufferSize << " (" << std::dec << remainingBufferSize << 
+		") this buffer packets = " << (remainingBufferSize - sizeof(DTC_SubEventHeader))/16 << ". " <<
+		"Total subevent packet count: " << (subEventByteCount - sizeof(DTC_SubEventHeader))/16; 
 
 	// Check for continued DMA
 	if (subEventByteCount > remainingBufferSize)
 	{
+		DTC_TLOG(TLVL_ReadNextDAQPacket) << "subevent needs more data by bytes " << 
+			std::hex << subEventByteCount - remainingBufferSize  << " (" << std::dec << subEventByteCount - remainingBufferSize << 
+			") packets " << (subEventByteCount - remainingBufferSize)/16 << ". "; 
+
 		// We're going to set lastReadPtr here, so that if this buffer isn't used by GetData, we start at the beginning of this event next time
 		daqDMAInfo_.lastReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) - 8;
 
 		auto inmem = std::make_unique<DTC_SubEvent>(subEventByteCount);
+
+		if(0) //for deubbging
+		{
+			std::cout << "1st DMA buffer res size=" << remainingBufferSize << "\n";
+			auto ptr = reinterpret_cast<const uint8_t*>(res->GetRawBufferPointer());
+			for(size_t i = 0; i < remainingBufferSize + 16; i += 4)
+				std::cout << std::dec << "res#" << i << "/" << remainingBufferSize <<
+					"(" << i/16 << "/" << remainingBufferSize/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+		}
+
+		//
 		memcpy(const_cast<void*>(inmem->GetRawBufferPointer()), res->GetRawBufferPointer(), remainingBufferSize);
+
+		if(0) //for deubbging
+		{
+			std::cout << "1st DMA buffer inmem size=" << remainingBufferSize << "\n";
+			auto ptr = reinterpret_cast<const uint8_t*>(inmem->GetRawBufferPointer());
+			for(size_t i = 0; i < remainingBufferSize + 16; i += 4)
+				std::cout << std::dec << "inmem#" << i << "(" << i/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+		}
 
 		auto bytes_read = remainingBufferSize;
 		while (bytes_read < subEventByteCount)
@@ -1166,17 +1193,37 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 
 			void* oldBufferPtr = nullptr;
 			if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
+
+			if(0) //for deubbging
+			{
+				std::cout << "1st DMA buffer\n";
+				auto ptr = reinterpret_cast<const uint8_t*>(&daqDMAInfo_.buffer.back()[0]);
+				for(size_t i = 0; i < bytes_read + 32; i += 4)
+					std::cout << std::dec << "#" << i << "(" << i/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+			}
+
 			auto sts = ReadBuffer(DTC_DMA_Engine_DAQ, tmo_ms);  // does return code
 			if (sts <= 0)
 			{
 				DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA: ReadBuffer returned " << sts << ", returning nullptr";
 				return nullptr;
 			}
+			
 			// MUST BE ABLE TO HANDLE daqbuffer_==nullptr OR retry forever?
 			daqDMAInfo_.currentReadPtr = &daqDMAInfo_.buffer.back()[0];
 			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
 										 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
 										 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
+
+			if(0) //for deubbging
+			{
+				std::cout << "1st buffer\n";
+				auto ptr = reinterpret_cast<const uint8_t*>(inmem->GetRawBufferPointer());
+				for(size_t i = 0; i < bytes_read + 16; i += 4)
+					std::cout << std::dec << "#" << i << "(" << i/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+			}
+			
+
 			void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 2;
 			if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
 			{
@@ -1197,6 +1244,17 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 
 			size_t remainingEventSize = subEventByteCount - bytes_read;
 			size_t copySize = remainingEventSize < buffer_size - 8 ? remainingEventSize : buffer_size - 8;
+
+			if(0) //for deubbging
+			{
+				std::cout << "2nd buffer\n";
+				auto ptr = reinterpret_cast<const uint8_t*>(daqDMAInfo_.currentReadPtr);
+				for(size_t i = 0; i < copySize; i += 4)
+					std::cout << std::dec << "#" << i << "(" << i/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+			}
+
+			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA bytes_read = " << bytes_read << " packets = " << bytes_read/16 - sizeof(DTC_SubEventHeader)/16;
+			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA copySize = " << copySize << " packets = " << copySize/16;
 			memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(inmem->GetRawBufferPointer()) + bytes_read), daqDMAInfo_.currentReadPtr, copySize);
 			bytes_read += buffer_size - 8;
 
