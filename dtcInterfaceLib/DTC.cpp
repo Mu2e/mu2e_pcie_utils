@@ -1458,11 +1458,12 @@ int DTCLib::DTC::ReadBuffer(const DTC_DMA_Engine& channel, int tmo_ms)
 	}
 
 	int errorCode;
-	TRACE_EXIT { DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer found " << ((errorCode>0)?"DATA":"NO Data"); };
+	//TRACE_EXIT { DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer found " << ((errorCode>0)?"DATA":"NO Data"); };
 	do
 	{
 		DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer before device_.read_data tmo=" << tmo_ms << " retry=" << retry;
 		errorCode = device_.read_data(channel, reinterpret_cast<void**>(&buffer), 1);
+		TRACE_EXIT { DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer found " << ((errorCode>0)?"DATA":"NO Data"); };
 		// if (errorCode == 0) usleep(1000);
 
 	} while (retry-- > 0 && errorCode == 0);  //error code of 0 is timeout
