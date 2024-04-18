@@ -1265,6 +1265,7 @@ protected:
 
 
  public:
+    bool WaitForLinkReady(DTC_Link_ID const& link, size_t interval, double timeout = 2.0) { return WaitForLinkReady_(link, interval, timeout); }
 	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedDumpFunctions() override {return formattedDumpFunctions_;}; //pure virtual	
 	virtual const std::vector<std::function<RegisterFormatter()>>& getFormattedSimpleDumpFunctions() override {return formattedSimpleDumpFunctions_;}; //pure virtual
 
