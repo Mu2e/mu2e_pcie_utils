@@ -155,10 +155,12 @@ void mu2edev::initDMAEngine()
 				TRACE(TLVL_DEBUG, UID_ + " - mu2edev::init chnDirMap2offset=%lu mu2e_mmap_ptrs_[%d][%d][%d][%d]=%p p=%c l=%lu", offset, activeDeviceIndex_, chn,
 						dir, map, mu2e_mmap_ptrs_[activeDeviceIndex_][chn][dir][map], prot == PROT_READ ? 'R' : 'W', length);
 			}
-			if (dir == DTC_DMA_Direction_C2S)
-			{
-				release_all(static_cast<DTC_DMA_Engine>(chn));
-			}
+
+			//do not want to release all from constructor, in case this instance of the device is not the 'owner' of a DMA-channel
+			// if (dir == DTC_DMA_Direction_C2S)
+			// {
+			// 	release_all(static_cast<DTC_DMA_Engine>(chn));
+			// }
 
 			// Reset the DTC
 			//{
@@ -186,6 +188,7 @@ void mu2edev::initDMAEngine()
    */
 int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 {
+	//WARNING NOTE: if there is existing data still sitting in unreleased buffer, the timeout will not add any delay
 	int retsts;
 	TRACE_EXIT { TRACE(TLVL_DEBUG + 11, UID_ +  " - mu2edev::read_data returning retsts(bytes)=%d",retsts);};
 
@@ -484,13 +487,16 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 // applicable for recv.
 int mu2edev::release_all(DTC_DMA_Engine const& chn)
 {
+	TLOG_DEBUG(25) << __PRETTY_FUNCTION__ << " called from\n" << otsStyleStackTrace();   // param to ENTEX is a DEBUG lvl
+	auto retsts = 0; TRACE_EXIT { TLOG_DEBUG(26) << "Exit - retsts=" << retsts; };
 	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_WARN, UID_ + " - release_all dcs lock not held!");
-		return -2;
+		retsts=-2; return retsts;
 	}
 	auto start = std::chrono::steady_clock::now();
-	auto retsts = 0;
+	auto time_last_data = start;
+	
 	if (simulator_ != nullptr)
 	{
 		TRACE(TLVL_DEBUG+23, UID_ + " - release all!");
@@ -498,20 +504,35 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 	}
 	else
 	{
-		auto _tmo_ms = mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms;
-		mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = 0; 
-                int sts = ioctl(devfd_, M_IOC_GET_INFO, &mu2e_channel_info_[activeDeviceIndex_][chn][C2S]);
-		mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = _tmo_ms; // restore 
-		if (sts != 0) 
+		while (1)
 		{
-            __SS__ << "Failed mu2edev::release_all with M_IOC_GET_INFO... return " << sts << " which is not 0. " << strerror(errno) << __E__;
-			perror(ss.str().c_str());
-			__SS_THROW__;
-			// exit(1);
+			auto _tmo_ms = mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms;
+			mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = 0; 
+			int sts = ioctl(devfd_, M_IOC_GET_INFO, &mu2e_channel_info_[activeDeviceIndex_][chn][C2S]);
+			mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = _tmo_ms; // restore 
+			if (sts != 0) 
+			{
+				__SS__ << "Failed mu2edev::release_all with M_IOC_GET_INFO... return " << sts << " which is not 0. " << strerror(errno) << __E__;
+				perror(ss.str().c_str());
+				__SS_THROW__;
+				// exit(1);
+			}
+			auto has_recv_data = mu2e_chn_info_delta_(activeDeviceIndex_, chn, C2S, &mu2e_channel_info_); // reads cached value, need M_IOC_GET_INFO before to update
+			
+			if (has_recv_data) 
+			{
+				TRACE(TLVL_DEBUG+23, UID_ + " - release_all calling read_release(chn=%d has_recv_data=%d", chn, has_recv_data);
+				read_release(chn, has_recv_data);
+				time_last_data = std::chrono::steady_clock::now();
+			}
+			auto nano_since_last_data=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - time_last_data).count();
+			if (!has_recv_data && nano_since_last_data > 10000000) // 100 microseconds is default ROC data tmo
+			{
+				TRACE(TLVL_DEBUG+23, UID_ + " - release_all done after buffers idle...");
+
+				break;
+			}
 		}
-		auto has_recv_data = mu2e_chn_info_delta_(activeDeviceIndex_, chn, C2S, &mu2e_channel_info_); // reads cached value, need M_IOC_GET_INFO before to update
-		TRACE(TLVL_DEBUG+23, UID_ + " - release_all calling read_release(chn=%d has_recv_data=%d", chn, has_recv_data);
-		if (has_recv_data) read_release(chn, has_recv_data);
 	}
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
 	return retsts;
@@ -646,22 +667,27 @@ std::string mu2edev::get_driver_version()
 	return outstr;
 }  // end get_driver_version
 
-void mu2edev::spy( int chn, unsigned optsmsk)
+void mu2edev::spy(int chn, unsigned optsmsk)
 {
+	TLOG_INFO() << "spy";
 	void* buffer;
 	uint64_t* datap;
 	std::cout << "optsmsk=" << optsmsk << '\n';
 	if (!(optsmsk&1)) std::cout << "\033[0;0H\033[J";
 	unsigned iter=0;
-	while (++iter) {  // watch out (when using integer type) for compiler error: iteration 2147483647 invokes undefined behavior [-Werror=aggressive-loop-optimizations]
+	while (++iter)
+	{  // watch out (when using integer type) for compiler error: iteration 2147483647 invokes undefined behavior [-Werror=aggressive-loop-optimizations]
 		std::cout << "spy iteration: "<< std::dec << std::setw(7) << std::setfill(' ') << iter << '\n';
-		for (auto bufIdx=0; bufIdx<MU2E_NUM_RECV_BUFFS; ) {
+		for (auto bufIdx=0; bufIdx<MU2E_NUM_RECV_BUFFS; ) 
+		{
 			std::cout << std::dec << std::setw(3) << std::setfill(' ') << bufIdx << " ";
-			for (auto buf=0; buf<3; ++buf) {
+			for (auto buf=0; buf<((optsmsk&8)?1:3); ++buf) 
+			{
 				buffer = ((mu2e_databuff_t*)(mu2e_mmap_ptrs_[activeDeviceIndex_][chn][C2S][MU2E_MAP_BUFF]))[bufIdx++];
 				datap=(uint64_t*)buffer;
 				std::cout << "0x" << std::hex << std::setw(16) << std::setfill('0') << datap[0];
-				for (auto dd=1; dd<4; ++dd) {
+				for (auto dd=1; dd<((optsmsk&8)?13:4); ++dd) 
+				{
 					std::cout << " " << std::hex << std::setw(16) << std::setfill('0') << datap[dd];
 				}
 				if (!(bufIdx<MU2E_NUM_RECV_BUFFS)) break;
@@ -673,4 +699,6 @@ void mu2edev::spy( int chn, unsigned optsmsk)
 		sleep(1);  // user should control-C here :)
 		if(optsmsk&4) std::cout << "\033[0;0H";
 	}
-}
+	if(optsmsk&16)
+		std::cout << "\n\n" << otsStyleStackTrace() << std::flush;
+} //end spy()

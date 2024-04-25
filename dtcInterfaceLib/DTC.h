@@ -257,7 +257,7 @@ public:
 
 private:
 	std::unique_ptr<DTC_DataPacket> ReadNextPacket(const DTC_DMA_Engine& channel, int tmo_ms);
-	int ReadBuffer(const DTC_DMA_Engine& channel, int tmo_ms);
+	int ReadBuffer(const DTC_DMA_Engine& channel, int retries = 10);
 	/// <summary>
 	/// This function releases all buffers except for the one containing currentReadPtr. Should only be called when done
 	/// with data in other buffers!
