@@ -166,6 +166,13 @@ public:
 	/// <returns>The current DTC UID for this instance</returns>
 	std::string getDeviceUID() { return UID_; }
 
+	/// <summary>
+	/// For this DTC, "spy" on C2S buffers associated with chn.
+	/// Output a small protion of each buffer to stdout until ^C.
+	/// </summary>
+	/// <returns>No value is returned.</returns>
+	void spy( int chn, unsigned flags);
+
 private:
 	// unsigned delta_(int chn, int dir);
 
