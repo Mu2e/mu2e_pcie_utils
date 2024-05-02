@@ -7,7 +7,7 @@
 #define DTCSOFTWARECFO_H 1
 
 #include "DTC.h"
-#include "artdaq-core-mu2e/Overlays/DTC_Types.h"
+// -- P.Murat: dont need, comes through DTC.h #include "artdaq-core-mu2e/Overlays/DTC_Types.h"
 
 #include <atomic>
 #include <set>
