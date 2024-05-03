@@ -12,7 +12,9 @@
 #include <cctype>
 #include <locale>
 
+#ifndef __CLING__
 #include "tracemf.h"
+#endif
 
 /// <summary>
 /// The CFO Namespace

@@ -1,0 +1,11 @@
+<lcgdict>
+
+  <class name="CFOLib::CFO" />
+  <class name="CFOLib::CFO_Registers" />
+  <class name="CFOLib::CFO_DataPacket" />
+  <class name="CFOLib::CFO_DMAPacket" />
+  <class name="CFOLib::CFO_Event" />
+  <class name="CFOLib::CFO_Compiler" />
+<!--
+-->
+</lcgdict>
