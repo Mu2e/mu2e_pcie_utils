@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-// ------------------- #include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
+// #include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataBlock.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataHeaderPacket.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataPacket.h"
@@ -23,7 +23,7 @@
 
 #include "DTC_Registers.h"
 
-// -------------------------------- #include "artdaq-core-mu2e/Overlays/DTC_Types.h"
+// #include "artdaq-core-mu2e/Overlays/DTC_Types.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_CharacterNotInTableError.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DCSOperationType.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DDRFlags.h"
@@ -50,6 +50,7 @@
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_Subsystem.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/Exceptions.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/Utilities.h"
+
 
 namespace DTCLib {
 
@@ -299,7 +300,7 @@ public:
 
 private:
 	std::unique_ptr<DTC_DataPacket> ReadNextPacket(const DTC_DMA_Engine& channel, int tmo_ms);
-	int ReadBuffer(const DTC_DMA_Engine& channel, int tmo_ms);
+	int ReadBuffer(const DTC_DMA_Engine& channel, int retries = 10);
 	/// <summary>
 	/// This function releases all buffers except for the one containing currentReadPtr. Should only be called when done
 	/// with data in other buffers!

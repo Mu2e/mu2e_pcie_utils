@@ -14,7 +14,8 @@
 #include <thread>
 #include <unordered_map>
 
-// ---------------------------------- #include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
+
+// #include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataBlock.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataHeaderPacket.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataPacket.h"
@@ -30,7 +31,7 @@
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_SubEvent.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_SubEventHeader.h"
 
-// -----------------------------------#include "artdaq-core-mu2e/Overlays/DTC_Types.h"
+// #include "artdaq-core-mu2e/Overlays/DTC_Types.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_CharacterNotInTableError.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DCSOperationType.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DDRFlags.h"
@@ -57,7 +58,6 @@
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_Subsystem.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/Exceptions.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/Utilities.h"
-
 
 #include "mu2e_driver/mu2e_mmap_ioctl.h"  //
 

@@ -17,17 +17,19 @@ static char* rev = (char*)"$Revision: 1.23 $$Date: 2012/01/23 15:32:40 $";
 
 #define USAGE \
 	"\
-   usage: %s <start|stop|dump>\n\
+   usage: %s <start|stop|dump|spy>\n\
           %s read <offset>\n\
           %s write <offset> <val>\n\
           %s write_loopback_data [-p<packet_cnt>] [data]...\n\
+		  %s spy [optsmask]  # see code for optsmask\n\
 examples: %s start\n\
 options:\n\
  -d<dtvdevnum>     \n\
  -l<loops>\n\
+ -c<channel>    0=ROC data, 1=DCS\n\
  -t     test/check   - currently for read\n\
 ",            \
-		basename(argv[0]), basename(argv[0]), basename(argv[0]), basename(argv[0]), basename(argv[0])
+		basename(argv[0]), basename(argv[0]), basename(argv[0]), basename(argv[0]), basename(argv[0]), basename(argv[0])
 
 int main(int argc, char* argv[])
 {
@@ -40,7 +42,7 @@ int main(int argc, char* argv[])
 	char devfile[11];
 	int dtc = -1;
 
-	int opt_v = 0;
+	int opt_v = 0, opt_chn=0;
 	int opt;
 	//int opt_packets = 8;
 	unsigned opt_loops = 1;  // saying -l10 will cause the thing to happen 10 times (i.e "loop back around 9 times")
@@ -53,7 +55,7 @@ int main(int argc, char* argv[])
 			{"mem-to-malloc", 1, 0, 'm'},
 			{0, 0, 0, 0},
 		};
-		opt = getopt_long(argc, argv, "?hm:Vvp:d:l:t", long_options, &option_index);
+		opt = getopt_long(argc, argv, "?hm:Vvp:c:d:l:t", long_options, &option_index);
 		if (opt == -1) break;
 		switch (opt)
 		{
@@ -74,6 +76,9 @@ int main(int argc, char* argv[])
 				break;
 			case 'd':
 				dtc = strtol(optarg, NULL, 0);
+				break;
+			case 'c':
+				opt_chn = strtol(optarg, NULL, 0);
 				break;
 			case 'l':
 				opt_loops = strtol(optarg, NULL, 0);
@@ -119,7 +124,8 @@ int main(int argc, char* argv[])
 			return (1);
 		}
 	}
-	else if(strcmp(cmd, "write") == 0)
+	else if(strcmp(cmd, "write") == 0 ||
+			strcmp(cmd, "spy") == 0 )
 	{
 		dev.init(DTCLib::DTC_SimMode_Disabled, dtc);
 	}
@@ -208,12 +214,19 @@ int main(int argc, char* argv[])
 	}
 	else if (strcmp(cmd, "dump") == 0)
 	{
-		sts = ioctl(fd, M_IOC_DUMP);
+		sts = ioctl(fd, M_IOC_DUMP); // dumps to kernel TRACE (/proc/trace/buffer or printk (NAME=mu2e_main))
 		if (sts)
 		{
 			perror("ioctl M_IOC_REG_ACCESS write");
 			return (1);
 		}
+	}
+	else if (strcmp(cmd, "spy") == 0)
+	{
+		unsigned optsmsk=0;
+		if (argc - optind >= 1) optsmsk = strtoul(argv[optind], NULL, 0);
+		std::cout << "Calling dev.spy(chn) with optsmsk="<<optsmsk<<"\n";
+		dev.spy(opt_chn, optsmsk);
 	}
 	// else if (strcmp(cmd,"write_loopback_data") == 0)
 	//   {
