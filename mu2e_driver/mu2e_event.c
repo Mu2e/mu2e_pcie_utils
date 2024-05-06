@@ -143,7 +143,7 @@ static void poll_packets(struct timer_list *t)
 			int *BC_p = (int *)mu2e_mmap_ptrs[dtc][chn][dir][MU2E_MAP_META];
 			uint64_t *dma_data_p;
 			nxtCachedCmpltIdx = idx_add(mu2e_channel_info_[dtc][chn][dir].hwIdx, 1, dtc, chn, dir);
-			dma_data_p = mu2e_pci_recver[dtc][chn].databuffs[nxtCachedCmpltIdx];
+			dma_data_p = (uint64_t *)(mu2e_pci_recver[dtc][chn].databuffs[nxtCachedCmpltIdx]);
 			buffdesc_C2S_p = idx2descVirtAdr(nxtCachedCmpltIdx, dtc, chn, dir);
 			BC_p[nxtCachedCmpltIdx] = buffdesc_C2S_p->ByteCount;
 			if (buffdesc_C2S_p->ByteCount > sizeof(mu2e_databuff_t)) {
