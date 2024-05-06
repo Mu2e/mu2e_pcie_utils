@@ -270,13 +270,18 @@ public:
 	std::unique_ptr<DTC_DCSReplyPacket> ReadNextDCSPacket(int tmo_ms );
 
 	/// <summary>
-	/// Releases all buffers to the hardware, from both the DAQ and DCS channels
+	//	------------
+	/// As of May 2024 RAR, force user to decide which type of buffers this process owns
+	//		DCS buffers is generally safer for multiple processes to access because of the lockout
+	//		DAQ/DATA buffers should only be released by the 'owner' of the DMA channel.
+	// -------------
+	//		Releases all buffers to the hardware, from both the DAQ and DCS channels
 	/// </summary>
-	void ReleaseAllBuffers()
-	{
-		ReleaseAllBuffers(DTC_DMA_Engine_DAQ);
-		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
-	}
+	// void ReleaseAllBuffers()
+	// {
+	// 	ReleaseAllBuffers(DTC_DMA_Engine_DAQ);
+	// 	ReleaseAllBuffers(DTC_DMA_Engine_DCS);
+	// }
 
 	/// <summary>
 	/// Release all buffers to the hardware on the given channel
