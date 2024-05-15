@@ -539,9 +539,9 @@ uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t ad
 	do
 	{
 		dcsDMAInfo_.currentReadPtr = nullptr;
-		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 
 		device_.begin_dcs_transaction();
+        ReleaseAllBuffers(DTC_DMA_Engine_DCS, true);
 		SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address,
 							0x0 /*data*/, 0x0 /*address2*/, 0x0 /*data2*/,
 							false /*quiet*/);
@@ -1615,7 +1615,7 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet, bool alreadyHave
 
 	if (errorCode != 0)
 	{
-		DTC_TLOG(TLVL_ERROR) << "WriteDataPacket: write_data returned " << errorCode << ", throwing DTC_IOErrorException!";
+		DTC_TLOG(TLVL_ERROR) << "WriteDataPacket: write_data returned " << errorCode << ", throwing DTC_IOErrorException! alreadyHaveDCSTransactionLock=" << alreadyHaveDCSTransactionLock;
 		throw DTC_IOErrorException(errorCode);
 	}
 }
