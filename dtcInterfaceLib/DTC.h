@@ -5,9 +5,52 @@
 #include <memory>
 #include <vector>
 
-#include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
+// #include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataBlock.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataHeaderPacket.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataPacket.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataRequestPacket.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataStatus.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DCSReplyPacket.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DCSRequestPacket.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DMAPacket.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_Event.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_EventHeader.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_HeartbeatPacket.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_PacketType.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_SubEvent.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_SubEventHeader.h"
+
 #include "DTC_Registers.h"
-#include "artdaq-core-mu2e/Overlays/DTC_Types.h"
+
+// #include "artdaq-core-mu2e/Overlays/DTC_Types.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_CharacterNotInTableError.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DCSOperationType.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DDRFlags.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DebugType.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_EVBStatus.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_EventMode.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_EventWindowTag.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_FIFOFullErrorFlags.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_IICDDRBusAddress.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_IICSERDESBusAddress.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_LinkEnableMode.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_LinkStatus.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_Link_ID.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_OscillatorType.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_PLL_ID.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_PRBSMode.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_ROC_Emulation_Type.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_RXBufferStatus.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_RXStatus.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_SerdesClockSpeed.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_SERDESLoopbackMode.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_SERDESRXDisparityError.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_SimMode.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_Subsystem.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/Exceptions.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/Utilities.h"
+
 
 namespace DTCLib {
 
@@ -227,13 +270,18 @@ public:
 	std::unique_ptr<DTC_DCSReplyPacket> ReadNextDCSPacket(int tmo_ms );
 
 	/// <summary>
-	/// Releases all buffers to the hardware, from both the DAQ and DCS channels
+	//	------------
+	/// As of May 2024 RAR, force user to decide which type of buffers this process owns
+	//		DCS buffers is generally safer for multiple processes to access because of the lockout
+	//		DAQ/DATA buffers should only be released by the 'owner' of the DMA channel.
+	// -------------
+	//		Releases all buffers to the hardware, from both the DAQ and DCS channels
 	/// </summary>
-	void ReleaseAllBuffers()
-	{
-		ReleaseAllBuffers(DTC_DMA_Engine_DAQ);
-		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
-	}
+	// void ReleaseAllBuffers()
+	// {
+	// 	ReleaseAllBuffers(DTC_DMA_Engine_DAQ);
+	// 	ReleaseAllBuffers(DTC_DMA_Engine_DCS);
+	// }
 
 	/// <summary>
 	/// Release all buffers to the hardware on the given channel
@@ -259,7 +307,7 @@ public:
 
 private:
 	std::unique_ptr<DTC_DataPacket> ReadNextPacket(const DTC_DMA_Engine& channel, int tmo_ms);
-	int ReadBuffer(const DTC_DMA_Engine& channel, int tmo_ms);
+	int ReadBuffer(const DTC_DMA_Engine& channel, int retries = 10);
 	/// <summary>
 	/// This function releases all buffers except for the one containing currentReadPtr. Should only be called when done
 	/// with data in other buffers!

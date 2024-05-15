@@ -1,4 +1,4 @@
-%module dtcInterfaceLib
+%module cfoInterfaceLib
 //-----------------------------------------------------------------------------
 // SWIG symbols needed to generated wrappers
 //-----------------------------------------------------------------------------
@@ -9,14 +9,10 @@
 %include "typemaps.i"
 
 %{
-#include "mu2e_driver/mu2e_mmap_ioctl.h"
-#include "dtcInterfaceLib/CFOandDTC_Registers.h"
-#include "dtcInterfaceLib/DTC_Registers.h"
-#include "dtcInterfaceLib/DTC.h"
-#include "dtcInterfaceLib/DTCSoftwareCFO.h"
-#include "dtcInterfaceLib/mu2edev.h"
-#include "dtcInterfaceLib/mu2esim.h"
-using namespace DTCLib;
+#include "cfoInterfaceLib/CFO_Registers.h"
+#include "cfoInterfaceLib/CFO.h"
+#include "cfoInterfaceLib/CFO_Compiler.hh"
+using namespace CFOLib;
 %}
 //------------------------------------------------------------------------------
 // this is for mu2edev::read_register to return the result as the second number
@@ -26,12 +22,7 @@ using namespace DTCLib;
 //-----------------------------------------------------------------------------
 // Process symbols in the headers
 //-----------------------------------------------------------------------------
-%include "mu2e_driver/mu2e_mmap_ioctl.h"
-%include "dtcInterfaceLib/mu2esim.h"
-%include "dtcInterfaceLib/mu2edev.h"
-%include "dtcInterfaceLib/CFOandDTC_Registers.h"
-%include "dtcInterfaceLib/DTC_Registers.h"
-%include "dtcInterfaceLib/DTC.h"
-%include "dtcInterfaceLib/DTCSoftwareCFO.h"
-%include "dtcInterfaceLib/mu2edev.h"
-%include "dtcInterfaceLib/mu2esim.h"
+// %include "mu2e_driver/mu2e_mmap_ioctl.h"
+%include "cfoInterfaceLib/CFO_Registers.h"
+%include "cfoInterfaceLib/CFO.h"
+%include "cfoInterfaceLib/CFO_Compiler.hh"
