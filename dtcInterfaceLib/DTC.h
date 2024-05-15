@@ -297,11 +297,9 @@ public:
 		else if (channel == DTC_DMA_Engine_DCS)
 		{
 			dcsDMAInfo_.buffer.clear();
-		if(!alreadyHaveDCSTransactionLock)
-			device_.begin_dcs_transaction();
+		if(!alreadyHaveDCSTransactionLock) device_.begin_dcs_transaction();
 			device_.release_all(channel);
-		if(!alreadyHaveDCSTransactionLock)
-			device_.end_dcs_transaction();
+		if(!alreadyHaveDCSTransactionLock) device_.end_dcs_transaction();
 		}		
 	}
 
