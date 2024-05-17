@@ -1563,6 +1563,31 @@ int DTCLib::DTC::ReadBuffer(const DTC_DMA_Engine& channel, int retries /* = 10 *
 	return errorCode;
 }  // ReadBuffer
 
+void DTCLib::DTC::ReleaseAllBuffers(const DTC_DMA_Engine& channel)
+{
+	TLOG_ENTEX(1) << "ReleaseAllBuffers - channel=" << channel;
+
+	if (channel == DTC_DMA_Engine_DAQ)
+	{
+		daqDMAInfo_.buffer.clear();
+		device_.release_all(channel);
+	}
+	else if (channel == DTC_DMA_Engine_DCS)
+	{
+		bool lock_taken_locally = false;
+		if (!device_.thread_owns_dcs_lock())
+		{
+			device_.begin_dcs_transaction();
+			lock_taken_locally = true;
+		}
+
+		dcsDMAInfo_.buffer.clear();
+		device_.release_all(channel);
+
+		if (lock_taken_locally) { device_.end_dcs_transaction(); }
+	}
+}
+
 // ReleaseBuffers releases the buffers that are held by ReadBuffer,
 // to release all DMA buffers and force hw and sw to align (for DCS) use ReleaseAllBuffers
 void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)  //, int count)//count==0 means all

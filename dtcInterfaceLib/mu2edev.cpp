@@ -212,7 +212,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 			((retsts = init(DTCLib::DTC_SimMode_Disabled, 0)) == 0))  // Default-init mu2edev if not given guidance
 		{
 			has_recv_data = mu2e_chn_info_delta_(activeDeviceIndex_, chn, C2S, &mu2e_channel_info_);
-			TRACE(TLVL_DEBUG + 11, UID_ + " - mu2edev::read_data after %u=has_recv_data = delta_( chn, C2S ), held=%u", has_recv_data, buffers_held_);
+			TRACE(TLVL_DEBUG+11, UID_ + " - mu2edev::read_data after %u=has_recv_data = delta_( chn=%d, C2S ), held=%u", has_recv_data, chn, buffers_held_);
 			mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = tmo_ms;  // in case GET_INFO is called
 			if ((has_recv_data > buffers_held_) ||
 				((retsts = ioctl(devfd_, M_IOC_GET_INFO, &mu2e_channel_info_[activeDeviceIndex_][chn][C2S])) == 0 &&
@@ -238,7 +238,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 				      *(((uint64_t*)*buffer)+4), *(((uint64_t*)*buffer)+5), *(((uint64_t*)*buffer)+6), *(((uint64_t*)*buffer)+7),
 				      *(((uint64_t*)*buffer)+8), *(((uint64_t*)*buffer)+9) );
 
-				++buffers_held_;
+				if (chn == DTC_DMA_Engine_DAQ) ++buffers_held_;
 			}
 			else
 			{  // was it a tmo or error
@@ -281,6 +281,8 @@ int mu2edev::read_release(DTC_DMA_Engine const& chn, unsigned num)
 		unsigned long arg;
 		unsigned has_recv_data;
 		has_recv_data = mu2e_chn_info_delta_(activeDeviceIndex_, chn, C2S, &mu2e_channel_info_);
+		TLOG_DEBUG(2) << "read_release(chn="<<chn<<" num="<<num<<") dtc="<<activeDeviceIndex_<<" has_recv_data="<<has_recv_data;
+                //if (num > has_recv_data) num = has_recv_data;
 		if (num <= has_recv_data)
 		{
 			arg = (chn << 24) | (C2S << 16) | (num & 0xffff);  // THIS OBIVOUSLY SHOULD BE A MACRO
@@ -533,6 +535,7 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 				break;
 			}
 		}
+		if (chn == DTC_DMA_Engine_DAQ) buffers_held_=0;
 	}
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
 	return retsts;
