@@ -287,21 +287,7 @@ public:
 	/// Release all buffers to the hardware on the given channel
 	/// </summary>
 	/// <param name="channel">Channel to release</param>
-	void ReleaseAllBuffers(const DTC_DMA_Engine& channel)
-	{
-		if (channel == DTC_DMA_Engine_DAQ)
-		{
-			daqDMAInfo_.buffer.clear();
-			device_.release_all(channel);
-		}
-		else if (channel == DTC_DMA_Engine_DCS)
-		{
-			dcsDMAInfo_.buffer.clear();
-			device_.begin_dcs_transaction();
-			device_.release_all(channel);
-			device_.end_dcs_transaction();
-		}		
-	}
+	void ReleaseAllBuffers(const DTC_DMA_Engine& channel);
 
 private:
 	std::unique_ptr<DTC_DataPacket> ReadNextPacket(const DTC_DMA_Engine& channel, int tmo_ms);
