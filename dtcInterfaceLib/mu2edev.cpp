@@ -645,6 +645,11 @@ void mu2edev::end_dcs_transaction(bool force)
 
 }  // end end_dcs_transaction()
 
+bool mu2edev::thread_owns_dcs_lock()
+{
+	return dcs_lock_held_.load() == std::this_thread::get_id();
+}
+
 std::string mu2edev::get_driver_version()
 {
 	TRACE(TLVL_DEBUG + 5, UID_ + " get_driver_version BEGIN");

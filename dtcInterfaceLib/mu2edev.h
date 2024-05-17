@@ -158,6 +158,7 @@ public:
 
 	void begin_dcs_transaction();
 	void end_dcs_transaction(bool force = false);
+	bool thread_owns_dcs_lock();
 	std::string get_driver_version();
 
 	/// <summary>

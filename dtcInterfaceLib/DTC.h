@@ -51,7 +51,6 @@
 #include "artdaq-core-mu2e/Overlays/DTC_Types/Exceptions.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/Utilities.h"
 
-
 namespace DTCLib {
 
 typedef uint16_t roc_data_t;
@@ -64,7 +63,6 @@ typedef uint16_t roc_address_t;
 class DTC : public DTC_Registers
 {
 public:
-
 	/// <summary>
 	/// Construct an instance of the DTC class
 	/// </summary>
@@ -127,7 +125,7 @@ public:
 	/// <param name="address">Address of the register</param>
 	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Value of the ROC register from a DCS Reply packet</returns>
-	roc_data_t ReadROCRegister(const DTC_Link_ID& link, const roc_address_t address, int tmo_ms );
+	roc_data_t ReadROCRegister(const DTC_Link_ID& link, const roc_address_t address, int tmo_ms);
 	/// <summary>
 	/// Sends a DCS Request Packet with the fields filled in such that the given ROC register will be written.
 	/// This function writes to the main ROC register space, use WriteExtROCRegister to access other firmware blocks'
@@ -138,7 +136,7 @@ public:
 	/// <param name="data">Value to write</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
-	bool WriteROCRegister(const DTC_Link_ID& link, const roc_address_t address, const roc_data_t data, bool requestAck, int ack_tmo_ms );
+	bool WriteROCRegister(const DTC_Link_ID& link, const roc_address_t address, const roc_data_t data, bool requestAck, int ack_tmo_ms);
 
 	/// <summary>
 	/// Perform a "double operation" read of ROC registers
@@ -149,7 +147,7 @@ public:
 	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Pair of register values, first is from the first address, second from the second</returns>
 	std::pair<roc_data_t, roc_data_t> ReadROCRegisters(const DTC_Link_ID& link, const roc_address_t address1,
-													   const roc_address_t address2, int tmo_ms );
+													   const roc_address_t address2, int tmo_ms);
 	/// <summary>
 	/// Perform a "double operation" write to ROC registers
 	/// </summary>
@@ -161,7 +159,7 @@ public:
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
 	bool WriteROCRegisters(const DTC_Link_ID& link, const roc_address_t address1, const roc_data_t data1,
-						   const roc_address_t address2, const roc_data_t data2, bool requestAck, int ack_tmo_ms );
+						   const roc_address_t address2, const roc_data_t data2, bool requestAck, int ack_tmo_ms);
 	/// <summary>
 	/// Perform a ROC block read
 	/// </summary>
@@ -182,7 +180,7 @@ public:
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="incrementAddress">Whether to increment the address pointer for block reads/writes</param>
 	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
-	bool WriteROCBlock(const DTC_Link_ID& link, const roc_address_t address, const std::vector<roc_data_t>& blockData, bool requestAck, bool incrementAddress, int ack_tmo_ms );
+	bool WriteROCBlock(const DTC_Link_ID& link, const roc_address_t address, const std::vector<roc_data_t>& blockData, bool requestAck, bool incrementAddress, int ack_tmo_ms);
 
 	/// <summary>
 	/// Sends a DCS Request Packet with fields filled in such that the given ROC firmware block register will be read out.
@@ -243,7 +241,7 @@ public:
 	/// Writes a packet to the DTC on the DCS channel
 	/// </summary>
 	/// <param name="packet">Packet to write</param>
-	void WriteDMAPacket(const DTC_DMAPacket& packet, bool alreadyHaveDCSTransactionLock = false);
+	void WriteDMAPacket(const DTC_DMAPacket& packet);
 	/// <summary>
 	/// Writes the given data buffer to the DTC's DDR memory, via the DAQ channel.
 	/// </summary>
@@ -254,20 +252,20 @@ public:
 	 * @brief Read the next DMA from the DAQ channel. If no data is present, will return nullptr
 	 * @param tmo_ms Timeout
 	 * @return A DTC_Event representing the data in a single DMA, or nullptr if no data/timeout
-	*/
-	std::unique_ptr<DTC_Event> ReadNextDAQDMA(int tmo_ms );
+	 */
+	std::unique_ptr<DTC_Event> ReadNextDAQDMA(int tmo_ms);
 	/**
 	 * @brief Read the next DMA from the DAQ channel as a Sub Event. If no data is present, will return nullptr
 	 * @param tmo_ms Timeout
 	 * @return A DTC_SubEvent representing the data in a single DMA, or nullptr if no data/timeout
-	*/
-	std::unique_ptr<DTC_SubEvent> ReadNextDAQSubEventDMA(int tmo_ms );
+	 */
+	std::unique_ptr<DTC_SubEvent> ReadNextDAQSubEventDMA(int tmo_ms);
 	/// <summary>
 	/// DCS packets are read one-at-a-time, this function reads the next one from the DTC
 	/// </summary>
 	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Pointer to read DCSReplyPacket. Will be nullptr if no data available.</returns>
-	std::unique_ptr<DTC_DCSReplyPacket> ReadNextDCSPacket(int tmo_ms );
+	std::unique_ptr<DTC_DCSReplyPacket> ReadNextDCSPacket(int tmo_ms);
 
 	/// <summary>
 	//	------------
@@ -287,7 +285,7 @@ public:
 	/// Release all buffers to the hardware on the given channel
 	/// </summary>
 	/// <param name="channel">Channel to release</param>
-	void ReleaseAllBuffers(const DTC_DMA_Engine& channel, bool alreadyHaveDCSTransactionLock = false)
+	void ReleaseAllBuffers(const DTC_DMA_Engine& channel)
 	{
 		if (channel == DTC_DMA_Engine_DAQ)
 		{
@@ -296,11 +294,18 @@ public:
 		}
 		else if (channel == DTC_DMA_Engine_DCS)
 		{
+			bool lock_taken_locally = false;
+			if (!device_.thread_owns_dcs_lock())
+			{
+				device_.begin_dcs_transaction();
+				lock_taken_locally = true;
+			}
+
 			dcsDMAInfo_.buffer.clear();
-		if(!alreadyHaveDCSTransactionLock) device_.begin_dcs_transaction();
 			device_.release_all(channel);
-		if(!alreadyHaveDCSTransactionLock) device_.end_dcs_transaction();
-		}		
+
+			if (lock_taken_locally) { device_.end_dcs_transaction(); }
+		}
 	}
 
 private:
@@ -312,7 +317,7 @@ private:
 	/// </summary>
 	/// <param name="channel">Channel to release</param>
 	void ReleaseBuffers(const DTC_DMA_Engine& channel);
-	void WriteDataPacket(const DTC_DataPacket& packet, bool alreadyHaveDCSTransactionLock);
+	void WriteDataPacket(const DTC_DataPacket& packet);
 
 	struct DMAInfo
 	{
