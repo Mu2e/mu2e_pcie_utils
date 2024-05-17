@@ -21,12 +21,11 @@
 #define TLVL_ReleaseBuffers TLVL_DEBUG + 20
 #define TLVL_GetCurrentBuffer TLVL_DEBUG + 21
 
-
 #include "dtcInterfaceLib/otsStyleCoutMacros.h"
 
 #define DTC_TLOG(lvl) TLOG(lvl) << "DTC " << device_.getDeviceUID() << ": "
 #undef __COUT_HDR__
-#define __COUT_HDR__  "DTC " <<  device_.getDeviceUID() << ": "
+#define __COUT_HDR__ "DTC " << device_.getDeviceUID() << ": "
 
 #include <unistd.h>
 #include <fstream>
@@ -45,20 +44,20 @@ DTCLib::DTC::~DTC()
 	// TLOG_ENTEX(-6);
 	TRACE_EXIT
 	{
-		 __COUT__ << "DESTRUCTOR exit";
+		__COUT__ << "DESTRUCTOR exit";
 	};
 
-	//do not want to release all from destructor, in case this instance of the device is not the 'owner' of a DMA-channel
+	// do not want to release all from destructor, in case this instance of the device is not the 'owner' of a DMA-channel
 	//	so do not call ReleaseAllBuffers(DTC_DMA_Engine_DAQ) or ReleaseAllBuffers(DTC_DMA_Engine_DCS);
-	
-	//assume the destructor is destructive (could be in response to exceptions), so force ending of dcs lock
+
+	// assume the destructor is destructive (could be in response to exceptions), so force ending of dcs lock
 	try
 	{
 		device_.end_dcs_transaction();
 	}
-	catch(...)
+	catch (...)
 	{
- 		__COUT_WARN__ << "Ignoring exception caught in DESTRUCTOR while ending of dcs lock";
+		__COUT_WARN__ << "Ignoring exception caught in DESTRUCTOR while ending of dcs lock";
 	}
 }
 
@@ -67,12 +66,12 @@ DTCLib::DTC::~DTC()
 //
 std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWindowTag when, bool matchEventWindowTag)
 {
-	DTC_TLOG(TLVL_GetData) << "GetData begin EventWindowTag=" << when.GetEventWindowTag(true) << ", matching=" << (matchEventWindowTag?"true":"false");
+	DTC_TLOG(TLVL_GetData) << "GetData begin EventWindowTag=" << when.GetEventWindowTag(true) << ", matching=" << (matchEventWindowTag ? "true" : "false");
 	std::vector<std::unique_ptr<DTC_Event>> output;
 	std::unique_ptr<DTC_Event> packet = nullptr;
 
-	//Release read buffers here "I am done with everything I read before" (because the return is pointers to the raw data, not copies)
-	ReleaseBuffers(DTC_DMA_Engine_DAQ); // Currently race condition because GetCurrentBuffer(info) is used inside to decide how many buffers to release.
+	// Release read buffers here "I am done with everything I read before" (because the return is pointers to the raw data, not copies)
+	ReleaseBuffers(DTC_DMA_Engine_DAQ);  // Currently race condition because GetCurrentBuffer(info) is used inside to decide how many buffers to release.
 
 	try
 	{
@@ -85,7 +84,7 @@ std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWi
 			if (packet != nullptr)
 			{
 				DTC_TLOG(TLVL_GetData) << "GetData after ReadDMADAQPacket, ts=0x" << std::hex
-								   << packet->GetEventWindowTag().GetEventWindowTag(true);
+									   << packet->GetEventWindowTag().GetEventWindowTag(true);
 			}
 			tries++;
 			// if (packet == nullptr) usleep(5000);
@@ -99,7 +98,7 @@ std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWi
 		if (packet->GetEventWindowTag() != when && matchEventWindowTag)
 		{
 			DTC_TLOG(TLVL_ERROR) << "GetData: Error: DTC_Event has wrong Event Window Tag! 0x" << std::hex << when.GetEventWindowTag(true)
-							 << "(expected) != 0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true);
+								 << "(expected) != 0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true);
 			packet.reset(nullptr);
 			daqDMAInfo_.currentReadPtr = daqDMAInfo_.lastReadPtr;
 			return output;
@@ -124,15 +123,15 @@ std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWi
 			else if (packet->GetEventWindowTag() != when)
 			{
 				DTC_TLOG(TLVL_GetData) << "GetData: Next packet has ts=0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true)
-								   << ", not 0x" << std::hex << when.GetEventWindowTag(true) << "; we're done";
+									   << ", not 0x" << std::hex << when.GetEventWindowTag(true) << "; we're done";
 				done = true;
 				daqDMAInfo_.currentReadPtr = daqDMAInfo_.lastReadPtr;
 			}
 			else
 			{
 				DTC_TLOG(TLVL_GetData) << "GetData: Next packet has same ts=0x" << std::hex
-								   << packet->GetEventWindowTag().GetEventWindowTag(true) << ", continuing (bc=0x" << std::hex
-								   << packet->GetEventByteCount() << ")";
+									   << packet->GetEventWindowTag().GetEventWindowTag(true) << ", continuing (bc=0x" << std::hex
+									   << packet->GetEventByteCount() << ")";
 			}
 
 			if (!done)
@@ -162,69 +161,62 @@ std::vector<std::unique_ptr<DTCLib::DTC_Event>> DTCLib::DTC::GetData(DTC_EventWi
 	return output;
 }  // GetData
 
-
-//GetSubEventData ~~
+// GetSubEventData ~~
 //	Similart to GetData() but retrieves a SubEvent, as opposed to an Event -- This is appropriate for SW Event building or more basic tests.
 std::vector<std::unique_ptr<DTCLib::DTC_SubEvent>> DTCLib::DTC::GetSubEventData(DTC_EventWindowTag when, bool matchEventWindowTag)
 {
-	DTC_TLOG(TLVL_GetData) << "GetSubEventData begin EventWindowTag=" << when.GetEventWindowTag(true) << ", matching=" << (matchEventWindowTag?"true":"false");
+	DTC_TLOG(TLVL_GetData) << "GetSubEventData begin EventWindowTag=" << when.GetEventWindowTag(true) << ", matching=" << (matchEventWindowTag ? "true" : "false");
 	std::vector<std::unique_ptr<DTC_SubEvent>> output;
 	std::unique_ptr<DTC_SubEvent> packet = nullptr;
 
-	//Release read buffers here "I am done with everything I read before" (because the return is pointers to the raw data, not copies)
-	ReleaseBuffers(DTC_DMA_Engine_DAQ); // Currently race condition because GetCurrentBuffer(info) is used inside to decide how many buffers to release.
+	// Release read buffers here "I am done with everything I read before" (because the return is pointers to the raw data, not copies)
+	ReleaseBuffers(DTC_DMA_Engine_DAQ);  // Currently race condition because GetCurrentBuffer(info) is used inside to decide how many buffers to release.
 
 	try
 	{
 		// Read the next DTC_SubEvent
 		auto tries = 0;
-		auto done = true; //false; This code has been changed around!!!! 
+		auto done = true;  // false; This code has been changed around!!!!
 		do
-		{		
+		{
 			while (packet == nullptr && tries < 3)
 			{
 				DTC_TLOG(TLVL_GetData) << "GetSubEventData before ReadNextDAQSubEventDMA(...), tries = " << tries;
 				packet = ReadNextDAQSubEventDMA(100 /* ms */);
 				if (packet != nullptr)
 				{
-					DTC_TLOG(TLVL_GetData) << "GetSubEventData after ReadNextDAQSubEvent, found tag = " << 
-						packet->GetEventWindowTag().GetEventWindowTag(true) << " (0x" << std::hex << 
-						packet->GetEventWindowTag().GetEventWindowTag(true) << "), expected tag = " << std::dec << 
-						when.GetEventWindowTag(true) << " (0x" << std::hex << 
-						when.GetEventWindowTag(true) << ")";
-				} 
-				else 
+					DTC_TLOG(TLVL_GetData) << "GetSubEventData after ReadNextDAQSubEvent, found tag = " << packet->GetEventWindowTag().GetEventWindowTag(true) << " (0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true) << "), expected tag = " << std::dec << when.GetEventWindowTag(true) << " (0x" << std::hex << when.GetEventWindowTag(true) << ")";
+				}
+				else
 					DTC_TLOG(TLVL_GetData) << "GetSubEventData after ReadNextDAQSubEvent, packet == nullptr";
 				tries++;
 				// if (packet == nullptr) usleep(5000);
 			}
 
-			//return if no data found
+			// return if no data found
 			if (packet == nullptr)
 			{
-			  	DTC_TLOG(TLVL_GetData) << "GetData: Timeout Occurred! (DTC_SubEvent is nullptr after retries); no data found; RETURNing output.size()="<<output.size();
+				DTC_TLOG(TLVL_GetData) << "GetData: Timeout Occurred! (DTC_SubEvent is nullptr after retries); no data found; RETURNing output.size()=" << output.size();
 				return output;
 			}
 
-			//return if failed to match
+			// return if failed to match
 			if (packet->GetEventWindowTag() != when && matchEventWindowTag)
 			{
 				DTC_TLOG(TLVL_ERROR) << "GetData: Error: DTC_SubEvent has wrong Event Window Tag! 0x" << std::hex << when.GetEventWindowTag(true)
-								<< "(expected) != 0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true);
+									 << "(expected) != 0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true);
 				packet.reset(nullptr);
 				daqDMAInfo_.currentReadPtr = daqDMAInfo_.lastReadPtr;
 				return output;
 			}
 
-			//increment for next packet search
+			// increment for next packet search
 			when = DTC_EventWindowTag(packet->GetEventWindowTag().GetEventWindowTag(true) + 1);
 
-			DTC_TLOG(TLVL_GetData) << "GetData: Adding DTC_SubEvent tag = " << 
-				packet->GetEventWindowTag().GetEventWindowTag(true) << " to the list, ptr=" << (void*)daqDMAInfo_.lastReadPtr;
-			output.push_back(std::move(packet));							
+			DTC_TLOG(TLVL_GetData) << "GetData: Adding DTC_SubEvent tag = " << packet->GetEventWindowTag().GetEventWindowTag(true) << " to the list, ptr=" << (void*)daqDMAInfo_.lastReadPtr;
+			output.push_back(std::move(packet));
 
-		} while (!done); //primary loop to read one subevent
-
+		} while (!done);  // primary loop to read one subevent
 	}
 	catch (DTC_WrongPacketTypeException& ex)
 	{
@@ -325,12 +317,12 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 
 				auto dmaByteCount = *(reinterpret_cast<uint64_t*>(buf) + 1);
 				DTC_TLOG(TLVL_WriteSimFileToDTC3) << "WriteSimFileToDTC: Inclusive write byte count: " << sz
-											  << ", DMA Byte count: " << dmaByteCount;
+												  << ", DMA Byte count: " << dmaByteCount;
 				if (sz - 8 != dmaByteCount)
 				{
 					DTC_TLOG(TLVL_ERROR) << "WriteSimFileToDTC: ERROR: Inclusive write Byte count " << sz
-									 << " is inconsistent with DMA byte count " << dmaByteCount << " for DMA at 0x"
-									 << std::hex << totalSize << " (0x" << sz - 16 << " != 0x" << dmaByteCount << ")";
+										 << " is inconsistent with DMA byte count " << dmaByteCount << " for DMA at 0x"
+										 << std::hex << totalSize << " (0x" << sz - 16 << " != 0x" << dmaByteCount << ")";
 					sizeCheck = false;
 				}
 
@@ -348,7 +340,7 @@ void DTCLib::DTC::WriteSimFileToDTC(std::string file, bool /*goForever*/, bool o
 		}
 
 		DTC_TLOG(TLVL_WriteSimFileToDTC) << "WriteSimFileToDTC Closing file. sizecheck=" << sizeCheck << ", eof=" << is.eof()
-									 << ", fail=" << is.fail() << ", bad=" << is.bad();
+										 << ", fail=" << is.fail() << ", bad=" << is.bad();
 		is.close();
 		if (writeOutput) outputStream.close();
 		SetDDRDataLocalEndAddress(static_cast<uint32_t>(totalSize - 1));
@@ -413,24 +405,24 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 		is.read(reinterpret_cast<char*>(buffer_from_file), file_buffer_size - sizeof(uint64_t));
 		if (file_buffer_size < 80 && file_buffer_size > 0)
 		{
-			//auto oldSize = file_buffer_size;
+			// auto oldSize = file_buffer_size;
 			file_buffer_size = 80;
 			uint64_t sixtyFour = 64;
 			memcpy(reinterpret_cast<uint64_t*>(buffer_from_file), &sixtyFour, sizeof(uint64_t));
-			//bzero(reinterpret_cast<uint64_t*>(buffer_from_file) + 2, sz - oldSize);
+			// bzero(reinterpret_cast<uint64_t*>(buffer_from_file) + 2, sz - oldSize);
 		}
 
 		if (file_buffer_size > 0 && (file_buffer_size + totalSize < 0xFFFFFFFF || simMode_ == DTC_SimMode_LargeFile))
 		{
-		  DTC_TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC Expected Size is " << file_buffer_size - sizeof(uint64_t) << ", reading from device";
+			DTC_TLOG(TLVL_VerifySimFileInDTC2) << "VerifySimFileInDTC Expected Size is " << file_buffer_size - sizeof(uint64_t) << ", reading from device";
 			auto inclusiveByteCount = *(reinterpret_cast<uint64_t*>(buffer_from_file));
 			DTC_TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC: DMA Write size: " << file_buffer_size
-										   << ", Inclusive byte count: " << inclusiveByteCount;
+											   << ", Inclusive byte count: " << inclusiveByteCount;
 			if (file_buffer_size - 8 != inclusiveByteCount)
 			{
 				DTC_TLOG(TLVL_ERROR) << "VerifySimFileInDTC: ERROR: DMA Write size " << file_buffer_size
-								 << " is inconsistent with DMA byte count " << inclusiveByteCount << " for DMA at 0x"
-								 << std::hex << totalSize << " (0x" << file_buffer_size - 8 << " != 0x" << inclusiveByteCount << ")";
+									 << " is inconsistent with DMA byte count " << inclusiveByteCount << " for DMA at 0x"
+									 << std::hex << totalSize << " (0x" << file_buffer_size - 8 << " != 0x" << inclusiveByteCount << ")";
 				sizeCheck = false;
 			}
 
@@ -452,24 +444,25 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 				outputStream.write(reinterpret_cast<char*>(*buffer_from_device), sts);
 			}
 
-			if(sts == 0) {
-			  DTC_TLOG(TLVL_ERROR) << "VerifySimFileInDTC Error reading buffer " << n << ", aborting!";
-			  delete[] buffer_from_file;
-			  is.close();
-			  if(writeOutput) outputStream.close();
-			  return false;
+			if (sts == 0)
+			{
+				DTC_TLOG(TLVL_ERROR) << "VerifySimFileInDTC Error reading buffer " << n << ", aborting!";
+				delete[] buffer_from_file;
+				is.close();
+				if (writeOutput) outputStream.close();
+				return false;
 			}
 			size_t readSz = *(reinterpret_cast<uint64_t*>(buffer_from_device));
 			DTC_TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC - after read, bc=" << inclusiveByteCount << " sts=" << sts
-										  << " rdSz=" << readSz;
+											  << " rdSz=" << readSz;
 
 			// DMA engine strips off leading 64-bit word
 			DTC_TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC - Checking buffer size";
 			if (static_cast<size_t>(sts) != inclusiveByteCount)
 			{
 				DTC_TLOG(TLVL_ERROR) << "VerifySimFileInDTC Buffer " << n << " has size 0x" << std::hex << sts
-								 << " but the input file has size 0x" << std::hex << inclusiveByteCount
-								 << " for that buffer!";
+									 << " but the input file has size 0x" << std::hex << inclusiveByteCount
+									 << " for that buffer!";
 
 				device_.read_release(DTC_DMA_Engine_DAQ, 1);
 				delete[] buffer_from_file;
@@ -489,12 +482,14 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 				{
 					size_t address = totalSize - file_buffer_size + ((ii + 1) * sizeof(uint64_t));
 					DTC_TLOG(TLVL_ERROR) << "VerifySimFileInDTC Buffer " << n << " word " << ii << " (Address in file 0x" << std::hex
-									 << address << "):"
-									 << " Expected 0x" << std::hex << r << ", but got 0x" << std::hex << l
-									 << ". Returning False!";
+										 << address << "):"
+										 << " Expected 0x" << std::hex << r << ", but got 0x" << std::hex << l
+										 << ". Returning False!";
 					DTC_TLOG(TLVL_VerifySimFileInDTC3) << "VerifySimFileInDTC Next words: "
-						"Expected 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buffer_from_file) + ii + 1) << ", "
-						"DTC: 0x" << std::hex << *(reinterpret_cast<uint64_t*>(*buffer_from_device) + ii + 1);
+														  "Expected 0x"
+													   << std::hex << *(reinterpret_cast<uint64_t*>(*buffer_from_file) + ii + 1) << ", "
+																																	"DTC: 0x"
+													   << std::hex << *(reinterpret_cast<uint64_t*>(*buffer_from_device) + ii + 1);
 					delete[] buffer_from_file;
 					is.close();
 					if (writeOutput) outputStream.close();
@@ -513,7 +508,7 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 	}
 
 	DTC_TLOG(TLVL_VerifySimFileInDTC) << "VerifySimFileInDTC Closing file. sizecheck=" << sizeCheck << ", eof=" << is.eof()
-								  << ", fail=" << is.fail() << ", bad=" << is.bad();
+									  << ", fail=" << is.fail() << ", bad=" << is.bad();
 	__COUT_INFO__ << "VerifySimFileInDTC: The Detector Emulation file was written correctly";
 	is.close();
 	if (writeOutput) outputStream.close();
@@ -523,16 +518,16 @@ bool DTCLib::DTC::VerifySimFileInDTC(std::string file, std::string rawOutputFile
 // ROC Register Functions
 uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t address, int tmo_ms)
 {
-	uint16_t retries = 0; //change to 1 to attempt reinitializing
+	uint16_t retries = 0;  // change to 1 to attempt reinitializing
 	do
 	{
 		dcsDMAInfo_.currentReadPtr = nullptr;
-		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 
 		device_.begin_dcs_transaction();
+		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 		SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address,
-							0x0 /*data*/, 0x0 /*address2*/, 0x0 /*data2*/,
-							false /*quiet*/);
+							 0x0 /*data*/, 0x0 /*address2*/, 0x0 /*data2*/,
+							 false /*quiet*/);
 
 		uint16_t data = 0xFFFF;
 
@@ -541,62 +536,59 @@ uint16_t DTCLib::DTC::ReadROCRegister(const DTC_Link_ID& link, const uint16_t ad
 			auto reply = ReadNextDCSPacket(tmo_ms);
 			device_.end_dcs_transaction();
 
-			if (reply != nullptr)  //have data!
+			if (reply != nullptr)  // have data!
 			{
 				auto replytmp = reply->GetReply(false);
 				auto linktmp = reply->GetLinkID();
 				data = replytmp.second;
 
 				DTC_TLOG(TLVL_TRACE) << "Got packet, "
-										<< "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
-										<< "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
-										<< "), "
-										<< "data=" << data;
-				if(linktmp == link && replytmp.first == address)
+									 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
+									 << "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
+									 << "), "
+									 << "data=" << data;
+				if (linktmp == link && replytmp.first == address)
 					return data;
 				else
 				{
-					__SS__ << "Mismatch identified in link=" << linktmp << " != " << link << " or " <<
-						"address=" << replytmp.first << " != " << address << ". Corrupt ROC response?" << __E__;
-					ss << "\n\nIf interpreting as a DTC_DCSReplyPacket, here is the data: \n" <<  reply->toJSON();					
+					__SS__ << "Mismatch identified in link=" << linktmp << " != " << link << " or "
+						   << "address=" << replytmp.first << " != " << address << ". Corrupt ROC response?" << __E__;
+					ss << "\n\nIf interpreting as a DTC_DCSReplyPacket, here is the data: \n"
+					   << reply->toJSON();
 					__SS_THROW__;
 				}
 			}
 		}
-		catch(const std::exception& e)
+		catch (const std::exception& e)
 		{
-			__SS__ << "Failure attempting to read a ROC register at link " << static_cast<int>(link) << 
-				" address 0x" << std::hex << static_cast<int>(address) << ". Exception caught: " << e.what() << __E__;
+			__SS__ << "Failure attempting to read a ROC register at link " << static_cast<int>(link) << " address 0x" << std::hex << static_cast<int>(address) << ". Exception caught: " << e.what() << __E__;
 			__SS_THROW__;
 		}
-		
-		//if here then software received no response from DTC, try a software re-init to realign DMA pointers
-		if(retries) //do not reinit on last try
+
+		// if here then software received no response from DTC, try a software re-init to realign DMA pointers
+		if (retries)  // do not reinit on last try
 		{
 			__COUT__ << "Software received no response to the DCS request from the DTC, trying a DMA re-init. retries = " << retries << __E__;
 			device_.initDMAEngine();
 		}
 
-	} while(retries--);
-		
+	} while (retries--);
 
-	 //throw exception for no data after retries
-	__SS__ << "A timeout occurred attempting to read a ROC register at link " << static_cast<int>(link) << 
-				" address 0x" << std::hex << static_cast<int>(address) << ". No DCS reply packet received after " << std::dec << tmo_ms << " ms! " <<
-				"Restarting the DTC software instance may fix the problem and realign DMA pointers." << std::endl;
+	// throw exception for no data after retries
+	__SS__ << "A timeout occurred attempting to read a ROC register at link " << static_cast<int>(link) << " address 0x" << std::hex << static_cast<int>(address) << ". No DCS reply packet received after " << std::dec << tmo_ms << " ms! "
+		   << "Restarting the DTC software instance may fix the problem and realign DMA pointers." << std::endl;
 	__SS_THROW__;
-	
-}  //end ReadROCRegister()
+
+}  // end ReadROCRegister()
 
 bool DTCLib::DTC::WriteROCRegister(const DTC_Link_ID& link, const uint16_t address, const uint16_t data, bool requestAck, int ack_tmo_ms)
 {
+	device_.begin_dcs_transaction();
 	if (requestAck)
 	{
 		dcsDMAInfo_.currentReadPtr = nullptr;
 		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 	}
-
-	device_.begin_dcs_transaction();
 	SendDCSRequestPacket(link, DTC_DCSOperationType_Write, address, data,
 						 0x0 /*address2*/, 0x0 /*data2*/,
 						 false /*quiet*/, requestAck);
@@ -611,10 +603,10 @@ bool DTCLib::DTC::WriteROCRegister(const DTC_Link_ID& link, const uint16_t addre
 			auto reply1tmp = reply->GetReply(false);
 			auto linktmp = reply->GetLinkID();
 			DTC_TLOG(TLVL_TRACE) << "Got packet, "
-							 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
-							 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
-							 << static_cast<int>(address) << "), "
-							 << "data1=" << static_cast<int>(reply1tmp.second);
+								 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
+								 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
+								 << static_cast<int>(address) << "), "
+								 << "data1=" << static_cast<int>(reply1tmp.second);
 
 			reply.reset(nullptr);
 			if (reply1tmp.first != address || linktmp != link || !reply->IsAckRequested())
@@ -636,9 +628,9 @@ std::pair<uint16_t, uint16_t> DTCLib::DTC::ReadROCRegisters(const DTC_Link_ID& l
 															const uint16_t address2, int tmo_ms)
 {
 	dcsDMAInfo_.currentReadPtr = nullptr;
-	ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 
 	device_.begin_dcs_transaction();
+	ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 	SendDCSRequestPacket(link, DTC_DCSOperationType_Read, address1, 0, address2);
 	usleep(2500);
 	uint16_t data1 = 0xFFFF;
@@ -652,13 +644,13 @@ std::pair<uint16_t, uint16_t> DTCLib::DTC::ReadROCRegisters(const DTC_Link_ID& l
 		auto reply2tmp = reply->GetReply(true);
 		auto linktmp = reply->GetLinkID();
 		DTC_TLOG(TLVL_TRACE) << "Got packet, "
-						 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
-						 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
-						 << static_cast<int>(address1) << "), "
-						 << "data1=" << static_cast<int>(reply1tmp.second)
-						 << "address2=" << static_cast<int>(reply2tmp.first) << " (expected "
-						 << static_cast<int>(address2) << "), "
-						 << "data2=" << static_cast<int>(reply2tmp.second);
+							 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
+							 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
+							 << static_cast<int>(address1) << "), "
+							 << "data1=" << static_cast<int>(reply1tmp.second)
+							 << "address2=" << static_cast<int>(reply2tmp.first) << " (expected "
+							 << static_cast<int>(address2) << "), "
+							 << "data2=" << static_cast<int>(reply2tmp.second);
 
 		reply.reset(nullptr);
 		if (reply1tmp.first != address1 || reply2tmp.first != address2 || linktmp != link)
@@ -675,21 +667,20 @@ std::pair<uint16_t, uint16_t> DTCLib::DTC::ReadROCRegisters(const DTC_Link_ID& l
 	}
 	device_.end_dcs_transaction();
 	DTC_TLOG(TLVL_TRACE) << "ReadROCRegisters returning " << static_cast<int>(data1) << " for link " << static_cast<int>(link)
-					 << ", address " << static_cast<int>(address1) << ", " << static_cast<int>(data2) << ", address "
-					 << static_cast<int>(address2);
+						 << ", address " << static_cast<int>(address1) << ", " << static_cast<int>(data2) << ", address "
+						 << static_cast<int>(address2);
 	return std::make_pair(data1, data2);
 }
 
 bool DTCLib::DTC::WriteROCRegisters(const DTC_Link_ID& link, const uint16_t address1, const uint16_t data1,
 									const uint16_t address2, const uint16_t data2, bool requestAck, int ack_tmo_ms)
 {
+	device_.begin_dcs_transaction();
 	if (requestAck)
 	{
 		dcsDMAInfo_.currentReadPtr = nullptr;
 		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 	}
-
-	device_.begin_dcs_transaction();
 	SendDCSRequestPacket(link, DTC_DCSOperationType_Write, address1, data1, address2, data2, false /*quiet*/, requestAck);
 
 	bool ackReceived = false;
@@ -703,13 +694,13 @@ bool DTCLib::DTC::WriteROCRegisters(const DTC_Link_ID& link, const uint16_t addr
 			auto reply2tmp = reply->GetReply(true);
 			auto linktmp = reply->GetLinkID();
 			DTC_TLOG(TLVL_TRACE) << "Got packet, "
-							 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
-							 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
-							 << static_cast<int>(address1) << "), "
-							 << "data1=" << static_cast<int>(reply1tmp.second)
-							 << "address2=" << static_cast<int>(reply2tmp.first) << " (expected "
-							 << static_cast<int>(address2) << "), "
-							 << "data2=" << static_cast<int>(reply2tmp.second);
+								 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
+								 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
+								 << static_cast<int>(address1) << "), "
+								 << "data1=" << static_cast<int>(reply1tmp.second)
+								 << "address2=" << static_cast<int>(reply2tmp.first) << " (expected "
+								 << static_cast<int>(address2) << "), "
+								 << "data2=" << static_cast<int>(reply2tmp.second);
 
 			reply.reset(nullptr);
 			if (reply1tmp.first != address1 || reply2tmp.first != address2 || linktmp != link || !reply->IsAckRequested())
@@ -737,12 +728,12 @@ void DTCLib::DTC::ReadROCBlock(
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "ReadROCBlock before WriteDMADCSPacket - DTC_DCSRequestPacket";
 
 	dcsDMAInfo_.currentReadPtr = nullptr;
-	ReleaseAllBuffers(DTC_DMA_Engine_DCS);
 
 	if (!ReadDCSReception()) EnableDCSReception();
 
 	device_.begin_dcs_transaction();
-	WriteDMAPacket(req, true /* alreadyHaveDCSTransactionLock */);
+	ReleaseAllBuffers(DTC_DMA_Engine_DCS);
+	WriteDMAPacket(req);
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "ReadROCBlock after  WriteDMADCSPacket - DTC_DCSRequestPacket";
 
 	usleep(2500);
@@ -753,10 +744,10 @@ void DTCLib::DTC::ReadROCBlock(
 		auto replytmp = reply->GetReply(false);
 		auto linktmp = reply->GetLinkID();
 		DTC_TLOG(TLVL_TRACE) << "Got packet, "
-						 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
-						 << "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
-						 << "), "
-						 << "wordCount=" << static_cast<int>(replytmp.second);
+							 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
+							 << "address=" << static_cast<int>(replytmp.first) << " (expected " << static_cast<int>(address)
+							 << "), "
+							 << "wordCount=" << static_cast<int>(replytmp.second);
 
 		data = reply->GetBlockReadData();
 		auto packetCount = reply->GetBlockPacketCount();
@@ -794,17 +785,12 @@ void DTCLib::DTC::ReadROCBlock(
 	device_.end_dcs_transaction();
 
 	DTC_TLOG(TLVL_TRACE) << "ReadROCBlock returning " << static_cast<int>(data.size()) << " words for link " << static_cast<int>(link)
-					 << ", address " << static_cast<int>(address);
+						 << ", address " << static_cast<int>(address);
 }
 
 bool DTCLib::DTC::WriteROCBlock(const DTC_Link_ID& link, const uint16_t address,
 								const std::vector<uint16_t>& blockData, bool requestAck, bool incrementAddress, int ack_tmo_ms)
 {
-	if (requestAck)
-	{
-		dcsDMAInfo_.currentReadPtr = nullptr;
-		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
-	}
 	DTC_DCSRequestPacket req(link, DTC_DCSOperationType_BlockWrite, requestAck, incrementAddress, address);
 	req.SetBlockWriteData(blockData);
 
@@ -813,7 +799,12 @@ bool DTCLib::DTC::WriteROCBlock(const DTC_Link_ID& link, const uint16_t address,
 	if (!ReadDCSReception()) EnableDCSReception();
 
 	device_.begin_dcs_transaction();
-	WriteDMAPacket(req, true /* alreadyHaveDCSTransactionLock */);
+	if (requestAck)
+	{
+		dcsDMAInfo_.currentReadPtr = nullptr;
+		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
+	}
+	WriteDMAPacket(req);
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "WriteROCBlock after  WriteDMADCSPacket - DTC_DCSRequestPacket";
 
 	bool ackReceived = false;
@@ -826,10 +817,10 @@ bool DTCLib::DTC::WriteROCBlock(const DTC_Link_ID& link, const uint16_t address,
 			auto reply1tmp = reply->GetReply(false);
 			auto linktmp = reply->GetLinkID();
 			DTC_TLOG(TLVL_TRACE) << "Got packet, "
-							 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
-							 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
-							 << static_cast<int>(address) << "), "
-							 << "data1=" << static_cast<int>(reply1tmp.second);
+								 << "link=" << static_cast<int>(linktmp) << " (expected " << static_cast<int>(link) << "), "
+								 << "address1=" << static_cast<int>(reply1tmp.first) << " (expected "
+								 << static_cast<int>(address) << "), "
+								 << "data1=" << static_cast<int>(reply1tmp.second);
 
 			reply.reset(nullptr);
 			if (reply1tmp.first != address || linktmp != link || !reply->IsAckRequested())
@@ -898,14 +889,14 @@ void DTCLib::DTC::SendHeartbeatPacket(const DTC_Link_ID& link, const DTC_EventWi
 	DTC_TLOG(TLVL_SendHeartbeatPacket) << "SendHeartbeatPacket after  WriteDMADAQPacket - DTC_HeartbeatPacket";
 }
 
-//Note! Before calling this function SendDCSRequestPacket(), the device must be locked with device_.begin_dcs_transaction();
+// Note! Before calling this function SendDCSRequestPacket(), the device must be locked with device_.begin_dcs_transaction();
 void DTCLib::DTC::SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOperationType type, const uint16_t address,
 									   const uint16_t data, const uint16_t address2, const uint16_t data2, bool quiet, bool requestAck)
 {
 	DTC_DCSRequestPacket req(link, type, requestAck, false /*incrementAddress*/, address, data);
 
 	if (!quiet) DTC_TLOG(TLVL_SendDCSRequestPacket) << "Init DCS Packet: \n"
-												<< req.toJSON();
+													<< req.toJSON();
 
 	if (type == DTC_DCSOperationType_DoubleRead ||
 		type == DTC_DCSOperationType_DoubleWrite)
@@ -917,11 +908,11 @@ void DTCLib::DTC::SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOpe
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "SendDCSRequestPacket before WriteDMADCSPacket - DTC_DCSRequestPacket";
 
 	if (!quiet) DTC_TLOG(TLVL_SendDCSRequestPacket) << "Sending DCS Packet: \n"
-												<< req.toJSON();
+													<< req.toJSON();
 
 	if (!ReadDCSReception()) EnableDCSReception();
 
-	WriteDMAPacket(req, true /* alreadyHaveDCSTransactionLock */);
+	WriteDMAPacket(req);
 	DTC_TLOG(TLVL_SendDCSRequestPacket) << "SendDCSRequestPacket after  WriteDMADCSPacket - DTC_DCSRequestPacket";
 }
 
@@ -932,8 +923,8 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	if (daqDMAInfo_.currentReadPtr != nullptr)
 	{
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA BEFORE BUFFER CHECK daqDMAInfo_.currentReadPtr="
-									 << (void*)daqDMAInfo_.currentReadPtr << " *nextReadPtr_=0x" << std::hex
-									 << *(uint16_t*)daqDMAInfo_.currentReadPtr;
+										 << (void*)daqDMAInfo_.currentReadPtr << " *nextReadPtr_=0x" << std::hex
+										 << *(uint16_t*)daqDMAInfo_.currentReadPtr;
 	}
 	else
 	{
@@ -958,12 +949,12 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		// MUST BE ABLE TO HANDLE daqbuffer_==nullptr OR retry forever?
 		daqDMAInfo_.currentReadPtr = &daqDMAInfo_.buffer.back()[0];
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
-									 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
-									 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
+										 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
+										 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
 		void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 4;
 		if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
 		{
-			DTC_TLOG(TLVL_WARN)	<< "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
+			DTC_TLOG(TLVL_WARN) << "ReadNextDAQDMA: New buffer is the same as old. Releasing buffer and returning nullptr";
 			daqDMAInfo_.currentReadPtr = nullptr;
 			// We didn't actually get a new buffer...this probably means there's no more data
 			// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
@@ -980,11 +971,11 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 	}
 
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "Creating DTC_Event from current DMA Buffer";
-	//Utilities::PrintBuffer(daqDMAInfo_.currentReadPtr, 128, TLVL_ReadNextDAQPacket);
-	auto res = std::make_unique<DTC_Event>(daqDMAInfo_.currentReadPtr); //only does setup of Event Header
+	// Utilities::PrintBuffer(daqDMAInfo_.currentReadPtr, 128, TLVL_ReadNextDAQPacket);
+	auto res = std::make_unique<DTC_Event>(daqDMAInfo_.currentReadPtr);  // only does setup of Event Header
 
 	auto eventByteCount = res->GetEventByteCount();
-	if (eventByteCount == 0) 
+	if (eventByteCount == 0)
 	{
 		__SS__ << "Event inclusive byte count cannot be zero!" << __E__;
 		__SS_THROW__;
@@ -1016,8 +1007,8 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 			// MUST BE ABLE TO HANDLE daqbuffer_==nullptr OR retry forever?
 			daqDMAInfo_.currentReadPtr = &daqDMAInfo_.buffer.back()[0];
 			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
-										 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
-										 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
+											 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
+											 << " lastReadPtr_=" << (void*)daqDMAInfo_.lastReadPtr;
 			void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 4;
 			if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
 			{
@@ -1046,7 +1037,7 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 
 		res.swap(inmem);
 	}
-	else //Event not split over multiple DMAs
+	else  // Event not split over multiple DMAs
 	{
 		// Update the packet pointers
 
@@ -1056,20 +1047,20 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		// Increment by the size of the data block
 		daqDMAInfo_.currentReadPtr = reinterpret_cast<char*>(daqDMAInfo_.currentReadPtr) + res->GetEventByteCount();
 	}
-	res->SetupEvent(); //does setup of Event header + all payload
-	
+	res->SetupEvent();  // does setup of Event header + all payload
+
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA: RETURN";
 	return res;
-} //end ReadNextDAQDMA()
-
+}  // end ReadNextDAQDMA()
 
 std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tmo_ms)
 {
-	TRACE_EXIT {
-		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA EXIT" 
-					<< " currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
-					<< " lastReadPtr=" << (void*)daqDMAInfo_.lastReadPtr
-					<< " buffer.size()=" << daqDMAInfo_.buffer.size();
+	TRACE_EXIT
+	{
+		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA EXIT"
+										 << " currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
+										 << " lastReadPtr=" << (void*)daqDMAInfo_.lastReadPtr
+										 << " buffer.size()=" << daqDMAInfo_.buffer.size();
 	};
 
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA BEGIN";
@@ -1077,15 +1068,15 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 	if (daqDMAInfo_.currentReadPtr != nullptr)
 	{
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA BEFORE BUFFER CHECK daqDMAInfo_.currentReadPtr="
-									 << (void*)daqDMAInfo_.currentReadPtr << " currentBufferTransferSize=0x" << std::hex
-									 << *(uint16_t*)daqDMAInfo_.currentReadPtr;
+										 << (void*)daqDMAInfo_.currentReadPtr << " currentBufferTransferSize=0x" << std::hex
+										 << *(uint16_t*)daqDMAInfo_.currentReadPtr;
 	}
 	else
 	{
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA BEFORE BUFFER CHECK daqDMAInfo_.currentReadPtr=nullptr";
 	}
 
-	auto index = GetCurrentBuffer(&daqDMAInfo_); //if buffers onhand, returns daqDMAInfo_.buffer.size().. which is count used by ReleaseBuffers()
+	auto index = GetCurrentBuffer(&daqDMAInfo_);  // if buffers onhand, returns daqDMAInfo_.buffer.size().. which is count used by ReleaseBuffers()
 
 	// Need new starting subevent buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
 	if (index < 0)
@@ -1103,8 +1094,8 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 		// MUST BE ABLE TO HANDLE daqbuffer_==nullptr OR retry forever?
 		daqDMAInfo_.currentReadPtr = &daqDMAInfo_.buffer.back()[0];
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
-									 << " currentBufferTransferSize=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
-									 << " lastReadPtr=" << (void*)daqDMAInfo_.lastReadPtr;
+										 << " currentBufferTransferSize=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
+										 << " lastReadPtr=" << (void*)daqDMAInfo_.lastReadPtr;
 		void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 4;
 		if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
 		{
@@ -1123,142 +1114,120 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 4;
 
 		index = daqDMAInfo_.buffer.size() - 1;
-		DTC_TLOG(TLVL_ReadNextDAQPacket) << "Creating DTC_SubEvent from new DMA Buffer, index=" << index << 
-			" in " << daqDMAInfo_.buffer.size() << " buffers.";
+		DTC_TLOG(TLVL_ReadNextDAQPacket) << "Creating DTC_SubEvent from new DMA Buffer, index=" << index << " in " << daqDMAInfo_.buffer.size() << " buffers.";
 	}
-	else //buffer already onhand
+	else  // buffer already onhand
 	{
 		__SS__ << "Impossible buffer already onhand!" << __E__;
 		__SS_THROW__;
-	
-		// DTC_TLOG(TLVL_ReadNextDAQPacket) << "Creating DTC_SubEvent from current DMA Buffer, index=" << index << 
+
+		// DTC_TLOG(TLVL_ReadNextDAQPacket) << "Creating DTC_SubEvent from current DMA Buffer, index=" << index <<
 		// 	" in " << daqDMAInfo_.buffer.size() << " buffers.";
 	}
 
-	if(	//current read ptr sanity check
-		(void*)(static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) - 8) != 
-		(void*)(&daqDMAInfo_.buffer[index][0]) )
+	if (  // current read ptr sanity check
+		(void*)(static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) - 8) !=
+		(void*)(&daqDMAInfo_.buffer[index][0]))
 	{
-		__SS__ << "Impossible current buffer pointer for index " << index << ".. " <<
-			(void*)(static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) - 8) << " != " << 
-			(void*)&daqDMAInfo_.buffer[index-1][0] << __E__;
+		__SS__ << "Impossible current buffer pointer for index " << index << ".. " << (void*)(static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) - 8) << " != " << (void*)&daqDMAInfo_.buffer[index - 1][0] << __E__;
 		__SS_THROW__;
 	}
 
-	//Utilities::PrintBuffer(daqDMAInfo_.currentReadPtr, 128, TLVL_ReadNextDAQPacket);
-	auto res = std::make_unique<DTC_SubEvent>(daqDMAInfo_.currentReadPtr); //only does setup of SubEvent header!
+	// Utilities::PrintBuffer(daqDMAInfo_.currentReadPtr, 128, TLVL_ReadNextDAQPacket);
+	auto res = std::make_unique<DTC_SubEvent>(daqDMAInfo_.currentReadPtr);  // only does setup of SubEvent header!
 
 	auto subEventByteCount = res->GetSubEventByteCount();
-	if (subEventByteCount < sizeof(DTC_SubEventHeader)) 
+	if (subEventByteCount < sizeof(DTC_SubEventHeader))
 	{
-		__SS__ << "SubEvent inclusive byte count cannot be less than the size of the subevent header (" <<
-			sizeof(DTC_SubEventHeader) << "-bytes)!" << __E__;
+		__SS__ << "SubEvent inclusive byte count cannot be less than the size of the subevent header (" << sizeof(DTC_SubEventHeader) << "-bytes)!" << __E__;
 		__SS_THROW__;
 	}
 	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index);
-	DTC_TLOG(TLVL_ReadNextDAQPacket) << "sizeof(DTC_SubEventHeader) = " << sizeof(DTC_SubEventHeader) <<
-		" GetBufferByteCount=" << remainingBufferSize;
+	DTC_TLOG(TLVL_ReadNextDAQPacket) << "sizeof(DTC_SubEventHeader) = " << sizeof(DTC_SubEventHeader) << " GetBufferByteCount=" << remainingBufferSize;
 
 	remainingBufferSize -= sizeof(uint64_t);
 
-	DTC_TLOG(TLVL_ReadNextDAQPacket) << "subevent tag=" <<
-		res->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << 
-		res->GetEventWindowTag().GetEventWindowTag(true) << ")" <<
-		" inclusive byte count: 0x" << 
-		std::hex << subEventByteCount << " (" << std::dec << subEventByteCount << ") inclusive packets " << 
-		subEventByteCount/16 <<
-		", remaining buffer size: 0x" << 
-		std::hex << remainingBufferSize << " (" << std::dec << remainingBufferSize << 
-		") this buffer packets = " << (remainingBufferSize - sizeof(DTC_SubEventHeader))/16 << ". " <<
-		"Total subevent packet count: " << (subEventByteCount - sizeof(DTC_SubEventHeader))/16; 
+	DTC_TLOG(TLVL_ReadNextDAQPacket) << "subevent tag=" << res->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << res->GetEventWindowTag().GetEventWindowTag(true) << ")"
+									 << " inclusive byte count: 0x" << std::hex << subEventByteCount << " (" << std::dec << subEventByteCount << ") inclusive packets " << subEventByteCount / 16 << ", remaining buffer size: 0x" << std::hex << remainingBufferSize << " (" << std::dec << remainingBufferSize << ") this buffer packets = " << (remainingBufferSize - sizeof(DTC_SubEventHeader)) / 16 << ". "
+									 << "Total subevent packet count: " << (subEventByteCount - sizeof(DTC_SubEventHeader)) / 16;
 
 	// Check for continued DMA
 	if (subEventByteCount > remainingBufferSize)
 	{
-		DTC_TLOG(TLVL_ReadNextDAQPacket) << "subevent needs more data by bytes " << 
-			std::hex << subEventByteCount - remainingBufferSize  << " (" << std::dec << subEventByteCount - remainingBufferSize << 
-			") packets " << (subEventByteCount - remainingBufferSize)/16 << ". subEventByteCount=" << subEventByteCount << 
-			" remainingBufferSize=" << remainingBufferSize; 
+		DTC_TLOG(TLVL_ReadNextDAQPacket) << "subevent needs more data by bytes " << std::hex << subEventByteCount - remainingBufferSize << " (" << std::dec << subEventByteCount - remainingBufferSize << ") packets " << (subEventByteCount - remainingBufferSize) / 16 << ". subEventByteCount=" << subEventByteCount << " remainingBufferSize=" << remainingBufferSize;
 
 		// We're going to set lastReadPtr here, so that if this buffer isn't used by GetData, we start at the beginning of this event next time
 		daqDMAInfo_.lastReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr);
 
 		auto inmem = std::make_unique<DTC_SubEvent>(subEventByteCount);
 
-		if(0) //for deubbging
+		if (0)  // for deubbging
 		{
 			std::cout << "1st DMA buffer res size=" << remainingBufferSize << "\n";
 			auto ptr = reinterpret_cast<const uint8_t*>(res->GetRawBufferPointer());
-			for(size_t i = 0; i < remainingBufferSize + 16; i += 4)
-				std::cout << std::dec << "res#" << i << "/" << remainingBufferSize <<
-					"(" << i/16 << "/" << remainingBufferSize/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+			for (size_t i = 0; i < remainingBufferSize + 16; i += 4)
+				std::cout << std::dec << "res#" << i << "/" << remainingBufferSize << "(" << i / 16 << "/" << remainingBufferSize / 16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t*)(&(ptr[i]))) << std::endl;
 		}
 
 		memcpy(const_cast<void*>(inmem->GetRawBufferPointer()), res->GetRawBufferPointer(), remainingBufferSize);
 
-		if(0) //for deubbging
+		if (0)  // for deubbging
 		{
 			std::cout << "1st DMA buffer inmem size=" << remainingBufferSize << "\n";
 			auto ptr = reinterpret_cast<const uint8_t*>(inmem->GetRawBufferPointer());
-			for(size_t i = 0; i < remainingBufferSize + 16; i += 4)
-				std::cout << std::dec << "inmem#" << i << "(" << i/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+			for (size_t i = 0; i < remainingBufferSize + 16; i += 4)
+				std::cout << std::dec << "inmem#" << i << "(" << i / 16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t*)(&(ptr[i]))) << std::endl;
 		}
 
 		auto bytes_read = remainingBufferSize;
 		while (bytes_read < subEventByteCount)
 		{
-			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA tag=" <<
-				inmem->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << 
-				inmem->GetEventWindowTag().GetEventWindowTag(true) << ")"
-				<< " Obtaining new DAQ Buffer, bytes_read=" << bytes_read << ", subEventByteCount=" << subEventByteCount;
+			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA tag=" << inmem->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << inmem->GetEventWindowTag().GetEventWindowTag(true) << ")"
+											 << " Obtaining new DAQ Buffer, bytes_read=" << bytes_read << ", subEventByteCount=" << subEventByteCount;
 
 			void* oldBufferPtr = nullptr;
 			if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
 
-			if(0) //for deubbging
+			if (0)  // for deubbging
 			{
 				std::cout << "1st DMA buffer\n";
 				auto ptr = reinterpret_cast<const uint8_t*>(&daqDMAInfo_.buffer.back()[0]);
-				for(size_t i = 0; i < bytes_read + 32; i += 4)
-					std::cout << std::dec << "#" << i << "(" << i/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+				for (size_t i = 0; i < bytes_read + 32; i += 4)
+					std::cout << std::dec << "#" << i << "(" << i / 16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t*)(&(ptr[i]))) << std::endl;
 			}
 
 			int sts;
 			int retry = 10;
-			//timeout is an exception at this point because no way to resolve partial subevent record!
-			while((sts = ReadBuffer(DTC_DMA_Engine_DAQ, 10 /* retries */))  // does return code						
-				<= 0 && --retry > 0) usleep(1000); 
-			
+			// timeout is an exception at this point because no way to resolve partial subevent record!
+			while ((sts = ReadBuffer(DTC_DMA_Engine_DAQ, 10 /* retries */))  // does return code
+					   <= 0 &&
+				   --retry > 0) usleep(1000);
+
 			if (sts <= 0)
 			{
-				__SS__ << "Timeout of " << tmo_ms << " ms after receiving only partial subevent! Subevent tag=" <<
-					inmem->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << 
-					inmem->GetEventWindowTag().GetEventWindowTag(true) << ")";
+				__SS__ << "Timeout of " << tmo_ms << " ms after receiving only partial subevent! Subevent tag=" << inmem->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << inmem->GetEventWindowTag().GetEventWindowTag(true) << ")";
 				__SS_THROW__;
 			}
-						
+
 			daqDMAInfo_.currentReadPtr = &daqDMAInfo_.buffer.back()[0];
 			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
-										 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
-										 << " lastReadPtr=" << (void*)daqDMAInfo_.lastReadPtr;
+											 << " *daqDMAInfo_.currentReadPtr=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
+											 << " lastReadPtr=" << (void*)daqDMAInfo_.lastReadPtr;
 
-			if(0) //for deubbging
+			if (0)  // for deubbging
 			{
 				std::cout << "1st buffer\n";
 				auto ptr = reinterpret_cast<const uint8_t*>(inmem->GetRawBufferPointer());
-				for(size_t i = 0; i < bytes_read + 16; i += 4)
-					std::cout << std::dec << "#" << i << "(" << i/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+				for (size_t i = 0; i < bytes_read + 16; i += 4)
+					std::cout << std::dec << "#" << i << "(" << i / 16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t*)(&(ptr[i]))) << std::endl;
 			}
-			
 
 			void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 4;
 			if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
 			{
 				// We didn't actually get a new buffer...this probably means there's no more data
-				//timeout is an exception at this point because no way to resolve partial subevent record!		
-				__SS__ << "Received same buffer twice, only received partial subevent!! Subevent tag=" <<
-					inmem->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << 
-					inmem->GetEventWindowTag().GetEventWindowTag(true) << ")";
+				// timeout is an exception at this point because no way to resolve partial subevent record!
+				__SS__ << "Received same buffer twice, only received partial subevent!! Subevent tag=" << inmem->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << inmem->GetEventWindowTag().GetEventWindowTag(true) << ")";
 				__SS_THROW__;
 			}
 			daqDMAInfo_.bufferIndex++;
@@ -1271,26 +1240,26 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 			size_t remainingEventSize = subEventByteCount - bytes_read;
 			size_t copySize = remainingEventSize < buffer_size - 8 ? remainingEventSize : buffer_size - 8;
 
-			if(0) //for deubbging
+			if (0)  // for deubbging
 			{
 				std::cout << "2nd buffer\n";
 				auto ptr = reinterpret_cast<const uint8_t*>(daqDMAInfo_.currentReadPtr);
-				for(size_t i = 0; i < copySize; i += 4)
-					std::cout << std::dec << "#" << i << "(" << i/16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t *)(&(ptr[i]))) << std::endl;
+				for (size_t i = 0; i < copySize; i += 4)
+					std::cout << std::dec << "#" << i << "(" << i / 16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t*)(&(ptr[i]))) << std::endl;
 			}
 
-			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA bytes_read = " << bytes_read << " packets = " << bytes_read/16 - sizeof(DTC_SubEventHeader)/16;
-			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA copySize = " << copySize << " packets = " << copySize/16;
+			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA bytes_read = " << bytes_read << " packets = " << bytes_read / 16 - sizeof(DTC_SubEventHeader) / 16;
+			DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA copySize = " << copySize << " packets = " << copySize / 16;
 			memcpy(const_cast<uint8_t*>(static_cast<const uint8_t*>(inmem->GetRawBufferPointer()) + bytes_read), daqDMAInfo_.currentReadPtr, copySize);
 			bytes_read += buffer_size - 8;
 
 			// Increment by the size of the data block
 			daqDMAInfo_.currentReadPtr = reinterpret_cast<char*>(daqDMAInfo_.currentReadPtr) + copySize;
-		} //end primary continuation of multi-DMA subevent transfers
+		}  // end primary continuation of multi-DMA subevent transfers
 
 		res.swap(inmem);
 	}
-	else //SubEvent not split over multiple DMAs
+	else  // SubEvent not split over multiple DMAs
 	{
 		// Update the packet pointers
 
@@ -1303,19 +1272,18 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 
 	try
 	{
-		res->SetupSubEvent(); //does setup of SubEvent header + all payload
+		res->SetupSubEvent();  // does setup of SubEvent header + all payload
 	}
-	catch(...)
+	catch (...)
 	{
 		device_.spy(DTC_DMA_Engine_DAQ, 3 /* for once */ | 8 /* for wide view */);
 		DTC_TLOG(TLVL_ERROR) << otsStyleStackTrace();
 		throw;
 	}
-	
-	
+
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA: RETURN ptr to next SubEvent";
 	return res;
-} //end ReadNextDAQSubEventDMA()
+}  // end ReadNextDAQSubEventDMA()
 
 std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int tmo_ms)
 {
@@ -1324,55 +1292,57 @@ std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int t
 		auto test = ReadNextPacket(DTC_DMA_Engine_DCS, tmo_ms);
 		if (test == nullptr) return nullptr;  // Couldn't read new block
 
-		__COUT__ << "If interpreting as a DTC_DataPacket, here is the data: " <<  test->toJSON();
-		
+		__COUT__ << "If interpreting as a DTC_DataPacket, here is the data: " << test->toJSON();
+
 		auto output = std::make_unique<DTC_DCSReplyPacket>(*test.get());
-		if(output->ROCIsCorrupt())
+		if (output->ROCIsCorrupt())
 		{
 			__SS__ << "ROC has set its DCS corrupt flag (check the ROC error bit details)!" << __E__;
 			__SS_THROW__;
 		}
-		if(output->GetType() == DTC_DCSOperationType_InvalidS2C)
+		if (output->GetType() == DTC_DCSOperationType_InvalidS2C)
 		{
 			__SS__ << "DTC identifed an invalid DCS request from software!" << __E__;
 			__SS_THROW__;
 		}
-		if(output->GetType() == DTC_DCSOperationType_Timeout)
+		if (output->GetType() == DTC_DCSOperationType_Timeout)
 		{
 			__SS__ << "No response from the ROC at link " << output->GetLinkID() << " to the DCS request! The DTC identifed a ROC response timeout!" << __E__;
 			__SS_THROW__;
 		}
-		if(lastDTCErrorBitsValue_ != output->GetDTCErrorBits()) //Note: DTC Error bits are only included in DCS reply packets
+		if (lastDTCErrorBitsValue_ != output->GetDTCErrorBits())  // Note: DTC Error bits are only included in DCS reply packets
 		{
 			__COUTV__((int)output->GetDTCErrorBits());
 			__COUTV__((int)lastDTCErrorBitsValue_);
 			lastDTCErrorBitsValue_ = output->GetDTCErrorBits();
 
 			__SS__ << "There was one or more errors identified in DCS handling of its ROC (a DTC Soft Reset will clear these errors):" << __E__;
-			if((lastDTCErrorBitsValue_>>0) & 0x1)
+			if ((lastDTCErrorBitsValue_ >> 0) & 0x1)
 				ss << "\t* bit-0 is set: SERDES PLL associated with the ROC has lost lock." << __E__;
-			if((lastDTCErrorBitsValue_>>1) & 0x1)
+			if ((lastDTCErrorBitsValue_ >> 1) & 0x1)
 				ss << "\t* bit-1 is set: SERDES clock-data-recovery associated with the ROC has lost lock." << __E__;
-			if((lastDTCErrorBitsValue_>>2) & 0x1)
+			if ((lastDTCErrorBitsValue_ >> 2) & 0x1)
 				ss << "\t* bit-2 is set: Invalid packet (i.e., CRC mismatch) has been received from ROC." << __E__;
-			if((lastDTCErrorBitsValue_>>3) & 0x1)
+			if ((lastDTCErrorBitsValue_ >> 3) & 0x1)
 				ss << "\t* bit-3 is set: Error in DTC handling of this ROC’s DCS requests has occurred (check the DTC error bit details)." << __E__;
 
-			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n" <<  test->toJSON();			
+			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n"
+			   << test->toJSON();
 			__SS_THROW__;
 		}
-		if((output->GetDTCErrorBits()>>2) & 0x1) //Make sure CRC bit errors are always reported
+		if ((output->GetDTCErrorBits() >> 2) & 0x1)  // Make sure CRC bit errors are always reported
 		{
 			__SS__ << "bit-2 is set: Invalid packet (i.e., CRC mismatch) has been received in response to the DCS request!" << __E__;
-			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n" <<  test->toJSON();			
+			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n"
+			   << test->toJSON();
 			__SS_THROW__;
 		}
 
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << output->toJSON();
 		return output;
 	}
-	catch(...) //make sure the dcs transaction is ended on exception
-	{		
+	catch (...)  // make sure the dcs transaction is ended on exception
+	{
 		device_.end_dcs_transaction();
 
 		__COUT_ERR__ << "Error reading the next DCS packet!" << __E__;
@@ -1397,8 +1367,8 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 	if (info->currentReadPtr != nullptr)
 	{
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket BEFORE BUFFER CHECK info->currentReadPtr="
-									 << (void*)info->currentReadPtr << " *nextReadPtr_=0x" << std::hex
-									 << *(uint16_t*)info->currentReadPtr;
+										 << (void*)info->currentReadPtr << " *nextReadPtr_=0x" << std::hex
+										 << *(uint16_t*)info->currentReadPtr;
 	}
 	else
 	{
@@ -1411,7 +1381,7 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 	if (index < 0)
 	{
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket Obtaining new " << (engine == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS")
-									 << " Buffer";
+										 << " Buffer";
 
 		void* oldBufferPtr = nullptr;
 		if (info->buffer.size() > 0) oldBufferPtr = &info->buffer.back()[0];
@@ -1424,8 +1394,8 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 		// MUST BE ABLE TO HANDLE daqbuffer_==nullptr OR retry forever?
 		info->currentReadPtr = &info->buffer.back()[0];
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket info->currentReadPtr=" << (void*)info->currentReadPtr
-									 << " *info->currentReadPtr=0x" << std::hex << *(unsigned*)info->currentReadPtr
-									 << " lastReadPtr_=" << (void*)info->lastReadPtr;
+										 << " *info->currentReadPtr=0x" << std::hex << *(unsigned*)info->currentReadPtr
+										 << " lastReadPtr_=" << (void*)info->lastReadPtr;
 		void* bufferIndexPointer = static_cast<uint8_t*>(info->currentReadPtr) + 4;
 		if (info->currentReadPtr == oldBufferPtr && info->bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
 		{
@@ -1448,12 +1418,12 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 
 	// Read the next packet
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket reading next packet from buffer: info->currentReadPtr="
-								 << (void*)info->currentReadPtr;
+									 << (void*)info->currentReadPtr;
 
 	auto blockByteCount = *reinterpret_cast<uint16_t*>(info->currentReadPtr);
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: blockByteCount=" << blockByteCount
-								 << ", info->currentReadPtr=" << (void*)info->currentReadPtr
-								 << ", *nextReadPtr=" << (int)*((uint16_t*)info->currentReadPtr);
+									 << ", info->currentReadPtr=" << (void*)info->currentReadPtr
+									 << ", *nextReadPtr=" << (int)*((uint16_t*)info->currentReadPtr);
 	if (blockByteCount == 0 || blockByteCount == 0xcafe)
 	{
 		auto test = std::make_unique<DTC_DataPacket>(info->currentReadPtr);
@@ -1476,7 +1446,8 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 			device_.read_release(engine, 1);
 
 			__SS__ << "The DTC returned a packet with an invalid BlockByteCount=" << blockByteCount << " (the first 16-bits of the packet).\n\n";
-			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n" <<  test->toJSON();			
+			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n"
+			   << test->toJSON();
 			__SS_THROW__;
 			// return nullptr;
 		}
@@ -1484,10 +1455,10 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 
 	auto test = std::make_unique<DTC_DataPacket>(info->currentReadPtr);
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: current+blockByteCount="
-								 << (void*)(reinterpret_cast<uint8_t*>(info->currentReadPtr) + blockByteCount)
-								 << ", end of dma buffer="
-								 << (void*)(info->buffer[index][0] + GetBufferByteCount(info, index) +
-											8);  // +8 because first 8 bytes are not included in byte count
+									 << (void*)(reinterpret_cast<uint8_t*>(info->currentReadPtr) + blockByteCount)
+									 << ", end of dma buffer="
+									 << (void*)(info->buffer[index][0] + GetBufferByteCount(info, index) +
+												8);  // +8 because first 8 bytes are not included in byte count
 	if (reinterpret_cast<uint8_t*>(info->currentReadPtr) + blockByteCount >
 		info->buffer[index][0] + GetBufferByteCount(info, index) + 8)
 	{
@@ -1495,7 +1466,7 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 			info->buffer[index][0] + GetBufferByteCount(info, index) + 8 -
 			reinterpret_cast<uint8_t*>(info->currentReadPtr));  // +8 because first 8 bytes are not included in byte count
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: Adjusting blockByteCount to " << blockByteCount
-									 << " due to end-of-DMA condition";
+										 << " due to end-of-DMA condition";
 		test->SetByte(0, blockByteCount & 0xFF);
 		test->SetByte(1, (blockByteCount >> 8));
 	}
@@ -1531,7 +1502,7 @@ void DTCLib::DTC::WriteDetectorEmulatorData(mu2e_databuff_t* buf, size_t sz)
 	if (errorCode != 0)
 	{
 		DTC_TLOG(TLVL_ERROR) << "WriteDetectorEmulatorData: write_data returned " << errorCode
-						 << ", throwing DTC_IOErrorException!";
+							 << ", throwing DTC_IOErrorException!";
 		throw DTC_IOErrorException(errorCode);
 	}
 }
@@ -1547,23 +1518,21 @@ int DTCLib::DTC::ReadBuffer(const DTC_DMA_Engine& channel, int retries /* = 10 *
 	if (retries > 0) retry = retries;
 
 	int errorCode;
-	TRACE_EXIT 
-	{ 
-		DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer found " << ((errorCode>0)?"DATA":"NO Data") << 
-			". There are now " << (channel == DTC_DMA_Engine_DAQ ? daqDMAInfo_.buffer.size() : dcsDMAInfo_.buffer.size()) << 
-			" DAQ buffers held in the DTC Library";
+	TRACE_EXIT
+	{
+		DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer found " << ((errorCode > 0) ? "DATA" : "NO Data") << ". There are now " << (channel == DTC_DMA_Engine_DAQ ? daqDMAInfo_.buffer.size() : dcsDMAInfo_.buffer.size()) << " DAQ buffers held in the DTC Library";
 	};
 
 	do
 	{
 		DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer before device_.read_data retries=" << retries << " retry=" << retry;
-		//WARNING NOTE: if there is existing data still sitting in unreleased buffer, the timeout will not add any delay
-		// read_data() on success, returns number of bytes read.
+		// WARNING NOTE: if there is existing data still sitting in unreleased buffer, the timeout will not add any delay
+		//  read_data() on success, returns number of bytes read.
 		errorCode = device_.read_data(channel, reinterpret_cast<void**>(&buffer), 1);
-		//NOTE: Adding delay here significantly impacts data rates!
-		// if (errorCode == 0) usleep(tmo_ms*1000); //create timeout delay here to match tmo (tmo not used by read_data())
+		// NOTE: Adding delay here significantly impacts data rates!
+		//  if (errorCode == 0) usleep(tmo_ms*1000); //create timeout delay here to match tmo (tmo not used by read_data())
 
-	} while (retry-- > 0 && errorCode == 0);  //error code of 0 is timeout
+	} while (retry-- > 0 && errorCode == 0);  // error code of 0 is timeout
 
 	if (errorCode == 0)
 	{
@@ -1577,45 +1546,51 @@ int DTCLib::DTC::ReadBuffer(const DTC_DMA_Engine& channel, int retries /* = 10 *
 	else
 	{
 		DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer buffer_=" << (void*)buffer << " errorCode=" << errorCode << " *buffer_=0x"
-							  << std::hex << *(unsigned*)buffer;
+								  << std::hex << *(unsigned*)buffer;
 		if (channel == DTC_DMA_Engine_DAQ)
 		{
 			daqDMAInfo_.buffer.push_back(buffer);
 			DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer: There are now " << daqDMAInfo_.buffer.size()
-								  << " DAQ buffers held in the DTC Library";
+									  << " DAQ buffers held in the DTC Library";
 		}
 		else if (channel == DTC_DMA_Engine_DCS)
 		{
 			dcsDMAInfo_.buffer.push_back(buffer);
 			DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer: There are now " << dcsDMAInfo_.buffer.size()
-								  << " DCS buffers held in the DTC Library";
+									  << " DCS buffers held in the DTC Library";
 		}
 	}
 	return errorCode;
-} // ReadBuffer
-
+}  // ReadBuffer
 
 void DTCLib::DTC::ReleaseAllBuffers(const DTC_DMA_Engine& channel)
 {
-	TLOG_ENTEX(1) << "ReleaseAllBuffers - channel="<<channel;
-                if (channel == DTC_DMA_Engine_DAQ)
-                {
-                        daqDMAInfo_.buffer.clear();
-                        device_.release_all(channel);
-                }
-                else if (channel == DTC_DMA_Engine_DCS)
-                {
-                        dcsDMAInfo_.buffer.clear();
-                        device_.begin_dcs_transaction();
-                        device_.release_all(channel);
-                        device_.end_dcs_transaction();
-                }
-}
+	TLOG_ENTEX(1) << "ReleaseAllBuffers - channel=" << channel;
 
+	if (channel == DTC_DMA_Engine_DAQ)
+	{
+		daqDMAInfo_.buffer.clear();
+		device_.release_all(channel);
+	}
+	else if (channel == DTC_DMA_Engine_DCS)
+	{
+		bool lock_taken_locally = false;
+		if (!device_.thread_owns_dcs_lock())
+		{
+			device_.begin_dcs_transaction();
+			lock_taken_locally = true;
+		}
+
+		dcsDMAInfo_.buffer.clear();
+		device_.release_all(channel);
+
+		if (lock_taken_locally) { device_.end_dcs_transaction(); }
+	}
+}
 
 // ReleaseBuffers releases the buffers that are held by ReadBuffer,
 // to release all DMA buffers and force hw and sw to align (for DCS) use ReleaseAllBuffers
-void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)//, int count)//count==0 means all
+void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)  //, int count)//count==0 means all
 {
 	DTC_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers BEGIN";
 	DMAInfo* info;
@@ -1629,11 +1604,11 @@ void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)//, int count)//c
 		throw new DTC_DataCorruptionException();
 	}
 
-	auto releaseBufferCount = GetCurrentBuffer(info); // not GetCurrentBuffer(info), but rather Count!!!!
+	auto releaseBufferCount = GetCurrentBuffer(info);  // not GetCurrentBuffer(info), but rather Count!!!!
 	if (releaseBufferCount > 0)
 	{
 		DTC_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers releasing " << releaseBufferCount << " "
-								  << (channel == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS") << " buffers.";
+									  << (channel == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS") << " buffers.";
 
 		if (channel == DTC_DMA_Engine_DCS)
 			device_.begin_dcs_transaction();
@@ -1658,12 +1633,12 @@ void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)//, int count)//c
 int DTCLib::DTC::GetCurrentBuffer(DMAInfo* info)
 {
 	DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer BEGIN currentReadPtr=" << (void*)info->currentReadPtr
-					<< " buffer.size()="<<info->buffer.size();
-	
-	if (info->buffer.size()) // might crash in ReleaseBuffers if currentReadPtr = nullptr ????????????????????????????????
+									<< " buffer.size()=" << info->buffer.size();
+
+	if (info->buffer.size())  // might crash in ReleaseBuffers if currentReadPtr = nullptr ????????????????????????????????
 	{
-	  DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning info->buffer.size()="<<info->buffer.size();
-	  return info->buffer.size();
+		DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning info->buffer.size()=" << info->buffer.size();
+		return info->buffer.size();
 	}
 
 	if (info->currentReadPtr == nullptr || info->buffer.size() == 0)
@@ -1698,8 +1673,8 @@ uint16_t DTCLib::DTC::GetBufferByteCount(DMAInfo* info, size_t index)
 	return bufferSize;
 }
 
-//This is on DMA Channel 1 (i.e., DCS)
-void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet, bool alreadyHaveDCSTransactionLock)
+// This is on DMA Channel 1 (i.e., DCS)
+void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
 {
 	DTC_TLOG(TLVL_WriteDataPacket) << "WriteDataPacket: Writing packet: " << packet.toJSON();
 	mu2e_databuff_t buf;
@@ -1707,14 +1682,18 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet, bool alreadyHave
 	//	uint64_t packetSize = packet.GetSize();
 	if (size < static_cast<uint64_t>(dmaSize_)) size = dmaSize_;
 
-        bzero(&buf[0], size);
+	bzero(&buf[0], size);
 	memcpy(&buf[0], &size, sizeof(uint64_t));
 	memcpy(&buf[8], packet.GetData(), packet.GetSize() * sizeof(uint8_t));
 
 	Utilities::PrintBuffer(buf, size, 0, TLVL_TRACE + 30);
 
-	if(!alreadyHaveDCSTransactionLock)
+	bool lock_taken_locally = false;
+	if (!device_.thread_owns_dcs_lock())
+	{
 		device_.begin_dcs_transaction();
+		lock_taken_locally = true;
+	}
 
 	auto retry = 3;
 	int errorCode;
@@ -1726,17 +1705,17 @@ void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet, bool alreadyHave
 		retry--;
 	} while (retry > 0 && errorCode != 0);
 
-	if(!alreadyHaveDCSTransactionLock)
+	if (lock_taken_locally)
 		device_.end_dcs_transaction();
 
 	if (errorCode != 0)
 	{
-		DTC_TLOG(TLVL_ERROR) << "WriteDataPacket: write_data returned " << errorCode << ", throwing DTC_IOErrorException!";
+		DTC_TLOG(TLVL_ERROR) << "WriteDataPacket: write_data returned " << errorCode << ", throwing DTC_IOErrorException! lock_taken_locally=" << lock_taken_locally;
 		throw DTC_IOErrorException(errorCode);
 	}
 }
 
-void DTCLib::DTC::WriteDMAPacket(const DTC_DMAPacket& packet, bool alreadyHaveDCSTransactionLock /* = false */)
+void DTCLib::DTC::WriteDMAPacket(const DTC_DMAPacket& packet)
 {
-	WriteDataPacket(packet.ConvertToDataPacket(), alreadyHaveDCSTransactionLock);
+	WriteDataPacket(packet.ConvertToDataPacket());
 }
