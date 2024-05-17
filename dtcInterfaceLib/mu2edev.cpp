@@ -594,15 +594,15 @@ void mu2edev::begin_dcs_transaction()
 	while (retsts == -1 && (tmo_ms <= 0 || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < tmo_ms))
 	{
 		retsts = ioctl(devfd_, M_IOC_DCS_LOCK);
-		if (retsts == -EAGAIN)
+		if ((retsts == -EAGAIN) || ((retsts == -1) && (errno == EAGAIN)))
 		{
-			TRACE(TLVL_DEBUG + 23, UID_ + " begin_dcs_transaction: ioctl returned %d, waiting and retrying", retsts);
+			TRACE(TLVL_DEBUG + 23, UID_ + " begin_dcs_transaction: ioctl returned %d (errno %d), waiting and retrying", retsts, errno);
 			perror("M_IOC_DCS_LOCK");
 			std::this_thread::sleep_for(std::chrono::microseconds(100));
 		}
 		else if (retsts != 0)
 		{
-			TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transaction: Method not supported by driver, taking library lock and returning");
+			TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transaction: Method not supported by driver, taking library lock and returning. ioctl returned %d, errno %d", retsts, errno);
 			dcs_lock_held_ = std::this_thread::get_id();
 			return;
 		}
@@ -644,6 +644,11 @@ void mu2edev::end_dcs_transaction(bool force)
 	}
 
 }  // end end_dcs_transaction()
+
+bool mu2edev::thread_owns_dcs_lock()
+{
+	return dcs_lock_held_.load() == std::this_thread::get_id();
+}
 
 std::string mu2edev::get_driver_version()
 {
