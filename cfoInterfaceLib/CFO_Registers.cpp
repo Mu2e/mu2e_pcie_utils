@@ -92,7 +92,7 @@ DTCLib::DTC_SimMode CFOLib::CFO_Registers::SetSimMode(std::string expectedDesign
 	TLOG(TLVL_INFO) << "Initializing CFO device, sim mode is " << 
 		DTC_SimModeConverter(simMode_).toString() << " for uid = " << uid << ", deviceIndex = " << cfo;
 
-	device_.init(simMode_, cfo, /* simMemoryFile */ "", uid);
+	device_.init(simMode_, cfo, /* simMemoryFile */ "", uid, true /* isCFO */);
 	if (expectedDesignVersion != "" && expectedDesignVersion != ReadDesignVersion())
 	{
 		__SS__ << "Version mismatch! Expected CFO version is '" << expectedDesignVersion <<

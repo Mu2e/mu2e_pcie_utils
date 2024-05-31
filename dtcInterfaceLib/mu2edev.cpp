@@ -44,9 +44,10 @@ mu2edev::~mu2edev()
 	if (debugFp_) fclose(debugFp_);
 }
 
-int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simMemoryFileName, const std::string& uid)
+int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simMemoryFileName, const std::string& uid, bool isCFO)
 {
 	UID_ = uid;
+	isCFO_ = isCFO;
 
 	auto debugWriteFilePath = getenv("DTCLIB_DEBUG_WRITE_FILE_PATH");
 	if (debugWriteFilePath != nullptr)
@@ -192,7 +193,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 	int retsts;
 	TRACE_EXIT { TRACE(TLVL_DEBUG + 11, UID_ +  " - mu2edev::read_data returning retsts(bytes)=%d",retsts);};
 
-	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
+	if (!isCFO_ && chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - read_data dcs lock not held!");
 		return retsts=-2;
@@ -263,7 +264,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
    */
 int mu2edev::read_release(DTC_DMA_Engine const& chn, unsigned num)
 {
-	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
+	if (!isCFO_ && chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - read_release dcs lock not held!");
 		return -2;
@@ -409,7 +410,7 @@ void mu2edev::meta_dump()
 
 int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 {
-	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
+	if (!isCFO_ && chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - write_data dcs lock not held!");
 		return -2;
@@ -491,7 +492,7 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 {
 	TLOG_DEBUG(25) << __PRETTY_FUNCTION__ << " called from\n" << otsStyleStackTrace();   // param to ENTEX is a DEBUG lvl
 	auto retsts = 0; TRACE_EXIT { TLOG_DEBUG(26) << "Exit - retsts=" << retsts; };
-	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
+	if (!isCFO_ && chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_WARN, UID_ + " - release_all dcs lock not held!");
 		retsts=-2; return retsts;
@@ -514,7 +515,8 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 			mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = _tmo_ms; // restore 
 			if (sts != 0) 
 			{
-				__SS__ << "Failed mu2edev::release_all with M_IOC_GET_INFO... return " << sts << " which is not 0. " << strerror(errno) << __E__;
+				__SS__ << "Failed mu2edev::release_all of chn=" << chn << 
+						" with M_IOC_GET_INFO... return " << sts << " which is not 0. " << strerror(errno) << __E__;
 				perror(ss.str().c_str());
 				__SS_THROW__;
 				// exit(1);
@@ -557,6 +559,8 @@ void mu2edev::close()
 
 void mu2edev::begin_dcs_transaction()
 {
+	if(isCFO_) return; //ignore for CFO
+
 	if (dcs_lock_held_.load() == std::this_thread::get_id())
 	{
 		TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transation: device lock already held by this thread");
@@ -629,6 +633,8 @@ void mu2edev::begin_dcs_transaction()
 
 void mu2edev::end_dcs_transaction(bool force)
 {
+	if(isCFO_) return; //ignore for CFO
+
 	TRACE(TLVL_DEBUG + 14, UID_ + " end_dcs_transaction: checking for ability to release lock force=%d", force);
 	if (force || dcs_lock_held_.load() == std::this_thread::get_id())
 	{

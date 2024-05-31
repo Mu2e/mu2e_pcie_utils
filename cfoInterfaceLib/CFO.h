@@ -9,7 +9,7 @@
 #include "artdaq-core-mu2e/Overlays/CFO_Packets/CFO_DataPacket.h"
 #include "artdaq-core-mu2e/Overlays/CFO_Packets/CFO_DMAPacket.h"
 #include "artdaq-core-mu2e/Overlays/CFO_Packets/CFO_Event.h"
-#include "artdaq-core-mu2e/Overlays/CFO_Packets/CFO_EventHeader.h"
+#include "artdaq-core-mu2e/Overlays/CFO_Packets/CFO_EventRecord.h"
 #include "artdaq-core-mu2e/Overlays/CFO_Packets/CFO_PacketType.h"
 
 #include "CFO_Registers.h"
@@ -70,43 +70,20 @@ public:
 	// /// </summary>
 	// /// <param name="when">Desired event window tag for readout. Default means use whatever event window tag is next</param>
 	// /// <returns>A vector of DTC_Event objects</returns>
-	std::vector<std::unique_ptr<CFO_Event>> GetData(DTC_EventWindowTag when = DTC_EventWindowTag(), bool matchEventWindowTag = false);
+	bool GetData(std::vector<std::unique_ptr<CFO_Event>>& output, DTC_EventWindowTag when = DTC_EventWindowTag(), bool matchEventWindowTag = false);
 
 	/**
 	 * @brief Read the next DMA from the DAQ channel. If no data is present, will return nullptr
 	 * @param tmo_ms Timeout
 	 * @return A CFO_Event representing the data in a single DMA, or nullptr if no data/timeout
 	*/
-	std::unique_ptr<CFO_Event> ReadNextDAQDMA(int tmo_ms );
-
-	/// <summary>
-	/// Releases all buffers to the hardware, from both the DAQ and DCS channels
-	/// </summary>
-	void ReleaseAllBuffers()
-	{
-		ReleaseAllBuffers(DTC_DMA_Engine_DAQ);
-		ReleaseAllBuffers(DTC_DMA_Engine_DCS);
-	}
+	bool ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& output, int tmo_ms );
 
 	/// <summary>
 	/// Release all buffers to the hardware on the given channel
 	/// </summary>
 	/// <param name="channel">Channel to release</param>
-	void ReleaseAllBuffers(const DTC_DMA_Engine& channel)
-	{
-		if (channel == DTC_DMA_Engine_DAQ)
-		{
-			daqDMAInfo_.buffer.clear();
-			device_.release_all(channel);
-		}
-		else if (channel == DTC_DMA_Engine_DCS)
-		{
-			dcsDMAInfo_.buffer.clear();
-			device_.begin_dcs_transaction();
-			device_.release_all(channel);
-			device_.end_dcs_transaction();
-		}		
-	}
+	void ReleaseAllBuffers(const DTC_DMA_Engine& channel);
 
 private:
 	std::unique_ptr<CFO_DataPacket> ReadNextPacket(const DTC_DMA_Engine& channel, int tmo_ms);
@@ -137,7 +114,7 @@ private:
 	int GetCurrentBuffer(DMAInfo* info);
 	uint16_t GetBufferByteCount(DMAInfo* info, size_t index);
 	DMAInfo daqDMAInfo_;
-	DMAInfo dcsDMAInfo_;
+	// DMAInfo dcsDMAInfo_;
 
 	// uint8_t lastDTCErrorBitsValue_ = 0;
 };

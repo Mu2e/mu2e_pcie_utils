@@ -184,9 +184,7 @@ std::vector<std::unique_ptr<DTCLib::DTC_SubEvent>> DTCLib::DTC::GetSubEventData(
 				DTC_TLOG(TLVL_GetData) << "GetSubEventData before ReadNextDAQSubEventDMA(...), tries = " << tries;
 				packet = ReadNextDAQSubEventDMA(100 /* ms */);
 				if (packet != nullptr)
-				{
 					DTC_TLOG(TLVL_GetData) << "GetSubEventData after ReadNextDAQSubEvent, found tag = " << packet->GetEventWindowTag().GetEventWindowTag(true) << " (0x" << std::hex << packet->GetEventWindowTag().GetEventWindowTag(true) << "), expected tag = " << std::dec << when.GetEventWindowTag(true) << " (0x" << std::hex << when.GetEventWindowTag(true) << ")";
-				}
 				else
 					DTC_TLOG(TLVL_GetData) << "GetSubEventData after ReadNextDAQSubEvent, packet == nullptr";
 				tries++;
@@ -1192,7 +1190,7 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 			{
 				std::cout << "1st DMA buffer\n";
 				auto ptr = reinterpret_cast<const uint8_t*>(&daqDMAInfo_.buffer.back()[0]);
-				for (size_t i = 0; i < bytes_read + 32; i += 4)
+				for (size_t i = 0; i < bytes_read + sizeof(DTCLib::DTC_SubEventHeader); i += 4)
 					std::cout << std::dec << "#" << i << "(" << i / 16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t*)(&(ptr[i]))) << std::endl;
 			}
 
@@ -1326,11 +1324,14 @@ std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int t
 			if ((lastDTCErrorBitsValue_ >> 3) & 0x1)
 				ss << "\t* bit-3 is set: Error in DTC handling of this ROC’s DCS requests has occurred (check the DTC error bit details)." << __E__;
 
-			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n"
-			   << test->toJSON();
-			__SS_THROW__;
+			if(lastDTCErrorBitsValue_) //throw exception if error
+			{
+				ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n"
+					<< test->toJSON();
+				__SS_THROW__;
+			}
 		}
-		if ((output->GetDTCErrorBits() >> 2) & 0x1)  // Make sure CRC bit errors are always reported
+		if ((lastDTCErrorBitsValue_ >> 2) & 0x1)  // Make sure CRC bit errors are always reported
 		{
 			__SS__ << "bit-2 is set: Invalid packet (i.e., CRC mismatch) has been received in response to the DCS request!" << __E__;
 			ss << "\n\nIf interpreting as a DTC_DataPacket, here is the data: \n"

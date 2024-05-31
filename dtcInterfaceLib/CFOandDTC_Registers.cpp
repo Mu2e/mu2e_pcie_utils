@@ -627,6 +627,11 @@ bool DTCLib::CFOandDTC_Registers::CFOandDTCVerifyRegisterWrite_(const CFOandDTC_
 				readbackValue &= ~1;
 				isCoreRegister = true;
 				break;
+			case CFOandDTC_Register_FireFlyControlStatus: //only 10:8 and 2:0 defined in Firefly control reg
+				dataToWrite		&= (0x7<<8) | (0x7<<0); 
+				readbackValue 	&= (0x7<<8) | (0x7<<0);
+				isCoreRegister = true;
+				break;	
 			// case : // upper 16-bits are part of I2C operation. So ignore in write validation			
 			// 	dataToWrite		&= 0x0000ffff; 
 			// 	readbackValue 	&= 0x0000ffff; 
@@ -863,8 +868,14 @@ void DTCLib::CFOandDTC_Registers::WriteSERDESIICInterface(DTC_IICSERDESBusAddres
 	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16) + (data << 8);
 	WriteRegister_(reg_data, CFOandDTC_Register_SERDESClock_IICBusLow);
 	WriteRegister_(0x1, CFOandDTC_Register_SERDESClock_IICBusHigh);
+	u_int16_t retries = 1000;
 	while (ReadRegister_(CFOandDTC_Register_SERDESClock_IICBusHigh) == 0x1)
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to write!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 }
@@ -880,8 +891,14 @@ uint8_t DTCLib::CFOandDTC_Registers::ReadSERDESIICInterface(DTC_IICSERDESBusAddr
 	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16);
 	WriteRegister_(reg_data, CFOandDTC_Register_SERDESClock_IICBusLow);
 	WriteRegister_(0x2, CFOandDTC_Register_SERDESClock_IICBusHigh);
+	u_int16_t retries = 1000;
 	while (ReadRegister_(CFOandDTC_Register_SERDESClock_IICBusHigh) == 0x2)
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to read!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 	auto data = ReadRegister_(CFOandDTC_Register_SERDESClock_IICBusLow);
@@ -943,8 +960,14 @@ void DTCLib::CFOandDTC_Registers::ResetFireflyTXIICInterface()
 	auto bs = std::bitset<32>();
 	bs[31] = 1;
 	WriteRegister_(bs.to_ulong(), CFOandDTC_Register_FireflyTX_IICBusControl);
+	u_int16_t retries = 1000;
 	while (ReadFireflyTXIICInterfaceReset())
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to reset!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 }
@@ -959,8 +982,14 @@ void DTCLib::CFOandDTC_Registers::WriteFireflyTXIICInterface(uint8_t device, uin
 	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16) + (data << 8);
 	WriteRegister_(reg_data, CFOandDTC_Register_FireflyTX_IICBusConfigLow);
 	WriteRegister_(0x1, CFOandDTC_Register_FireflyTX_IICBusConfigHigh);
+	u_int16_t retries = 1000;
 	while (ReadRegister_(CFOandDTC_Register_FireflyTX_IICBusConfigHigh) == 0x1)
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to write!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 }
@@ -975,8 +1004,14 @@ uint8_t DTCLib::CFOandDTC_Registers::ReadFireflyTXIICInterface(uint8_t device, u
 	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16);
 	WriteRegister_(reg_data, CFOandDTC_Register_FireflyTX_IICBusConfigLow);
 	WriteRegister_(0x2, CFOandDTC_Register_FireflyTX_IICBusConfigHigh);
+	u_int16_t retries = 1000;
 	while (ReadRegister_(CFOandDTC_Register_FireflyTX_IICBusConfigHigh) == 0x2)
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to read!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 	auto data = ReadRegister_(CFOandDTC_Register_FireflyTX_IICBusConfigLow);
@@ -1047,8 +1082,14 @@ void DTCLib::CFOandDTC_Registers::ResetFireflyRXIICInterface()
 	auto bs = std::bitset<32>();
 	bs[31] = 1;
 	WriteRegister_(bs.to_ulong(), CFOandDTC_Register_FireflyRX_IICBusControl);
+	u_int16_t retries = 1000;
 	while (ReadFireflyRXIICInterfaceReset())
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to reset!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 }
@@ -1063,8 +1104,14 @@ void DTCLib::CFOandDTC_Registers::WriteFireflyRXIICInterface(uint8_t device, uin
 	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16) + (data << 8);
 	WriteRegister_(reg_data, CFOandDTC_Register_FireflyRX_IICBusConfigLow);
 	WriteRegister_(0x1, CFOandDTC_Register_FireflyRX_IICBusConfigHigh);
+	u_int16_t retries = 1000;
 	while (ReadRegister_(CFOandDTC_Register_FireflyRX_IICBusConfigHigh) == 0x1)
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to write!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 }
@@ -1079,8 +1126,14 @@ uint8_t DTCLib::CFOandDTC_Registers::ReadFireflyRXIICInterface(uint8_t device, u
 	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16);
 	WriteRegister_(reg_data, CFOandDTC_Register_FireflyRX_IICBusConfigLow);
 	WriteRegister_(0x2, CFOandDTC_Register_FireflyRX_IICBusConfigHigh);
+	u_int16_t retries = 1000;
 	while (ReadRegister_(CFOandDTC_Register_FireflyRX_IICBusConfigHigh) == 0x2)
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to read!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 	auto data = ReadRegister_(CFOandDTC_Register_FireflyRX_IICBusConfigLow);
@@ -1151,8 +1204,14 @@ void DTCLib::CFOandDTC_Registers::ResetFireflyTXRXIICInterface()
 	auto bs = std::bitset<32>();
 	bs[31] = 1;
 	WriteRegister_(bs.to_ulong(), CFOandDTC_Register_FireflyTXRX_IICBusControl);
+	u_int16_t retries = 1000;
 	while (ReadFireflyTXRXIICInterfaceReset())
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to reset!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 }
@@ -1167,8 +1226,14 @@ void DTCLib::CFOandDTC_Registers::WriteFireflyTXRXIICInterface(uint8_t device, u
 	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16) + (data << 8);
 	WriteRegister_(reg_data, CFOandDTC_Register_FireflyTXRX_IICBusConfigLow);
 	WriteRegister_(0x1, CFOandDTC_Register_FireflyTXRX_IICBusConfigHigh);
+	u_int16_t retries = 1000;
 	while (ReadRegister_(CFOandDTC_Register_FireflyTXRX_IICBusConfigHigh) == 0x1)
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to write!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 }
@@ -1183,8 +1248,14 @@ uint8_t DTCLib::CFOandDTC_Registers::ReadFireflyTXRXIICInterface(uint8_t device,
 	uint32_t reg_data = (static_cast<uint8_t>(device) << 24) + (address << 16);
 	WriteRegister_(reg_data, CFOandDTC_Register_FireflyTXRX_IICBusConfigLow);
 	WriteRegister_(0x2, CFOandDTC_Register_FireflyTXRX_IICBusConfigHigh);
+	u_int16_t retries = 1000;
 	while (ReadRegister_(CFOandDTC_Register_FireflyTXRX_IICBusConfigHigh) == 0x2)
 	{
+		if(--retries == 0)
+		{
+			__SS__ << "Timeout waiting for I2C interface to read!" << __E__;
+			__SS_THROW__;
+		}
 		usleep(1000);
 	}
 	auto data = ReadRegister_(CFOandDTC_Register_FireflyTXRX_IICBusConfigLow);
