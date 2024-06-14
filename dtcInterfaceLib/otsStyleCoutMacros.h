@@ -22,6 +22,7 @@
 #define __COUT_WARN__ 		TLOG(TLVL_WARN)     << __COUT_HDR__
 #define __COUT_INFO__ 		TLOG(TLVL_INFO)     << __COUT_HDR__
 #define __COUT__			TLOG(TLVL_DEBUG)    << __COUT_HDR__
+#define __COUTT__			TLOG(TLVL_TRACE)    << __COUT_HDR__
 //std::cout << __MF_DECOR__ << __COUT_HDR_FL__
 
 #define __SS__            	std::stringstream ss; ss << "|" << __MF_DECOR__ << ": " << __COUT_HDR_FL__ << __COUT_HDR__

@@ -157,6 +157,8 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 
 	auto index = GetCurrentBuffer(&daqDMAInfo_);  // if buffers onhand, returns daqDMAInfo_.buffer.size().. which is count used by ReleaseBuffers()
 
+	size_t metaBufferSize = 0;
+
 	// Need new starting subevent buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
 	if (index < 0)
 	{
@@ -170,11 +172,14 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 			CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextCFORecordDMA: ReadBuffer returned " << sts << ", returning nullptr";
 			return false;
 		}
+		metaBufferSize = sts;
+
 		// MUST BE ABLE TO HANDLE daqbuffer_==nullptr OR retry forever?
 		daqDMAInfo_.currentReadPtr = &daqDMAInfo_.buffer.back()[0];
 		CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextCFORecordDMA daqDMAInfo_.currentReadPtr=" << (void*)daqDMAInfo_.currentReadPtr
 										 << " currentBufferTransferSize=0x" << std::hex << *(unsigned*)daqDMAInfo_.currentReadPtr
-										 << " lastReadPtr=" << (void*)daqDMAInfo_.lastReadPtr;
+										 << " lastReadPtr=0x" << (void*)daqDMAInfo_.lastReadPtr 
+										 << " metaBufferSize=0x" << metaBufferSize ;
 		void* bufferIndexPointer = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + 4;
 		if (daqDMAInfo_.currentReadPtr == oldBufferPtr && daqDMAInfo_.bufferIndex == *static_cast<uint32_t*>(bufferIndexPointer))
 		{
@@ -225,33 +230,49 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 	// 	__SS_THROW__;
 	// }
 	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index);
-	CFO_TLOG(TLVL_ReadNextDAQPacket) << "sizeof(CFO_EventRecord) = " << sizeof(CFO_EventRecord) << " GetBufferByteCount=" << remainingBufferSize;
+	CFO_TLOG(TLVL_ReadNextDAQPacket) << "sizeof(CFO_EventRecord) = " << sizeof(CFO_EventRecord) 
+		<< " GetBufferByteCount=" << remainingBufferSize
+		<< " metaBufferSize=" << metaBufferSize;
 
-	remainingBufferSize -= sizeof(uint64_t); //remove DMA transfer size from remaining byte count
+	remainingBufferSize = metaBufferSize-1; //reset to the meta data value (dont use the DMA transfer size count because the CFO stacks transfers!) minus one (for +1 tlast)
+	
 
 
-	if (  // check that size is multiple of CFO Event Record side sanity
-		remainingBufferSize < sizeof(CFO_EventRecord) || 
-		remainingBufferSize % sizeof(CFO_EventRecord) != 0)
+	// 	if (0)  // for deubbging
+	// 	{
+	// 		std::cout << "1st DMA buffer res size=" << remainingBufferSize << "\n";
+	// 		auto ptr = reinterpret_cast<const uint8_t*>(res->GetRawBufferPointer());
+	// 		for (size_t i = 0; i < remainingBufferSize + 16; i += 4)
+	// 			std::cout << std::dec << "res#" << i << "/" << remainingBufferSize << "(" << i / 16 << "/" << remainingBufferSize / 16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t*)(&(ptr[i]))) << std::endl;
+	// 	}
+
+
+	
+	while(remainingBufferSize >= sizeof(CFO_EventRecord))
+	{
+		remainingBufferSize -= sizeof(uint64_t); //remove DMA transfer size from remaining byte count
+
+		auto res = std::make_unique<CFO_Event>(daqDMAInfo_.currentReadPtr); 
+		
+		CFO_TLOG(TLVL_ReadNextDAQPacket) << "subevent tag=" << res->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << res->GetEventWindowTag().GetEventWindowTag(true) << ")"
+									 << " inclusive byte count: 0x" << std::hex << sizeof(CFO_EventRecord) << " (" << std::dec << sizeof(CFO_EventRecord) << ")"
+									 << ", remaining buffer size: 0x" << std::hex << remainingBufferSize << " (" << std::dec << remainingBufferSize << ")";
+
+		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + sizeof(CFO_EventRecord) + sizeof(uint64_t);
+		remainingBufferSize -= sizeof(CFO_EventRecord);
+
+		output.push_back(std::move(res));
+
+		CFO_TLOG(TLVL_ReadNextDAQPacket) << "CFO subevent record JSON=" << output.back()->GetEventRecord().toJson();
+	} //end primary CFO Event Record extraction loop
+
+ 	// check that size is multiple of CFO Event Record side sanity
+	if (remainingBufferSize != 0)
 	{
 		__SS__ << "Impossible remainingBufferSize of " << remainingBufferSize << __E__;
 		__SS_THROW__;
 	}
 
-	while(remainingBufferSize >= sizeof(CFO_EventRecord))
-	{
-		auto res = std::make_unique<CFO_Event>(daqDMAInfo_.currentReadPtr); 
-		
-		CFO_TLOG(TLVL_ReadNextDAQPacket) << "subevent tag=" << res->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << res->GetEventWindowTag().GetEventWindowTag(true) << ")"
-									 << " inclusive byte count: 0x" << std::hex << sizeof(CFO_EventRecord) << " (" << std::dec << sizeof(CFO_EventRecord) 
-									 << ", remaining buffer size: 0x" << std::hex << remainingBufferSize << " (" << std::dec << remainingBufferSize << ")";
-
-		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + sizeof(CFO_EventRecord);
-		remainingBufferSize -= sizeof(CFO_EventRecord);
-
-		output.push_back(std::move(res));
-	} //end primary CFO Event Record extraction loop
-	
 
 	// // Check if there are more than one CFO_EventRecords
 	// if (subEventByteCount > remainingBufferSize)
@@ -263,13 +284,6 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 
 	// 	auto inmem = std::make_unique<CFO_EventRecord>(subEventByteCount);
 
-	// 	if (0)  // for deubbging
-	// 	{
-	// 		std::cout << "1st DMA buffer res size=" << remainingBufferSize << "\n";
-	// 		auto ptr = reinterpret_cast<const uint8_t*>(res->GetRawBufferPointer());
-	// 		for (size_t i = 0; i < remainingBufferSize + 16; i += 4)
-	// 			std::cout << std::dec << "res#" << i << "/" << remainingBufferSize << "(" << i / 16 << "/" << remainingBufferSize / 16 << ")" << std::hex << std::setw(8) << std::setfill('0') << *((uint32_t*)(&(ptr[i]))) << std::endl;
-	// 	}
 
 	// 	memcpy(const_cast<void*>(inmem->GetRawBufferPointer()), res->GetRawBufferPointer(), remainingBufferSize);
 

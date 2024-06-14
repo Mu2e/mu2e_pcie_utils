@@ -296,6 +296,46 @@ bool DTCLib::CFOandDTC_Registers::ReadSoftReset(std::optional<uint32_t> val)
 }
 
 /// <summary>
+/// Set the SERDES Global Reset bit to true, and wait for the reset to complete
+/// </summary>
+void DTCLib::CFOandDTC_Registers::ResetSERDES()
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[8] = 1;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+	usleep(1000);
+	//does not self clear!
+	// while (ReadResetSERDES())
+	// {
+	// 	usleep(1000);
+	// }
+	data[8] = 0;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+}
+
+/// <summary>
+/// Read the SERDES Global Reset bit
+/// </summary>
+/// <returns>Whether a SERDES global reset is in progress</returns>
+bool DTCLib::CFOandDTC_Registers::ReadResetSERDES(std::optional<uint32_t> val)
+{
+	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
+	return data[8];
+}
+
+/// <summary>
+/// Runs the Loopback test of the CFO Emulator, inside the DTC, and broadcasts loopback markers to all ROCs.
+/// </summary>
+void DTCLib::CFOandDTC_Registers::RunCableDelayLoopbackTest()
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[3] = 0;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+	data[3] = 1;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+}  // end RunCableDelayLoopbackTest()
+
+/// <summary>
 /// Perform a Hard Reset
 /// </summary>
 void DTCLib::CFOandDTC_Registers::HardReset()
@@ -704,7 +744,7 @@ uint32_t DTCLib::CFOandDTC_Registers::ReadRegister_(const CFOandDTC_Register& ad
 		o << "read value 0x"	<< std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(data)
 			<< " from register 0x" 	<< std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << 
 			std::endl;
-		__COUT__ << o.str();
+		__COUTT__ << o.str();
 	}
 
 	return data;
