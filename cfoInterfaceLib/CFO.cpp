@@ -155,7 +155,7 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 		CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextCFORecordDMA BEFORE BUFFER CHECK daqDMAInfo_.currentReadPtr=nullptr";
 	}
 
-	auto index = GetCurrentBuffer(&daqDMAInfo_);  // if buffers onhand, returns daqDMAInfo_.buffer.size().. which is count used by ReleaseBuffers()
+	auto index = CFOandDTC_DMAs::GetCurrentBuffer(&daqDMAInfo_);  // if buffers onhand, returns daqDMAInfo_.buffer.size().. which is count used by ReleaseBuffers()
 
 	size_t metaBufferSize = 0;
 
@@ -229,10 +229,16 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 	// 	__SS__ << "SubEvent inclusive byte count cannot be less than the size of the subevent header (" << sizeof(CFO_EventRecord) << "-bytes)!" << __E__;
 	// 	__SS_THROW__;
 	// }
-	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index);
+	size_t remainingBufferSize = CFOandDTC_DMAs::GetBufferByteCount(&daqDMAInfo_, index);
 	CFO_TLOG(TLVL_ReadNextDAQPacket) << "sizeof(CFO_EventRecord) = " << sizeof(CFO_EventRecord) 
 		<< " GetBufferByteCount=" << remainingBufferSize
 		<< " metaBufferSize=" << metaBufferSize;
+
+	if(metaBufferSize == 65536) //how was this happening? from 16 bits
+	{
+		__SS__ << "Impossible metaBufferSize of " << metaBufferSize << __E__;
+		__SS_THROW__;
+	}
 
 	remainingBufferSize = metaBufferSize-1; //reset to the meta data value (dont use the DMA transfer size count because the CFO stacks transfers!) minus one (for +1 tlast)
 	
@@ -247,7 +253,7 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 	// 	}
 
 
-	
+	uint64_t lastTag = -1;	
 	while(remainingBufferSize >= sizeof(CFO_EventRecord))
 	{
 		remainingBufferSize -= sizeof(uint64_t); //remove DMA transfer size from remaining byte count
@@ -257,6 +263,14 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 		CFO_TLOG(TLVL_ReadNextDAQPacket) << "subevent tag=" << res->GetEventWindowTag().GetEventWindowTag(true) << std::hex << "(0x" << res->GetEventWindowTag().GetEventWindowTag(true) << ")"
 									 << " inclusive byte count: 0x" << std::hex << sizeof(CFO_EventRecord) << " (" << std::dec << sizeof(CFO_EventRecord) << ")"
 									 << ", remaining buffer size: 0x" << std::hex << remainingBufferSize << " (" << std::dec << remainingBufferSize << ")";
+								
+		if(res->GetEventWindowTag().GetEventWindowTag(true) == lastTag)
+		{
+			__SS__ << "Impossible repeating tag " << lastTag << __E__;
+			__SS_THROW__;
+		}
+
+		lastTag = res->GetEventWindowTag().GetEventWindowTag(true);
 
 		daqDMAInfo_.currentReadPtr = static_cast<uint8_t*>(daqDMAInfo_.currentReadPtr) + sizeof(CFO_EventRecord) + sizeof(uint64_t);
 		remainingBufferSize -= sizeof(CFO_EventRecord);
@@ -405,7 +419,7 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 std::unique_ptr<CFOLib::CFO_DataPacket> CFOLib::CFO::ReadNextPacket(const DTC_DMA_Engine& engine, int tmo_ms)
 {
 	CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket BEGIN";
-	DMAInfo* info;
+	CFOandDTC_DMAs::DMAInfo* info;
 	if (engine == CFO_DMA_Engine_DAQ)
 		info = &daqDMAInfo_;
 	// else if (engine == DTC_DMA_Engine_DCS)
@@ -427,7 +441,7 @@ std::unique_ptr<CFOLib::CFO_DataPacket> CFOLib::CFO::ReadNextPacket(const DTC_DM
 		CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket BEFORE BUFFER CHECK info->currentReadPtr=nullptr";
 	}
 
-	auto index = GetCurrentBuffer(info);
+	auto index = CFOandDTC_DMAs::GetCurrentBuffer(info);
 
 	// Need new buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
 	if (index < 0)
@@ -501,13 +515,13 @@ std::unique_ptr<CFOLib::CFO_DataPacket> CFOLib::CFO::ReadNextPacket(const DTC_DM
 	CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: current+blockByteCount="
 								 << (void*)(reinterpret_cast<uint8_t*>(info->currentReadPtr) + blockByteCount)
 								 << ", end of dma buffer="
-								 << (void*)(info->buffer[index][0] + GetBufferByteCount(info, index) +
+								 << (void*)(info->buffer[index][0] + CFOandDTC_DMAs::GetBufferByteCount(info, index) +
 											8);  // +8 because first 8 bytes are not included in byte count
 	if (reinterpret_cast<uint8_t*>(info->currentReadPtr) + blockByteCount >
-		info->buffer[index][0] + GetBufferByteCount(info, index) + 8)
+		info->buffer[index][0] + CFOandDTC_DMAs::GetBufferByteCount(info, index) + 8)
 	{
 		blockByteCount = static_cast<uint16_t>(
-			info->buffer[index][0] + GetBufferByteCount(info, index) + 8 -
+			info->buffer[index][0] + CFOandDTC_DMAs::GetBufferByteCount(info, index) + 8 -
 			reinterpret_cast<uint8_t*>(info->currentReadPtr));  // +8 because first 8 bytes are not included in byte count
 		CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: Adjusting blockByteCount to " << blockByteCount
 									 << " due to end-of-DMA condition";
@@ -549,7 +563,7 @@ int CFOLib::CFO::ReadBuffer(const DTC_DMA_Engine& channel, int tmo_ms)
 	do
 	{
 		CFO_TLOG(TLVL_ReadBuffer) << "ReadBuffer before device_.read_data tmo=" << tmo_ms << " retry=" << retry;
-		errorCode = device_.read_data(channel, reinterpret_cast<void**>(&buffer), 1);
+		errorCode = device_.read_data(channel, reinterpret_cast<void**>(&buffer), 1 /* tmo_ms */);
 		// if (errorCode == 0) usleep(1000);
 
 	} while (retry-- > 0 && errorCode == 0);  //error code of 0 is timeout
@@ -607,7 +621,7 @@ void CFOLib::CFO::ReleaseAllBuffers(const DTC_DMA_Engine& channel)
 void CFOLib::CFO::ReleaseBuffers(const DTC_DMA_Engine& channel)
 {
 	CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers BEGIN";
-	DMAInfo* info;
+	CFOandDTC_DMAs::DMAInfo* info;
 	if (channel == CFO_DMA_Engine_DAQ)
 		info = &daqDMAInfo_;
 	// else if (channel == CFO_DMA_Engine_RunPlan)
@@ -618,7 +632,7 @@ void CFOLib::CFO::ReleaseBuffers(const DTC_DMA_Engine& channel)
 		throw new DTC_DataCorruptionException();
 	}
 
-	auto releaseBufferCount = GetCurrentBuffer(info);
+	auto releaseBufferCount = CFOandDTC_DMAs::GetCurrentBuffer(info);
 	if (releaseBufferCount > 0)
 	{
 		CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers releasing " << releaseBufferCount << " "
@@ -644,35 +658,35 @@ void CFOLib::CFO::ReleaseBuffers(const DTC_DMA_Engine& channel)
 	CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers END";
 }
 
-int CFOLib::CFO::GetCurrentBuffer(DMAInfo* info)
-{
-	CFO_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer BEGIN";
-	if (info->currentReadPtr == nullptr || info->buffer.size() == 0)
-	{
-		CFO_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -1 because not currently reading a buffer";
-		return -1;
-	}
+// int CFOLib::CFO::GetCurrentBuffer(DMAInfo* info)
+// {
+// 	CFO_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer BEGIN";
+// 	if (info->currentReadPtr == nullptr || info->buffer.size() == 0)
+// 	{
+// 		CFO_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -1 because not currently reading a buffer";
+// 		return -1;
+// 	}
 
-	for (size_t ii = 0; ii < info->buffer.size(); ++ii)
-	{
-		auto bufferptr = *info->buffer[ii];
-		uint16_t bufferSize = *reinterpret_cast<uint16_t*>(bufferptr);
-		if (info->currentReadPtr > bufferptr &&
-			info->currentReadPtr < bufferptr + bufferSize)
-		{
-			CFO_TLOG(TLVL_GetCurrentBuffer) << "Found matching buffer at index " << ii << ".";
-			return ii;
-		}
-	}
-	CFO_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -2: Have buffers but none match, need new";
-	return -2;
-}
+// 	for (size_t ii = 0; ii < info->buffer.size(); ++ii)
+// 	{
+// 		auto bufferptr = *info->buffer[ii];
+// 		uint16_t bufferSize = *reinterpret_cast<uint16_t*>(bufferptr);
+// 		if (info->currentReadPtr > bufferptr &&
+// 			info->currentReadPtr < bufferptr + bufferSize)
+// 		{
+// 			CFO_TLOG(TLVL_GetCurrentBuffer) << "Found matching buffer at index " << ii << ".";
+// 			return ii;
+// 		}
+// 	}
+// 	CFO_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -2: Have buffers but none match, need new";
+// 	return -2;
+// }
 
-uint16_t CFOLib::CFO::GetBufferByteCount(DMAInfo* info, size_t index)
-{
-	if (index >= info->buffer.size()) return 0;
-	auto bufferptr = *info->buffer[index];
-	uint16_t bufferSize = *reinterpret_cast<uint16_t*>(bufferptr);
-	return bufferSize;
-}
+// uint16_t CFOLib::CFO::GetBufferByteCount(DMAInfo* info, size_t index)
+// {
+// 	if (index >= info->buffer.size()) return 0;
+// 	auto bufferptr = *info->buffer[index];
+// 	uint16_t bufferSize = *reinterpret_cast<uint16_t*>(bufferptr);
+// 	return bufferSize;
+// }
 

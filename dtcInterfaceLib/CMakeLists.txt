@@ -9,6 +9,7 @@ cet_make_library(LIBRARY_NAME DTCInterface
       DTCSoftwareCFO.cpp
       DTC_Registers.cpp
       CFOandDTC_Registers.cpp
+      CFOandDTC_DMAs.cpp
       mu2edev.cpp
       mu2esim.cpp
       otsStyleCoutMacros.cpp

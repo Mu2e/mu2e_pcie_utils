@@ -93,7 +93,7 @@ public:
 	/// <summary>
 	/// Release all buffers held by software on the given channel
 	/// </summary>
-	/// <param name="chn">Channel to release (DAQ or DCS)</param>
+	/// <param name="chn">Channel to release (DAQ or DCS)</param>	
 	/// <returns>0 on success</returns>
 	int release_all(DTC_DMA_Engine const& chn);
 	/// <summary>

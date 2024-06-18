@@ -929,7 +929,7 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQDMA BEFORE BUFFER CHECK daqDMAInfo_.currentReadPtr=nullptr";
 	}
 
-	auto index = GetCurrentBuffer(&daqDMAInfo_);
+	auto index = CFOandDTC_DMAs::GetCurrentBuffer(&daqDMAInfo_);
 
 	// Need new buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
 	if (index < 0)
@@ -978,7 +978,7 @@ std::unique_ptr<DTCLib::DTC_Event> DTCLib::DTC::ReadNextDAQDMA(int tmo_ms)
 		__SS__ << "Event inclusive byte count cannot be zero!" << __E__;
 		__SS_THROW__;
 	}
-	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index) - sizeof(uint64_t);
+	size_t remainingBufferSize = CFOandDTC_DMAs::GetBufferByteCount(&daqDMAInfo_, index) - sizeof(uint64_t);
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "eventByteCount: " << eventByteCount << ", remainingBufferSize: " << remainingBufferSize;
 	// Check for continued DMA
 	if (eventByteCount > remainingBufferSize)
@@ -1074,7 +1074,7 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextDAQSubEventDMA BEFORE BUFFER CHECK daqDMAInfo_.currentReadPtr=nullptr";
 	}
 
-	auto index = GetCurrentBuffer(&daqDMAInfo_);  // if buffers onhand, returns daqDMAInfo_.buffer.size().. which is count used by ReleaseBuffers()
+	auto index = CFOandDTC_DMAs::GetCurrentBuffer(&daqDMAInfo_);  // if buffers onhand, returns daqDMAInfo_.buffer.size().. which is count used by ReleaseBuffers()
 
 	// Need new starting subevent buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
 	if (index < 0)
@@ -1140,7 +1140,7 @@ std::unique_ptr<DTCLib::DTC_SubEvent> DTCLib::DTC::ReadNextDAQSubEventDMA(int tm
 		__SS__ << "SubEvent inclusive byte count cannot be less than the size of the subevent header (" << sizeof(DTC_SubEventHeader) << "-bytes)!" << __E__;
 		__SS_THROW__;
 	}
-	size_t remainingBufferSize = GetBufferByteCount(&daqDMAInfo_, index);
+	size_t remainingBufferSize = CFOandDTC_DMAs::GetBufferByteCount(&daqDMAInfo_, index);
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "sizeof(DTC_SubEventHeader) = " << sizeof(DTC_SubEventHeader) << " GetBufferByteCount=" << remainingBufferSize;
 
 	remainingBufferSize -= sizeof(uint64_t);
@@ -1354,7 +1354,7 @@ std::unique_ptr<DTCLib::DTC_DCSReplyPacket> DTCLib::DTC::ReadNextDCSPacket(int t
 std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DMA_Engine& engine, int tmo_ms)
 {
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket BEGIN";
-	DMAInfo* info;
+	CFOandDTC_DMAs::DMAInfo* info;
 	if (engine == DTC_DMA_Engine_DAQ)
 		info = &daqDMAInfo_;
 	else if (engine == DTC_DMA_Engine_DCS)
@@ -1376,7 +1376,7 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket BEFORE BUFFER CHECK info->currentReadPtr=nullptr";
 	}
 
-	auto index = GetCurrentBuffer(info);
+	auto index = CFOandDTC_DMAs::GetCurrentBuffer(info);
 
 	// Need new buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
 	if (index < 0)
@@ -1458,13 +1458,13 @@ std::unique_ptr<DTCLib::DTC_DataPacket> DTCLib::DTC::ReadNextPacket(const DTC_DM
 	DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: current+blockByteCount="
 									 << (void*)(reinterpret_cast<uint8_t*>(info->currentReadPtr) + blockByteCount)
 									 << ", end of dma buffer="
-									 << (void*)(info->buffer[index][0] + GetBufferByteCount(info, index) +
+									 << (void*)(info->buffer[index][0] + CFOandDTC_DMAs::GetBufferByteCount(info, index) +
 												8);  // +8 because first 8 bytes are not included in byte count
 	if (reinterpret_cast<uint8_t*>(info->currentReadPtr) + blockByteCount >
-		info->buffer[index][0] + GetBufferByteCount(info, index) + 8)
+		info->buffer[index][0] + CFOandDTC_DMAs::GetBufferByteCount(info, index) + 8)
 	{
 		blockByteCount = static_cast<uint16_t>(
-			info->buffer[index][0] + GetBufferByteCount(info, index) + 8 -
+			info->buffer[index][0] + CFOandDTC_DMAs::GetBufferByteCount(info, index) + 8 -
 			reinterpret_cast<uint8_t*>(info->currentReadPtr));  // +8 because first 8 bytes are not included in byte count
 		DTC_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket: Adjusting blockByteCount to " << blockByteCount
 										 << " due to end-of-DMA condition";
@@ -1529,7 +1529,7 @@ int DTCLib::DTC::ReadBuffer(const DTC_DMA_Engine& channel, int retries /* = 10 *
 		DTC_TLOG(TLVL_ReadBuffer) << "ReadBuffer before device_.read_data retries=" << retries << " retry=" << retry;
 		// WARNING NOTE: if there is existing data still sitting in unreleased buffer, the timeout will not add any delay
 		//  read_data() on success, returns number of bytes read.
-		errorCode = device_.read_data(channel, reinterpret_cast<void**>(&buffer), 1);
+		errorCode = device_.read_data(channel, reinterpret_cast<void**>(&buffer), 1 /* tmo_ms */);
 		// NOTE: Adding delay here significantly impacts data rates!
 		//  if (errorCode == 0) usleep(tmo_ms*1000); //create timeout delay here to match tmo (tmo not used by read_data())
 
@@ -1594,7 +1594,7 @@ void DTCLib::DTC::ReleaseAllBuffers(const DTC_DMA_Engine& channel)
 void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)  //, int count)//count==0 means all
 {
 	DTC_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers BEGIN";
-	DMAInfo* info;
+	CFOandDTC_DMAs::DMAInfo* info;
 	if (channel == DTC_DMA_Engine_DAQ)
 		info = &daqDMAInfo_;
 	else if (channel == DTC_DMA_Engine_DCS)
@@ -1605,7 +1605,7 @@ void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)  //, int count)/
 		throw new DTC_DataCorruptionException();
 	}
 
-	auto releaseBufferCount = GetCurrentBuffer(info);  // not GetCurrentBuffer(info), but rather Count!!!!
+	auto releaseBufferCount = CFOandDTC_DMAs::GetCurrentBuffer(info);  // not GetCurrentBuffer(info), but rather Count!!!!
 	if (releaseBufferCount > 0)
 	{
 		DTC_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers releasing " << releaseBufferCount << " "
@@ -1631,48 +1631,48 @@ void DTCLib::DTC::ReleaseBuffers(const DTC_DMA_Engine& channel)  //, int count)/
 	DTC_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers END";
 }
 
-int DTCLib::DTC::GetCurrentBuffer(DMAInfo* info)
-{
-	DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer BEGIN currentReadPtr=" << (void*)info->currentReadPtr
-									<< " buffer.size()=" << info->buffer.size();
+// int DTCLib::DTC::GetCurrentBuffer(DMAInfo* info)
+// {
+// 	DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer BEGIN currentReadPtr=" << (void*)info->currentReadPtr
+// 									<< " buffer.size()=" << info->buffer.size();
 
-	if (info->buffer.size())  // might crash in ReleaseBuffers if currentReadPtr = nullptr ????????????????????????????????
-	{
-		DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning info->buffer.size()=" << info->buffer.size();
-		return info->buffer.size();
-	}
+// 	if (info->buffer.size())  // might crash in ReleaseBuffers if currentReadPtr = nullptr ????????????????????????????????
+// 	{
+// 		DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning info->buffer.size()=" << info->buffer.size();
+// 		return info->buffer.size();
+// 	}
 
-	if (info->currentReadPtr == nullptr || info->buffer.size() == 0)
-	{
-		DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -1 because not currently reading a buffer";
-		return -1;
-	}
+// 	if (info->currentReadPtr == nullptr || info->buffer.size() == 0)
+// 	{
+// 		DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -1 because not currently reading a buffer";
+// 		return -1;
+// 	}
 
-#if 0
-	for (size_t ii = 0; ii < info->buffer.size(); ++ii)
-	{
-		auto bufferptr = *info->buffer[ii];
-		uint16_t bufferSize = *reinterpret_cast<uint16_t*>(bufferptr);
-		DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer bufferptr="<<(void*)bufferptr<<" bufferSize="<<bufferSize;
-		if (info->currentReadPtr > bufferptr &&
-			info->currentReadPtr < bufferptr + bufferSize)
-		{
-			DTC_TLOG(TLVL_GetCurrentBuffer) << "Found matching buffer at index " << ii << ".";
-			return ii;
-		}
-	}
-#endif
-	DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -2: Have buffers but none match read ptr position, need new";
-	return -2;
-}
+// #if 0
+// 	for (size_t ii = 0; ii < info->buffer.size(); ++ii)
+// 	{
+// 		auto bufferptr = *info->buffer[ii];
+// 		uint16_t bufferSize = *reinterpret_cast<uint16_t*>(bufferptr);
+// 		DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer bufferptr="<<(void*)bufferptr<<" bufferSize="<<bufferSize;
+// 		if (info->currentReadPtr > bufferptr &&
+// 			info->currentReadPtr < bufferptr + bufferSize)
+// 		{
+// 			DTC_TLOG(TLVL_GetCurrentBuffer) << "Found matching buffer at index " << ii << ".";
+// 			return ii;
+// 		}
+// 	}
+// #endif
+// 	DTC_TLOG(TLVL_GetCurrentBuffer) << "GetCurrentBuffer returning -2: Have buffers but none match read ptr position, need new";
+// 	return -2;
+// }
 
-uint16_t DTCLib::DTC::GetBufferByteCount(DMAInfo* info, size_t index)
-{
-	if (index >= info->buffer.size()) return 0;
-	auto bufferptr = *info->buffer[index];
-	uint16_t bufferSize = *reinterpret_cast<uint16_t*>(bufferptr);
-	return bufferSize;
-}
+// uint16_t DTCLib::DTC::GetBufferByteCount(DMAInfo* info, size_t index)
+// {
+// 	if (index >= info->buffer.size()) return 0;
+// 	auto bufferptr = *info->buffer[index];
+// 	uint16_t bufferSize = *reinterpret_cast<uint16_t*>(bufferptr);
+// 	return bufferSize;
+// }
 
 // This is on DMA Channel 1 (i.e., DCS)
 void DTCLib::DTC::WriteDataPacket(const DTC_DataPacket& packet)
