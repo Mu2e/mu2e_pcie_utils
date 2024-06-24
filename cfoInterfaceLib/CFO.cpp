@@ -649,12 +649,12 @@ void CFOLib::CFO::ReleaseBuffers(const DTC_DMA_Engine& channel)
 			info->buffer.pop_front();
 		}
 	}
-	else
-	{
-		CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers releasing ALL " << (channel == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS")
-								  << " buffers.";
-		ReleaseAllBuffers(channel);
-	}
+	// else
+	// {
+	// 	CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers releasing ALL " << (channel == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS")
+	// 							  << " buffers.";
+	// 	ReleaseAllBuffers(channel);
+	// }
 	CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers END";
 }
 
