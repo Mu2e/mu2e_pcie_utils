@@ -44,10 +44,9 @@ mu2edev::~mu2edev()
 	if (debugFp_) fclose(debugFp_);
 }
 
-int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simMemoryFileName, const std::string& uid, bool isCFO)
+int mu2edev::init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simMemoryFileName, const std::string& uid)
 {
 	UID_ = uid;
-	isCFO_ = isCFO;
 
 	auto debugWriteFilePath = getenv("DTCLIB_DEBUG_WRITE_FILE_PATH");
 	if (debugWriteFilePath != nullptr)
@@ -193,7 +192,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 	int retsts;
 	TRACE_EXIT { TRACE(TLVL_DEBUG + 11, UID_ +  " - mu2edev::read_data returning retsts(bytes)=%d",retsts);};
 
-	if (!isCFO_ && chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
+	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - read_data dcs lock not held!");
 		return retsts=-2;
@@ -240,8 +239,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 				      *(((uint64_t*)*buffer)+8), *(((uint64_t*)*buffer)+9) );
 
 				/// increment buffers held if allowing multiple buffers to be held by user space (e.g. for Data DMA channel, which is different for CFO vs DTC)</param>
-				if ((!isCFO_ && chn == DTC_DMA_Engine_DAQ) ||
-					(isCFO_ && chn == CFO_DMA_Engine_DAQ))
+				if (chn == DTC_DMA_Engine_DAQ)
 					++buffers_held_;
 			}
 			else
@@ -267,7 +265,7 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
    */
 int mu2edev::read_release(DTC_DMA_Engine const& chn, unsigned num)
 {
-	if (!isCFO_ && chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
+	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_ERROR, UID_ + " - read_release dcs lock not held!");
 		return -2;
@@ -418,10 +416,11 @@ void mu2edev::meta_dump()
 
 int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 {
-	if (!isCFO_ && chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
+	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
-		TRACE(TLVL_ERROR, UID_ + " - write_data dcs lock not held!");
-		return -2;
+		__SS__ << "write_data failed - dcs lock not held!" << __E__;		
+		__SS_THROW__;
+		//return -2;
 	}
 
 	auto start = std::chrono::steady_clock::now();
@@ -499,7 +498,7 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 {
 	TLOG_DEBUG(25) << __PRETTY_FUNCTION__ << " called from\n" << otsStyleStackTrace();   // param to ENTEX is a DEBUG lvl
 	auto retsts = 0; TRACE_EXIT { TLOG_DEBUG(26) << "Exit - retsts=" << retsts; };
-	if (!isCFO_ && chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
+	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
 		TRACE(TLVL_WARN, UID_ + " - release_all dcs lock not held!");
 		retsts=-2; return retsts;
@@ -546,9 +545,8 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 		}
 
    		//releaseBuffersHeld if allowing multiple buffers to be held by user space (e.g. for Data DMA channel, which is different for CFO vs DTC)
-		if ((!isCFO_ && chn == DTC_DMA_Engine_DAQ) ||
-			(isCFO_ && chn == CFO_DMA_Engine_DAQ))
-			buffers_held_=0;
+		if (chn == DTC_DMA_Engine_DAQ)
+			buffers_held_ = 0;
 	}
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
 	return retsts;
@@ -570,8 +568,6 @@ void mu2edev::close()
 
 void mu2edev::begin_dcs_transaction()
 {
-	if(isCFO_) return; //ignore for CFO
-
 	if (dcs_lock_held_.load() == std::this_thread::get_id())
 	{
 		TRACE(TLVL_DEBUG + 13, UID_ + " begin_dcs_transation: device lock already held by this thread");
@@ -644,8 +640,6 @@ void mu2edev::begin_dcs_transaction()
 
 void mu2edev::end_dcs_transaction(bool force)
 {
-	if(isCFO_) return; //ignore for CFO
-
 	TRACE(TLVL_DEBUG + 14, UID_ + " end_dcs_transaction: checking for ability to release lock force=%d", force);
 	if (force || dcs_lock_held_.load() == std::this_thread::get_id())
 	{

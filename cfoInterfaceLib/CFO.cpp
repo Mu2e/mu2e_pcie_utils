@@ -51,7 +51,7 @@ bool CFOLib::CFO::GetData(std::vector<std::unique_ptr<CFOLib::CFO_Event>>& outpu
 	bool result = false;
 
 	// Release read buffers here "I am done with everything I read before" (because the return may be pointers to the raw data, not copies)
-	ReleaseBuffers(CFO_DMA_Engine_DAQ);  // Currently race condition because GetCurrentBuffer(info) is used inside to decide how many buffers to release.
+	ReleaseBuffers(DTC_DMA_Engine_DAQ);  // Currently race condition because GetCurrentBuffer(info) is used inside to decide how many buffers to release.
 
 	try
 	{
@@ -108,21 +108,21 @@ bool CFOLib::CFO::GetData(std::vector<std::unique_ptr<CFOLib::CFO_Event>>& outpu
 	{
 		daqDMAInfo_.currentReadPtr = nullptr;
 		CFO_TLOG(TLVL_ERROR) << "GetData: Bad omen: Wrong packet type at the current read position";
-		device_.spy(CFO_DMA_Engine_DAQ, 3 /* for once */ | 8 /* for wide view */ | 16 /* for stack trace */);
+		device_.spy(DTC_DMA_Engine_DAQ, 3 /* for once */ | 8 /* for wide view */ | 16 /* for stack trace */);
 		throw;
 	}
 	catch (DTC_IOErrorException& ex)
 	{
 		daqDMAInfo_.currentReadPtr = nullptr;
 		CFO_TLOG(TLVL_ERROR) << "GetData: IO Exception Occurred!";
-		device_.spy(CFO_DMA_Engine_DAQ, 3 /* for once */ | 8 /* for wide view */ | 16 /* for stack trace */);
+		device_.spy(DTC_DMA_Engine_DAQ, 3 /* for once */ | 8 /* for wide view */ | 16 /* for stack trace */);
 		throw;
 	}
 	catch (DTC_DataCorruptionException& ex)
 	{
 		daqDMAInfo_.currentReadPtr = nullptr;
 		CFO_TLOG(TLVL_ERROR) << "GetData: Data Corruption Exception Occurred!";
-		device_.spy(CFO_DMA_Engine_DAQ, 3 /* for once */ | 8 /* for wide view */ | 16 /* for stack trace */);
+		device_.spy(DTC_DMA_Engine_DAQ, 3 /* for once */ | 8 /* for wide view */ | 16 /* for stack trace */);
 		throw;
 	}
 
@@ -166,7 +166,7 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 
 		void* oldBufferPtr = nullptr;
 		if (daqDMAInfo_.buffer.size() > 0) oldBufferPtr = &daqDMAInfo_.buffer.back()[0];
-		auto sts = ReadBuffer(CFO_DMA_Engine_DAQ, tmo_ms);  // does return code
+		auto sts = ReadBuffer(DTC_DMA_Engine_DAQ, tmo_ms);  // does return code
 		if (sts <= 0)
 		{
 			CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextCFORecordDMA: ReadBuffer returned " << sts << ", returning nullptr";
@@ -186,7 +186,7 @@ bool CFOLib::CFO::ReadNextCFORecordDMA(std::vector<std::unique_ptr<CFO_Event>>& 
 			daqDMAInfo_.currentReadPtr = nullptr;
 			// We didn't actually get a new buffer...this probably means there's no more data
 			// Try and see if we're merely stuck...hopefully, all the data is out of the buffers...
-			device_.read_release(CFO_DMA_Engine_DAQ, 1);
+			device_.read_release(DTC_DMA_Engine_DAQ, 1);
 			CFO_TLOG(TLVL_WARN)
 				<< "ReadNextCFORecordDMA: New buffer was the same as old. Released buffer and returning nullptr";
 			return false;
@@ -420,7 +420,7 @@ std::unique_ptr<CFOLib::CFO_DataPacket> CFOLib::CFO::ReadNextPacket(const DTC_DM
 {
 	CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket BEGIN";
 	CFOandDTC_DMAs::DMAInfo* info;
-	if (engine == CFO_DMA_Engine_DAQ)
+	if (engine == DTC_DMA_Engine_DAQ)
 		info = &daqDMAInfo_;
 	// else if (engine == DTC_DMA_Engine_DCS)
 	// 	info = &dcsDMAInfo_;
@@ -446,7 +446,7 @@ std::unique_ptr<CFOLib::CFO_DataPacket> CFOLib::CFO::ReadNextPacket(const DTC_DM
 	// Need new buffer if GetCurrentBuffer returns -1 (no buffers) or -2 (done with all held buffers)
 	if (index < 0)
 	{
-		CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket Obtaining new " << (engine == CFO_DMA_Engine_DAQ ? "DAQ" : "DCS")
+		CFO_TLOG(TLVL_ReadNextDAQPacket) << "ReadNextPacket Obtaining new " << (engine == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS")
 									 << " Buffer";
 
 		void* oldBufferPtr = nullptr;
@@ -581,7 +581,7 @@ int CFOLib::CFO::ReadBuffer(const DTC_DMA_Engine& channel, int tmo_ms)
 	{
 		CFO_TLOG(TLVL_ReadBuffer) << "ReadBuffer buffer_=" << (void*)buffer << " errorCode=" << errorCode << " *buffer_=0x"
 							  << std::hex << *(unsigned*)buffer;
-		if (channel == CFO_DMA_Engine_DAQ)
+		if (channel == DTC_DMA_Engine_DAQ)
 		{
 			daqDMAInfo_.buffer.push_back(buffer);
 			CFO_TLOG(TLVL_ReadBuffer) << "ReadBuffer: There are now " << daqDMAInfo_.buffer.size()
@@ -601,7 +601,7 @@ void CFOLib::CFO::ReleaseAllBuffers(const DTC_DMA_Engine& channel)
 {
 	TLOG_ENTEX(1) << "ReleaseAllBuffers - channel=" << channel;
 
-	if (channel == CFO_DMA_Engine_DAQ)
+	if (channel == DTC_DMA_Engine_DAQ)
 	{
 		daqDMAInfo_.buffer.clear();
 		device_.release_all(channel);
@@ -622,7 +622,7 @@ void CFOLib::CFO::ReleaseBuffers(const DTC_DMA_Engine& channel)
 {
 	CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers BEGIN";
 	CFOandDTC_DMAs::DMAInfo* info;
-	if (channel == CFO_DMA_Engine_DAQ)
+	if (channel == DTC_DMA_Engine_DAQ)
 		info = &daqDMAInfo_;
 	// else if (channel == CFO_DMA_Engine_RunPlan)
 	// 	info = &dcsDMAInfo_;
@@ -636,7 +636,7 @@ void CFOLib::CFO::ReleaseBuffers(const DTC_DMA_Engine& channel)
 	if (releaseBufferCount > 0)
 	{
 		CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers releasing " << releaseBufferCount << " "
-								  << (channel == CFO_DMA_Engine_DAQ ? "DAQ" : "CFO Run Plan") << " buffers.";
+								  << (channel == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS") << " buffers.";
 
 		// if (channel == CFO_DMA_Engine_DCS)
 		// 	device_.begin_dcs_transaction();
@@ -651,7 +651,7 @@ void CFOLib::CFO::ReleaseBuffers(const DTC_DMA_Engine& channel)
 	}
 	else
 	{
-		CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers releasing ALL " << (channel == CFO_DMA_Engine_DAQ ? "DAQ" : "DCS")
+		CFO_TLOG(TLVL_ReleaseBuffers) << "ReleaseBuffers releasing ALL " << (channel == DTC_DMA_Engine_DAQ ? "DAQ" : "DCS")
 								  << " buffers.";
 		ReleaseAllBuffers(channel);
 	}

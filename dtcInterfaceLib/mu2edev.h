@@ -71,7 +71,7 @@ public:
 	/// <param name="dtc">Desired DTC card to use (/dev/mu2eX)</param>
 	/// <param name="simMemoryFileName">If using simulated DTC, name of the memory file ("mu2esim.bin")</param>
 	/// <returns>0 on success</returns>
-	int init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simMemoryFileName = "mu2esim.bin", const std::string& uid = "", bool isCFO = false);
+	int init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simMemoryFileName = "mu2esim.bin", const std::string& uid = "");
 	void initDMAEngine();	
 
 	/// <summary>
@@ -192,8 +192,6 @@ private:
 	std::string			UID_;
 	FILE*				debugFp_ = 0;
 	std::chrono::steady_clock::time_point lastWriteTime_;
-
-	bool				isCFO_ = false;
 };
 
 #endif
