@@ -79,14 +79,22 @@ enum CFO_Register : uint16_t
 	CFO_Register_SERDESPRBSControlLink5 = 0x9344,
 	CFO_Register_SERDESPRBSControlLink6 = 0x9348,
 	CFO_Register_SERDESPRBSControlLink7 = 0x934C,
-	CFO_Register_CableDelayValueLink0 = 0x9360,
-	CFO_Register_CableDelayValueLink1 = 0x9364,
-	CFO_Register_CableDelayValueLink2 = 0x9368,
-	CFO_Register_CableDelayValueLink3 = 0x936C,
-	CFO_Register_CableDelayValueLink4 = 0x9370,
-	CFO_Register_CableDelayValueLink5 = 0x9374,
-	CFO_Register_CableDelayValueLink6 = 0x9378,
-	CFO_Register_CableDelayValueLink7 = 0x937C,
+	
+	CFO_Register_CableDelayValue_offset = 0x9360,
+	// CFO_Register_CableDelayValueROC1_offset = 0x9460,
+	// CFO_Register_CableDelayValueROC2_offset = 0x9560,
+	// CFO_Register_CableDelayValueROC3_offset = 0x9660,
+	// CFO_Register_CableDelayValueROC4_offset = 0x9760,
+	// CFO_Register_CableDelayValueROC5_offset = 0x9860,
+	// CFO_Register_CableDelayValueLink0 = 0x9360,
+	// CFO_Register_CableDelayValueLink1 = 0x9364,
+	// CFO_Register_CableDelayValueLink2 = 0x9368,
+	// CFO_Register_CableDelayValueLink3 = 0x936C,
+	// CFO_Register_CableDelayValueLink4 = 0x9370,
+	// CFO_Register_CableDelayValueLink5 = 0x9374,
+	// CFO_Register_CableDelayValueLink6 = 0x9378,
+	// CFO_Register_CableDelayValueLink7 = 0x937C,
+
 	CFO_Register_CableDelayControlStatus = 0x9380,
 	CFO_Register_FPGAProgramData = 0x9400,
 	CFO_Register_FPGAPROMProgramStatus = 0x9404,
@@ -1238,118 +1246,122 @@ public:
 	RegisterFormatter FormatSERDESPRBSControlLink7();
 
 	// Cable Delays
-	/// <summary>
-	/// Set the cable delay value for the given link
-	/// </summary>
-	/// <param name="link">Link to set</param>
-	/// <param name="delay">Delay value to set</param>
-	void SetCableDelayValue(const CFO_Link_ID& link, const uint32_t delay);
-	/// <summary>
-	/// Read the configured delay value for the given link
-	/// </summary>
-	/// <param name="link">Link to read</param>
-	/// <returns>Configured delay value for the given link</returns>
-	uint32_t ReadCableDelayValue(const CFO_Link_ID& link, std::optional<uint32_t> val = std::nullopt);
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatCableDelayValueLink0();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatCableDelayValueLink1();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatCableDelayValueLink2();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatCableDelayValueLink3();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatCableDelayValueLink4();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatCableDelayValueLink5();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatCableDelayValueLink6();
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatCableDelayValueLink7();
+	uint32_t 	ReadCableDelayMeasureExponentialCount	(std::optional<uint32_t> val = std::nullopt);
+	void 		SetCableDelayMeasureExponentialCount	(const uint32_t exponent);
+	uint32_t 	ReadCableDelayMeasurement				(const CFO_Link_ID link, const uint8_t roc, bool& done);
+	
+	// /// <summary>
+	// /// Set the cable delay value for the given link
+	// /// </summary>
+	// /// <param name="link">Link to set</param>
+	// /// <param name="delay">Delay value to set</param>
+	// void SetCableDelayValue(const CFO_Link_ID& link, const uint32_t delay);
+	// /// <summary>
+	// /// Read the configured delay value for the given link
+	// /// </summary>
+	// /// <param name="link">Link to read</param>
+	// /// <returns>Configured delay value for the given link</returns>
+	// uint32_t ReadCableDelayValue(const CFO_Link_ID& link, std::optional<uint32_t> val = std::nullopt);
+	// /// <summary>
+	// /// Formats the register's current value for register dumps
+	// /// </summary>
+	// /// <returns>RegisterFormatter object containing register information</returns>
+	// RegisterFormatter FormatCableDelayValueLink0();
+	// /// <summary>
+	// /// Formats the register's current value for register dumps
+	// /// </summary>
+	// /// <returns>RegisterFormatter object containing register information</returns>
+	// RegisterFormatter FormatCableDelayValueLink1();
+	// /// <summary>
+	// /// Formats the register's current value for register dumps
+	// /// </summary>
+	// /// <returns>RegisterFormatter object containing register information</returns>
+	// RegisterFormatter FormatCableDelayValueLink2();
+	// /// <summary>
+	// /// Formats the register's current value for register dumps
+	// /// </summary>
+	// /// <returns>RegisterFormatter object containing register information</returns>
+	// RegisterFormatter FormatCableDelayValueLink3();
+	// /// <summary>
+	// /// Formats the register's current value for register dumps
+	// /// </summary>
+	// /// <returns>RegisterFormatter object containing register information</returns>
+	// RegisterFormatter FormatCableDelayValueLink4();
+	// /// <summary>
+	// /// Formats the register's current value for register dumps
+	// /// </summary>
+	// /// <returns>RegisterFormatter object containing register information</returns>
+	// RegisterFormatter FormatCableDelayValueLink5();
+	// /// <summary>
+	// /// Formats the register's current value for register dumps
+	// /// </summary>
+	// /// <returns>RegisterFormatter object containing register information</returns>
+	// RegisterFormatter FormatCableDelayValueLink6();
+	// /// <summary>
+	// /// Formats the register's current value for register dumps
+	// /// </summary>
+	// /// <returns>RegisterFormatter object containing register information</returns>
+	// RegisterFormatter FormatCableDelayValueLink7();
 
-	// Cable Delay Control And Status Register
-	/// <summary>
-	/// reset all the bits of the register
-	/// </summary>
-	void ResetDelayRegister();
+	// // Cable Delay Control And Status Register
+	// /// <summary>
+	// /// reset all the bits of the register
+	// /// </summary>
+	// void ResetDelayRegister();
 
-	/// <summary>
-	/// Read the Measure Error bit for the given link
-	/// </summary>
-	/// <param name="link">Link to read</param>
-	/// <returns>Value of the bit</returns>
-	bool ReadDelayMeasureError(const CFO_Link_ID& link, std::optional<uint32_t> val = std::nullopt);
-	/// <summary>
-	/// Read the Cable Delay External Loopback Enable bit
-	/// </summary>
-	/// <returns>Value of the bit</returns>
-	bool ReadDelayExternalLoopbackEnable(std::optional<uint32_t> val = std::nullopt);
-	/// <summary>
-	/// Set the Cable Delay External Loopback Enable bit
-	/// </summary>
-	/// <param name="value">Value to set</param>
-	void SetDelayExternalLoopbackEnable(bool value);
-	/// <summary>
-	/// Enable the Delay Measure Mode on the given link
-	/// </summary>
-	/// <param name="link">Link to enable</param>
-	void EnableDelayMeasureMode(const CFO_Link_ID& link);
-	/// <summary>
-	/// Disable the Delay Measure Mode on the given link
-	/// </summary>
-	/// <param name="link">Link to disable</param>
-	void DisableDelayMeasureMode(const CFO_Link_ID& link);
-	/// <summary>
-	/// Read the Measure Mode Enable bit for the given link
-	/// </summary>
-	/// <param name="link">Link to read</param>
-	/// <returns>Value of the bit</returns>
-	bool ReadDelayMeasureMode(const CFO_Link_ID& link, std::optional<uint32_t> val = std::nullopt);
-	/// <summary>
-	/// Set the Delay Measure Now bit on the given link
-	/// </summary>
-	/// <param name="link">Link to enable</param>
-	void EnableDelayMeasureNow(const CFO_Link_ID& link);
-	/// <summary>
-	/// Clear the Delay Measure Now bit on the given link
-	/// </summary>
-	/// <param name="link">Link to disable</param>
-	void DisableDelayMeasureNow(const CFO_Link_ID& link);
-	/// <summary>
-	/// Read the Measure Now bit for the given link
-	/// </summary>
-	/// <param name="link">Link to read</param>
-	/// <returns>Value of the bit</returns>
-	bool ReadDelayMeasureNow(const CFO_Link_ID& link, std::optional<uint32_t> val = std::nullopt);
-	/// <summary>
-	/// Formats the register's current value for register dumps
-	/// </summary>
-	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatCableDelayControl();
+	// /// <summary>
+	// /// Read the Measure Error bit for the given link
+	// /// </summary>
+	// /// <param name="link">Link to read</param>
+	// /// <returns>Value of the bit</returns>
+	// bool ReadDelayMeasureError(const CFO_Link_ID& link, std::optional<uint32_t> val = std::nullopt);
+	// /// <summary>
+	// /// Read the Cable Delay External Loopback Enable bit
+	// /// </summary>
+	// /// <returns>Value of the bit</returns>
+	// bool ReadDelayExternalLoopbackEnable(std::optional<uint32_t> val = std::nullopt);
+	// /// <summary>
+	// /// Set the Cable Delay External Loopback Enable bit
+	// /// </summary>
+	// /// <param name="value">Value to set</param>
+	// void SetDelayExternalLoopbackEnable(bool value);
+	// /// <summary>
+	// /// Enable the Delay Measure Mode on the given link
+	// /// </summary>
+	// /// <param name="link">Link to enable</param>
+	// void EnableDelayMeasureMode(const CFO_Link_ID& link);
+	// /// <summary>
+	// /// Disable the Delay Measure Mode on the given link
+	// /// </summary>
+	// /// <param name="link">Link to disable</param>
+	// void DisableDelayMeasureMode(const CFO_Link_ID& link);
+	// /// <summary>
+	// /// Read the Measure Mode Enable bit for the given link
+	// /// </summary>
+	// /// <param name="link">Link to read</param>
+	// /// <returns>Value of the bit</returns>
+	// bool ReadDelayMeasureMode(const CFO_Link_ID& link, std::optional<uint32_t> val = std::nullopt);
+	// /// <summary>
+	// /// Set the Delay Measure Now bit on the given link
+	// /// </summary>
+	// /// <param name="link">Link to enable</param>
+	// void EnableDelayMeasureNow(const CFO_Link_ID& link);
+	// /// <summary>
+	// /// Clear the Delay Measure Now bit on the given link
+	// /// </summary>
+	// /// <param name="link">Link to disable</param>
+	// void DisableDelayMeasureNow(const CFO_Link_ID& link);
+	// /// <summary>
+	// /// Read the Measure Now bit for the given link
+	// /// </summary>
+	// /// <param name="link">Link to read</param>
+	// /// <returns>Value of the bit</returns>
+	// bool ReadDelayMeasureNow(const CFO_Link_ID& link, std::optional<uint32_t> val = std::nullopt);
+	// /// <summary>
+	// /// Formats the register's current value for register dumps
+	// /// </summary>
+	// /// <returns>RegisterFormatter object containing register information</returns>
+	// RegisterFormatter FormatCableDelayControl();
 
 	// FPGA PROM Program Data Register
 
@@ -1435,6 +1447,7 @@ public:
 		[this] { return this->FormatCFOControl(); },
 		[this] { return this->FormatBeamOffMode(); },
 		[this] { return this->FormatBeamOnMode(); },
+		[this] { return this->FormatJitterAttenuatorCSR(); },		
 		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatLinkEnable(); },
 		// [this] { return this->FormatRXCDRLockStatus(); },
@@ -1491,15 +1504,15 @@ public:
 		[this]() { return this->FormatSERDESPRBSControlLink5(); },
 		[this]() { return this->FormatSERDESPRBSControlLink6(); },
 		[this]() { return this->FormatSERDESPRBSControlLink7(); },
-		[this]() { return this->FormatCableDelayValueLink0(); },
-		[this]() { return this->FormatCableDelayValueLink1(); },
-		[this]() { return this->FormatCableDelayValueLink2(); },
-		[this]() { return this->FormatCableDelayValueLink3(); },
-		[this]() { return this->FormatCableDelayValueLink4(); },
-		[this]() { return this->FormatCableDelayValueLink5(); },
-		[this]() { return this->FormatCableDelayValueLink6(); },
-		[this]() { return this->FormatCableDelayValueLink7(); },
-		[this]() { return this->FormatCableDelayControl(); },
+		// [this]() { return this->FormatCableDelayValueLink0(); },
+		// [this]() { return this->FormatCableDelayValueLink1(); },
+		// [this]() { return this->FormatCableDelayValueLink2(); },
+		// [this]() { return this->FormatCableDelayValueLink3(); },
+		// [this]() { return this->FormatCableDelayValueLink4(); },
+		// [this]() { return this->FormatCableDelayValueLink5(); },
+		// [this]() { return this->FormatCableDelayValueLink6(); },
+		// [this]() { return this->FormatCableDelayValueLink7(); },
+		// [this]() { return this->FormatCableDelayControl(); },
 		[this]() { return this->FormatFPGAPROMProgramStatus(); },
 		[this]() { return this->FormatFPGACoreAccess(); }};
 

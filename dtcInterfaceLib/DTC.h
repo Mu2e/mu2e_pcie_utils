@@ -22,6 +22,7 @@
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_SubEventHeader.h"
 
 #include "DTC_Registers.h"
+#include "CFOandDTC_DMAs.h"
 
 // #include "artdaq-core-mu2e/Overlays/DTC_Types.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_CharacterNotInTableError.h"
@@ -298,25 +299,25 @@ private:
 	void ReleaseBuffers(const DTC_DMA_Engine& channel);
 	void WriteDataPacket(const DTC_DataPacket& packet);
 
-	struct DMAInfo
-	{
-		std::deque<mu2e_databuff_t*> buffer;
-		uint32_t bufferIndex;
-		void* currentReadPtr;
-		void* lastReadPtr;
-		DMAInfo()
-			: buffer(), bufferIndex(0), currentReadPtr(nullptr), lastReadPtr(nullptr) {}
-		~DMAInfo()
-		{
-			buffer.clear();
-			currentReadPtr = nullptr;
-			lastReadPtr = nullptr;
-		}
-	};
-	int GetCurrentBuffer(DMAInfo* info);
-	uint16_t GetBufferByteCount(DMAInfo* info, size_t index);
-	DMAInfo daqDMAInfo_;
-	DMAInfo dcsDMAInfo_;
+	// struct DMAInfo
+	// {
+	// 	std::deque<mu2e_databuff_t*> buffer;
+	// 	uint32_t bufferIndex;
+	// 	void* currentReadPtr;
+	// 	void* lastReadPtr;
+	// 	DMAInfo()
+	// 		: buffer(), bufferIndex(0), currentReadPtr(nullptr), lastReadPtr(nullptr) {}
+	// 	~DMAInfo()
+	// 	{
+	// 		buffer.clear();
+	// 		currentReadPtr = nullptr;
+	// 		lastReadPtr = nullptr;
+	// 	}
+	// };
+	// int GetCurrentBuffer(DMAInfo* info);
+	// uint16_t GetBufferByteCount(DMAInfo* info, size_t index);
+	CFOandDTC_DMAs::DMAInfo daqDMAInfo_;
+	CFOandDTC_DMAs::DMAInfo dcsDMAInfo_;
 
 	uint8_t lastDTCErrorBitsValue_ = 0;
 };

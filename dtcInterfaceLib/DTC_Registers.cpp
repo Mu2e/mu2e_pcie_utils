@@ -765,30 +765,6 @@ bool DTCLib::DTC_Registers::ReadPunchEnable(std::optional<uint32_t> val)
 	return data[9];
 }
 
-/// <summary>
-/// Set the SERDES Global Reset bit to true, and wait for the reset to complete
-/// </summary>
-void DTCLib::DTC_Registers::ResetSERDES()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[8] = 1;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-	while (ReadResetSERDES())
-	{
-		usleep(1000);
-	}
-}
-
-/// <summary>
-/// Read the SERDES Global Reset bit
-/// </summary>
-/// <returns>Whether a SERDES global reset is in progress</returns>
-bool DTCLib::DTC_Registers::ReadResetSERDES(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
-	return data[8];
-}
-
 void DTCLib::DTC_Registers::SetExternalCFOSampleEdgeMode(int forceCFOedge)
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
@@ -823,18 +799,6 @@ bool DTCLib::DTC_Registers::ReadFanoutClockInput(std::optional<uint32_t> val)
 	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
 	return data[4];
 }
-
-/// <summary>
-/// Runs the Loopback test of the CFO Emulator, inside the DTC, and broadcasts loopback markers to all ROCs.
-/// </summary>
-void DTCLib::DTC_Registers::RunCFOEmulatorLoopbackTest()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[3] = 0;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-	data[3] = 1;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}  // end RunCFOEmulatorLoopbackTest()
 
 /// <summary>
 /// Enable receiving DCS packets.
@@ -873,34 +837,70 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	auto form = CreateFormatter(CFOandDTC_Register_Control);
 	form.description = "DTC Control";
 	form.vals.push_back("([ x = 1 (hi) ])");
-	form.vals.push_back(std::string("Bit-31 DTC Soft Reset (Self-clearing):  [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-30 CFO Emulation Enable:            [") + (ReadCFOEmulationEnabled(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-28 CFO Link Timing Card Mux Select: [") + (ReadCFOLoopback(form.value) ? "x" : " ") + "]");
+
+	// ~~~	DTC Control Register (0x9100) ~~~
+	// Bit Position	Mode	Default Value	Description
+	// 31	WO	0b0	DTC Soft Reset (Self-clearing)
+	// 30	RW	0b0	CFO Emulation Enable
+	// 29	RW	0b0	Reserved (Formerly CFO Emulation Enable Continuous)
+	// 28	RW	0b0	CFO Link Output Control
+	// 27	RW	0b0	Reset DDR Write Address
+	// 26	RW	0b0	Reserved (Formerly Reset DDR Read Address)
+	// 25	RW	0b0	Reserved (DDR Interface Reset)
+	// 24	RW	0b0	CFO Emulator DRP Enable
+	// 23	RW	0b0	DTC Autogenerate DRP Enable
+	// 22	RW	0b0	Reserved (Formerly Software DRP Enable)
+	// 21	RW	0b0	Reserved (Formerly local EVB Source Buffer Reset)
+	// 20	RW	0b0	Reserved (Formerly EVB DMA Buffer Reset)
+	// 19	RW	0b0	Down LED 0
+	// 18	RW	0b0	Up LED 1
+	// 17	RW	0b0	Up LED 0
+	// 16	RW	0b0	LED 7
+	// 15	RW	0b0	CFO Emulation Mode
+	// 14	RW	0b0	Reserved (Formerly EVB Debug Count Enable)
+	// 13	RW	0b0	Reserved (Formerly Trigger Filter Enable)
+	// 12	RW	0b0	DRP Prefetch Enable
+	// 11	RW	0b0	Reserved (Formerly EVM Buffer Reset)
+	// 10	RW	0b0	Reserved (Formerly Sequence Number Disable)
+	// 9	RW	0b0	Punch Enable on RJ-45 Output
+	// 8	RW	0b0	SERDES Global Reset
+	// 7	RW	0b0	Reserved (Formerly Global Buffer Reset)
+	// 6	RW	0b0	Do Force External CFO Sample Edge (Formerly RX Packet Error Feedback Enable)
+	// 5	RW	0b0	Force External CFO Sample Edge Select (Formerly Comma Tolerance Enable)
+	// 4	RW	0b0	Fanout Clock Input Select
+	// 3	RW	0b0	CFO Emulator Loopback Test Launch Control
+	// 2	RW	0b0	DCS Enable
+	// 1	RW	0b0	Reserved (Formerly SERDES Comma Align)
+	// 0	WO	0b0	DTC Hard Reset (Self-clearing)
+
+	form.vals.push_back(std::string("Bit-31 DTC Soft Reset (Self-clearing):       [") + (ReadSoftReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-30 CFO Emulation Enable:                 [") + (ReadCFOEmulationEnabled(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-28 CFO Link Timing Card not-in-Loopback: [") + (ReadCFOLoopback(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-27 Reset DDR Write Address:         [") + (ReadResetDDRWriteAddress(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-26 Reset DDR Read Address:          [") + (ReadResetDDRReadAddress(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-25 Reset DDR Interface:             [") + (ReadResetDDR(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-24 CFO Emulator DRP Enable:         [") + (ReadCFOEmulatorDRP(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-23 DTC Autogenerate DRP:            [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-23 DTC Autogenerate DRP:                 [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-22 Software DRP:                    [") + (ReadSoftwareDRP(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-22 Software DRP Enable:             [") + (ReadSoftwareDRP(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-19 Down LED 0:                      [") + (ReadDownLED0State(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-18 Up LED 1:                        [") + (ReadUpLED1State(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-17 Up LED 0:                        [") + (ReadUpLED0State(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-16 LED 6:                           [") + (ReadLED6State(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-15 CFO Emulation Mode:              [") + (ReadCFOEmulationMode(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-19 Down LED 0:                           [") + (ReadDownLED0State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-18 Up LED 1:                             [") + (ReadUpLED1State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-17 Up LED 0:                             [") + (ReadUpLED0State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-16 LED 6:                                [") + (ReadLED6State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-15 CFO Emulation Mode:                   [") + (ReadCFOEmulationMode(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Data Filter Enable:              [") + (ReadDataFilterEnable(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-12 DRP Prefetch Enable:             [") + (ReadDRPPrefetchEnable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-12 DRP Prefetch Enable:                  [") + (ReadDRPPrefetchEnable(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 ROC Interface Soft Reset:        [") + (ReadROCInterfaceSoftReset(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Sequence Number Disable:         [") + (ReadSequenceNumberDisable(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Punch Enable:                    [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
 
-	form.vals.push_back(std::string("Bit-09 Punched Clock Enable:            [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-08 SERDES Global Reset:             [") + (ReadResetSERDES(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-09 Punched Clock Enable:                 [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-08 SERDES Global Reset:                  [") + (CFOandDTC_Registers::ReadResetSERDES(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 RX Packet Error Feedback Enable: [") + (ReadRxPacketErrorFeedbackEnable(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Comma Tolerance Enable:          [") + (ReadCommaToleranceEnable(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-04 Fanout Clock Input Select:       [") + (ReadFanoutClockInput(form.value) ? "FMC SFP Rx" : "FPGA") + "]");
-	form.vals.push_back(std::string("Bit-02 DCS Enable:                      [") + (ReadDCSReception(form.value) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-00 DTC Hard Reset (Self-clearing):  [") + (ReadHardReset(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-04 Fanout Clock Input Select:            [") + (ReadFanoutClockInput(form.value) ? "FMC SFP Rx" : "FPGA") + "]");
+	form.vals.push_back(std::string("Bit-02 DCS Enable:                           [") + (ReadDCSReception(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-00 DTC Hard Reset (Self-clearing):       [") + (ReadHardReset(form.value) ? "x" : " ") + "]");
 	return form;
 }
 
