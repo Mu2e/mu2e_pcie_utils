@@ -238,7 +238,9 @@ int mu2edev::read_data(DTC_DMA_Engine const& chn, void** buffer, int tmo_ms)
 				      *(((uint64_t*)*buffer)+4), *(((uint64_t*)*buffer)+5), *(((uint64_t*)*buffer)+6), *(((uint64_t*)*buffer)+7),
 				      *(((uint64_t*)*buffer)+8), *(((uint64_t*)*buffer)+9) );
 
-				if (chn == DTC_DMA_Engine_DAQ) ++buffers_held_;
+				/// increment buffers held if allowing multiple buffers to be held by user space (e.g. for Data DMA channel, which is different for CFO vs DTC)</param>
+				if (chn == DTC_DMA_Engine_DAQ)
+					++buffers_held_;
 			}
 			else
 			{  // was it a tmo or error
@@ -281,8 +283,11 @@ int mu2edev::read_release(DTC_DMA_Engine const& chn, unsigned num)
 		unsigned long arg;
 		unsigned has_recv_data;
 		has_recv_data = mu2e_chn_info_delta_(activeDeviceIndex_, chn, C2S, &mu2e_channel_info_);
-		TLOG_DEBUG(2) << "read_release(chn="<<chn<<" num="<<num<<") dtc="<<activeDeviceIndex_<<" has_recv_data="<<has_recv_data;
-                //if (num > has_recv_data) num = has_recv_data;
+		
+		TLOG_DEBUG(2) << "read_release(chn="<<chn<<" num=" << num << ") dtc=" 
+			<< activeDeviceIndex_ << " has_recv_data=" << has_recv_data;
+
+		//if (num > has_recv_data) num = has_recv_data;
 		if (num <= has_recv_data)
 		{
 			arg = (chn << 24) | (C2S << 16) | (num & 0xffff);  // THIS OBIVOUSLY SHOULD BE A MACRO
@@ -303,6 +308,8 @@ int mu2edev::read_release(DTC_DMA_Engine const& chn, unsigned num)
 			else
 				buffers_held_ = 0;
 		}
+		else
+			TLOG(TLVL_WARN) << "read_release num=" << num << " > has_recv_data=" << has_recv_data;
 	}
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
 	return retsts;
@@ -411,8 +418,9 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 {
 	if (chn == DTC_DMA_Engine_DCS && dcs_lock_held_.load() != std::this_thread::get_id())
 	{
-		TRACE(TLVL_ERROR, UID_ + " - write_data dcs lock not held!");
-		return -2;
+		__SS__ << "write_data failed - dcs lock not held!" << __E__;		
+		__SS_THROW__;
+		//return -2;
 	}
 
 	auto start = std::chrono::steady_clock::now();
@@ -486,7 +494,6 @@ int mu2edev::write_data(DTC_DMA_Engine const& chn, void* buffer, size_t bytes)
 	return retsts;
 }  // write_data
 
-// applicable for recv.
 int mu2edev::release_all(DTC_DMA_Engine const& chn)
 {
 	TLOG_DEBUG(25) << __PRETTY_FUNCTION__ << " called from\n" << otsStyleStackTrace();   // param to ENTEX is a DEBUG lvl
@@ -514,7 +521,8 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 			mu2e_channel_info_[activeDeviceIndex_][chn][C2S].tmo_ms = _tmo_ms; // restore 
 			if (sts != 0) 
 			{
-				__SS__ << "Failed mu2edev::release_all with M_IOC_GET_INFO... return " << sts << " which is not 0. " << strerror(errno) << __E__;
+				__SS__ << "Failed mu2edev::release_all of chn=" << chn << 
+						" with M_IOC_GET_INFO... return " << sts << " which is not 0. " << strerror(errno) << __E__;
 				perror(ss.str().c_str());
 				__SS_THROW__;
 				// exit(1);
@@ -535,7 +543,10 @@ int mu2edev::release_all(DTC_DMA_Engine const& chn)
 				break;
 			}
 		}
-		if (chn == DTC_DMA_Engine_DAQ) buffers_held_=0;
+
+   		//releaseBuffersHeld if allowing multiple buffers to be held by user space (e.g. for Data DMA channel, which is different for CFO vs DTC)
+		if (chn == DTC_DMA_Engine_DAQ)
+			buffers_held_ = 0;
 	}
 	deviceTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count();
 	return retsts;

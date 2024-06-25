@@ -254,12 +254,15 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 	// Bit Position	Mode	Default Value	Description
 	// 31	RW	0b0	CFO Soft Reset (Self-clearing)
 	// 30-28	RO	0x0	Reserved
-	// 27	RW	0b0	CFO Run Plan Reset
+	// 27	RW	0b0	DDR Write Reset
 	// 26-24	RO	0x0	Reserved
 	// 23	RW	0b0	Reserved (Formerly DRP Auto Generate Enable)
 	// 22-17	RO	0x00	Reserved
 	// 16	RW	0b0	Led 7
-	// 15-3	RO	0x0000	Reserved
+	// 15-4	RO	0x0000	Reserved
+	// 8	RW	0b0	SERDES Global Reset
+	// 7-4	RO	0x0000	Reserved
+	// 3	RW	0b0	CFO Loopback Test Launch Control
 	// 2	RW	0x0	Accelerator RF-0 Event Window Input Enable
 	// 1	RW	0b0	Embedded Clock Marker Enable
 	// 0	RO	0b0	CFO Hard Reset (Self-clearing)
@@ -268,6 +271,7 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCFOControl()
 	// RAR: not just Soft Reset for resetting run plan
 	// form.vals.push_back(std::string("Bit-27 CFO Run Plan Reset:              [") + (ReadResetCFORunPlan(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-16 LED 7:                           [") + (ReadLED7State(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-08 SERDES Global Reset:             [") + (CFOandDTC_Registers::ReadResetSERDES(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-02 Accelerator RF-0 Input Enable:   [") + (ReadAcceleratorRF0Enable(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-01 Embedded Clock Marker Enable:    [") + (ReadEmbeddedClockMarkerEnable(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-00 CFO Hard Reset (Self-clearing):  [") + (ReadHardReset(form.value) ? "x" : " ") + "]");
@@ -2672,210 +2676,234 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatSERDESPRBSControlLink7()
 	return form;
 }
 
-void CFOLib::CFO_Registers::SetCableDelayValue(const CFO_Link_ID& link, const uint32_t delay)
+uint32_t CFOLib::CFO_Registers::ReadCableDelayMeasureExponentialCount(std::optional<uint32_t> val)
 {
-	CFO_Register reg;
-	switch (link)
-	{
-		case CFO_Link_0:
-			reg = CFO_Register_CableDelayValueLink0;
-			break;
-		case CFO_Link_1:
-			reg = CFO_Register_CableDelayValueLink1;
-			break;
-		case CFO_Link_2:
-			reg = CFO_Register_CableDelayValueLink2;
-			break;
-		case CFO_Link_3:
-			reg = CFO_Register_CableDelayValueLink3;
-			break;
-		case CFO_Link_4:
-			reg = CFO_Register_CableDelayValueLink4;
-			break;
-		case CFO_Link_5:
-			reg = CFO_Register_CableDelayValueLink5;
-			break;
-		case CFO_Link_6:
-			reg = CFO_Register_CableDelayValueLink6;
-			break;
-		case CFO_Link_7:
-			reg = CFO_Register_CableDelayValueLink7;
-			break;
-		default:
-			return;
-	}
-	WriteRegister_(delay, reg);
-}
+	uint32_t readVal = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
+	return (readVal>>16) & 0xF; //return 4-bit nibble at bit-16
+} //end ReadCableDelayMeasureExponentialCount()
 
-uint32_t CFOLib::CFO_Registers::ReadCableDelayValue(const CFO_Link_ID& link, std::optional<uint32_t> val)
+void CFOLib::CFO_Registers::SetCableDelayMeasureExponentialCount(const uint32_t exponent)
 {
-	switch (link)
-	{
-		case CFO_Link_0:
-			return val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayValueLink0);
-		case CFO_Link_1:
-			return ReadRegister_(CFO_Register_CableDelayValueLink1);
-		case CFO_Link_2:
-			return ReadRegister_(CFO_Register_CableDelayValueLink2);
-		case CFO_Link_3:
-			return ReadRegister_(CFO_Register_CableDelayValueLink3);
-		case CFO_Link_4:
-			return ReadRegister_(CFO_Register_CableDelayValueLink4);
-		case CFO_Link_5:
-			return ReadRegister_(CFO_Register_CableDelayValueLink5);
-		case CFO_Link_6:
-			return ReadRegister_(CFO_Register_CableDelayValueLink6);
-		case CFO_Link_7:
-			return ReadRegister_(CFO_Register_CableDelayValueLink7);
-		default:
-			return -1;
-	}
-}
+	uint32_t val = ReadRegister_(CFO_Register_CableDelayControlStatus);
+	val &= ~(0x0F << 16); //mask off
+	val |= (exponent & 0xF) << 16; //insert 4-bit nibble at bit-16
+	WriteRegister_(val, CFO_Register_CableDelayControlStatus);
+} //end SetCableDelayMeasureExponentialCount()
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink0()
-{
-	auto form = CreateFormatter(CFO_Register_CableDelayValueLink0);
-	form.description = "Cable Delay Value Link 0";
-	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_0)));
-	return form;
-}
+uint32_t CFOLib::CFO_Registers::ReadCableDelayMeasurement(const CFO_Link_ID link, const uint8_t roc, bool& done)
+{	
+	CFOandDTC_Register calcReg = CFO_Register_CableDelayValue_offset;
+	calcReg += 0x100 * roc;
+	calcReg += 0x4 * link;
+	uint32_t readVal = ReadRegister_(calcReg);
+	done = (readVal >> 31) & 1;
+	return readVal & (~(1<<31)); //return 4-bit nibble at bit-16
+} //end ReadCableDelayMeasureExponentialCount()
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink1()
-{
-	auto form = CreateFormatter(CFO_Register_CableDelayValueLink1);
-	form.description = "Cable Delay Value Link 1";
-	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_1)));
-	return form;
-}
+// void CFOLib::CFO_Registers::SetCableDelayValue(const CFO_Link_ID& link, const uint32_t delay)
+// {
+// 	CFO_Register reg;
+// 	switch (link)
+// 	{
+// 		case CFO_Link_0:
+// 			reg = CFO_Register_CableDelayValueLink0;
+// 			break;
+// 		case CFO_Link_1:
+// 			reg = CFO_Register_CableDelayValueLink1;
+// 			break;
+// 		case CFO_Link_2:
+// 			reg = CFO_Register_CableDelayValueLink2;
+// 			break;
+// 		case CFO_Link_3:
+// 			reg = CFO_Register_CableDelayValueLink3;
+// 			break;
+// 		case CFO_Link_4:
+// 			reg = CFO_Register_CableDelayValueLink4;
+// 			break;
+// 		case CFO_Link_5:
+// 			reg = CFO_Register_CableDelayValueLink5;
+// 			break;
+// 		case CFO_Link_6:
+// 			reg = CFO_Register_CableDelayValueLink6;
+// 			break;
+// 		case CFO_Link_7:
+// 			reg = CFO_Register_CableDelayValueLink7;
+// 			break;
+// 		default:
+// 			return;
+// 	}
+// 	WriteRegister_(delay, reg);
+// }
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink2()
-{
-	auto form = CreateFormatter(CFO_Register_CableDelayValueLink2);
-	form.description = "Cable Delay Value Link 2";
-	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_2)));
-	return form;
-}
+// uint32_t CFOLib::CFO_Registers::ReadCableDelayValue(const CFO_Link_ID& link, std::optional<uint32_t> val)
+// {
+// 	switch (link)
+// 	{
+// 		case CFO_Link_0:
+// 			return val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayValueLink0);
+// 		case CFO_Link_1:
+// 			return ReadRegister_(CFO_Register_CableDelayValueLink1);
+// 		case CFO_Link_2:
+// 			return ReadRegister_(CFO_Register_CableDelayValueLink2);
+// 		case CFO_Link_3:
+// 			return ReadRegister_(CFO_Register_CableDelayValueLink3);
+// 		case CFO_Link_4:
+// 			return ReadRegister_(CFO_Register_CableDelayValueLink4);
+// 		case CFO_Link_5:
+// 			return ReadRegister_(CFO_Register_CableDelayValueLink5);
+// 		case CFO_Link_6:
+// 			return ReadRegister_(CFO_Register_CableDelayValueLink6);
+// 		case CFO_Link_7:
+// 			return ReadRegister_(CFO_Register_CableDelayValueLink7);
+// 		default:
+// 			return -1;
+// 	}
+// }
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink3()
-{
-	auto form = CreateFormatter(CFO_Register_CableDelayValueLink3);
-	form.description = "Cable Delay Value Link 3";
-	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_3)));
-	return form;
-}
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink0()
+// {
+// 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink0);
+// 	form.description = "Cable Delay Value Link 0";
+// 	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_0)));
+// 	return form;
+// }
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink4()
-{
-	auto form = CreateFormatter(CFO_Register_CableDelayValueLink4);
-	form.description = "Cable Delay Value Link 4";
-	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_4)));
-	return form;
-}
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink1()
+// {
+// 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink1);
+// 	form.description = "Cable Delay Value Link 1";
+// 	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_1)));
+// 	return form;
+// }
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink5()
-{
-	auto form = CreateFormatter(CFO_Register_CableDelayValueLink5);
-	form.description = "Cable Delay Value Link 5";
-	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_5)));
-	return form;
-}
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink2()
+// {
+// 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink2);
+// 	form.description = "Cable Delay Value Link 2";
+// 	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_2)));
+// 	return form;
+// }
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink6()
-{
-	auto form = CreateFormatter(CFO_Register_CableDelayValueLink6);
-	form.description = "Cable Delay Value Link 6";
-	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_6)));
-	return form;
-}
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink3()
+// {
+// 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink3);
+// 	form.description = "Cable Delay Value Link 3";
+// 	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_3)));
+// 	return form;
+// }
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink7()
-{
-	auto form = CreateFormatter(CFO_Register_CableDelayValueLink7);
-	form.description = "Cable Delay Value Link 7";
-	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_7)));
-	return form;
-}
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink4()
+// {
+// 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink4);
+// 	form.description = "Cable Delay Value Link 4";
+// 	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_4)));
+// 	return form;
+// }
 
-void CFOLib::CFO_Registers::ResetDelayRegister()
-{
-	WriteRegister_(0, CFO_Register_CableDelayControlStatus);
-}
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink5()
+// {
+// 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink5);
+// 	form.description = "Cable Delay Value Link 5";
+// 	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_5)));
+// 	return form;
+// }
+
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink6()
+// {
+// 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink6);
+// 	form.description = "Cable Delay Value Link 6";
+// 	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_6)));
+// 	return form;
+// }
+
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayValueLink7()
+// {
+// 	auto form = CreateFormatter(CFO_Register_CableDelayValueLink7);
+// 	form.description = "Cable Delay Value Link 7";
+// 	form.vals.push_back(std::to_string(ReadCableDelayValue(CFO_Link_7)));
+// 	return form;
+// }
+
+// void CFOLib::CFO_Registers::ResetDelayRegister()
+// {
+// 	WriteRegister_(0, CFO_Register_CableDelayControlStatus);
+// }
 
 
-bool CFOLib::CFO_Registers::ReadDelayMeasureError(const CFO_Link_ID& link, std::optional<uint32_t> val)
-{
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
-	return dataSet[24 + link];
-}
+// bool CFOLib::CFO_Registers::ReadDelayMeasureError(const CFO_Link_ID& link, std::optional<uint32_t> val)
+// {
+// 	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
+// 	return dataSet[24 + link];
+// }
 
-bool CFOLib::CFO_Registers::ReadDelayExternalLoopbackEnable(std::optional<uint32_t> val)
-{
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
-	return dataSet[16];
-}
+// bool CFOLib::CFO_Registers::ReadDelayExternalLoopbackEnable(std::optional<uint32_t> val)
+// {
+// 	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
+// 	return dataSet[16];
+// }
 
-void CFOLib::CFO_Registers::SetDelayExternalLoopbackEnable(bool value)
-{
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
-	dataSet[16] = value;
-	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
-}
+// void CFOLib::CFO_Registers::SetDelayExternalLoopbackEnable(bool value)
+// {
+// 	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+// 	dataSet[16] = value;
+// 	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
+// }
 
-void CFOLib::CFO_Registers::EnableDelayMeasureMode(const CFO_Link_ID& link)
-{
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
-	dataSet[8 + link] = 1;
-	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
-}
+// void CFOLib::CFO_Registers::EnableDelayMeasureMode(const CFO_Link_ID& link)
+// {
+// 	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+// 	dataSet[8 + link] = 1;
+// 	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
+// }
 
-void CFOLib::CFO_Registers::DisableDelayMeasureMode(const CFO_Link_ID& link)
-{
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
-	dataSet[8 + link] = 0;
-	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
-}
+// void CFOLib::CFO_Registers::DisableDelayMeasureMode(const CFO_Link_ID& link)
+// {
+// 	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+// 	dataSet[8 + link] = 0;
+// 	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
+// }
 
-bool CFOLib::CFO_Registers::ReadDelayMeasureMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
-{
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
-	return dataSet[8 + link];
-}
+// bool CFOLib::CFO_Registers::ReadDelayMeasureMode(const CFO_Link_ID& link, std::optional<uint32_t> val)
+// {
+// 	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
+// 	return dataSet[8 + link];
+// }
 
-void CFOLib::CFO_Registers::EnableDelayMeasureNow(const CFO_Link_ID& link)
-{
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
-	dataSet[link] = 1;
-	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
-}
+// void CFOLib::CFO_Registers::EnableDelayMeasureNow(const CFO_Link_ID& link)
+// {
+// 	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+// 	dataSet[link] = 1;
+// 	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
+// }
 
-void CFOLib::CFO_Registers::DisableDelayMeasureNow(const CFO_Link_ID& link)
-{
-	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
-	dataSet[link] = 0;
-	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
-}
+// void CFOLib::CFO_Registers::DisableDelayMeasureNow(const CFO_Link_ID& link)
+// {
+// 	std::bitset<32> dataSet = ReadRegister_(CFO_Register_CableDelayControlStatus);
+// 	dataSet[link] = 0;
+// 	WriteRegister_(dataSet.to_ulong(), CFO_Register_CableDelayControlStatus);
+// }
 
-bool CFOLib::CFO_Registers::ReadDelayMeasureNow(const CFO_Link_ID& link, std::optional<uint32_t> val)
-{
-	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
-	return dataSet[link];
-}
+// bool CFOLib::CFO_Registers::ReadDelayMeasureNow(const CFO_Link_ID& link, std::optional<uint32_t> val)
+// {
+// 	std::bitset<32> dataSet = val.has_value()?*val:ReadRegister_(CFO_Register_CableDelayControlStatus);
+// 	return dataSet[link];
+// }
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayControl()
-{
-	auto form = CreateFormatter(CFO_Register_CableDelayControlStatus);
-	form.description = "Cabel Delay Control and Status";
-	form.vals.push_back("[ x = 1 (hi) ]"); //translation
-	form.vals.push_back(std::string("Delay External Loopback Enable: [") +
-						(ReadDelayExternalLoopbackEnable(form.value) ? "x" : " ") + std::string("]"));
-	form.vals.push_back(std::string("Delay Measure Flags:           ([Error, Enabled, Now])"));
-	for (auto r : CFO_Links)
-		form.vals.push_back(std::string("Link ") + std::to_string(r) + ":                         [" +
-							(ReadDelayMeasureError(r, form.value) ? "x" : " ") + "," + 
-							(ReadDelayMeasureMode(r, form.value) ? "x" : " ") + "," +
-							(ReadDelayMeasureNow(r, form.value) ? "x" : " ") + "]");
-	return form;
-}
+// DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatCableDelayControl()
+// {
+// 	auto form = CreateFormatter(CFO_Register_CableDelayControlStatus);
+// 	form.description = "Cabel Delay Control and Status";
+// 	form.vals.push_back("[ x = 1 (hi) ]"); //translation
+// 	form.vals.push_back(std::string("Delay External Loopback Enable: [") +
+// 						(ReadDelayExternalLoopbackEnable(form.value) ? "x" : " ") + std::string("]"));
+// 	form.vals.push_back(std::string("Delay Measure Flags:           ([Error, Enabled, Now])"));
+// 	for (auto r : CFO_Links)
+// 		form.vals.push_back(std::string("Link ") + std::to_string(r) + ":                         [" +
+// 							(ReadDelayMeasureError(r, form.value) ? "x" : " ") + "," + 
+// 							(ReadDelayMeasureMode(r, form.value) ? "x" : " ") + "," +
+// 							(ReadDelayMeasureNow(r, form.value) ? "x" : " ") + "]");
+// 	return form;
+// }
 
 // FPGA PROM Program Status Register
 bool CFOLib::CFO_Registers::ReadFPGAPROMProgramFIFOFull(std::optional<uint32_t> val)

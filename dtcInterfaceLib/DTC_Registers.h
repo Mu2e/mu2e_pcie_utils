@@ -424,14 +424,14 @@ public:
 	void SetPunchEnable();                    // B9
 	void ClearPunchEnable();                  // B9
 	bool ReadPunchEnable(std::optional<uint32_t> val = std::nullopt);                   // B9
-	void ResetSERDES();                       // B8
-	bool ReadResetSERDES(std::optional<uint32_t> val = std::nullopt);                   // B8
+	// void ResetSERDES();                       // B8 implemented for CFO and DTC
+	// bool ReadResetSERDES(std::optional<uint32_t> val = std::nullopt);                   // B8 implemented for CFO and DTC
 	void SetExternalCFOSampleEdgeMode(int forceCFOedge);								// B6:5
 	int  ReadExternalCFOSampleEdgeMode(std::optional<uint32_t> val); // B6:5
 	void SetExternalFanoutClockInput();       // B4
 	void SetInternalFanoutClockInput();       // B4
 	bool ReadFanoutClockInput(std::optional<uint32_t> val = std::nullopt);              // B4	
-	void RunCFOEmulatorLoopbackTest();   // B3
+	// void RunCFOEmulatorLoopbackTest();   // B3 implemented for CFO and DTC
 	void EnableDCSReception();   // B2
 	void DisableDCSReception();  // B2
 	bool ReadDCSReception(std::optional<uint32_t> val = std::nullopt);     // B2
@@ -1271,6 +1271,7 @@ protected:
 
   	const std::vector<std::function<RegisterFormatter()>> formattedSimpleDumpFunctions_{
 		[this] { return this->FormatDTCControl(); },
+		[this] { return this->FormatJitterAttenuatorCSR(); },		
 		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatROCEmulationEnable(); },
 		[this] { return this->FormatLinkEnable(); },

@@ -71,7 +71,7 @@ public:
 	/// <param name="dtc">Desired DTC card to use (/dev/mu2eX)</param>
 	/// <param name="simMemoryFileName">If using simulated DTC, name of the memory file ("mu2esim.bin")</param>
 	/// <returns>0 on success</returns>
-	int init(DTCLib::DTC_SimMode simMode, int dtc, std::string simMemoryFileName = "mu2esim.bin", const std::string& uid = "");
+	int init(DTCLib::DTC_SimMode simMode, int deviceIndex, std::string simMemoryFileName = "mu2esim.bin", const std::string& uid = "");
 	void initDMAEngine();	
 
 	/// <summary>
@@ -93,7 +93,7 @@ public:
 	/// <summary>
 	/// Release all buffers held by software on the given channel
 	/// </summary>
-	/// <param name="chn">Channel to release (DAQ or DCS)</param>
+	/// <param name="chn">Channel to release (DAQ or DCS)</param>	
 	/// <returns>0 on success</returns>
 	int release_all(DTC_DMA_Engine const& chn);
 	/// <summary>

@@ -220,7 +220,10 @@ public:
 	// CFO and DTC Control Register B31 is Soft Reset
 	void SoftReset();             // B31
 	bool ReadSoftReset(std::optional<uint32_t> val = std::nullopt);         // B31
-	void HardReset();             // B31
+	void ResetSERDES();                       // B8
+	bool ReadResetSERDES(std::optional<uint32_t> val = std::nullopt);                   // B8
+	void RunCableDelayLoopbackTest();   // B3
+	void HardReset();             // B0
 	bool ReadHardReset(std::optional<uint32_t> val = std::nullopt);         // B0	
 	void ClearControlRegister();   // 32-bit clear
 
