@@ -80,7 +80,7 @@ try
 		for(size_t i=0;i<opArguments_.size();++i)
 			if(opArguments_[i].length() == 0) 
 				opArguments_.erase(opArguments_.begin() + i--); //erase and rewind
-			else if(opArguments_[i].length() > 2  && 
+			else if(opArguments_[i].length() >= 2  && 
 				opArguments_[i][0] == '/' && opArguments_[i][1] == '/') //comment to the end
 			{
 				//erase remainder of arguments because they are commented out
