@@ -418,9 +418,12 @@ public:
 	bool ReadDRPPrefetchEnable(std::optional<uint32_t> val = std::nullopt);             // B12
 	void ROCInterfaceSoftReset();             // B11
 	bool ReadROCInterfaceSoftReset(std::optional<uint32_t> val = std::nullopt);         // B11
-	void SetSequenceNumberDisable();          // B10
-	void ClearSequenceNumberDisable();        // B10
-	bool ReadSequenceNumberDisable(std::optional<uint32_t> val = std::nullopt);         // B10
+	// void SetSequenceNumberDisable();          // B10
+	// void ClearSequenceNumberDisable();        // B10
+	// bool ReadSequenceNumberDisable(std::optional<uint32_t> val = std::nullopt);         // B10
+	void EnableDropDataToEmulateEventBuilding();        // B10
+	void DisableDropDataToEmulateEventBuilding();        // B10
+	bool ReadDropDataToEmulateEventBuilding(std::optional<uint32_t> val = std::nullopt);         // B10
 	void SetPunchEnable();                    // B9
 	void ClearPunchEnable();                  // B9
 	bool ReadPunchEnable(std::optional<uint32_t> val = std::nullopt);                   // B9

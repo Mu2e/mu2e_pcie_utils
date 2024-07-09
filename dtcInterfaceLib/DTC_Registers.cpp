@@ -725,25 +725,46 @@ bool DTCLib::DTC_Registers::ReadROCInterfaceSoftReset(std::optional<uint32_t> va
 	return data[11];
 }
 
-void DTCLib::DTC_Registers::SetSequenceNumberDisable()
+
+void DTCLib::DTC_Registers::EnableDropDataToEmulateEventBuilding()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[10] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-void DTCLib::DTC_Registers::ClearSequenceNumberDisable()
+void DTCLib::DTC_Registers::DisableDropDataToEmulateEventBuilding()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[10] = 0;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool DTCLib::DTC_Registers::ReadSequenceNumberDisable(std::optional<uint32_t> val)
+bool DTCLib::DTC_Registers::ReadDropDataToEmulateEventBuilding(std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
 	return data[10];
 }
+
+// void DTCLib::DTC_Registers::SetSequenceNumberDisable()
+// {
+// 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+// 	data[10] = 1;
+// 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+// }
+
+// void DTCLib::DTC_Registers::ClearSequenceNumberDisable()
+// {
+// 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+// 	data[10] = 0;
+// 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+// }
+
+// bool DTCLib::DTC_Registers::ReadSequenceNumberDisable(std::optional<uint32_t> val)
+// {
+// 	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
+// 	return data[10];
+// }
 
 void DTCLib::DTC_Registers::SetPunchEnable()
 {
@@ -861,7 +882,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	// 13	RW	0b0	Reserved (Formerly Trigger Filter Enable)
 	// 12	RW	0b0	DRP Prefetch Enable
 	// 11	RW	0b0	Reserved (Formerly EVM Buffer Reset)
-	// 10	RW	0b0	Reserved (Formerly Sequence Number Disable)
+	// 10	RW	0b0	Drop Subevent Data to Emulate Hardware Event Building Reserved (Formerly Sequence Number Disable)
 	// 9	RW	0b0	Punch Enable on RJ-45 Output
 	// 8	RW	0b0	SERDES Global Reset
 	// 7	RW	0b0	Reserved (Formerly Global Buffer Reset)
@@ -890,6 +911,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	form.vals.push_back(std::string("Bit-15 CFO Emulation Mode:                   [") + (ReadCFOEmulationMode(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Data Filter Enable:              [") + (ReadDataFilterEnable(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-12 DRP Prefetch Enable:                  [") + (ReadDRPPrefetchEnable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-10 Skip-by-32 Subevent Readout Enable:   [") + (ReadDropDataToEmulateEventBuilding(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 ROC Interface Soft Reset:        [") + (ReadROCInterfaceSoftReset(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Sequence Number Disable:         [") + (ReadSequenceNumberDisable(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Punch Enable:                    [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");

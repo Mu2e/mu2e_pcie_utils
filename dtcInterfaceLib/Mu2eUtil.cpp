@@ -290,7 +290,7 @@ void DTCLib::Mu2eUtil::verify_stream()
 	auto startTime = std::chrono::steady_clock::now();
 	auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
 	auto device = thisDTC->GetDevice();
-	thisDTC->SetSequenceNumberDisable();  // For Tracker Testing
+	// thisDTC->SetSequenceNumberDisable();  // For Tracker Testing
 
 	auto initTime = device->GetDeviceTime();
 	device->ResetDeviceTime();
@@ -528,7 +528,7 @@ void DTCLib::Mu2eUtil::buffer_test()
 	auto startTime = std::chrono::steady_clock::now();		// get the beggining of the test
 	auto thisDTC = new DTC(DTC_SimMode_NoCFO, dtc, rocMask, expectedDesignVersion);
 	auto device = thisDTC->GetDevice();
-	thisDTC->SetSequenceNumberDisable();  // For Tracker Testing
+	// thisDTC->SetSequenceNumberDisable();  // For Tracker Testing
 
 	auto initTime = device->GetDeviceTime();
 	device->ResetDeviceTime();
