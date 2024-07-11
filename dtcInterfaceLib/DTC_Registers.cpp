@@ -746,26 +746,6 @@ bool DTCLib::DTC_Registers::ReadDropDataToEmulateEventBuilding(std::optional<uin
 	return data[10];
 }
 
-// void DTCLib::DTC_Registers::SetSequenceNumberDisable()
-// {
-// 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-// 	data[10] = 1;
-// 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-// }
-
-// void DTCLib::DTC_Registers::ClearSequenceNumberDisable()
-// {
-// 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-// 	data[10] = 0;
-// 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-// }
-
-// bool DTCLib::DTC_Registers::ReadSequenceNumberDisable(std::optional<uint32_t> val)
-// {
-// 	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
-// 	return data[10];
-// }
-
 void DTCLib::DTC_Registers::SetPunchEnable()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
