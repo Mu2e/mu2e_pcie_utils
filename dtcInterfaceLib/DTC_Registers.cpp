@@ -725,21 +725,22 @@ bool DTCLib::DTC_Registers::ReadROCInterfaceSoftReset(std::optional<uint32_t> va
 	return data[11];
 }
 
-void DTCLib::DTC_Registers::SetSequenceNumberDisable()
+
+void DTCLib::DTC_Registers::EnableDropDataToEmulateEventBuilding()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[10] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-void DTCLib::DTC_Registers::ClearSequenceNumberDisable()
+void DTCLib::DTC_Registers::DisableDropDataToEmulateEventBuilding()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[10] = 0;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 }
 
-bool DTCLib::DTC_Registers::ReadSequenceNumberDisable(std::optional<uint32_t> val)
+bool DTCLib::DTC_Registers::ReadDropDataToEmulateEventBuilding(std::optional<uint32_t> val)
 {
 	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
 	return data[10];
@@ -861,7 +862,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	// 13	RW	0b0	Reserved (Formerly Trigger Filter Enable)
 	// 12	RW	0b0	DRP Prefetch Enable
 	// 11	RW	0b0	Reserved (Formerly EVM Buffer Reset)
-	// 10	RW	0b0	Reserved (Formerly Sequence Number Disable)
+	// 10	RW	0b0	Drop Subevent Data to Emulate Hardware Event Building Reserved (Formerly Sequence Number Disable)
 	// 9	RW	0b0	Punch Enable on RJ-45 Output
 	// 8	RW	0b0	SERDES Global Reset
 	// 7	RW	0b0	Reserved (Formerly Global Buffer Reset)
@@ -890,6 +891,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	form.vals.push_back(std::string("Bit-15 CFO Emulation Mode:                   [") + (ReadCFOEmulationMode(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Data Filter Enable:              [") + (ReadDataFilterEnable(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-12 DRP Prefetch Enable:                  [") + (ReadDRPPrefetchEnable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-10 Skip-by-32 Subevent Readout Enable:   [") + (ReadDropDataToEmulateEventBuilding(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 ROC Interface Soft Reset:        [") + (ReadROCInterfaceSoftReset(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Sequence Number Disable:         [") + (ReadSequenceNumberDisable(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Punch Enable:                    [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
@@ -5910,8 +5912,14 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOLinkError()
 	auto form = CreateFormatter(DTC_Register_CFOLinkErrorFlags);
 	form.description = "CFO Link Error Flags";
 	std::stringstream o;
-	o << "0x" << std::hex << ReadRegister_(DTC_Register_CFOLinkErrorFlags);
+	o << "0x" << std::hex << form.value;
 	form.vals.push_back(o.str());
+	//bit 9 - Event Start marker tx error
+	//bit 10 - Clock marker tx error
+	form.vals.push_back(std::string("CFO Event Start Marker tx Error:     [") +
+		(((form.value >> 9)&1) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("CFO Clock Marker tx Error:     [") +
+		(((form.value >> 10)&1) ? "x" : " ") + "]");
 	return form;
 }
 
@@ -8418,6 +8426,59 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatROCEmulatorInterpacketDel
 }
 
 // TX Data Request Packet Count
+uint32_t DTCLib::DTC_Registers::ReadTXEventWindowMarkerCountLinkRegister(DTC_Link_ID const& link, std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(GetTXEventWindowMarkerCountLinkRegister(link));
+} //end ReadTXEventWindowMarkerCountLinkRegister()
+
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXEventWindowMarkerCountLink(DTC_Link_ID const& link)
+{
+	auto form = CreateFormatter(GetTXEventWindowMarkerCountLinkRegister(link));
+	form.description = "Data Request Packet TX Counter Link " + 
+		std::to_string((GetTXEventWindowMarkerCountLinkRegister(link) -
+			GetTXEventWindowMarkerCountLinkRegister(DTC_Link_0))/4 );
+	std::stringstream o;
+	o << std::dec << ReadTXDataRequestPacketCount(link, form.value);
+	form.vals.push_back(o.str());
+	return form;
+} //end FormatTXEventWindowMarkerCountLink()
+
+DTCLib::DTC_Register DTCLib::DTC_Registers::GetTXEventWindowMarkerCountLinkRegister(DTC_Link_ID const& link)
+{
+	DTC_Register reg;
+	switch (link)
+	{
+		case DTC_Link_0:
+			reg = DTC_Register_TXEventWindowMarkerCount_Link0;
+			break;
+		case DTC_Link_1:
+			reg = DTC_Register_TXEventWindowMarkerCount_Link1;
+			break;
+		case DTC_Link_2:
+			reg = DTC_Register_TXEventWindowMarkerCount_Link2;
+			break;
+		case DTC_Link_3:
+			reg = DTC_Register_TXEventWindowMarkerCount_Link3;
+			break;
+		case DTC_Link_4:
+			reg = DTC_Register_TXEventWindowMarkerCount_Link4;
+			break;
+		case DTC_Link_5:
+			reg = DTC_Register_TXEventWindowMarkerCount_Link5;
+			break;
+		case DTC_Link_CFO:
+			reg = DTC_Register_CFOTXEventWindowMarkerCount_Link6;
+			break;
+		default: {
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
+	}
+	return reg;
+} //end GetTXEventWindowMarkerCountLinkRegister()
+
+
+// TX Data Request Packet Count
 uint32_t DTCLib::DTC_Registers::ReadTXDataRequestPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val)
 {
 	DTC_Register reg;
@@ -8532,122 +8593,71 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXDataRequestPacketCountL
 	form.vals.push_back(o.str());
 	return form;
 }
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOTXClockMarkerCountLink6()
+{
+	auto form = CreateFormatter(DTC_Register_CFOTXClockMarkerCount_Link6);
+	form.description = "CFO TX Event Window Marker Counter Link 6";
+	std::stringstream o;
+	o << std::dec << ReadCFOTXClockMarkerCountLink6(form.value);
+	form.vals.push_back(o.str());
+	return form;
+} //end FormatCFOTXClockMarkerCountLink6()
+
+uint32_t DTCLib::DTC_Registers::ReadCFOTXClockMarkerCountLink6(std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(DTC_Register_CFOTXClockMarkerCount_Link6);
+} //end ReadCFOTXClockMarkerCountLink6()
 
 // TX Heartbeat Packet Count
 uint32_t DTCLib::DTC_Registers::ReadTXHeartbeatPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val)
 {
-	DTC_Register reg;
-	switch (link)
-	{
-		case DTC_Link_0:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link0;
-			break;
-		case DTC_Link_1:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link1;
-			break;
-		case DTC_Link_2:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link2;
-			break;
-		case DTC_Link_3:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link3;
-			break;
-		case DTC_Link_4:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link4;
-			break;
-		case DTC_Link_5:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link5;
-			break;
-		default: {
-			__SS__ << "Illegal link index provided: " << link << __E__;
-			__SS_THROW__;
-		}
-	}
-	return val.has_value() ? *val : ReadRegister_(reg);
-}
-void DTCLib::DTC_Registers::ClearTXHeartbeatPacketCount(DTC_Link_ID const& link)
+	return val.has_value() ? *val : ReadRegister_(GetTXHeartbeatPacketCountLinkRegister(link));
+} //end ReadTXHeartbeatPacketCount()
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXHeartbeatPacketCountLink(DTC_Link_ID const& link)
 {
-	DTC_Register reg;
-	switch (link)
-	{
-		case DTC_Link_0:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link0;
-			break;
-		case DTC_Link_1:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link1;
-			break;
-		case DTC_Link_2:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link2;
-			break;
-		case DTC_Link_3:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link3;
-			break;
-		case DTC_Link_4:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link4;
-			break;
-		case DTC_Link_5:
-			reg = DTC_Register_TXHeartbeatPacketCount_Link5;
-			break;
-		default: {
-			__SS__ << "Illegal link index provided: " << link << __E__;
-			__SS_THROW__;
-		}
-	}
-	WriteRegister_(0, reg);
-}
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXHeartbeatPacketCountLink0()
-{
-	auto form = CreateFormatter(DTC_Register_TXHeartbeatPacketCount_Link0);
-	form.description = "Heartbeat Packet TX Counter Link 0";
+	auto form = CreateFormatter(GetTXHeartbeatPacketCountLinkRegister(link));
+	form.description = "Heartbeat Packet TX Counter Link " + 
+		std::to_string((GetTXHeartbeatPacketCountLinkRegister(link) -
+			GetTXHeartbeatPacketCountLinkRegister(DTC_Link_0))/4 );
 	std::stringstream o;
 	o << std::dec << ReadTXHeartbeatPacketCount(DTC_Link_0, form.value);
 	form.vals.push_back(o.str());
 	return form;
-}
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXHeartbeatPacketCountLink1()
+} //end FormatTXHeartbeatPacketCountLink()
+
+DTCLib::DTC_Register DTCLib::DTC_Registers::GetTXHeartbeatPacketCountLinkRegister(DTC_Link_ID const& link)
 {
-	auto form = CreateFormatter(DTC_Register_TXHeartbeatPacketCount_Link1);
-	form.description = "Heartbeat Packet TX Counter Link 1";
-	std::stringstream o;
-	o << std::dec << ReadTXHeartbeatPacketCount(DTC_Link_1, form.value);
-	form.vals.push_back(o.str());
-	return form;
-}
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXHeartbeatPacketCountLink2()
-{
-	auto form = CreateFormatter(DTC_Register_TXHeartbeatPacketCount_Link2);
-	form.description = "Heartbeat Packet TX Counter Link 2";
-	std::stringstream o;
-	o << std::dec << ReadTXHeartbeatPacketCount(DTC_Link_2, form.value);
-	form.vals.push_back(o.str());
-	return form;
-}
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXHeartbeatPacketCountLink3()
-{
-	auto form = CreateFormatter(DTC_Register_TXHeartbeatPacketCount_Link3);
-	form.description = "Heartbeat Packet TX Counter Link 3";
-	std::stringstream o;
-	o << std::dec << ReadTXHeartbeatPacketCount(DTC_Link_3, form.value);
-	form.vals.push_back(o.str());
-	return form;
-}
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXHeartbeatPacketCountLink4()
-{
-	auto form = CreateFormatter(DTC_Register_TXHeartbeatPacketCount_Link4);
-	form.description = "Heartbeat Packet TX Counter Link 4";
-	std::stringstream o;
-	o << std::dec << ReadTXHeartbeatPacketCount(DTC_Link_4, form.value);
-	form.vals.push_back(o.str());
-	return form;
-}
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXHeartbeatPacketCountLink5()
-{
-	auto form = CreateFormatter(DTC_Register_TXHeartbeatPacketCount_Link5);
-	form.description = "Heartbeat Packet TX Counter Link 5";
-	std::stringstream o;
-	o << std::dec << ReadTXHeartbeatPacketCount(DTC_Link_5, form.value);
-	form.vals.push_back(o.str());
-	return form;
-}
+	DTC_Register reg;
+	switch (link)
+	{
+		case DTC_Link_0:
+			reg = DTC_Register_TXHeartbeatPacketCount_Link0;
+			break;
+		case DTC_Link_1:
+			reg = DTC_Register_TXHeartbeatPacketCount_Link1;
+			break;
+		case DTC_Link_2:
+			reg = DTC_Register_TXHeartbeatPacketCount_Link2;
+			break;
+		case DTC_Link_3:
+			reg = DTC_Register_TXHeartbeatPacketCount_Link3;
+			break;
+		case DTC_Link_4:
+			reg = DTC_Register_TXHeartbeatPacketCount_Link4;
+			break;
+		case DTC_Link_5:
+			reg = DTC_Register_TXHeartbeatPacketCount_Link5;
+			break;
+		case DTC_Link_CFO:
+			reg = DTC_Register_CFOTXHeartbeatPacketCount_Link5;
+			break;
+		default: {
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
+	}
+	return reg;
+} //end GetTXHeartbeatPacketCountLinkRegister()
 
 // RX Data Header Packet Count
 uint32_t DTCLib::DTC_Registers::ReadRXDataHeaderPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val)

@@ -277,6 +277,7 @@ enum DTC_Register : uint16_t
 	DTC_Register_TXDataRequestPacketCount_Link3 = 0x963C,
 	DTC_Register_TXDataRequestPacketCount_Link4 = 0x9640,
 	DTC_Register_TXDataRequestPacketCount_Link5 = 0x9644,
+	DTC_Register_CFOTXClockMarkerCount_Link6 = 0x9648,
 	// 0x9648 Reserved
 	// 0x964C Reserved
 	DTC_Register_TXHeartbeatPacketCount_Link0 = 0x9650,
@@ -285,6 +286,7 @@ enum DTC_Register : uint16_t
 	DTC_Register_TXHeartbeatPacketCount_Link3 = 0x965C,
 	DTC_Register_TXHeartbeatPacketCount_Link4 = 0x9660,
 	DTC_Register_TXHeartbeatPacketCount_Link5 = 0x9664,
+	DTC_Register_CFOTXHeartbeatPacketCount_Link5 = 0x9668,
 	// 0x9668 Reserved
 	// 0x966C Reserved
 	DTC_Register_RXDataHeaderPacketCount_Link0 = 0x9670,
@@ -324,6 +326,15 @@ enum DTC_Register : uint16_t
 
 	DTC_Register_RXDataDiagnosticFIFO_LinkCFO = 0x9700,
 	DTC_Register_TXDataDiagnosticFIFO_LinkCFO = 0x9708,
+
+	DTC_Register_TXEventWindowMarkerCount_Link0	= 0xA400,
+	DTC_Register_TXEventWindowMarkerCount_Link1	= 0xA404,
+	DTC_Register_TXEventWindowMarkerCount_Link2	= 0xA408,
+	DTC_Register_TXEventWindowMarkerCount_Link3	= 0xA40C,
+	DTC_Register_TXEventWindowMarkerCount_Link4	= 0xA410,
+	DTC_Register_TXEventWindowMarkerCount_Link5	= 0xA414,
+	DTC_Register_CFOTXEventWindowMarkerCount_Link6	= 0xA418,
+				
 	DTC_Register_Invalid,
 // };
 }; // end DTC_Register enum
@@ -418,9 +429,9 @@ public:
 	bool ReadDRPPrefetchEnable(std::optional<uint32_t> val = std::nullopt);             // B12
 	void ROCInterfaceSoftReset();             // B11
 	bool ReadROCInterfaceSoftReset(std::optional<uint32_t> val = std::nullopt);         // B11
-	void SetSequenceNumberDisable();          // B10
-	void ClearSequenceNumberDisable();        // B10
-	bool ReadSequenceNumberDisable(std::optional<uint32_t> val = std::nullopt);         // B10
+	void EnableDropDataToEmulateEventBuilding();        // B10
+	void DisableDropDataToEmulateEventBuilding();        // B10
+	bool ReadDropDataToEmulateEventBuilding(std::optional<uint32_t> val = std::nullopt);         // B10
 	void SetPunchEnable();                    // B9
 	void ClearPunchEnable();                  // B9
 	bool ReadPunchEnable(std::optional<uint32_t> val = std::nullopt);                   // B9
@@ -1190,16 +1201,18 @@ public:
 	RegisterFormatter FormatTXDataRequestPacketCountLink3();
 	RegisterFormatter FormatTXDataRequestPacketCountLink4();
 	RegisterFormatter FormatTXDataRequestPacketCountLink5();
+	RegisterFormatter FormatCFOTXClockMarkerCountLink6();
+	uint32_t ReadCFOTXClockMarkerCountLink6(std::optional<uint32_t> val = std::nullopt);
 
 	// TX Heartbeat Packet Count
-	uint32_t ReadTXHeartbeatPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
-	void ClearTXHeartbeatPacketCount(DTC_Link_ID const& link);
-	RegisterFormatter FormatTXHeartbeatPacketCountLink0();
-	RegisterFormatter FormatTXHeartbeatPacketCountLink1();
-	RegisterFormatter FormatTXHeartbeatPacketCountLink2();
-	RegisterFormatter FormatTXHeartbeatPacketCountLink3();
-	RegisterFormatter FormatTXHeartbeatPacketCountLink4();
-	RegisterFormatter FormatTXHeartbeatPacketCountLink5();
+	uint32_t ReadTXHeartbeatPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);	
+	RegisterFormatter FormatTXHeartbeatPacketCountLink(DTC_Link_ID const& link);
+	DTC_Register GetTXHeartbeatPacketCountLinkRegister(DTC_Link_ID const& link);
+
+	// TX Data Request Packet Count
+	uint32_t ReadTXEventWindowMarkerCountLinkRegister(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
+	RegisterFormatter FormatTXEventWindowMarkerCountLink(DTC_Link_ID const& link);
+	DTC_Register GetTXEventWindowMarkerCountLinkRegister(DTC_Link_ID const& link);
 
 	// RX Data Header Packet Count
 	uint32_t ReadRXDataHeaderPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val = std::nullopt);
@@ -1275,6 +1288,7 @@ protected:
 		[this] { return this->FormatSERDESPLLLocked(); },
 		[this] { return this->FormatROCEmulationEnable(); },
 		[this] { return this->FormatLinkEnable(); },
+		[this] { return this->FormatCFOLinkError(); },
 		[this] { return this->FormatCFO40MHzClockMarkerEnables(); },		
 		[this] { return this->FormatRXCDRLockStatus(); },		
 		[this] { return this->FormatSERDESResetDone(); },
@@ -1499,6 +1513,7 @@ protected:
 	};
 
 	const std::vector<std::function<RegisterFormatter()>> formattedSERDESErrorFunctions_{
+		[this] { return this->FormatCFOLinkError(); },
 		[this] { return this->FormatSERDESCharacterNotInTableErrorCountLink0(); },
 		[this] { return this->FormatSERDESCharacterNotInTableErrorCountLink1(); },
 		[this] { return this->FormatSERDESCharacterNotInTableErrorCountLink2(); },
@@ -1534,32 +1549,46 @@ protected:
 	};
 
 	const std::vector<std::function<RegisterFormatter()>> formattedPacketCounterFunctions_{
-		[this] { return this->FormatMissedCFOPacketCountLink0(); },
-		[this] { return this->FormatMissedCFOPacketCountLink1(); },
-		[this] { return this->FormatMissedCFOPacketCountLink2(); },
-		[this] { return this->FormatMissedCFOPacketCountLink3(); },
-		[this] { return this->FormatMissedCFOPacketCountLink4(); },
-		[this] { return this->FormatMissedCFOPacketCountLink5(); },
-		[this] { return this->FormatLocalFragmentDropCount(); },
-		[this] { return this->FormatOutputBufferFragmentDumpCount(); },
+		// [this] { return this->FormatMissedCFOPacketCountLink0(); },
+		// [this] { return this->FormatMissedCFOPacketCountLink1(); },
+		// [this] { return this->FormatMissedCFOPacketCountLink2(); },
+		// [this] { return this->FormatMissedCFOPacketCountLink3(); },
+		// [this] { return this->FormatMissedCFOPacketCountLink4(); },
+		// [this] { return this->FormatMissedCFOPacketCountLink5(); },
+		// [this] { return this->FormatLocalFragmentDropCount(); },
+		// [this] { return this->FormatOutputBufferFragmentDumpCount(); },
+		[this] { return this->FormatTXEventWindowMarkerCountLink(DTC_Link_0); },
+		[this] { return this->FormatTXEventWindowMarkerCountLink(DTC_Link_1); },
+		[this] { return this->FormatTXEventWindowMarkerCountLink(DTC_Link_2); },
+		[this] { return this->FormatTXEventWindowMarkerCountLink(DTC_Link_3); },
+		[this] { return this->FormatTXEventWindowMarkerCountLink(DTC_Link_4); },
+		[this] { return this->FormatTXEventWindowMarkerCountLink(DTC_Link_5); },
+		[this] { return this->FormatTXEventWindowMarkerCountLink(DTC_Link_CFO); },
+
 		[this] { return this->FormatTXDataRequestPacketCountLink0(); },
 		[this] { return this->FormatTXDataRequestPacketCountLink1(); },
 		[this] { return this->FormatTXDataRequestPacketCountLink2(); },
 		[this] { return this->FormatTXDataRequestPacketCountLink3(); },
 		[this] { return this->FormatTXDataRequestPacketCountLink4(); },
 		[this] { return this->FormatTXDataRequestPacketCountLink5(); },
-		[this] { return this->FormatTXHeartbeatPacketCountLink0(); },
-		[this] { return this->FormatTXHeartbeatPacketCountLink1(); },
-		[this] { return this->FormatTXHeartbeatPacketCountLink2(); },
-		[this] { return this->FormatTXHeartbeatPacketCountLink3(); },
-		[this] { return this->FormatTXHeartbeatPacketCountLink4(); },
-		[this] { return this->FormatTXHeartbeatPacketCountLink5(); },
+		[this] { return this->FormatCFOTXClockMarkerCountLink6(); },
+		[this] { return this->FormatCFOLinkError(); },
+
+		[this] { return this->FormatTXHeartbeatPacketCountLink(DTC_Link_0); },
+		[this] { return this->FormatTXHeartbeatPacketCountLink(DTC_Link_1); },
+		[this] { return this->FormatTXHeartbeatPacketCountLink(DTC_Link_2); },
+		[this] { return this->FormatTXHeartbeatPacketCountLink(DTC_Link_3); },
+		[this] { return this->FormatTXHeartbeatPacketCountLink(DTC_Link_4); },
+		[this] { return this->FormatTXHeartbeatPacketCountLink(DTC_Link_5); },
+		[this] { return this->FormatTXHeartbeatPacketCountLink(DTC_Link_CFO); },
+
 		[this] { return this->FormatRXDataHeaderPacketCountLink0(); },
 		[this] { return this->FormatRXDataHeaderPacketCountLink1(); },
 		[this] { return this->FormatRXDataHeaderPacketCountLink2(); },
 		[this] { return this->FormatRXDataHeaderPacketCountLink3(); },
 		[this] { return this->FormatRXDataHeaderPacketCountLink4(); },
 		[this] { return this->FormatRXDataHeaderPacketCountLink5(); },
+		
 		[this] { return this->FormatRXDataPacketCountLink0(); },
 		[this] { return this->FormatRXDataPacketCountLink1(); },
 		[this] { return this->FormatRXDataPacketCountLink2(); },
