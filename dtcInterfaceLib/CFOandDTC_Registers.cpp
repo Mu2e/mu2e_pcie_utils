@@ -137,7 +137,9 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignDate(std::optional<uint32_t> 
 		((readData>>12)&0xF) << ((readData>>8)&0xF) << "/20" << 
 		// ((readData>>28)&0xF) << 
 		20 + ((readData>>24)&0xF) << " " << //year 2020 + hex nibble at bit-24
-		((readData>>4)&0xF) << ((readData>>0)&0xF) << ":00   raw-data: 0x" << std::hex << readData;
+		((readData>>4)&0x7) << ((readData>>0)&0xF) << ":00   " <<
+		(((readData>>7)&0x1)?"6-ROC":"3-ROC") <<
+		"  raw-data: 0x" << std::hex << readData;
 	return o.str();
 }
 
@@ -603,10 +605,15 @@ uint32_t DTCLib::CFOandDTC_Registers::WriteRegister_(uint32_t dataToWrite, const
 {
 	auto retry = 3;
 	int errorCode;
-	uint32_t readbackValue;
+	bool needToVerify = NeedToVerifyRegisterWrite_(address);
+	uint32_t readbackValue = needToVerify?-1:dataToWrite;
 	do
 	{
-		errorCode = device_.write_register_checked(address, 100, dataToWrite, &readbackValue);
+		if(needToVerify)
+			errorCode = device_.write_register_checked(address, 100, dataToWrite, &readbackValue);
+		else
+			errorCode = device_.write_register(address, 100, dataToWrite);
+
 		--retry;
 	} while (retry > 0 && errorCode != 0);
 	if (errorCode != 0)
@@ -626,13 +633,15 @@ uint32_t DTCLib::CFOandDTC_Registers::WriteRegister_(uint32_t dataToWrite, const
 	}
 
 	//verify register readback
-	if(1)
+	if(needToVerify)
 	{
-		uint32_t readbackValue = ReadRegister_(address);
-		if(!CFOandDTCVerifyRegisterWrite_(address,readbackValue,dataToWrite)) //first check if it is a core register, i.e. CFOandDTC*
+		// readbackValue = ReadRegister_(address); //already read above by write_register_checked!
+ 		if(!CFOandDTCVerifyRegisterWrite_(address,readbackValue,dataToWrite)) //first check if it is a core register, i.e. CFOandDTC*
 			VerifyRegisterWrite_(address,readbackValue,dataToWrite); //virtual function call
 		return readbackValue;
 	} //end verify register readback
+	
+	return readbackValue;
 } //end WriteRegister_()
 
 //return false if not a core register, i.e. CFOandDTC*

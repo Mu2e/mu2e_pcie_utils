@@ -1842,38 +1842,78 @@ DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDMAReadByteCount()
 	return form;
 }
 
-void CFOLib::CFO_Registers::SetDDRBeamOnBaseAddress(const uint32_t& address)
+void CFOLib::CFO_Registers::SetRunPlanBeamOnBaseAddress(const uint32_t& address)
 {
-	WriteRegister_(address, CFO_Register_DDRBeamOnBaseAddress);
+	WriteRegister_(address, CFO_Register_RunPlanBeamOnBaseAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDDRBeamOnBaseAddress(std::optional<uint32_t> val) { return val.has_value()?*val:ReadRegister_(CFO_Register_DDRBeamOnBaseAddress); }
+uint32_t CFOLib::CFO_Registers::ReadRunPlanBeamOnBaseAddress(std::optional<uint32_t> val) { return val.has_value()?*val:ReadRegister_(CFO_Register_RunPlanBeamOnBaseAddress); }
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOnBaseAddress()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatRunPlanBeamOnBaseAddress()
 {
-	auto form = CreateFormatter(CFO_Register_DDRBeamOnBaseAddress);
+	auto form = CreateFormatter(CFO_Register_RunPlanBeamOnBaseAddress);
 	form.description = "DDR Memory Beam On Base Address";
-	form.vals.push_back(std::to_string(ReadDDRBeamOnBaseAddress(form.value)));
+	form.vals.push_back(std::to_string(ReadRunPlanBeamOnBaseAddress(form.value)));
 	return form;
 }
 
-void CFOLib::CFO_Registers::SetDDRBeamOffBaseAddress(const uint32_t& address)
+void CFOLib::CFO_Registers::SetRunPlanBeamOffBaseAddress(const uint32_t& address)
 {
-	WriteRegister_(address, CFO_Register_DDRBeamOffBaseAddress);
+	WriteRegister_(address, CFO_Register_RunPlanBeamOffBaseAddress);
 }
 
-uint32_t CFOLib::CFO_Registers::ReadDDRBeamOffBaseAddress(std::optional<uint32_t> val)
+uint32_t CFOLib::CFO_Registers::ReadRunPlanBeamOffBaseAddress(std::optional<uint32_t> val)
 {
-	return val.has_value()?*val:ReadRegister_(CFO_Register_DDRBeamOffBaseAddress);
+	return val.has_value()?*val:ReadRegister_(CFO_Register_RunPlanBeamOffBaseAddress);
 }
 
-DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatDDRBeamOffBaseAddress()
+DTCLib::RegisterFormatter CFOLib::CFO_Registers::FormatRunPlanBeamOffBaseAddress()
 {
-	auto form = CreateFormatter(CFO_Register_DDRBeamOffBaseAddress);
+	auto form = CreateFormatter(CFO_Register_RunPlanBeamOffBaseAddress);
 	form.description = "DDR Memory Beam Off Base Address";
-	form.vals.push_back(std::to_string(ReadDDRBeamOffBaseAddress()));
+	form.vals.push_back(std::to_string(ReadRunPlanBeamOffBaseAddress()));
 	return form;
 }
+
+void CFOLib::CFO_Registers::SetRunPlanData(const std::string& inputData, const uint32_t& runPlanBaseAddress)
+{
+	__COUTTV__(inputData.size());
+	__COUTT__ << "Writing run plan of size " << inputData.size() << " to base address 0x" << 
+		std::hex << std::setw(8) << std::setfill('0') << runPlanBaseAddress << __E__;
+
+	auto dataPtr = reinterpret_cast<const uint8_t*>(&inputData[0]);
+
+	//primary run plan write loop
+	WriteRegister_(runPlanBaseAddress, CFO_Register_RunPlan_Address); //resets run plan BRAM write address 
+	for(uint32_t l = 0; l < inputData.size(); l+=4)
+	{ 
+		// CFO_Register_RunPlan_Address = 0x9314,
+		// CFO_Register_RunPlan_Data = 0x9318,
+		WriteRegister_(*((uint32_t *)(&(dataPtr[l]))), CFO_Register_RunPlan_Data); //write data then increment BRAM address
+		__COUTT__ << std::hex << std::setw(8) << std::setfill('0') << "addr 0x" << (runPlanBaseAddress + l/4) <<
+			 " data 0x" << *((uint32_t *)(&(dataPtr[l]))) << __E__;
+	} //end primary run plan write loop
+
+	//now verify run plan w/readback
+	WriteRegister_(runPlanBaseAddress, CFO_Register_RunPlan_Address); //resets run plan BRAM write address 
+	uint32_t val;
+	for(uint32_t l = 0; l < inputData.size(); l+=4)
+	{ 
+		val = ReadRegister_(CFO_Register_RunPlan_Data);
+
+		__COUTT__ << std::hex << std::setw(8) << std::setfill('0') << "addr 0x" << (runPlanBaseAddress + l/4) <<
+			 " data 0x" << *((uint32_t *)(&(dataPtr[l]))) << " =? rdata 0x" << val << __E__;
+		if(val != *((uint32_t *)(&(dataPtr[l]))))
+		{
+			__SS__ << "Run plan write validation failed at " << std::hex << std::setw(8) << std::setfill('0') << 
+				"addr 0x" << (runPlanBaseAddress + l/4) <<
+				" data 0x" << *((uint32_t *)(&(dataPtr[l]))) << " != rdata 0x" << val << __E__;
+			// __COUT_ERR__ << "\n" << ss.str();
+			__SS_THROW__;
+		}
+	} //end run plan validation
+
+} //end SetRunPlanData()
 
 // Firefly CSR Register
 bool CFOLib::CFO_Registers::ReadFireflyTXRXPresent(std::optional<uint32_t> val)
@@ -3046,6 +3086,18 @@ void CFOLib::CFO_Registers::DisableAllOutputs()
 
 
 // Private Functions
+bool CFOLib::CFO_Registers::NeedToVerifyRegisterWrite_(const CFOandDTC_Register& address)
+{
+	switch(address)
+	{
+		//list all registers that do no need to be verified
+		case CFO_Register_RunPlan_Data:
+			return false;
+		default:;
+	}
+	return true;
+} //end NeedToVerifyRegisterWrite_()
+
 void CFOLib::CFO_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite)
 {
 	//verify register readback

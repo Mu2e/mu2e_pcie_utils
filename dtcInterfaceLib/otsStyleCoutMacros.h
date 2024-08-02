@@ -32,6 +32,7 @@
 #define Q(X) #X
 #define QUOTE(X) Q(X)
 #define __COUTV__(X) 		__COUT__ << QUOTE(X) << " = " << X << __E__
+#define __COUTTV__(X) 		__COUTT__ << QUOTE(X) << " = " << X << __E__
 #define __COUTVS__(LVL,X)	TLOG(TLVL_DEBUG + LVL) << __COUT_HDR__ << QUOTE(X) << " = " << X << __E__
 
 std::string 			otsStyleStackTrace					(void);
