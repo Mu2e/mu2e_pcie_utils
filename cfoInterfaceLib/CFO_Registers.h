@@ -68,8 +68,12 @@ enum CFO_Register : uint16_t
 	CFO_Register_DDRMemoryDMAWriteStartAddress = 0x9300,
 	CFO_Register_DDRMemoryDMAReadStartAddress = 0x9304,
 	CFO_Register_DDRMemoryDMAReadByteCount = 0x9308,
-	CFO_Register_DDRBeamOnBaseAddress = 0x930C,
-	CFO_Register_DDRBeamOffBaseAddress = 0x9310,
+	CFO_Register_RunPlanBeamOnBaseAddress = 0x930C,
+	CFO_Register_RunPlanBeamOffBaseAddress = 0x9310,
+
+	CFO_Register_RunPlan_Address = 0x9314,
+	CFO_Register_RunPlan_Data = 0x9318,
+
 	CFO_Register_FireflyCSRRegister = 0x9320,
 	CFO_Register_SERDESPRBSControlLink0 = 0x9330,
 	CFO_Register_SERDESPRBSControlLink1 = 0x9334,
@@ -1013,34 +1017,35 @@ public:
 	/// Set the Beam On Base Address in the DDR memory
 	/// </summary>
 	/// <param name="address">Base address</param>
-	void SetDDRBeamOnBaseAddress(const uint32_t& address);
+	void SetRunPlanBeamOnBaseAddress(const uint32_t& address);
 	/// <summary>
 	/// Read the Beam On Base Address for DMAs into the DDR memory
 	/// </summary>
 	/// <returns>Base Address</returns>
-	uint32_t ReadDDRBeamOnBaseAddress(std::optional<uint32_t> val = std::nullopt);
+	uint32_t ReadRunPlanBeamOnBaseAddress(std::optional<uint32_t> val = std::nullopt);
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
 	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatDDRBeamOnBaseAddress();
+	RegisterFormatter FormatRunPlanBeamOnBaseAddress();
 
 	// DDR3 Beam Off Base Address Register
 	/// <summary>
 	/// Set the Beam Off Base Address in the DDR memory
 	/// </summary>
 	/// <param name="address">Base address</param>
-	void SetDDRBeamOffBaseAddress(const uint32_t& address);
+	void SetRunPlanBeamOffBaseAddress(const uint32_t& address);
 	/// <summary>
 	/// Read the Beam Off Base Address for DMAs into the DDR memory
 	/// </summary>
 	/// <returns>Base Address</returns>
-	uint32_t ReadDDRBeamOffBaseAddress(std::optional<uint32_t> val = std::nullopt);
+	uint32_t ReadRunPlanBeamOffBaseAddress(std::optional<uint32_t> val = std::nullopt);
 	/// <summary>
 	/// Formats the register's current value for register dumps
 	/// </summary>
 	/// <returns>RegisterFormatter object containing register information</returns>
-	RegisterFormatter FormatDDRBeamOffBaseAddress();
+	RegisterFormatter FormatRunPlanBeamOffBaseAddress();
+	void SetRunPlanData(const std::string& inputData, const uint32_t& address);
 
 	// Firefly CSR Register
 	/// <summary>
@@ -1422,6 +1427,7 @@ public:
 	void DisableAllOutputs();
 
 private:
+	bool NeedToVerifyRegisterWrite_(const CFOandDTC_Register& address) override;
 	void VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite) override;
 
 	int DecodeHighSpeedDivider_(int input);
@@ -1493,8 +1499,8 @@ public:
 		[this]() { return this->FormatDMAWriteStartAddress(); },
 		[this]() { return this->FormatDMAReadStartAddress(); },
 		[this]() { return this->FormatDMAReadByteCount(); },
-		[this]() { return this->FormatDDRBeamOnBaseAddress(); },
-		[this]() { return this->FormatDDRBeamOffBaseAddress(); },
+		[this]() { return this->FormatRunPlanBeamOnBaseAddress(); },
+		[this]() { return this->FormatRunPlanBeamOffBaseAddress(); },
 		[this]() { return this->FormatFireflyCSR(); },
 		[this]() { return this->FormatSERDESPRBSControlLink0(); },
 		[this]() { return this->FormatSERDESPRBSControlLink1(); },

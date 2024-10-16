@@ -1252,6 +1252,7 @@ public:
 	void WriteCurrentProgram(uint64_t program, DTC_OscillatorType oscillator);
 
 private:
+	bool NeedToVerifyRegisterWrite_(const CFOandDTC_Register& address) override { return true; }
 	void VerifyRegisterWrite_(const CFOandDTC_Register& address, uint32_t readbackValue, uint32_t dataToWrite) override;
 
 	int DecodeHighSpeedDivider_(int input);
