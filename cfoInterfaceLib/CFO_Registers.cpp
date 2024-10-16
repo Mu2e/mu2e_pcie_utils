@@ -1908,7 +1908,6 @@ void CFOLib::CFO_Registers::SetRunPlanData(const std::string& inputData, const u
 			__SS__ << "Run plan write validation failed at " << std::hex << std::setw(8) << std::setfill('0') << 
 				"addr 0x" << (runPlanBaseAddress + l/4) <<
 				" data 0x" << *((uint32_t *)(&(dataPtr[l]))) << " != rdata 0x" << val << __E__;
-			// __COUT_ERR__ << "\n" << ss.str();
 			__SS_THROW__;
 		}
 	} //end run plan validation
