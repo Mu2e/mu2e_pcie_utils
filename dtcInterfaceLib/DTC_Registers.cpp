@@ -8438,7 +8438,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXEventWindowMarkerCountL
 		std::to_string((GetTXEventWindowMarkerCountLinkRegister(link) -
 			GetTXEventWindowMarkerCountLinkRegister(DTC_Link_0))/4 );
 	std::stringstream o;
-	o << std::dec << ReadTXDataRequestPacketCount(link, form.value);
+	o << std::dec << ReadTXEventWindowMarkerCountLinkRegister(link, form.value);
 	form.vals.push_back(o.str());
 	return form;
 } //end FormatTXEventWindowMarkerCountLink()
@@ -8471,6 +8471,8 @@ DTCLib::DTC_Register DTCLib::DTC_Registers::GetTXEventWindowMarkerCountLinkRegis
 			break;
 		default: {
 			__SS__ << "Illegal link index provided: " << link << __E__;
+			ss << "\n\nThe stack trace is as follows:\n"
+				<< otsStyleStackTrace() << __E__;
 			__SS_THROW__;
 		}
 	}
@@ -8504,6 +8506,8 @@ uint32_t DTCLib::DTC_Registers::ReadTXDataRequestPacketCount(DTC_Link_ID const& 
 			break;
 		default: {
 			__SS__ << "Illegal link index provided: " << link << __E__;
+			ss << "\n\nThe stack trace is as follows:\n"
+				<< otsStyleStackTrace() << __E__;
 			__SS_THROW__;
 		}
 	}
@@ -8534,6 +8538,8 @@ void DTCLib::DTC_Registers::ClearTXDataRequetsPacketCount(DTC_Link_ID const& lin
 			break;
 		default: {
 			__SS__ << "Illegal link index provided: " << link << __E__;
+			ss << "\n\nThe stack trace is as follows:\n"
+				<< otsStyleStackTrace() << __E__;
 			__SS_THROW__;
 		}
 	}
