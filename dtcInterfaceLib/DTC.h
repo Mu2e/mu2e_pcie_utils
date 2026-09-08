@@ -1,19 +1,20 @@
 #ifndef DTC_H
 #define DTC_H
 
+#include <array>
 #include <list>
 #include <memory>
 #include <vector>
 
 // #include "artdaq-core-mu2e/Overlays/DTC_Packets.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DCSReplyPacket.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DCSRequestPacket.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DMAPacket.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataBlock.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataHeaderPacket.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataPacket.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataRequestPacket.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DataStatus.h"
-#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DCSReplyPacket.h"
-#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DCSRequestPacket.h"
-#include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_DMAPacket.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_Event.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_EventHeader.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_HeartbeatPacket.h"
@@ -21,21 +22,21 @@
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_SubEvent.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Packets/DTC_SubEventHeader.h"
 
-#include "DTC_Registers.h"
 #include "CFOandDTC_DMAs.h"
+#include "DTC_Registers.h"
 
 // #include "artdaq-core-mu2e/Overlays/DTC_Types.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_CharacterNotInTableError.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DCSOperationType.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DDRFlags.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_DebugType.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_EVBStatsType.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_EVBStatus.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_EventMode.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_EventWindowTag.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_FIFOFullErrorFlags.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_IICDDRBusAddress.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_IICSERDESBusAddress.h"
-#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_EVBStatsType.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_LinkEnableMode.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_LinkStatus.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_Link_ID.h"
@@ -45,15 +46,16 @@
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_ROC_Emulation_Type.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_RXBufferStatus.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_RXStatus.h"
-#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_SerdesClockSpeed.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_SERDESLoopbackMode.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_SERDESRXDisparityError.h"
+#include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_SerdesClockSpeed.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_SimMode.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/DTC_Subsystem.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/Exceptions.h"
 #include "artdaq-core-mu2e/Overlays/DTC_Types/Utilities.h"
 
-namespace DTCLib {
+namespace DTCLib
+{
 
 typedef uint16_t roc_data_t;
 typedef uint16_t roc_address_t;
@@ -64,7 +66,7 @@ typedef uint16_t roc_address_t;
 /// </summary>
 class DTC : public DTC_Registers
 {
-public:
+  public:
 	/// <summary>
 	/// Construct an instance of the DTC class
 	/// </summary>
@@ -75,8 +77,7 @@ public:
 	/// Firmware Design Version. If set, will throw an exception if the DTC firmware does not match (Default: "")</param>
 	/// <param name="skipInit">Whether to skip full initialization of the DTC</param>
 	/// <param name="simMemoryFile">Name of the simulated DDR memory file if mu2esim is used</param>
-	explicit DTC(DTC_SimMode mode = DTC_SimMode_Disabled, int dtc = -1, unsigned rocMask = 0x1,
-				 std::string expectedDesignVersion = "", bool skipInit = false, std::string simMemoryFile = "mu2esim.bin", const std::string& uid = "");
+	explicit DTC(DTC_SimMode mode = DTC_SimMode_Disabled, int dtc = -1, unsigned rocMask = 0x1, std::string expectedDesignVersion = "", bool skipInit = false, std::string simMemoryFile = "mu2esim.bin", const std::string& uid = "");
 	virtual ~DTC();
 
 	//
@@ -98,6 +99,7 @@ public:
 	/// <param name="when">Desired event window tag for readout. Default means use whatever event window tag is next</param>
 	/// <returns>A vector of DTC_SubEvent objects, but only one DTC_SubEvent is expected</returns>
 	std::vector<std::unique_ptr<DTC_SubEvent>> GetSubEventData(DTC_EventWindowTag when = DTC_EventWindowTag(), bool matchEventWindowTag = false);
+	std::vector<std::shared_ptr<DTC_Event>>    GetSubEventDataAsEvents(DTC_EventWindowTag when = DTC_EventWindowTag(), bool matchEventWindowTag = false, const size_t vectorBundleTarget = 1, const size_t retries = 3);
 
 	/// <summary>
 	/// Read a file into the DTC memory. Will truncate the file so that it fits in the DTC memory.
@@ -107,8 +109,7 @@ public:
 	/// <param name="overwriteEnvrionment">Whether to use file instead of DTCLIB_SIM_FILE</param>
 	/// <param name="outputFileName">Name of binary file to write expected output (Default: "", no file created)</param>
 	/// <param name="skipVerify">Skip the verify stage of WriteSimFileToDTC</param>
-	void WriteSimFileToDTC(std::string file, bool goForever, bool overwriteEnvrionment = false,
-						   std::string outputFileName = "", bool skipVerify = false);
+	void WriteSimFileToDTC(std::string file, bool goForever, bool overwriteEnvrionment = false, std::string outputFileName = "", bool skipVerify = false);
 	/// <summary>
 	/// Read the DTC memory and determine whether the file was written correctly.
 	/// </summary>
@@ -148,8 +149,7 @@ public:
 	/// <param name="address2">Second address to read</param>
 	/// <param name="tmo_ms">Timeout, in milliseconds, for read (will retry until timeout is expired or data received)</param>
 	/// <returns>Pair of register values, first is from the first address, second from the second</returns>
-	std::pair<roc_data_t, roc_data_t> ReadROCRegisters(const DTC_Link_ID& link, const roc_address_t address1,
-													   const roc_address_t address2, int tmo_ms);
+	std::pair<roc_data_t, roc_data_t> ReadROCRegisters(const DTC_Link_ID& link, const roc_address_t address1, const roc_address_t address2, int tmo_ms);
 	/// <summary>
 	/// Perform a "double operation" write to ROC registers
 	/// </summary>
@@ -160,8 +160,7 @@ public:
 	/// <param name="data2">Value to write to second register</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
 	/// <param name="ack_tmo_ms">Timeout, in milliseconds, for ack (will retry until timeout is expired or ack received)</param>
-	bool WriteROCRegisters(const DTC_Link_ID& link, const roc_address_t address1, const roc_data_t data1,
-						   const roc_address_t address2, const roc_data_t data2, bool requestAck, int ack_tmo_ms);
+	bool WriteROCRegisters(const DTC_Link_ID& link, const roc_address_t address1, const roc_data_t data1, const roc_address_t address2, const roc_data_t data2, bool requestAck, int ack_tmo_ms);
 	/// <summary>
 	/// Perform a ROC block read
 	/// </summary>
@@ -235,9 +234,7 @@ public:
 	/// <param name="quiet">Whether to not print the JSON representation of the Readout Request (Default: true, no JSON
 	/// printed)</param>
 	/// <param name="requestAck">Whether to request acknowledement of this operation</param>
-	void SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOperationType type, const roc_address_t address,
-							  const roc_data_t data = 0x0, const roc_address_t address2 = 0x0, const roc_data_t data2 = 0,
-							  bool quiet = true, bool requestAck = false);
+	void SendDCSRequestPacket(const DTC_Link_ID& link, const DTC_DCSOperationType type, const roc_address_t address, const roc_data_t data = 0x0, const roc_address_t address2 = 0x0, const roc_data_t data2 = 0, bool quiet = true, bool requestAck = false);
 
 	/// <summary>
 	/// Writes a packet to the DTC on the DCS channel
@@ -257,11 +254,13 @@ public:
 	 */
 	std::unique_ptr<DTC_Event> ReadNextDAQDMA(int tmo_ms);
 	/**
-	 * @brief Read the next DMA from the DAQ channel as a Sub Event. If no data is present, will return nullptr
+	 * @brief Read SubEvents from the next DMA buffer(s) from the DAQ channel. Multiple subevents may be returned
+	 * from a single buffer. If a subevent spans multiple DMA buffers, this function blocks until complete.
+	 * @param output Vector to append extracted SubEvents to
 	 * @param tmo_ms Timeout
-	 * @return A DTC_SubEvent representing the data in a single DMA, or nullptr if no data/timeout
+	 * @return True if one or more SubEvents were extracted, false if no data/timeout
 	 */
-	std::unique_ptr<DTC_SubEvent> ReadNextDAQSubEventDMA(int tmo_ms);
+	bool ReadNextDAQSubEventDMA(std::vector<std::unique_ptr<DTC_SubEvent>>& output, int tmo_ms);
 	/// <summary>
 	/// DCS packets are read one-at-a-time, this function reads the next one from the DTC
 	/// </summary>
@@ -289,9 +288,9 @@ public:
 	/// <param name="channel">Channel to release</param>
 	void ReleaseAllBuffers(const DTC_DMA_Engine& channel);
 
-private:
+  private:
 	std::unique_ptr<DTC_DataPacket> ReadNextPacket(const DTC_DMA_Engine& channel, int tmo_ms);
-	int ReadBuffer(const DTC_DMA_Engine& channel, int retries = 10);
+	int                             ReadBuffer(const DTC_DMA_Engine& channel, int retries = 10);
 	/// <summary>
 	/// This function releases all buffers except for the one containing currentReadPtr. Should only be called when done
 	/// with data in other buffers!
@@ -319,6 +318,40 @@ private:
 	// uint16_t GetBufferByteCount(DMAInfo* info, size_t index);
 	CFOandDTC_DMAs::DMAInfo daqDMAInfo_;
 	CFOandDTC_DMAs::DMAInfo dcsDMAInfo_;
+
+	// State for GetSubEventDataAsEvents v3: extracted events buffer
+	std::vector<std::shared_ptr<DTCLib::DTC_Event>> extractedEvents_{};
+
+	bool   needToFinishEvent_{false};
+	size_t currentEventSize_{0};
+	size_t subEventByteCount_{0};
+	size_t extractedSubeventBytes_{0};
+
+	DTC_SubEventHeader lastGoodSubEventHeader_{};
+	bool               hasLastGoodSubEventHeader_{false};
+	uint64_t           totalEventsParsed_{0};  ///< Lifetime count of successfully-parsed subevents; included in diagnostic prints so we can tell whether parsing ever made progress
+
+	// Standing buffer to assemble the on-wire header prefix one QW at a time.
+	// On-wire layout: [EventHeader 1 QW][SubEventHeader 6 QWs] = 7 QWs total.
+	// QW0 = event header; QW1..6 = subevent header.
+	static constexpr size_t                  kSubEventHeaderQws = sizeof(DTC_SubEventHeader) / sizeof(uint64_t) + 1;
+	std::array<uint64_t, kSubEventHeaderQws> subEventHeaderBuf_{};
+	size_t                                   subEventHeaderQwsFilled_{0};  ///< Number of QWs currently filled in subEventHeaderBuf_
+
+	std::array<uint64_t, 8> lastBufferTailQwords_{};  ///< Last up to 8 qwords of the most recently processed DMA buffer; saved at every return path for cross-buffer exception diagnostics
+	size_t                  lastBufferTailCount_{0};  ///< Valid entry count in lastBufferTailQwords_
+
+	bool lastDMABufferWasFull_{false};  ///< True when dmaBytes == MAX_TRANSFER_SIZE (max sub-transfer with tlast); next buffer starts a new sub-transfer with prefix
+	bool lastDMABufferWasMax_{false};   ///< True when dmaBytes == sizeof(mu2e_databuff_t) (buffer physically full, no tlast); next buffer is raw continuation (no prefix)
+
+	std::string lastDMABufferIndex_{};  ///< String representation of the index of the last DMA buffer processed, for diagnostics
+
+	// // State for GetSubEventData v2: cross-buffer pending subevent assembly
+	uint64_t             totalSubEventsParsed_{0};       ///< Lifetime count of successfully-parsed subevents; included in diagnostic prints so we can tell whether parsing ever made progress
+	std::vector<uint8_t> pendingSubEventBytes_{};        ///< Partial subevent bytes carried over from the previous DMA buffer
+	size_t               pendingSubEventTotalBytes_{0};  ///< Expected total byte count of the pending subevent (0 = header not yet complete)
+	// bool                 lastDMABufferWasFull_{false};   ///< True when the last DMA buffer was completely full (dmaBytes==sizeof(mu2e_databuff_t)); used for payloadBytes/tlast calculation
+	bool pendingPrefixConsumed_{false};  ///< True when the previous buffer ended with a prefix-only (0 subevent bytes after the prefix); next buffer starts with raw subevent header data at offset 0
 
 	uint8_t lastDTCErrorBitsValue_ = 0;
 };

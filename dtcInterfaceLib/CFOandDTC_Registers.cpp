@@ -43,7 +43,6 @@ DTCLib::CFOandDTC_Registers::CFOandDTC_Registers()
 DTCLib::CFOandDTC_Registers::~CFOandDTC_Registers()
 {
 	TLOG(TLVL_TRACE) << "DESTRUCTOR";
-	device_.close();
 }  // end destructor()
 
 /// <summary>
@@ -89,7 +88,8 @@ std::string DTCLib::CFOandDTC_Registers::FormattedRegDump(int width,
 /// </summary>
 /// <returns>Design version, in VersionNumber_Date format</returns>
 std::string DTCLib::CFOandDTC_Registers::ReadDesignVersion() { return  // ReadDesignVersionNumber() + "_" +
-															   ReadDesignDate() + "_" + ReadVivadoVersionNumber() + "_" + ReadDesignLinkSpeed() + "_" + ReadDesignType(); }
+															   ReadDesignDate() + ", Vivado Version: " + ReadVivadoVersionNumber() +
+															   ", Link Speed: " + ReadDesignLinkSpeed() + "_" + ReadDesignType(); }
 
 /// <summary>
 /// Formats the register's current value for register dumps
@@ -118,9 +118,8 @@ std::string DTCLib::CFOandDTC_Registers::ReadDesignDate(std::optional<uint32_t> 
 	size_t mon = ((readData >> 20) & 0xF) * 10 + ((readData >> 16) & 0xF);
 	if (mon - 1 >= months.size())
 	{
-		__SS__ << "Invalid register read for firmware design date: " + std::to_string(mon) << " in hex read-data 0x" << std::hex << readData << ". If the value is 0 or 165, this likely means the PCIe in not initialized and perhaps a PCIe reset of the linux system would fix the issue.";
+		__SS__ << "Invalid register read for firmware design date month index: " + std::to_string(mon) << " in hex read-data 0x" << std::hex << readData << ". If the value is 0 or 165, this likely means the PCIe is not initialized and perhaps a PCIe reset of the Linux system would fix the issue.";
 		__SS_THROW__;
-		// throw std::runtime_error("Invalid register read for firmware design date: " + std::to_string(mon));
 	}
 	if (((readData >> 28) & 0xF) == 0xA)
 		o << "SIM-";
@@ -283,6 +282,7 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatVivadoVersion()
 void DTCLib::CFOandDTC_Registers::SoftReset()
 {
 	TLOG(TLVL_ResetDTC) << __COUT_HDR__ << "Soft Reset start";
+	device_.resetSpyHasOccurred();  // allow spy() to fire again after a reset
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 	data[31] = 1;  // set Soft Reset bit
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
@@ -332,6 +332,30 @@ bool DTCLib::CFOandDTC_Registers::ReadResetSERDES(std::optional<uint32_t> val)
 }
 
 /// <summary>
+/// Read the Punched Clock Enable bit
+/// </summary>
+/// <returns>Whether punched clocks are enabled</returns>
+bool DTCLib::CFOandDTC_Registers::ReadPunchEnable(std::optional<uint32_t> val)
+{
+	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
+	return data[9];
+}
+
+void DTCLib::CFOandDTC_Registers::SetPunchEnable()
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[9] = 1;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+}
+
+void DTCLib::CFOandDTC_Registers::ClearPunchEnable()
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[9] = 0;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+}
+
+/// <summary>
 /// Runs the Loopback test of the CFO Emulator, inside the DTC, and broadcasts loopback markers to all ROCs.
 /// </summary>
 void DTCLib::CFOandDTC_Registers::RunCableDelayLoopbackTest()
@@ -371,9 +395,15 @@ bool DTCLib::CFOandDTC_Registers::ReadHardReset(std::optional<uint32_t> val)
 /// <summary>
 /// Clear the Control Register
 /// </summary>
-void DTCLib::CFOandDTC_Registers::ClearControlRegister()
+/// @brief Clear the Control Register, optionally preserving select bits.
+/// @param keepMask bits set here retain their current value; all other bits are cleared to 0.
+///        Default (0) clears the entire register, matching legacy behavior.
+void DTCLib::CFOandDTC_Registers::ClearControlRegister(uint32_t keepMask)
 {
-	WriteRegister_(0, CFOandDTC_Register_Control);
+	// bits set in keepMask keep their current value across the clear (read-modify-write);
+	// with keepMask==0 this reduces to writing all zeros
+	uint32_t preserved = keepMask ? (ReadRegister_(CFOandDTC_Register_Control) & keepMask) : 0;
+	WriteRegister_(preserved, CFOandDTC_Register_Control);
 }
 
 /// <summary>
@@ -604,6 +634,43 @@ DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatFPGAAlarms()
 	return form;
 }
 
+/// <summary>
+/// Formats the device time alive register value as human-readable seconds
+/// </summary>
+/// <returns>RegisterFormatter object containing time alive information</returns>
+DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatDeviceTimeAlive()
+{
+	auto form = CreateFormatter(CFOandDTC_Register_TimeAlive);
+	form.description = "Device Time Alive";
+	std::stringstream oss;
+	// Resolution is 1/250MHz * 2^18 per LSB = 2^18 / 250e6 seconds per count
+	double seconds = static_cast<double>(form.value) * (static_cast<double>(1 << 18) / 250e6);
+	int totalSeconds = static_cast<int>(seconds);
+	int days = totalSeconds / 86400;
+	int hours = (totalSeconds / 3600) % 24;
+	int minutes = (totalSeconds / 60) % 60;
+	double secs = seconds - days * 86400 - hours * 3600 - minutes * 60;
+	oss << std::setfill('0') << days << " days " << std::setw(2) << hours << ":"
+		<< std::setw(2) << minutes << ":" << std::setw(6) << std::fixed << std::setprecision(3)
+		<< secs << " (Firmware Version: " << ReadDesignDate() << ")";
+	form.vals.push_back(oss.str());
+	return form;
+}
+
+/// <summary>
+/// Formats the device hash of node + pcie index
+/// </summary>
+/// <returns>RegisterFormatter object containing hash information</returns>
+DTCLib::RegisterFormatter DTCLib::CFOandDTC_Registers::FormatDeviceHash()
+{
+	auto form = CreateFormatter(CFOandDTC_Register_Scratch);
+	form.description = "Device Hash";
+	std::stringstream oss;
+	oss << "Hash of Device Node and PCIe Index: 0x" << std::hex << mu2e_host_hash(device_.getDeviceIndex(), nullptr /* this host */) << std::dec;
+	form.vals.push_back(oss.str());
+	return form;
+}
+
 // Private Functions
 uint32_t DTCLib::CFOandDTC_Registers::WriteRegister_(uint32_t dataToWrite, const CFOandDTC_Register& address)
 {
@@ -711,7 +778,7 @@ bool DTCLib::CFOandDTC_Registers::CFOandDTCVerifyRegisterWrite_(const CFOandDTC_
 					   << "write value 0x" << std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(dataToWrite)
 					   << " to register 0x" << std::setw(4) << std::setfill('0') << std::setprecision(4) << std::hex << static_cast<uint32_t>(address) << "... read back 0x" << std::setw(8) << std::setfill('0') << std::setprecision(8) << std::hex << static_cast<uint32_t>(readbackValue) << std::endl
 					   << std::endl
-					   << "If you do not understand this error, try checking the DTC firmware version: " << ReadDesignDate() << std::endl;
+					   << "If you do not understand this error, try checking the firmware version: " << ReadDesignDate() << std::endl;
 				__SS_ONLY_THROW__;
 			}
 			catch (const std::runtime_error& e)

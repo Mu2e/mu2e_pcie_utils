@@ -63,11 +63,12 @@ DTCLib::DTC_Registers::DTC_Registers(DTC_SimMode mode, int dtc, std::string simF
 /// </summary>
 DTCLib::DTC_Registers::~DTC_Registers()
 {
-	TLOG(TLVL_TRACE) << "DESTRUCTOR";
+	TLOG(TLVL_INFO) << "DESTRUCTOR";
 	DisableDetectorEmulator();
 	// DisableDetectorEmulatorMode();
 	// DisableCFOEmulation();
 	// SoftReset();
+	TLOG(TLVL_INFO) << "DESTRUCTOR end";
 }  // end destructor()
 
 /// <summary>
@@ -84,15 +85,32 @@ DTCLib::DTC_SimMode DTCLib::DTC_Registers::SetSimMode(std::string expectedDesign
 													  unsigned rocMask, bool skipInit, const std::string& uid)
 {
 	simMode_ = mode;
-	TLOG(TLVL_INFO) << "Initializing DTC device, sim mode is " << DTC_SimModeConverter(simMode_).toString() << " for uid = " << uid << ", deviceIndex = " << dtc;
+	TLOG(TLVL_INFO) << "Initializing DTC device, sim mode is " << DTC_SimModeConverter(simMode_).toString() << " for uid = " << uid << ", deviceIndex = " << dtc << ", expectedDesignVersion = " << expectedDesignVersion;
 
 	device_.init(simMode_, dtc, simMemoryFile, uid);
-	if (expectedDesignVersion != "" &&
-		static_cast<uint32_t>(std::stoul(expectedDesignVersion, nullptr, 16)) != ReadRegister_(CFOandDTC_Register_DesignVersion))
+	if (expectedDesignVersion != "")
 	{
-		__SS__ << "Version mismatch! Expected DTC version is '" << expectedDesignVersion << "' while the readback version was '" << ReadDesignVersion() << ".'" << __E__;
-		__SS_THROW__;
-		// throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
+		uint32_t parsedExpectedVersion = 0;
+		std::string parsedDesignDate = "";
+		try
+		{
+			parsedExpectedVersion = static_cast<uint32_t>(std::stoul(expectedDesignVersion, nullptr, 16));
+			parsedDesignDate = ReadDesignDate(parsedExpectedVersion);
+		}
+		catch (...)  // illegal/non-hex expectedDesignVersion
+		{
+			__SS__;
+			ss << "Version mismatch (is Expected Firmware Version string legal?)! Expected DTC (device index #" << dtc << ") version is '" << expectedDesignVersion << "' while the readback version was '" << ReadDesignVersion() << ".'" << __E__;
+			__SS_THROW__;
+		}
+
+		if (parsedExpectedVersion != ReadRegister_(CFOandDTC_Register_DesignDate))
+		{
+			__SS__;
+			ss << "Version mismatch! Expected DTC (device index #" << dtc << ") version is '" << parsedDesignDate << "' (0x" << std::hex << parsedExpectedVersion << " != 0x" << ReadRegister_(CFOandDTC_Register_DesignDate) << ") while the readback version was '" << ReadDesignVersion() << ".'" << __E__;
+			__SS_THROW__;
+			// throw new DTC_WrongVersionException(expectedDesignVersion, ReadDesignVersion());
+		}
 	}
 
 	// if (skipInit || true)
@@ -431,8 +449,10 @@ void DTCLib::DTC_Registers::EnableSoftwareDRP()
 /// Disable receiving Data Request Packets from the DTCLib on DMA Channel 0
 /// Possibly obsolete, ask Rick before using
 /// </summary>
-// void DTCLib::DTC_Registers::DisableSoftwareDRP()
-//{
+void DTCLib::DTC_Registers::DisableSoftwareDRP()
+{
+	EnableAutogenDRP();
+}
 //	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
 //	data[22] = 0;
 //	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
@@ -445,6 +465,35 @@ void DTCLib::DTC_Registers::EnableSoftwareDRP()
 /// otherwise</returns>
 bool DTCLib::DTC_Registers::ReadSoftwareDRP(std::optional<uint32_t> val)
 {
+	return !ReadAutogenDRP(val);
+}
+
+/// <summary>
+/// Enable kill of ROCs on 10x timeouts
+/// </summary>
+void DTCLib::DTC_Registers::EnableKillTimeoutROCs()
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[22] = 1;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+}
+
+/// <summary>
+/// Disable kill of ROCs on 10x timeouts
+/// </summary>
+void DTCLib::DTC_Registers::DisableKillTimeoutROCs()
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[22] = 0;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+}
+
+/// <summary>
+/// Read whether kill of ROCs on 10x timeouts is enabled
+/// </summary>
+/// <returns>True if kill of ROCs on 10x timeouts is enabled, false otherwise</returns>
+bool DTCLib::DTC_Registers::ReadKillTimeoutROCs(std::optional<uint32_t> val)
+{
 	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
 	return data[22];
 }
@@ -455,17 +504,15 @@ bool DTCLib::DTC_Registers::ReadSoftwareDRP(std::optional<uint32_t> val)
 void DTCLib::DTC_Registers::ResetPCIe()
 {
 	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[21] = 1;
-	data[20] = 1;
+	// data[21] = 1;  // no longer connected in firmware
+	// data[20] = 1;  // no longer connected in firmware
 	data[11] = 1;
-	data[7] = 1;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 	usleep(1000);
 	data = ReadRegister_(CFOandDTC_Register_Control);
-	data[21] = 0;
-	data[20] = 0;
+	// data[21] = 0;
+	// data[20] = 0;
 	data[11] = 0;
-	data[7] = 0;
 	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
 
 	// Note the DTC instance likely needs to be reinitialized on a firmware-DMA reset to realign pointers:
@@ -746,26 +793,6 @@ bool DTCLib::DTC_Registers::ReadDropDataToEmulateEventBuilding(std::optional<uin
 	return data[10];
 }
 
-void DTCLib::DTC_Registers::SetPunchEnable()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[9] = 1;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
-
-void DTCLib::DTC_Registers::ClearPunchEnable()
-{
-	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
-	data[9] = 0;
-	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
-}
-
-bool DTCLib::DTC_Registers::ReadPunchEnable(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
-	return data[9];
-}
-
 /// This offset should be set 'permanently' for the DTC in response to
 ///		the sample measurement at bits [18:16] of DTC_Register_CFOLinkErrorFlags
 void DTCLib::DTC_Registers::SetCFOSamplePermanentOffset(int permanentOffset)
@@ -800,6 +827,39 @@ int DTCLib::DTC_Registers::ReadExternalCFOSampleEdgeMode(std::optional<uint32_t>
 	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
 	return (data[6] << 1) | data[5];
 }  // end ReadExternalCFOSampleEdgeMode()
+
+/// @brief Toggle only the CFO sample clock edge (Control Register bit 5), leaving the
+///        forced/auto select (bit 6) untouched.
+/// @return the new edge bit value: 0 = rising-edge (posedge), 1 = falling-edge (negedge)
+int DTCLib::DTC_Registers::ToggleExternalCFOSampleEdge()
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[5] = !data[5];  // DTC control bit [5]: 1 for falling-edge, 0 for rising-edge
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+	return data[5];
+}  // end ToggleExternalCFOSampleEdge()
+
+void DTCLib::DTC_Registers::SetRTFPunchedClockEdge(bool posedge)
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[7] = posedge ? 1 : 0;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+}
+
+bool DTCLib::DTC_Registers::ReadRTFPunchedClockEdge(std::optional<uint32_t> val)
+{
+	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_Control);
+	return data[7];
+}
+
+/// @return the new edge bit value: 0 = negedge, 1 = posedge
+int DTCLib::DTC_Registers::ToggleRTFPunchedClockEdge()
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_Control);
+	data[7] = !data[7];
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_Control);
+	return data[7];
+}
 
 void DTCLib::DTC_Registers::SetExternalFanoutClockInput()
 {
@@ -885,7 +945,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	// 10	RW	0b0	Drop Subevent Data to Emulate Hardware Event Building Reserved (Formerly Sequence Number Disable)
 	// 9	RW	0b0	Punch Enable on RJ-45 Output
 	// 8	RW	0b0	SERDES Global Reset
-	// 7	RW	0b0	Reserved (Formerly Global Buffer Reset)
+	// 7	RW	0b0	RTF Punched Clock Edge Select (0=negedge, 1=posedge)
 	// 6	RW	0b0	Do Force External CFO Sample Edge (Formerly RX Packet Error Feedback Enable)
 	// 5	RW	0b0	Force External CFO Sample Edge Select (Formerly Comma Tolerance Enable)
 	// 4	RW	0b0	Fanout Clock Input Select
@@ -902,8 +962,8 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	// form.vals.push_back(std::string("Bit-25 Reset DDR Interface:             [") + (ReadResetDDR(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-24 CFO Emulator DRP Enable:         [") + (ReadCFOEmulatorDRP(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-23 DTC Autogenerate DRP:                 [") + (ReadAutogenDRP(form.value) ? "x" : " ") + "]");
-	// form.vals.push_back(std::string("Bit-22 Software DRP:                    [") + (ReadSoftwareDRP(form.value) ? "x" : " ") + "]");
-	// form.vals.push_back(std::string("Bit-22 Software DRP Enable:             [") + (ReadSoftwareDRP(form.value) ? "x" : " ") + "]");
+	// Bit-22 is currently defined as "Kill ROCs on 10x Timeouts" (legacy Software DRP meaning no longer applies).
+	form.vals.push_back(std::string("Bit-22 Kill ROCs on 10x Timeouts:            [") + (ReadKillTimeoutROCs(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-19 Down LED 0:                           [") + (ReadDownLED0State(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-18 Up LED 1:                             [") + (ReadUpLED1State(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-17 Up LED 0:                             [") + (ReadUpLED0State(form.value) ? "x" : " ") + "]");
@@ -916,11 +976,12 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDTCControl()
 	// form.vals.push_back(std::string("Bit-31 Sequence Number Disable:         [") + (ReadSequenceNumberDisable(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Punch Enable:                    [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
 
-	form.vals.push_back(std::string("Bit-09 Punched Clock Enable:                 [") + (ReadPunchEnable(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-09 Punched Clock Enable:                 [") + (CFOandDTC_Registers::ReadPunchEnable(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("Bit-08 SERDES Global Reset:                  [") + (CFOandDTC_Registers::ReadResetSERDES(form.value) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-07 RTF Punched Clock Edge Select:        [") + (ReadRTFPunchedClockEdge(form.value) ? "posedge" : "negedge") + "]");
 
 	form.vals.push_back(std::string("Bit-06 Enable CFO-RTF Offset Control:        [") + (((ReadExternalCFOSampleEdgeMode(form.value) >> 1) & 1) ? "x" : " ") + "]");
-	form.vals.push_back(std::string("Bit-05 CFO-RTF Edge Select:                  [") + ((ReadExternalCFOSampleEdgeMode(form.value) & 1) ? "x" : " ") + "]");
+	form.vals.push_back(std::string("Bit-05 CFO-RTF Edge Select:                  [") + ((ReadExternalCFOSampleEdgeMode(form.value) & 1) ? "negedge" : "posedge") + "]");
 
 	// form.vals.push_back(std::string("Bit-31 RX Packet Error Feedback Enable: [") + (ReadRxPacketErrorFeedbackEnable(form.value) ? "x" : " ") + "]");
 	// form.vals.push_back(std::string("Bit-31 Comma Tolerance Enable:          [") + (ReadCommaToleranceEnable(form.value) ? "x" : " ") + "]");
@@ -1225,6 +1286,46 @@ DTCLib::DTC_LinkEnableMode DTCLib::DTC_Registers::ReadLinkEnabled(DTC_Link_ID co
 	std::bitset<32> dataSet = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_LinkEnable);
 	return DTC_LinkEnableMode(dataSet[link], dataSet[link + 8]);
 }
+uint32_t DTCLib::DTC_Registers::ReadLinkEnabledData()
+{
+	return ReadRegister_(CFOandDTC_Register_LinkEnable);
+}
+
+bool DTCLib::DTC_Registers::ReadBlockNullHeartbeatsToROC(std::optional<uint32_t> val)
+{
+	std::bitset<32> dataSet = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_LinkEnable);
+	return dataSet[24];
+}
+void DTCLib::DTC_Registers::SetBlockNullHeartbeatsToROC(bool enable)
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_LinkEnable);
+	data[24] = enable;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_LinkEnable);
+}
+
+bool DTCLib::DTC_Registers::ReadResequenceNonNullEvents(std::optional<uint32_t> val)
+{
+	std::bitset<32> dataSet = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_LinkEnable);
+	return dataSet[25];
+}
+void DTCLib::DTC_Registers::SetResequenceNonNullEvents(bool enable)
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_LinkEnable);
+	data[25] = enable;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_LinkEnable);
+}
+
+bool DTCLib::DTC_Registers::ReadAutoGenDRPPerLink(DTC_Link_ID const& link, std::optional<uint32_t> val)
+{
+	std::bitset<32> dataSet = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_LinkEnable);
+	return dataSet[link + 16];
+}
+void DTCLib::DTC_Registers::SetAutoGenDRPPerLink(DTC_Link_ID const& link, bool enable)
+{
+	std::bitset<32> data = ReadRegister_(CFOandDTC_Register_LinkEnable);
+	data[link + 16] = enable;
+	WriteRegister_(data.to_ulong(), CFOandDTC_Register_LinkEnable);
+}
 
 /// <summary>
 /// Formats the register's current value for register dumps
@@ -1250,6 +1351,15 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatLinkEnable()
 		auto ee = ReadLinkEnabled(DTC_Link_EVB, form.value);
 		form.vals.push_back(std::string("EVB:    [") + (ee.TransmitEnable ? "x" : ".") + "" +
 							(ee.ReceiveEnable ? "x" : ".") + "]");
+	}
+	form.vals.push_back(std::string("Block Null Heartbeats to ALL ROCs: [") +
+						(ReadBlockNullHeartbeatsToROC(form.value) ? "x" : ".") + "]");
+	form.vals.push_back(std::string("Resequence Non-null Events for ALL ROCs:   [") +
+						(ReadResequenceNonNullEvents(form.value) ? "x" : ".") + "]");
+	for (auto r : DTC_ROC_Links)
+	{
+		form.vals.push_back(std::string("Auto-Gen DRP Link ") + std::to_string(r) + ": [" +
+							(ReadAutoGenDRPPerLink(r, form.value) ? "x" : ".") + "]");
 	}
 	return form;
 }
@@ -2132,8 +2242,8 @@ uint8_t DTCLib::DTC_Registers::ReadEVBMode(std::optional<uint32_t> val)
 /// <param name="id">Local partition ID</param>
 void DTCLib::DTC_Registers::SetEVBLocalParitionID(uint8_t partitionId)
 {
-	auto regVal = ReadRegister_(DTC_Register_EVBPartitionID) & 0xFFFFFCFF;
-	regVal += (partitionId & 0x3) << 8;
+	auto regVal = ReadRegister_(DTC_Register_EVBPartitionID) & 0xFFFF00FF;
+	regVal += partitionId << 8;
 	WriteRegister_(regVal, DTC_Register_EVBPartitionID);
 }
 
@@ -2143,8 +2253,7 @@ void DTCLib::DTC_Registers::SetEVBLocalParitionID(uint8_t partitionId)
 /// <returns>Partition ID</returns>
 uint8_t DTCLib::DTC_Registers::ReadEVBLocalParitionID(std::optional<uint32_t> val)
 {
-	auto regVal = (val.has_value() ? *val : ReadRegister_(DTC_Register_EVBPartitionID)) & 0xFF0000;
-	return static_cast<uint8_t>((regVal >> 8) & 0x3);
+	return static_cast<uint8_t>(((val.has_value() ? *val : ReadRegister_(DTC_Register_EVBPartitionID)) >> 8) & 0xFF);
 }
 
 /// <summary>
@@ -2153,8 +2262,8 @@ uint8_t DTCLib::DTC_Registers::ReadEVBLocalParitionID(std::optional<uint32_t> va
 /// <param name="macByte">MAC Address</param>
 void DTCLib::DTC_Registers::SetEVBLocalMACAddress(uint8_t macByte)
 {
-	auto regVal = ReadRegister_(DTC_Register_EVBPartitionID) & 0xFFFFFFC0;
-	regVal += (macByte & 0x3F);
+	auto regVal = ReadRegister_(DTC_Register_EVBPartitionID) & 0xFFFFFF00;
+	regVal += macByte;
 	WriteRegister_(regVal, DTC_Register_EVBPartitionID);
 }
 
@@ -2162,7 +2271,7 @@ void DTCLib::DTC_Registers::SetEVBLocalMACAddress(uint8_t macByte)
 /// Read the MAC address for the EVB network (lowest byte)
 /// </summary>
 /// <returns>MAC Address</returns>
-uint8_t DTCLib::DTC_Registers::ReadEVBLocalMACAddress(std::optional<uint32_t> val) { return (val.has_value() ? *val : ReadRegister_(DTC_Register_EVBPartitionID)) & 0x3F; }
+uint8_t DTCLib::DTC_Registers::ReadEVBLocalMACAddress(std::optional<uint32_t> val) { return (val.has_value() ? *val : ReadRegister_(DTC_Register_EVBPartitionID)) & 0xFF; }
 
 /// <summary>
 /// Formats the register's current value for register dumps
@@ -2186,7 +2295,8 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatEVBLocalParitionIDMACInde
 	form.vals.push_back(o.str());
 	o.str("");
 	o.clear();
-	o << "EVB Self MAC Address Last Byte: 0x" << std::hex << static_cast<int>(ReadEVBLocalMACAddress(form.value));
+	auto mac = static_cast<int>(ReadEVBLocalMACAddress(form.value));
+	o << "EVB Self MAC Address Last Byte: 0x" << std::hex << mac << " (" << std::dec << mac << ")";
 	form.vals.push_back(o.str());
 	return form;
 }
@@ -2224,8 +2334,8 @@ uint16_t DTCLib::DTC_Registers::ReadEVBDeadTime(std::optional<uint32_t> val)
 /// </summary>
 void DTCLib::DTC_Registers::SetEVBStartNode(uint8_t startNode)
 {
-	auto regVal = ReadRegister_(DTC_Register_EVBConfiguration) & 0xFFFFC0FF;
-	regVal += (startNode & 0x3F) << 8;
+	auto regVal = ReadRegister_(DTC_Register_EVBConfiguration) & 0xFFFF00FF;
+	regVal += startNode << 8;
 	WriteRegister_(regVal, DTC_Register_EVBConfiguration);
 }
 
@@ -2234,7 +2344,7 @@ void DTCLib::DTC_Registers::SetEVBStartNode(uint8_t startNode)
 /// </summary>
 uint8_t DTCLib::DTC_Registers::ReadEVBStartNode(std::optional<uint32_t> val)
 {
-	return static_cast<uint8_t>((((val.has_value() ? *val : ReadRegister_(DTC_Register_EVBConfiguration)) & 0x3F00)) >> 8);
+	return static_cast<uint8_t>((((val.has_value() ? *val : ReadRegister_(DTC_Register_EVBConfiguration)) & 0xFF00)) >> 8);
 }
 
 /// <summary>
@@ -2243,8 +2353,8 @@ uint8_t DTCLib::DTC_Registers::ReadEVBStartNode(std::optional<uint32_t> val)
 /// <param name="numOfNodes">Number of nodes</param>
 void DTCLib::DTC_Registers::SetEVBNumberOfDestinationNodes(uint8_t numOfNodes)
 {
-	auto regVal = ReadRegister_(DTC_Register_EVBConfiguration) & 0xFFFFFFC0;
-	regVal += (numOfNodes & 0x3F);
+	auto regVal = ReadRegister_(DTC_Register_EVBConfiguration) & 0xFFFFFF00;
+	regVal += numOfNodes;
 	WriteRegister_(regVal, DTC_Register_EVBConfiguration);
 }
 
@@ -2254,7 +2364,7 @@ void DTCLib::DTC_Registers::SetEVBNumberOfDestinationNodes(uint8_t numOfNodes)
 /// <returns>Number of nodes</returns>
 uint8_t DTCLib::DTC_Registers::ReadEVBNumberOfDestinationNodes(std::optional<uint32_t> val)
 {
-	return static_cast<uint8_t>((val.has_value() ? *val : ReadRegister_(DTC_Register_EVBConfiguration)) & 0x3F);
+	return static_cast<uint8_t>((val.has_value() ? *val : ReadRegister_(DTC_Register_EVBConfiguration)) & 0xFF);
 }
 
 /// <summary>
@@ -2271,7 +2381,8 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatEVBClusterInfo()
 	form.vals.push_back(o.str());
 	o.str("");
 	o.clear();
-	o << "EVB Start Node: " << std::dec << static_cast<int>(ReadEVBStartNode(form.value));
+	auto startNode = static_cast<int>(ReadEVBStartNode(form.value));
+	o << "EVB Start Node: 0x" << std::hex << startNode << " (" << std::dec << startNode << ")";
 	form.vals.push_back(o.str());
 	o.str("");
 	o.clear();
@@ -2476,6 +2587,15 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatEVBStats(DTCLib::DTC_EVBS
 					break;
 				case DTC_EVBStatsType_TxLastSequenceTag:
 					o << "Last Transmitted Sequence Tag:         ";
+					break;
+				case DTC_EVBStatsType_TravelTime:
+					o << "Travel Time [switch clocks]:           ";
+					break;
+				case DTC_EVBStatsType_TxIdleCount:
+					o << "TX Idle Packet Count:                  ";
+					break;
+				case DTC_EVBStatsType_RxIdleCount:
+					o << "RX Idle Packet Count:                  ";
 					break;
 				default:
 					__SS__ << "Invalid DTC EVB Stat type: " << t << __E__;
@@ -3148,6 +3268,24 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationNumNullHeartb
 	return form;
 }
 
+void DTCLib::DTC_Registers::SetCFOEventModeRequiredMask(const uint32_t& mask)
+{
+	WriteRegister_(mask, DTC_Register_CFOEventModeRequiredMask);
+}
+uint32_t DTCLib::DTC_Registers::ReadCFOEventModeRequiredMask(std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(DTC_Register_CFOEventModeRequiredMask);
+}
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEventModeRequiredMask()
+{
+	auto form = CreateFormatter(DTC_Register_CFOEventModeRequiredMask);
+	form.description = "CFO Emulation Event Mode Required Mask";
+	std::stringstream o;
+	o << "0x" << std::hex << ReadCFOEventModeRequiredMask(form.value);
+	form.vals.push_back(o.str());
+	return form;
+}
+
 // CFO Emulation Event Mode Bytes Registers
 /// <summary>
 /// Set the CFO Emulation Event Mode 48 bits
@@ -3313,73 +3451,41 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationModeBytes45()
 	return form;
 }
 
-// CFO Emulation Debug Packet Type Register
-
-/// <summary>
-/// Enable putting the Debug Mode in Readout Requests
-/// </summary>
-void DTCLib::DTC_Registers::EnableDebugPacketMode()
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_DebugPacketType);
-	data[16] = 1;
-	WriteRegister_(data.to_ulong(), DTC_Register_DebugPacketType);
-}
-
-/// <summary>
-/// Disable putting the Debug Mode in Readout Requests
-/// </summary>
-void DTCLib::DTC_Registers::DisableDebugPacketMode()
-{
-	std::bitset<32> data = ReadRegister_(DTC_Register_DebugPacketType);
-	data[16] = 0;
-	WriteRegister_(data.to_ulong(), DTC_Register_DebugPacketType);
-}
-
-/// <summary>
-/// Whether Debug mode packets are enabled
-/// </summary>
-/// <returns>True if Debug Mode is enabled</returns>
-bool DTCLib::DTC_Registers::ReadDebugPacketMode(std::optional<uint32_t> val)
-{
-	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(DTC_Register_DebugPacketType);
-	return data[16];
-}
-
 /// <summary>
 /// Set the DebugType used by the CFO Emulator
 /// </summary>
 /// <param name="type">The DTC_DebugType the CFO Emulator will fill into Readout Requests</param>
-void DTCLib::DTC_Registers::SetCFOEmulationDebugType(DTC_DebugType type)
-{
-	std::bitset<32> data = type & 0xF;
-	data[16] = ReadDebugPacketMode();
-	WriteRegister_(data.to_ulong(), DTC_Register_DebugPacketType);
-}
+// void DTCLib::DTC_Registers::SetCFOEmulationDebugType(DTC_DebugType type)
+//{
+//	std::bitset<32> data = type & 0xF;
+//	data[16] = ReadDebugPacketMode();
+//	WriteRegister_(data.to_ulong(), DTC_Register_DebugPacketType);
+// }
 
 /// <summary>
 /// Read the DebugType field filled into Readout Requests generated by the CFO Emulator
 /// </summary>
 /// <returns>The DTC_DebugType used by the CFO Emulator</returns>
-DTCLib::DTC_DebugType DTCLib::DTC_Registers::ReadCFOEmulationDebugType(std::optional<uint32_t> val)
-{
-	return static_cast<DTC_DebugType>((0xFFFF & val.has_value()) ? *val : ReadRegister_(DTC_Register_DebugPacketType));
-}
+// DTCLib::DTC_DebugType DTCLib::DTC_Registers::ReadCFOEmulationDebugType(std::optional<uint32_t> val)
+//{
+//	return static_cast<DTC_DebugType>((0xFFFF & val.has_value()) ? *val : ReadRegister_(DTC_Register_DebugPacketType));
+// }
 
 /// <summary>
 /// Formats the register's current value for register dumps
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationDebugPacketType()
-{
-	auto form = CreateFormatter(DTC_Register_DebugPacketType);
-	form.description = "CFO Emulation Debug Packet Type";
-	form.vals.push_back("([ x = 1 (hi) ])");  // translation
-	form.vals.push_back(std::string("Debug Mode: [") + (ReadDebugPacketMode(form.value) ? "x" : " ") + "]");
-	std::stringstream o;
-	o << "Debug Packet Type: 0x" << std::hex << ReadCFOEmulationDebugType(form.value);
-	form.vals.push_back(o.str());
-	return form;
-}
+// DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOEmulationDebugPacketType()
+//{
+//	auto form = CreateFormatter(DTC_Register_DebugPacketType);
+//	form.description = "CFO Emulation Debug Packet Type";
+//	form.vals.push_back("([ x = 1 (hi) ])");  // translation
+//	form.vals.push_back(std::string("Debug Mode: [") + (ReadDebugPacketMode(form.value) ? "x" : " ") + "]");
+//	std::stringstream o;
+//	o << "Debug Packet Type: 0x" << std::hex << ReadCFOEmulationDebugType(form.value);
+//	form.vals.push_back(o.str());
+//	return form;
+// }
 
 // RX Packet Count Error Flags Register
 /// <summary>
@@ -5254,29 +5360,78 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRocLink5Error()
 /// Formats the register's current value for register dumps
 /// </summary>
 /// <returns>RegisterFormatter object containing register information</returns>
+uint32_t DTCLib::DTC_Registers::ReadCFOLinkErrorRegister()
+{
+	return ReadRegister_(DTC_Register_CFOLinkErrorFlags);
+}  // end ReadCFOLinkErrorRegister()
+
+/// @brief Measured CFO marker sample position at bits [18:16]
+int DTCLib::DTC_Registers::ReadCFOMeasuredMarkerPosition(std::optional<uint32_t> val)
+{
+	uint32_t value = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOLinkErrorFlags);
+	return (value >> 16) & 7;
+}  // end ReadCFOMeasuredMarkerPosition()
+
+/// @brief Implied CFO sample offset for the measured marker position.
+///        Legal values are -2 -1 0 1 2 (if measured value is 4 3 2 1 0, respectively).
+int DTCLib::DTC_Registers::ReadCFOImpliedMarkerOffset(std::optional<uint32_t> val)
+{
+	return 2 - ReadCFOMeasuredMarkerPosition(val);
+}  // end ReadCFOImpliedMarkerOffset()
+
+/// @brief bit 9 - Event Start marker tx error at CFO Interface
+bool DTCLib::DTC_Registers::ReadCFOEventStartMarkerTxError(std::optional<uint32_t> val)
+{
+	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOLinkErrorFlags);
+	return data[9];
+}  // end ReadCFOEventStartMarkerTxError()
+
+/// @brief bit 10 - Clock marker tx error at CFO Interface
+bool DTCLib::DTC_Registers::ReadCFOClockMarkerTxError(std::optional<uint32_t> val)
+{
+	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOLinkErrorFlags);
+	return data[10];
+}  // end ReadCFOClockMarkerTxError()
+
+/// @brief bit 11 - RTF 40MHz clock phase has shifted
+bool DTCLib::DTC_Registers::ReadCFORTF40MHzPhaseShiftError(std::optional<uint32_t> val)
+{
+	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOLinkErrorFlags);
+	return data[11];
+}  // end ReadCFORTF40MHzPhaseShiftError()
+
+/// @brief bit 12 - Illegal marker timing in RTF 40MHz clock count
+bool DTCLib::DTC_Registers::ReadCFOIllegalMarkerTimingError(std::optional<uint32_t> val)
+{
+	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOLinkErrorFlags);
+	return data[12];
+}  // end ReadCFOIllegalMarkerTimingError()
+
+/// @brief bit 13 - Moving data from CFO rx to tx clock domain has marker corruption at "external" CFO Interface
+bool DTCLib::DTC_Registers::ReadCFORxToTxDataCorruptionError(std::optional<uint32_t> val)
+{
+	std::bitset<32> data = val.has_value() ? *val : ReadRegister_(DTC_Register_CFOLinkErrorFlags);
+	return data[13];
+}  // end ReadCFORxToTxDataCorruptionError()
+
 DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOLinkError()
 {
 	auto form = CreateFormatter(DTC_Register_CFOLinkErrorFlags);
 	form.description = "CFO Link Settings & Error Flags";
 	form.vals.push_back("([ x = 1 (hi) ])");  // translation
 
-	// bit 9 - Event Start marker tx error at CFO Interface
-	// bit 10 - Clock marker tx error at CFO Interface
-	// bit 11 - RTF 40MHz clock phase has shifted
-	// bit 12 - Illegal marker timing in RTF 40MHz clock count
-	// bit 13 - Moving data from CFO rx to tx clock domain has marker corruption at "external" CFO Interface
 	form.vals.push_back(std::string("CFO Event Start Marker tx Error:     [") +
-						(((form.value >> 9) & 1) ? "x" : " ") + "]");
+						(ReadCFOEventStartMarkerTxError(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("CFO Clock Marker tx Error:           [") +
-						(((form.value >> 10) & 1) ? "x" : " ") + "]");
+						(ReadCFOClockMarkerTxError(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("CFO RTF 40MHz Phase Shift Error:     [") +
-						(((form.value >> 11) & 1) ? "x" : " ") + "]");
+						(ReadCFORTF40MHzPhaseShiftError(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("CFO Illegal Marker Over Link Timing: [") +
-						(((form.value >> 12) & 1) ? "x" : " ") + "]");
+						(ReadCFOIllegalMarkerTimingError(form.value) ? "x" : " ") + "]");
 	form.vals.push_back(std::string("CFO Rx-to-Tx Data Corruption Error:  [") +
-						(((form.value >> 13) & 1) ? "x" : " ") + "]");
-	int measuredPos = (form.value >> 16) & 7;
-	int impliedPos = 2 - measuredPos;  // legal values are -2 -1 0 1 2 (if measured value is 4 3 2 1 0, respsectively)
+						(ReadCFORxToTxDataCorruptionError(form.value) ? "x" : " ") + "]");
+	int measuredPos = ReadCFOMeasuredMarkerPosition(form.value);
+	int impliedPos = ReadCFOImpliedMarkerOffset(form.value);  // legal values are -2 -1 0 1 2 (if measured value is 4 3 2 1 0, respectively)
 	form.vals.push_back(std::string("CFO Measured Marker position {0,4}:  [") +
 						std::to_string(measuredPos) + "] ==> " + std::to_string(impliedPos));
 	form.vals.push_back(std::string("CFO Permanent Offset setting {-2,2}: [") +
@@ -5666,27 +5821,48 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatOutputBufferFragmentDumpC
 	return form;
 }
 
-uint32_t DTCLib::DTC_Registers::ReadROCDCSResponseTimer(std::optional<uint32_t> val)
+uint32_t DTCLib::DTC_Registers::ReadRTFHistIdelay(std::optional<uint32_t> val)
 {
-	__SS__ << "The SetROCDCSResponseTimer register was removed as of December 2023 and set to a 1ms constant value in the DTC. Do not use." << __E__;
-	__SS_THROW__;
-	return val.has_value() ? *val : ReadRegister_(DTC_Register_ROCDCSTimerPreset);
+	return val.has_value() ? *val : ReadRegister_(DTC_Register_RTFHistIdelay);
 }
 
-void DTCLib::DTC_Registers::SetROCDCSResponseTimer(uint32_t timer)
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatRTFHistIdelay()
 {
-	__SS__ << "The SetROCDCSResponseTimer register was removed as of December 2023 and set to a 1ms constant value in the DTC. Do not use." << __E__;
-	__SS_THROW__;
-	WriteRegister_(timer, DTC_Register_ROCDCSTimerPreset);
-}
+	auto form = CreateFormatter(DTC_Register_RTFHistIdelay);
+	form.description = "RTF Histogram & IDELAY Status";
+	form.vals.push_back("([ x = 1 (hi) ])");
 
-DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatROCDCSResponseTimerPreset()
-{
-	auto form = CreateFormatter(DTC_Register_ROCDCSTimerPreset);
-	form.description = "ROC DCS Response Timer Preset (*5ns)";
-	std::stringstream o;
-	o << std::dec << ReadROCDCSResponseTimer(form.value);
-	form.vals.push_back(o.str());
+	uint32_t idelay_tap = (form.value >> 27) & 0x1F;
+	form.vals.push_back(std::string("IDELAY Tap Count Value:      [") +
+						std::to_string(idelay_tap) + "]");
+
+	form.vals.push_back(std::string("IDELAY Ready:                [") +
+						(((form.value >> 26) & 1) ? "x" : " ") + "]");
+
+	form.vals.push_back("");
+
+	form.vals.push_back("RTF Histogram Bins (3-bit counts, 0-7):");
+	for (int bin = 0; bin < 5; ++bin)
+	{
+		int shift = 11 + bin * 3;
+		uint32_t count = (form.value >> shift) & 0x7;
+		form.vals.push_back(std::string("  Bin ") + std::to_string(bin) +
+							": [" + std::to_string(count) + "]");
+	}
+
+	form.vals.push_back("");
+
+	form.vals.push_back(std::string("Histogram Saturated:         [") +
+						(((form.value >> 10) & 1) ? "x" : " ") + "]");
+
+	uint32_t sat_bin = (form.value >> 7) & 0x7;
+	form.vals.push_back(std::string("Saturated Bin:               [") +
+						std::to_string(sat_bin) + "]");
+
+	std::stringstream rs;
+	rs << "0x" << std::hex << (form.value & 0x7F);
+	form.vals.push_back(std::string("Reserved [6:0]:              [") + rs.str() + "]");
+
 	return form;
 }
 
@@ -7079,7 +7255,7 @@ uint32_t DTCLib::DTC_Registers::ReadJitterAttenuatorRecoveredClockLOSCount(std::
 {
 	return val.has_value() ? *val : ReadRegister_(DTC_Register_JitterAttenuator_SERDES_RXRecoveredClockLOSCount);
 }
-void DTCLib::DTC_Registers::ClearJitterAttenuatorRecoeveredClockLOSCount()
+void DTCLib::DTC_Registers::ClearJitterAttenuatorRecoveredClockLOSCount()
 {
 	WriteRegister_(1, DTC_Register_JitterAttenuator_SERDES_RXRecoveredClockLOSCount);
 }
@@ -7286,6 +7462,58 @@ DTCLib::DTC_Register DTCLib::DTC_Registers::GetTXEventWindowMarkerCountLinkRegis
 	return reg;
 }  // end GetTXEventWindowMarkerCountLinkRegister()
 
+// TX Null Heartbeat Packet Count
+uint32_t DTCLib::DTC_Registers::ReadTXNullHeartbeatCount(DTC_Link_ID const& link, std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(GetTXNullHeartbeatCountLinkRegister(link));
+}  // end ReadTXNullHeartbeatCount()
+
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatTXNullHeartbeatCountLink(DTC_Link_ID const& link)
+{
+	auto form = CreateFormatter(GetTXNullHeartbeatCountLinkRegister(link));
+	form.description = "Tx Null HBPs on Link " +
+					   std::to_string((GetTXNullHeartbeatCountLinkRegister(link) -
+									   GetTXNullHeartbeatCountLinkRegister(DTC_Link_0)) /
+									  4);
+	std::stringstream o;
+	o << std::dec << ReadTXNullHeartbeatCount(link, form.value);
+	form.vals.push_back(o.str());
+	return form;
+}  // end FormatTXNullHeartbeatCountLink()
+
+DTCLib::DTC_Register DTCLib::DTC_Registers::GetTXNullHeartbeatCountLinkRegister(DTC_Link_ID const& link)
+{
+	DTC_Register reg;
+	switch (link)
+	{
+		case DTC_Link_0:
+			reg = DTC_Register_TXNullHeartbeatCount_Link0;
+			break;
+		case DTC_Link_1:
+			reg = DTC_Register_TXNullHeartbeatCount_Link1;
+			break;
+		case DTC_Link_2:
+			reg = DTC_Register_TXNullHeartbeatCount_Link2;
+			break;
+		case DTC_Link_3:
+			reg = DTC_Register_TXNullHeartbeatCount_Link3;
+			break;
+		case DTC_Link_4:
+			reg = DTC_Register_TXNullHeartbeatCount_Link4;
+			break;
+		case DTC_Link_5:
+			reg = DTC_Register_TXNullHeartbeatCount_Link5;
+			break;
+		default: {
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			ss << "\n\nThe stack trace is as follows:\n"
+			   << otsStyleStackTrace() << __E__;
+			__SS_THROW__;
+		}
+	}
+	return reg;
+}  // end GetTXNullHeartbeatCountLinkRegister()
+
 // TX Data Request Packet Count
 uint32_t DTCLib::DTC_Registers::ReadTXDataRequestPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val)
 {
@@ -7457,6 +7685,123 @@ DTCLib::DTC_Register DTCLib::DTC_Registers::GetRXDataHeaderPacketCountLinkRegist
 	}
 	return reg;
 }  // end GetRXDataHeaderPacketCountLinkRegister()
+
+// CFO CDC Diagnostic (Parity Mismatch & Batch Slip Counts)
+uint32_t DTCLib::DTC_Registers::ReadCFOCDCDiag(std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(DTC_Register_CFOCDCDiag);
+}
+
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOCDCDiag()
+{
+	auto form = CreateFormatter(DTC_Register_CFOCDCDiag);
+	form.description = "CFO CDC Diagnostic";
+	uint32_t parityMismatchCount = (form.value >> 16) & 0xFFFF;
+	uint32_t batchSlipCount = form.value & 0xFFFF;
+	form.vals.push_back(std::string("Parity Mismatch Count: ") + std::to_string(parityMismatchCount));
+	form.vals.push_back(std::string("Batch Slip Count:      ") + std::to_string(batchSlipCount));
+	return form;
+}
+
+// EVB High Level Counters (0x9200/0x9204/0x9208), each holding two 16-bit word counters
+/// @brief Read the EVB firmware version from 0x9200 [15:0].
+///        Encoded as 0xTMmm where T is type (B = EVBuilding), M is major, mm is minor.
+std::string DTCLib::DTC_Registers::ReadEVBFirmwareVersion(std::optional<uint32_t> val)
+{
+	uint16_t ver = ReadEVBROCInputWords(val);
+	char type = static_cast<char>((ver >> 12) & 0xF);
+	int major = (ver >> 8) & 0xF;
+	int minor = ver & 0xFF;
+	std::ostringstream o;
+	o << std::hex << std::uppercase << type << std::dec << major << "." << std::setw(2) << std::setfill('0') << minor;
+	return o.str();
+}  // end ReadEVBFirmwareVersion()
+
+/// @brief Override to append EVB firmware version to the time-alive line when present.
+DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDeviceTimeAlive()
+{
+	auto form = CFOandDTC_Registers::FormatDeviceTimeAlive();
+	uint16_t evbRaw = ReadEVBROCInputWords();
+	uint8_t typeNibble = (evbRaw >> 12) & 0xF;
+	if (typeNibble == 0xB)  // 'B' = EVB firmware present
+	{
+		auto& line = form.vals.back();
+		auto pos = line.find("-ROC");
+		if (pos == std::string::npos)
+			pos = line.find("-Links");
+		if (pos != std::string::npos)
+		{
+			while (pos > 0 && line[pos - 1] != ' ')
+				--pos;
+			line.insert(pos, "EVB  ");
+		}
+		else
+			line += ", EVB";
+	}
+	return form;
+}  // end DTC_Registers::FormatDeviceTimeAlive()
+
+uint32_t DTCLib::DTC_Registers::ReadEVBHighLevelCounters0(std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(DTC_Register_EVBHighLevelCounters0);
+}  // end ReadEVBHighLevelCounters0()
+
+uint32_t DTCLib::DTC_Registers::ReadEVBHighLevelCounters1(std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(DTC_Register_EVBHighLevelCounters1);
+}  // end ReadEVBHighLevelCounters1()
+
+uint32_t DTCLib::DTC_Registers::ReadEVBHighLevelCounters2(std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(DTC_Register_EVBHighLevelCounters2);
+}  // end ReadEVBHighLevelCounters2()
+
+uint32_t DTCLib::DTC_Registers::ReadEVBHighLevelCounters3(std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(DTC_Register_EVBHighLevelCounters3);
+}  // end ReadEVBHighLevelCounters3()
+
+/// @brief 0x9200 [15:0] - ROC input words
+uint16_t DTCLib::DTC_Registers::ReadEVBROCInputWords(std::optional<uint32_t> val)
+{
+	return ReadEVBHighLevelCounters0(val) & 0xFFFF;
+}  // end ReadEVBROCInputWords()
+
+/// @brief 0x9200 [31:16] - Self-transfer words
+uint16_t DTCLib::DTC_Registers::ReadEVBSelfTransferWords(std::optional<uint32_t> val)
+{
+	return (ReadEVBHighLevelCounters0(val) >> 16) & 0xFFFF;
+}  // end ReadEVBSelfTransferWords()
+
+/// @brief 0x9204 [15:0] - DDR FIFO write words
+uint16_t DTCLib::DTC_Registers::ReadEVBDDRFIFOWriteWords(std::optional<uint32_t> val)
+{
+	return ReadEVBHighLevelCounters1(val) & 0xFFFF;
+}  // end ReadEVBDDRFIFOWriteWords()
+
+/// @brief 0x9204 [31:16] - DDR->TX words
+uint16_t DTCLib::DTC_Registers::ReadEVBDDRToTXWords(std::optional<uint32_t> val)
+{
+	return (ReadEVBHighLevelCounters1(val) >> 16) & 0xFFFF;
+}  // end ReadEVBDDRToTXWords()
+
+/// @brief 0x9208 [15:0] - Buffer manager output words
+uint16_t DTCLib::DTC_Registers::ReadEVBBufferManagerOutputWords(std::optional<uint32_t> val)
+{
+	return ReadEVBHighLevelCounters2(val) & 0xFFFF;
+}  // end ReadEVBBufferManagerOutputWords()
+
+/// @brief 0x9208 [31:16] - DMA output words
+uint16_t DTCLib::DTC_Registers::ReadEVBDMAOutputWords(std::optional<uint32_t> val)
+{
+	return (ReadEVBHighLevelCounters2(val) >> 16) & 0xFFFF;
+}  // end ReadEVBDMAOutputWords()
+
+/// @brief 0x920C [15:0] - GBE RX words
+uint16_t DTCLib::DTC_Registers::ReadEVBGBERXWords(std::optional<uint32_t> val)
+{
+	return ReadEVBHighLevelCounters3(val) & 0xFFFF;
+}  // end ReadEVBGBERXWords()
 
 // RX Data Packet Count
 uint32_t DTCLib::DTC_Registers::ReadRXDataPacketCount(DTC_Link_ID const& link, std::optional<uint32_t> val)
@@ -7707,6 +8052,8 @@ void DTCLib::DTC_Registers::VerifyRegisterWrite_(const CFOandDTC_Register& addre
 			case DTC_Register_RXCDRUnlockCount_CFOLink:  // write clears 32-bit CDR unlock counter, but can read back errors
 														 // immediately, so don't check
 			case DTC_Register_JitterAttenuatorLossOfLockCount:
+			case DTC_Register_JitterAttenuator_SERDES_RXRecoveredClockLOSCount:
+			case DTC_Register_JitterAttenuator_SERDES_RXExternalClockLOSCount:
 				return;
 			case DTC_Register_JitterAttenuatorCSR:  // 0x9308 bit-0 is reset, input select bit-5:4, bit-8 is LOL, bit-11:9
 													// (input LOS).. only check input select bits

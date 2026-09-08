@@ -2,7 +2,7 @@ set(NODEJS_ADDON_NAME "DTC")
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
-cet_make_library(LIBRARY_NAME DTCInterface 
+cet_make_library(LIBRARY_NAME DTCInterface
     SOURCE
       DTC.cpp
       DTCLibTest.cpp
@@ -13,7 +13,7 @@ cet_make_library(LIBRARY_NAME DTCInterface
       mu2edev.cpp
       mu2esim.cpp
       otsStyleCoutMacros.cpp
-    LIBRARIES PUBLIC 
+    LIBRARIES PUBLIC
       TRACE::MF
       artdaq-core-mu2e::Overlays
       Threads::Threads
@@ -32,6 +32,8 @@ cet_make_exec(NAME DTC_binary_file_compare SOURCE DTC_binary_file_compare.cc LIB
 cet_make_exec(NAME mu2eRequestSender SOURCE requestSender.cc LIBRARIES mu2e-pcie-utils::DTCInterface)
 
 cet_make_exec(NAME DTCRegDump SOURCE dtcRegDump.cc LIBRARIES mu2e-pcie-utils::DTCInterface)
+
+cet_make_exec(NAME dtcPrometheusExporter SOURCE dtcPrometheusExporter.cc LIBRARIES mu2e-pcie-utils::DTCInterface mu2e-pcie-utils::CFOInterface)
 
 cet_make_exec(NAME my_cntl SOURCE my_cntl.cc LIBRARIES mu2e-pcie-utils::DTCInterface)
 cet_make_exec(NAME rick_clock_test SOURCE rick_clock_test.cc LIBRARIES mu2e-pcie-utils::DTCInterface)

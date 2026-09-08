@@ -26,6 +26,8 @@ bool getNumber(const std::string& s, T& retValue);
 
 const std::string CFOLib::CFO_Compiler::MAIN_GOTO_LABEL = "MAIN";
 
+const uint64_t CFOLib::CFO_Compiler::FPGAClock_ = (1e9 / (40e6) /* 40MHz FPGAClock for calculating delays */);  // period of FPGA clock in ns
+
 //========================================================================
 std::string CFOLib::CFO_Compiler::processFile(const std::string& sourceCodeFile,
 											  const std::string& binaryOutputFile)
@@ -60,11 +62,11 @@ try
 			line += lineChars;
 
 		++txtLineNumber_;
-		__COUT__ << "Line number " << txtLineNumber_ << ": " << line << __E__;
+		__COUTT__ << "Line number " << txtLineNumber_ << ": " << line << __E__;
 
 		if (isComment(line))
 		{
-			__COUT__ << txtLineNumber_ << ": is comment" << __E__;
+			__COUTT__ << txtLineNumber_ << ": is comment" << __E__;
 			continue;
 		}
 
@@ -87,12 +89,12 @@ try
 				break;
 			}
 
-		__COUTV__(opArguments_.size());
-		__COUTV__(vectorToString(opArguments_));
+		__COUTTV__(opArguments_.size());
+		__COUTTV__(vectorToString(opArguments_));
 
 		if (!opArguments_.size())  // skip no arguments
 		{
-			__COUT__ << txtLineNumber_ << ": is empty" << __E__;
+			__COUTT__ << txtLineNumber_ << ": is empty" << __E__;
 			continue;
 		}
 
@@ -114,7 +116,7 @@ try
 
 	std::stringstream resultSs;
 	resultSs << "Run plan text file: " << sourceCodeFile << __E__ << "was compiled to binary: " << binaryOutputFile << __E__;
-	resultSs << "\n\nBinary Result:\n";
+	resultSs << "\n\nBinary Result (Op count = " << output_.size() / 8 << "):\n";
 	int cnt = 0;
 
 	// to view output file with 8-byte rows
@@ -130,6 +132,8 @@ try
 	char outStr[20];
 	std::string binaryLine;  // build least-significant byte on right display
 	std::string tabStr = "";
+	int markerCnt = 0;
+	int binaryLineNumber = 0;
 	for (auto c : output_)
 	{
 		outFile << c;
@@ -149,11 +153,14 @@ try
 		// show command for easier human understanding of binary
 		if (cnt % 8 == 7)  // last byte in output is most-significant (and the opcode)
 		{
-			resultSs << binaryLine << "     // " << translateOpCode(CFOLib::CFO_Compiler::CFO_INSTR(c));
-			__COUTV__(binaryLine);
-			if (CFOLib::CFO_Compiler::CFO_INSTR(c) == CFO_INSTR::LOOP)
+			auto instr = CFOLib::CFO_Compiler::CFO_INSTR(c);
+			resultSs << binaryLine << "     // " << translateOpCode(instr);
+			if (instr == CFO_INSTR::MARKER)
+				resultSs << " -----> #" << ++markerCnt;
+			__COUTT__ << "binaryLine #" << ++binaryLineNumber << " = " << binaryLine << __E__;
+			if (instr == CFO_INSTR::LOOP)
 				tabStr += '\t';
-			else if (CFOLib::CFO_Compiler::CFO_INSTR(c) == CFO_INSTR::DO_LOOP && tabStr.length())
+			else if (instr == CFO_INSTR::DO_LOOP && tabStr.length())
 				tabStr = tabStr.substr(0, tabStr.length() - 1);
 		}
 
@@ -237,6 +244,7 @@ const std::map<std::string, CFOLib::CFO_Compiler::CFO_INSTR> CFOLib::CFO_Compile
 	{"SET_MODE_BITS", CFO_INSTR::SET_MODE_BITS},
 	{"AND_MODE_BITS", CFO_INSTR::AND_MODE_BITS},
 	{"OR_MODE_BITS", CFO_INSTR::OR_MODE_BITS},
+	{"OR_SINGLESHOT_MODE_BITS", CFO_INSTR::OR_SINGLESHOT_MODE_BITS},
 	{"SET_MODE", CFO_INSTR::SET_MODE},
 };
 
@@ -255,25 +263,26 @@ CFOLib::CFO_Compiler::CFO_INSTR CFOLib::CFO_Compiler::parseInstruction(const std
 	}
 }  // end parseInstruction()
 
-const std::map<CFOLib::CFO_Compiler::CFO_INSTR, std::string> CFOLib::CFO_Compiler::CODE_to_OP_TRANSLATION = {
-	{CFOLib::CFO_Compiler::CFO_INSTR::HEARTBEAT, "HEARTBEAT"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::MARKER, "MARKER"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::DATA_REQUEST, "DATA_REQUEST"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::SET_TAG, "SET_TAG"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::INC_TAG, "INC_TAG"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::LOOP, "LOOP"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::DO_LOOP, "DO_LOOP"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::REPEAT, "REPEAT"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::WAIT, "WAIT"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::END, "END"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::GOTO, "GOTO_LABEL"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::LABEL, "LABEL"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::NOOP, "LABEL"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::CLEAR_MODE_BITS, "CLEAR_MODE_BITS"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::SET_MODE_BITS, "SET_MODE_BITS"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::AND_MODE_BITS, "AND_MODE_BITS"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::OR_MODE_BITS, "OR_MODE_BITS"},
-	{CFOLib::CFO_Compiler::CFO_INSTR::SET_MODE, "SET_MODE"},
+const std::map<uint8_t, std::string> CFOLib::CFO_Compiler::CODE_to_OP_TRANSLATION = {
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::HEARTBEAT, "HEARTBEAT"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::MARKER, "MARKER"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::DATA_REQUEST, "DATA_REQUEST"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::SET_TAG, "SET_TAG"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::INC_TAG, "INC_TAG"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::LOOP, "LOOP"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::DO_LOOP, "DO_LOOP"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::REPEAT, "REPEAT"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::WAIT, "WAIT"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::END, "END"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::GOTO, "GOTO_LABEL"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::LABEL, "LABEL"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::NOOP, "LABEL"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::CLEAR_MODE_BITS, "CLEAR_MODE_BITS"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::SET_MODE_BITS, "SET_MODE_BITS"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::AND_MODE_BITS, "AND_MODE_BITS"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::OR_MODE_BITS, "OR_MODE_BITS"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::OR_SINGLESHOT_MODE_BITS, "OR_SINGLESHOT_MODE_BITS"},
+	{(uint8_t)CFOLib::CFO_Compiler::CFO_INSTR::SET_MODE, "SET_MODE"},
 };
 
 //========================================================================
@@ -281,7 +290,7 @@ const std::string& CFOLib::CFO_Compiler::translateOpCode(CFOLib::CFO_Compiler::C
 {
 	try
 	{
-		return CODE_to_OP_TRANSLATION.at(opCode);
+		return CODE_to_OP_TRANSLATION.at((uint8_t)opCode);
 	}
 	catch (...)
 	{
@@ -298,7 +307,7 @@ void CFOLib::CFO_Compiler::outParameter(uint64_t paramBuf)  // Writes the 6 byte
 	for (int i = 0; i < 6; ++i)
 	{
 		output_.push_back(paramBufPtr[i]);
-		__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << ((uint16_t)output_.back() & 0x0FF) << __E__;
+		__COUTT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << ((uint16_t)output_.back() & 0x0FF) << __E__;
 	}
 }  // end outParameter()
 
@@ -311,7 +320,7 @@ void CFOLib::CFO_Compiler::processOp()
 	// calculate line numbers that match this hexdump call (all usage of bin is relative/differences):
 	//		hexdump -e '"%08_ax | " 1/8 "%016x "' -e '"\n"'  CFOCommands.bin | cat -n
 	binLineNumber_ = 1 + output_.size() / 8;
-	__COUT__ << "binLineNumber_: " << (int)binLineNumber_ << __E__;
+	__COUTT__ << "binLineNumber_: " << (int)binLineNumber_ << __E__;
 
 	CFO_INSTR instructionOpcode = parseInstruction(opArguments_[0]);
 	if (instructionOpcode == CFO_INSTR::INVALID)
@@ -321,22 +330,22 @@ void CFOLib::CFO_Compiler::processOp()
 	}
 
 	int64_t parameterCalc = calculateParameterAndErrorCheck(instructionOpcode);
-	__COUTV__((int)instructionOpcode);
-	__COUTV__(parameterCalc);
+	__COUTTV__((int)instructionOpcode);
+	__COUTTV__(parameterCalc);
 
 	if (instructionOpcode == CFO_INSTR::SET_MODE_BITS ||
 		instructionOpcode == CFO_INSTR::SET_MODE)
 	{
-		__COUT__ << "MASK off 0x" << std::hex << modeClearMask_ << __E__;
+		__COUTT__ << "MASK off 0x" << std::hex << modeClearMask_ << __E__;
 		// treat as two ops: an AND and an OR
 		outParameter(modeClearMask_);
 		output_.push_back(0x00);
-		__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
+		__COUTT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
 		output_.push_back(static_cast<char>(CFO_INSTR::AND_MODE_BITS));
-		__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
+		__COUTT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
 
 		instructionOpcode = CFO_INSTR::OR_MODE_BITS;
-		__COUT__ << "MASK on 0x" << std::hex << parameterCalc << __E__;
+		__COUTT__ << "MASK on 0x" << std::hex << parameterCalc << __E__;
 	}
 
 	outParameter(parameterCalc);
@@ -351,9 +360,9 @@ void CFOLib::CFO_Compiler::processOp()
 		instructionOpcode = CFO_INSTR::AND_MODE_BITS;
 
 	output_.push_back(0x00);
-	__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
+	__COUTT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
 	output_.push_back(static_cast<char>(instructionOpcode));
-	__COUT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
+	__COUTT__ << "[" << output_.size() << "] ==> output_ 0x" << std::hex << std::setfill('0') << std::setprecision(2) << (uint16_t)output_.back() << __E__;
 
 }  // end processOp()
 
@@ -365,7 +374,7 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 	size_t opArgCount = opArguments_.size();
 	modeClearMask_ = 0;  // clear
 
-	__COUT__ << "calculateParameterAndErrorCheck... Instruction: " << opArguments_[0] << ", Parameter count: " << opArgCount << __E__;
+	__COUTT__ << "calculateParameterAndErrorCheck... Instruction: " << opArguments_[0] << ", Parameter count: " << opArgCount << __E__;
 
 	uint64_t value;
 
@@ -492,13 +501,13 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 			}
 			// test floating point in case integer conversion dropped something
 			double timeValue = strtod(opArguments_[1].c_str(), 0);
-			__COUTV__(timeValue);
+			__COUTTV__(timeValue);
 			if (timeValue < value)
 				timeValue = value;
 
-			__COUTV__(FPGAClock_);
-			__COUTV__(value);
-			__COUTV__(timeValue);
+			__COUTTV__(FPGAClock_);
+			__COUTTV__(value);
+			__COUTTV__(timeValue);
 
 			if (opArguments_[2] == "s")  // Wait wanted in seconds
 				return timeValue * 1e9 / FPGAClock_;
@@ -540,7 +549,7 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 					   << "Use 0x### to indicate hex and b### to indicate binary; otherwise, decimal is inferred." << __E__;
 				__SS_THROW__;
 			}
-			__COUT__ << "loopStack_ = " << binLineNumber_ << " at " << loopStack_.size() << __E__;
+			__COUTT__ << "loopStack_ = " << binLineNumber_ << " at " << loopStack_.size() << __E__;
 			loopStack_.push_back(binLineNumber_);
 			return value;
 
@@ -555,9 +564,9 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 				uint64_t loopLine;
 				loopLine = loopStack_.back();
 				value = (binLineNumber_ - loopLine);
-				__COUT__ << "DO_LOOP from [" << binLineNumber_ << "], loop line popped = " << loopLine << ", must go back	" << value << " lines.";
+				__COUTT__ << "DO_LOOP from [" << binLineNumber_ << "], loop line popped = " << loopLine << ", must go back	" << value << " lines.";
 				loopStack_.pop_back();
-				__COUT__ << "DO_LOOP loopStack_ " << loopStack_.size() << " w/parameterCalc=" << value;
+				__COUTT__ << "DO_LOOP loopStack_ " << loopStack_.size() << " w/parameterCalc=" << value;
 				return value;
 			}
 			else
@@ -594,12 +603,12 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 			}
 			opArguments_.push_back(MAIN_GOTO_LABEL);  // force label MAIN because only one GOTO ever makes sense if jumping in and out of loops is not allowed (since there are on IF statements)
 			opArguments_[1] = MAIN_GOTO_LABEL;        // in case of comments, push_back doesnt work
-			__COUT__ << "Goto lookup label '" << opArguments_[1] << "'" << __E__;
+			__COUTT__ << "Goto lookup label '" << opArguments_[1] << "'" << __E__;
 
 			if (labelMap_.find(opArguments_[1]) == labelMap_.end())
 			{
 				for (auto& labelPair : labelMap_)
-					__COUTV__(labelPair.first);
+					__COUTTV__(labelPair.first);
 				__SS__ << "Missing label '" << opArguments_[1] << "' needed for GOTO at line " << txtLineNumber_ << __E__;
 				__SS_THROW__;
 			}
@@ -622,7 +631,7 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 			opArguments_.push_back(MAIN_GOTO_LABEL);
 			opArguments_[1] = MAIN_GOTO_LABEL;  // in case of comments, push_back doesnt work
 
-			__COUT__ << "Saving map for label '" << opArguments_[1] << "' to line " << binLineNumber_ << __E__;
+			__COUTT__ << "Saving map for label '" << opArguments_[1] << "' to line " << binLineNumber_ << __E__;
 			if (labelMap_.find(opArguments_[1]) != labelMap_.end())
 			{
 				__SS__ << "On Line " << txtLineNumber_ << ", " << opArguments_[0] << " encountered when one already exists in the run plan. Only one " << opArguments_[0] << " allowed in a run plan." << __E__;
@@ -633,7 +642,8 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 					   // otherwise, a normal noop label
 		case CFO_INSTR::SET_MODE_BITS:
 		case CFO_INSTR::AND_MODE_BITS:
-		case CFO_INSTR::OR_MODE_BITS: {
+		case CFO_INSTR::OR_MODE_BITS:
+		case CFO_INSTR::OR_SINGLESHOT_MODE_BITS: {
 			if (opArgCount != 7 ||
 				opArguments_[1] != "start_bit" ||
 				opArguments_[3] != "bit_count" ||
@@ -691,13 +701,16 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 				opArguments_[6][0] != '~')  // only if not an inverted value
 			{
 				__SS__ << "On Line (" << txtLineNumber_ << "), "
-					   << "the set value range is defined by bit_count, and so must be an integer between 0 and 2^" << bitCount << "(bit_count) - 1. The value is " << value << " which is greater than or equal to max range " << (uint64_t(1) << bitCount) << __E__;
+					   << "the set value range is defined by bit_count, and so must be an integer between 0 and 2^"
+					   << "(bit_count=" << bitCount << ") - 1. The value is " << value << " which is greater than or equal to max range = " << (uint64_t(1) << bitCount) << __E__;
+				ss << "\n\n"
+				   << "If an inverted value is intended, use '~' before the number to indicate inversion, and the value will be masked to fit within the bit_count range.";
 				__SS_THROW__;
 			}
 
-			__COUTV__(startBit);
-			__COUTV__(bitCount);
-			__COUTV__(value);
+			__COUTTV__(startBit);
+			__COUTTV__(bitCount);
+			__COUTTV__(value);
 			uint64_t bitmask = 0;
 			for (uint16_t i = startBit; i < startBit + bitCount; ++i)
 				bitmask |= (uint64_t(1) << i);
@@ -706,11 +719,11 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 			{
 				case CFO_INSTR::SET_MODE_BITS:  // treat SET_MODE_BITS as two ops in hardware: an AND and an OR
 
-					__COUT__ << "bitmask 0x" << std::hex << bitmask << __E__;
+					__COUTT__ << "bitmask 0x" << std::hex << bitmask << __E__;
 					value <<= startBit;         // shift then mask
 					value &= bitmask;           // force bitcount in case of ~ inverted value
 					modeClearMask_ = ~bitmask;  // CLEAR
-					__COUT__ << "modeClearMask_ 0x" << std::hex << modeClearMask_ << __E__;
+					__COUTT__ << "modeClearMask_ 0x" << std::hex << modeClearMask_ << __E__;
 					return value;  // SET
 
 				case CFO_INSTR::AND_MODE_BITS:
@@ -720,13 +733,14 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 					return value;        // AND
 
 				case CFO_INSTR::OR_MODE_BITS:
+				case CFO_INSTR::OR_SINGLESHOT_MODE_BITS:
 
 					value <<= startBit;  // shift then mask
 					value &= bitmask;    // force ignore outside of bitcount in case of ~ inverted value
-					return value;        // OR
+					return value;        // OR / OR (single-shot)
 
 				default: {
-					__COUTV__((int)instructionOpcode);
+					__COUTTV__((int)instructionOpcode);
 					__SS__ << "On Line " << txtLineNumber_ << ", invalid instruction '" << opArguments_[0] << "' encountered.'" << __E__;
 					__SS_THROW__;
 				}
@@ -807,7 +821,7 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 			return value;        // SET
 		}
 		default: {
-			__COUTV__((int)instructionOpcode);
+			__COUTTV__((int)instructionOpcode);
 			__SS__ << "On Line " << txtLineNumber_ << ", invalid instruction '" << opArguments_[0] << "' encountered.'" << __E__;
 			__SS_THROW__;
 		}
@@ -823,7 +837,7 @@ uint64_t CFOLib::CFO_Compiler::calculateParameterAndErrorCheck(CFO_INSTR instruc
 template<class T>
 bool getNumber(const std::string& s, T& retValue)
 {
-	//__COUTV__(s);
+	__COUTVS__(2, s);
 
 	// extract set of potential numbers and operators
 	std::vector<std::string> numbers;
@@ -835,8 +849,8 @@ bool getNumber(const std::string& s, T& retValue)
 						/*whitespace*/ std::set<char>({' ', '\t', '\n', '\r'}),
 						&ops);
 
-	// __COUTV__(vectorToString(numbers));
-	// __COUTV__(vectorToString(ops));
+	__COUTVS__(2, vectorToString(numbers));
+	__COUTVS__(2, vectorToString(ops));
 
 	retValue = 0;  // initialize
 
@@ -860,7 +874,7 @@ bool getNumber(const std::string& s, T& retValue)
 
 		verified = false;
 
-		// __COUTV__(number);
+		__COUTVS__(2, number);
 
 		// check integer types
 		if (typeid(unsigned int) == typeid(retValue) || typeid(int) == typeid(retValue) || typeid(unsigned long long) == typeid(retValue) ||
@@ -869,7 +883,7 @@ bool getNumber(const std::string& s, T& retValue)
 		{
 			if (number.find("0x") == 0)  // indicates hex
 			{
-				// __COUT__ << "0x found" << __E__;
+				__COUTS__(2) << "0x found" << __E__;
 				for (unsigned int i = 2; i < number.size(); ++i)
 				{
 					if (!((number[i] >= '0' && number[i] <= '9') || (number[i] >= 'A' && number[i] <= 'F') || (number[i] >= 'a' && number[i] <= 'f')))
@@ -882,7 +896,7 @@ bool getNumber(const std::string& s, T& retValue)
 			}
 			else if (number[0] == 'b')  // indicates binary
 			{
-				// __COUT__ << "b found" << __E__;
+				__COUTS__(2) << "b found" << __E__;
 
 				for (unsigned int i = 1; i < number.size(); ++i)
 				{
@@ -912,7 +926,7 @@ bool getNumber(const std::string& s, T& retValue)
 				 typeid(long long) == typeid(retValue) || typeid(unsigned long) == typeid(retValue) || typeid(long) == typeid(retValue) ||
 				 typeid(unsigned short) == typeid(retValue) || typeid(short) == typeid(retValue) || typeid(uint8_t) == typeid(retValue))
 		{
-			// __COUTV__(number[1]);
+			__COUTVS__(2, number);
 			if (number.size() > 2 && number[1] == 'x')  // assume hex value
 				tmpValue = (T)strtol(number.c_str(), 0, 16);
 			else if (number.size() > 1 && number[0] == 'b')            // assume binary value
@@ -922,7 +936,7 @@ bool getNumber(const std::string& s, T& retValue)
 		}
 		else  // just try!
 		{
-			// __COUTV__(number[1]);
+			__COUTVS__(2, number);
 			if (number.size() > 2 && number[1] == 'x')  // assume hex value
 				tmpValue = (T)strtol(number.c_str(), 0, 16);
 			else if (number.size() > 1 && number[0] == 'b')            // assume binary value
@@ -934,7 +948,7 @@ bool getNumber(const std::string& s, T& retValue)
 			// __SS_THROW__;
 		}
 
-		// __COUTV__(tmpValue);
+		__COUTVS__(2, tmpValue);
 
 		// apply operation
 		if (i == 0)  // first value, no operation, just take value
@@ -947,7 +961,7 @@ bool getNumber(const std::string& s, T& retValue)
 					retValue *= -1;
 				else if (ops[opsi] == '~')  // handle bit invert
 					retValue = ~tmpValue;
-				__COUT__ << "Op " << (ops.size() ? ops[opsi] : '_') << " intermediate value = " << std::dec << retValue << " 0x" << std::hex << retValue << __E__;
+				__COUTT__ << "Op " << (ops.size() ? ops[opsi] : '_') << " intermediate value = " << std::dec << retValue << " 0x" << std::hex << retValue << __E__;
 				opsi++;  // jump to first internal op
 			}
 		}
@@ -955,13 +969,13 @@ bool getNumber(const std::string& s, T& retValue)
 		{
 			if (0 && i == 1)  // display what we are dealing with
 			{
-				__COUTV__(vectorToString(numbers));
-				__COUTV__(vectorToString(ops));
+				__COUTTV__(vectorToString(numbers));
+				__COUTTV__(vectorToString(ops));
 			}
-			__COUTV__(opsi);
-			__COUTV__(ops[opsi]);
-			__COUTV__(tmpValue);
-			__COUT__ << "Intermediate value = " << std::dec << retValue << " 0x" << std::hex << retValue << __E__;
+			__COUTTV__(opsi);
+			__COUTTV__(ops[opsi]);
+			__COUTTV__(tmpValue);
+			__COUTT__ << "Intermediate value = " << std::dec << retValue << " 0x" << std::hex << retValue << __E__;
 
 			switch (ops[opsi])
 			{
@@ -983,10 +997,10 @@ bool getNumber(const std::string& s, T& retValue)
 					__SS_THROW__;
 			}
 
-			__COUT__ << "Op " << (ops.size() ? ops[opsi] : '_') << " intermediate value = " << std::dec << retValue << " 0x" << std::hex << retValue << __E__;
+			__COUTT__ << "Op " << (ops.size() ? ops[opsi] : '_') << " intermediate value = " << std::dec << retValue << " 0x" << std::hex << retValue << __E__;
 			++opsi;
 		}
-		__COUT__ << i << ": Op intermediate value = " << std::dec << retValue << " 0x" << std::hex << retValue << __E__;
+		__COUTT__ << i << ": Op intermediate value = " << std::dec << retValue << " 0x" << std::hex << retValue << __E__;
 
 		++i;  // increment index for next number/op
 
