@@ -2166,6 +2166,11 @@ void DTCLib::DTC_Registers::ClearROCTimeoutError(DTC_Link_ID const& link)
 	WriteRegister_(data.to_ulong(), DTC_Register_ROCReplyTimeoutError);
 }
 
+uint32_t DTCLib::DTC_Registers::ReadROCReplyTimeoutErrorRegister()
+{
+	return ReadRegister_(DTC_Register_ROCReplyTimeoutError);
+}
+
 /// <summary>
 /// Formats the register's current value for register dumps
 /// </summary>
@@ -2455,6 +2460,8 @@ uint32_t DTCLib::DTC_Registers::ReadEVBStats(DTC_EVBStatsType type, uint8_t dtc_
 
 	WriteRegister_(t, DTC_Register_EVBStats);
 
+	// first read drains any stale capture from the TX FSM holding the BRAM port
+	ReadRegister_(DTC_Register_EVBStats);
 	return ReadRegister_(DTC_Register_EVBStats);
 }  // end ReadEVBStats()
 
@@ -7463,6 +7470,43 @@ DTCLib::DTC_Register DTCLib::DTC_Registers::GetTXEventWindowMarkerCountLinkRegis
 }  // end GetTXEventWindowMarkerCountLinkRegister()
 
 // TX Null Heartbeat Packet Count
+// Receive DH Timeout Count
+uint32_t DTCLib::DTC_Registers::ReadReceiveDHTimeoutCount(DTC_Link_ID const& link, std::optional<uint32_t> val)
+{
+	return val.has_value() ? *val : ReadRegister_(GetReceiveDHTimeoutCountLinkRegister(link));
+}  // end ReadReceiveDHTimeoutCount()
+
+DTCLib::DTC_Register DTCLib::DTC_Registers::GetReceiveDHTimeoutCountLinkRegister(DTC_Link_ID const& link)
+{
+	DTC_Register reg;
+	switch (link)
+	{
+		case DTC_Link_0:
+			reg = DTC_Register_ReceiveDHTimeoutCount_Link0;
+			break;
+		case DTC_Link_1:
+			reg = DTC_Register_ReceiveDHTimeoutCount_Link1;
+			break;
+		case DTC_Link_2:
+			reg = DTC_Register_ReceiveDHTimeoutCount_Link2;
+			break;
+		case DTC_Link_3:
+			reg = DTC_Register_ReceiveDHTimeoutCount_Link3;
+			break;
+		case DTC_Link_4:
+			reg = DTC_Register_ReceiveDHTimeoutCount_Link4;
+			break;
+		case DTC_Link_5:
+			reg = DTC_Register_ReceiveDHTimeoutCount_Link5;
+			break;
+		default: {
+			__SS__ << "Illegal link index provided: " << link << __E__;
+			__SS_THROW__;
+		}
+	}
+	return reg;
+}  // end GetReceiveDHTimeoutCountLinkRegister()
+
 uint32_t DTCLib::DTC_Registers::ReadTXNullHeartbeatCount(DTC_Link_ID const& link, std::optional<uint32_t> val)
 {
 	return val.has_value() ? *val : ReadRegister_(GetTXNullHeartbeatCountLinkRegister(link));
@@ -7708,7 +7752,8 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatCFOCDCDiag()
 ///        Encoded as 0xTMmm where T is type (B = EVBuilding), M is major, mm is minor.
 std::string DTCLib::DTC_Registers::ReadEVBFirmwareVersion(std::optional<uint32_t> val)
 {
-	uint16_t ver = ReadEVBROCInputWords(val);
+	uint32_t reg = val.has_value() ? *val : ReadRegister_(CFOandDTC_Register_DesignVersion);
+	uint16_t ver = reg & 0xFFFF;
 	char type = static_cast<char>((ver >> 12) & 0xF);
 	int major = (ver >> 8) & 0xF;
 	int minor = ver & 0xFF;
@@ -7721,8 +7766,8 @@ std::string DTCLib::DTC_Registers::ReadEVBFirmwareVersion(std::optional<uint32_t
 DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDeviceTimeAlive()
 {
 	auto form = CFOandDTC_Registers::FormatDeviceTimeAlive();
-	uint16_t evbRaw = ReadEVBROCInputWords();
-	uint8_t typeNibble = (evbRaw >> 12) & 0xF;
+	uint32_t designVer = ReadRegister_(CFOandDTC_Register_DesignVersion);
+	uint8_t typeNibble = (designVer >> 12) & 0xF;
 	if (typeNibble == 0xB)  // 'B' = EVB firmware present
 	{
 		auto& line = form.vals.back();
@@ -7733,7 +7778,7 @@ DTCLib::RegisterFormatter DTCLib::DTC_Registers::FormatDeviceTimeAlive()
 		{
 			while (pos > 0 && line[pos - 1] != ' ')
 				--pos;
-			line.insert(pos, "EVB  ");
+			line.insert(pos, "EVB ");
 		}
 		else
 			line += ", EVB";
